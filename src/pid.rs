@@ -15,12 +15,20 @@ fn get_workflow_context_path() -> PathBuf {
     get_agent_dir().join("workflow.json")
 }
 
+fn get_killed_marker_path() -> PathBuf {
+    get_agent_dir().join("session.killed")
+}
+
 pub fn write_pid() -> Result<()> {
+    write_pid_for(std::process::id())
+}
+
+pub fn write_pid_for(pid: u32) -> Result<()> {
     let pid_file = get_pid_file_path();
     if let Some(parent) = pid_file.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(&pid_file, std::process::id().to_string())?;
+    std::fs::write(&pid_file, pid.to_string())?;
     Ok(())
 }
 
@@ -39,6 +47,27 @@ pub fn remove_pid() -> Result<()> {
         std::fs::remove_file(&pid_file)?;
     }
     Ok(())
+}
+
+/// Mark that the current session was killed (for workflow to detect interruption)
+pub fn write_killed_marker() -> Result<()> {
+    let marker = get_killed_marker_path();
+    if let Some(parent) = marker.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&marker, "")?;
+    Ok(())
+}
+
+/// Check if the session was killed and clear the marker
+pub fn was_killed() -> bool {
+    let marker = get_killed_marker_path();
+    if marker.exists() {
+        let _ = std::fs::remove_file(&marker);
+        true
+    } else {
+        false
+    }
 }
 
 /// Active workflow context for checkpoint/resume

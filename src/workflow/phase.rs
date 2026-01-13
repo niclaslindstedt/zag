@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 
-use crate::pid;
+use crate::interrupt;
 use crate::session::AgentSession;
 
 use super::state::RunContext;
@@ -90,14 +90,18 @@ impl<'a> PhaseExecutor<'a> {
     /// Execute a phase once.
     async fn execute_once(&mut self, phase: &Phase) -> Result<()> {
         let session = self.create_session(phase)?;
-        self.run_session_with_pid(session).await
+        self.run_session(session).await
     }
 
-    /// Run a session with PID management for `agent kill` support.
-    async fn run_session_with_pid(&self, session: AgentSession) -> Result<()> {
-        pid::write_pid()?;
+    /// Run a session, detecting if it was interrupted.
+    async fn run_session(&self, session: AgentSession) -> Result<()> {
         let result = session.run().await;
-        let _ = pid::remove_pid();
+
+        // Check if interrupted via Ctrl+C
+        if interrupt::was_interrupted() {
+            anyhow::bail!("Session was interrupted");
+        }
+
         result
     }
 
@@ -170,7 +174,7 @@ impl<'a> PhaseExecutor<'a> {
             // Execute the phase itself (if it has a prompt and no nested phases)
             if !phase.prompt.is_empty() && phase.nested_phases.is_empty() {
                 let session = self.create_session(phase)?;
-                self.run_session_with_pid(session).await?;
+                self.run_session(session).await?;
             }
 
             // Execute nested phases

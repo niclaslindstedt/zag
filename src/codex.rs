@@ -1,5 +1,5 @@
 use crate::agent::Agent;
-use crate::process::wait_with_signal_handling;
+use crate::process::wait_with_pid_tracking;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::path::Path;
@@ -73,7 +73,7 @@ impl Codex {
             .stderr(Stdio::inherit());
 
         let child = cmd.spawn()?;
-        wait_with_signal_handling(child).await
+        wait_with_pid_tracking(child).await
     }
 }
 

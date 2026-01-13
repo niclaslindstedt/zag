@@ -209,6 +209,7 @@ async fn main() -> Result<()> {
         }
         Commands::Kill => {
             if let Some(session_pid) = pid::read_pid()? {
+                pid::write_killed_marker()?;
                 kill(Pid::from_raw(session_pid as i32), Signal::SIGTERM)?;
             } else {
                 bail!("No active agent session found");

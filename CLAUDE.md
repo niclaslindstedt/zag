@@ -123,8 +123,8 @@ For interactive phases, the workflow engine automatically injects a completion i
 
 ### Signal Handling
 
-- **CTRL+C (SIGINT)**: Exits the program immediately
-- **`agent kill` (SIGTERM)**: Terminates current session, continues workflow
+- **CTRL+C (SIGINT)**: Interrupts current phase, marks it as failed (workflow is resumable)
+- **`agent kill` (SIGTERM)**: Terminates current session, continues to next phase/iteration
 
 ### Software Workflow Phases
 

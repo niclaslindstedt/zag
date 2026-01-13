@@ -1,12 +1,20 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::signal;
 
-/// Initialize the interrupt handler.
-/// CTRL+C (SIGINT) will exit the program immediately.
-/// This is distinct from `agent kill` which sends SIGTERM.
+static INTERRUPTED: AtomicBool = AtomicBool::new(false);
+
+/// Initialize the interrupt handler for workflows.
+/// CTRL+C (SIGINT) sets the interrupted flag, allowing graceful shutdown.
+/// The workflow will mark the current phase as failed and be resumable.
 pub fn init() {
     tokio::spawn(async {
         signal::ctrl_c().await.ok();
-        println!("\nInterrupted");
-        std::process::exit(130); // 128 + SIGINT(2)
+        INTERRUPTED.store(true, Ordering::SeqCst);
+        println!("\nInterrupted - workflow will be resumable");
     });
+}
+
+/// Check if the process was interrupted by SIGINT.
+pub fn was_interrupted() -> bool {
+    INTERRUPTED.load(Ordering::SeqCst)
 }
