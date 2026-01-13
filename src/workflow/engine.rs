@@ -1,6 +1,8 @@
 use anyhow::{bail, Result};
 use std::collections::HashSet;
 
+use crate::pid::{self, WorkflowContext};
+
 use super::loader::WorkflowLoader;
 use super::phase::PhaseExecutor;
 use super::state::{RunContext, StateManager};
@@ -16,6 +18,7 @@ use super::types::{RunStatus, Workflow};
 pub struct WorkflowEngine {
     loader: WorkflowLoader,
     state_manager: StateManager,
+    root: Option<String>,
 }
 
 impl WorkflowEngine {
@@ -26,6 +29,7 @@ impl WorkflowEngine {
         Self {
             loader: WorkflowLoader::new(),
             state_manager: StateManager::new(root),
+            root: root.map(|s| s.to_string()),
         }
     }
 
@@ -33,6 +37,13 @@ impl WorkflowEngine {
     pub async fn run(&self, workflow_name: &str) -> Result<()> {
         let workflow = self.loader.load(workflow_name)?;
         let mut run_ctx = self.state_manager.create_run(workflow_name)?;
+
+        // Write workflow context for checkpoint command
+        pid::write_workflow_context(&WorkflowContext {
+            workflow: workflow_name.to_string(),
+            run_id: run_ctx.manifest.run_id.clone(),
+            root: self.root.clone(),
+        })?;
 
         println!("Starting workflow: {} v{}", workflow.name, workflow.version);
         if let Some(ref desc) = workflow.description {
@@ -42,7 +53,9 @@ impl WorkflowEngine {
         println!("State directory: {}", run_ctx.state_dir().display());
         println!();
 
-        self.execute_workflow(&workflow, &mut run_ctx).await
+        let result = self.execute_workflow(&workflow, &mut run_ctx).await;
+        let _ = pid::remove_workflow_context();
+        result
     }
 
     /// Resume a paused or failed workflow.
@@ -61,13 +74,22 @@ impl WorkflowEngine {
 
         let mut run_ctx = self.state_manager.resume_run(workflow_name, &run_id)?;
 
+        // Write workflow context for checkpoint command
+        pid::write_workflow_context(&WorkflowContext {
+            workflow: workflow_name.to_string(),
+            run_id: run_id.clone(),
+            root: self.root.clone(),
+        })?;
+
         println!("Resuming workflow: {} v{}", workflow.name, workflow.version);
         println!("Run ID: {}", run_id);
         println!("State directory: {}", run_ctx.state_dir().display());
         println!("Previous status: {:?}", run_ctx.manifest.status);
         println!();
 
-        self.execute_workflow(&workflow, &mut run_ctx).await
+        let result = self.execute_workflow(&workflow, &mut run_ctx).await;
+        let _ = pid::remove_workflow_context();
+        result
     }
 
     /// List available workflows.
@@ -78,6 +100,47 @@ impl WorkflowEngine {
     /// List runs for a workflow.
     pub fn list_runs(&self, workflow_name: &str) -> Result<Vec<String>> {
         self.state_manager.list_runs(workflow_name)
+    }
+
+    /// Checkpoint the current iteration of a running workflow.
+    /// This marks the current iteration as complete so resume will skip it.
+    /// If workflow_name is None, tries to auto-detect from active workflow context.
+    pub fn checkpoint(workflow_name: Option<&str>, run_id: Option<&str>) -> Result<()> {
+        // Try to get context from active workflow, or use provided args
+        let (workflow, run, root) = match pid::read_workflow_context()? {
+            Some(ctx) => (
+                workflow_name.map(|s| s.to_string()).unwrap_or(ctx.workflow),
+                run_id.map(|s| s.to_string()).unwrap_or(ctx.run_id),
+                ctx.root,
+            ),
+            None => {
+                let wf = workflow_name
+                    .ok_or_else(|| anyhow::anyhow!("No active workflow. Provide workflow name."))?;
+                let state_mgr = StateManager::new(None);
+                let rid = run_id.map(|s| s.to_string()).unwrap_or_else(|| {
+                    state_mgr
+                        .find_latest_run(wf)
+                        .ok()
+                        .flatten()
+                        .unwrap_or_default()
+                });
+                (wf.to_string(), rid, None)
+            }
+        };
+
+        if run.is_empty() {
+            bail!("No run ID found for workflow: {}", workflow);
+        }
+
+        let state_mgr = StateManager::new(root.as_deref());
+        let mut run_ctx = state_mgr.resume_run(&workflow, &run)?;
+        run_ctx.checkpoint_iteration()?;
+
+        let phase = run_ctx.manifest.current_phase.as_deref().unwrap_or("?");
+        let iter = run_ctx.manifest.current_iteration.unwrap_or(0);
+        println!("Checkpointed: phase={}, iteration={}", phase, iter);
+
+        Ok(())
     }
 
     /// Get workflow info.

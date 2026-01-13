@@ -176,6 +176,9 @@ pub struct PhaseStatus {
     pub total: Option<usize>,
     #[serde(default)]
     pub error: Option<String>,
+    /// Completed iteration indices (1-based) for iterate phases
+    #[serde(default)]
+    pub completed_iterations: Vec<usize>,
 }
 
 impl PhaseStatus {
@@ -187,6 +190,7 @@ impl PhaseStatus {
             iteration: None,
             total: None,
             error: None,
+            completed_iterations: Vec::new(),
         }
     }
 
@@ -198,6 +202,23 @@ impl PhaseStatus {
             iteration: None,
             total: None,
             error: None,
+            completed_iterations: Vec::new(),
+        }
+    }
+
+    pub fn in_progress_preserving(existing: Option<&PhaseStatus>) -> Self {
+        Self {
+            status: RunStatus::InProgress,
+            started_at: existing
+                .and_then(|e| e.started_at.clone())
+                .or_else(|| Some(chrono::Utc::now().to_rfc3339())),
+            completed_at: None,
+            iteration: None,
+            total: None,
+            error: None,
+            completed_iterations: existing
+                .map(|e| e.completed_iterations.clone())
+                .unwrap_or_default(),
         }
     }
 
@@ -209,6 +230,7 @@ impl PhaseStatus {
             iteration: None,
             total: None,
             error: None,
+            completed_iterations: Vec::new(),
         }
     }
 
@@ -220,6 +242,7 @@ impl PhaseStatus {
             iteration: None,
             total: None,
             error: Some(error),
+            completed_iterations: Vec::new(),
         }
     }
 }

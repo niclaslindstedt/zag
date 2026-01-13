@@ -31,6 +31,8 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/codex.rs` | Codex agent implementation |
 | `src/gemini.rs` | Gemini agent implementation |
 | `src/copilot.rs` | Copilot agent implementation |
+| `src/interrupt.rs` | CTRL+C signal handling |
+| `src/pid.rs` | Session PID and workflow context |
 
 ## Workflow System
 
@@ -47,6 +49,9 @@ agent workflow --list
 
 # Resume interrupted workflow
 agent workflow software --resume
+
+# Checkpoint current iteration (for resume)
+agent workflow --checkpoint
 
 # List previous runs
 agent workflow software --list-runs
@@ -106,7 +111,20 @@ For epic → ticket → follow-up patterns:
 
 ### Automatic Completion
 
-For interactive phases, the workflow engine automatically injects a completion instruction telling the agent to run `agent kill` when done. This allows the workflow to continue to the next phase without manual intervention.
+For interactive phases, the workflow engine automatically injects a completion instruction telling the agent to:
+1. Run `agent workflow --checkpoint` to save progress
+2. Run `agent kill` to continue to the next phase
+
+### Checkpoints and Resume
+
+- **Checkpoint**: Marks current iteration as complete in manifest
+- **Resume**: Skips iterations that have been checkpointed
+- Context stored in `~/.agent/workflow.json` for auto-detection
+
+### Signal Handling
+
+- **CTRL+C (SIGINT)**: Exits the program immediately
+- **`agent kill` (SIGTERM)**: Terminates current session, continues workflow
 
 ### Software Workflow Phases
 

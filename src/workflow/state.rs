@@ -181,6 +181,35 @@ impl RunContext {
         self.save_manifest()
     }
 
+    /// Mark the current iteration as completed (checkpoint).
+    pub fn checkpoint_iteration(&mut self) -> Result<()> {
+        let phase_id = self
+            .manifest
+            .current_phase
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("No current phase"))?;
+        let iteration = self
+            .manifest
+            .current_iteration
+            .ok_or_else(|| anyhow::anyhow!("No current iteration"))?;
+
+        if let Some(status) = self.manifest.phases.get_mut(&phase_id) {
+            if !status.completed_iterations.contains(&iteration) {
+                status.completed_iterations.push(iteration);
+            }
+        }
+        self.save_manifest()
+    }
+
+    /// Check if an iteration is already completed.
+    pub fn is_iteration_completed(&self, phase_id: &str, iteration: usize) -> bool {
+        self.manifest
+            .phases
+            .get(phase_id)
+            .map(|s| s.completed_iterations.contains(&iteration))
+            .unwrap_or(false)
+    }
+
     /// Mark the run as completed.
     pub fn complete(&mut self) -> Result<()> {
         self.manifest.status = RunStatus::Completed;

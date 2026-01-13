@@ -44,8 +44,10 @@ impl<'a> PhaseExecutor<'a> {
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'b>> {
         Box::pin(async move {
             self.run_ctx.set_current_phase(&phase.id)?;
+            // Use in_progress_preserving to keep completed_iterations from previous runs
+            let existing = self.run_ctx.manifest.phases.get(&phase.id);
             self.run_ctx
-                .update_phase_status(&phase.id, PhaseStatus::in_progress())?;
+                .update_phase_status(&phase.id, PhaseStatus::in_progress_preserving(existing))?;
 
             println!("\n=== Phase: {} ===", phase.name);
 
@@ -122,7 +124,20 @@ impl<'a> PhaseExecutor<'a> {
         println!("  Iterating over {} items", total);
 
         for (index, item) in items.iter().enumerate() {
-            self.run_ctx.set_iteration(index + 1, total)?;
+            let iteration_num = index + 1;
+
+            // Skip completed iterations (checkpoint resume)
+            if self.run_ctx.is_iteration_completed(&phase.id, iteration_num) {
+                let default_id = format!("{}", iteration_num);
+                let item_id = item
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(&default_id);
+                println!("\n--- Skipping completed iteration {}/{}: {} ---", iteration_num, total, item_id);
+                continue;
+            }
+
+            self.run_ctx.set_iteration(iteration_num, total)?;
 
             // Set item variable in context
             self.context_template
@@ -130,12 +145,12 @@ impl<'a> PhaseExecutor<'a> {
             self.context_template.set("index", index.to_string());
 
             // Log iteration progress
-            let default_id = format!("{}", index + 1);
+            let default_id = format!("{}", iteration_num);
             let item_id = item
                 .get("id")
                 .and_then(|v| v.as_str())
                 .unwrap_or(&default_id);
-            println!("\n--- Iteration {}/{}: {} ---", index + 1, total, item_id);
+            println!("\n--- Iteration {}/{}: {} ---", iteration_num, total, item_id);
 
             // Execute the phase itself (if it has a prompt and no nested phases)
             if !phase.prompt.is_empty() && phase.nested_phases.is_empty() {
@@ -162,7 +177,7 @@ impl<'a> PhaseExecutor<'a> {
     }
 
     /// Completion instruction automatically appended to interactive phase system prompts.
-    const COMPLETION_INSTRUCTION: &'static str = "\n\n---\nWORKFLOW COMPLETION: When you have completed your task, you MUST run `agent kill` to signal completion and allow the workflow to continue to the next phase. Do not forget this step.";
+    const COMPLETION_INSTRUCTION: &'static str = "\n\n---\nWORKFLOW COMPLETION: When you have completed your task, you MUST run these commands in order:\n1. `agent workflow --checkpoint` - saves progress so workflow can resume from here\n2. `agent kill` - signals completion and continues to the next phase\nDo not forget these steps.";
 
     /// Create an AgentSession for a phase.
     fn create_session(&self, phase: &Phase) -> Result<AgentSession> {

@@ -136,7 +136,11 @@ enum Commands {
         #[arg(short, long)]
         resume: bool,
 
-        /// Specific run ID to resume (defaults to latest)
+        /// Checkpoint the current iteration (mark as complete for resume)
+        #[arg(short, long)]
+        checkpoint: bool,
+
+        /// Specific run ID to resume/checkpoint (defaults to latest)
         #[arg(long)]
         run_id: Option<String>,
 
@@ -213,6 +217,7 @@ async fn main() -> Result<()> {
         Commands::Workflow {
             name,
             resume,
+            checkpoint,
             run_id,
             root,
             list,
@@ -227,6 +232,12 @@ async fn main() -> Result<()> {
                 for w in workflows {
                     println!("  - {}", w);
                 }
+                return Ok(());
+            }
+
+            // Checkpoint can auto-detect workflow from context, so handle before name check
+            if checkpoint {
+                workflow::WorkflowEngine::checkpoint(name.as_deref(), run_id.as_deref())?;
                 return Ok(());
             }
 
