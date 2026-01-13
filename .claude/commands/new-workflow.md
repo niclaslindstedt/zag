@@ -4,7 +4,7 @@ Create a custom workflow for the agent CLI. Workflows define multi-phase AI agen
 
 ## Instructions
 
-1. **Gather Requirements**: Ask the user what the workflow should accomplish
+1. **Gather Requirements**: Ask me what the workflow should accomplish
 2. **Design Phases**: Break down the workflow into logical phases
 3. **Create JSON**: Write the workflow JSON file to `~/.agent/workflows/<name>.json`
 4. **Test**: Run `agent workflow <name>` to test the workflow
@@ -181,6 +181,7 @@ For **non-interactive** phases (where `interactive: false`), the agent exits nat
 5. **Keep prompts focused**: One clear task per phase
 6. **Include context in system prompts**: Reference relevant files
 7. **Use interactive mode for complex tasks**: Allows agent to ask clarifying questions
+8. **Write user-input prompts in first-person**: When a prompt requires user input, use "Ask me which files..." not "Ask the user which files..."
 
 ## Example: Code Review Workflow
 

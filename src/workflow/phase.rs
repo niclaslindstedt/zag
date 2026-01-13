@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 
+use crate::pid;
 use crate::session::AgentSession;
 
 use super::state::RunContext;
@@ -16,6 +17,8 @@ pub struct PhaseExecutor<'a> {
     run_ctx: &'a mut RunContext,
     /// Template engine with accumulated context (epic, ticket, etc.)
     context_template: TemplateEngine,
+    /// Whether we're currently inside an iteration loop (for checkpoint instructions)
+    in_iteration: bool,
 }
 
 impl<'a> PhaseExecutor<'a> {
@@ -32,6 +35,7 @@ impl<'a> PhaseExecutor<'a> {
             defaults,
             run_ctx,
             context_template,
+            in_iteration: false,
         }
     }
 
@@ -86,11 +90,22 @@ impl<'a> PhaseExecutor<'a> {
     /// Execute a phase once.
     async fn execute_once(&mut self, phase: &Phase) -> Result<()> {
         let session = self.create_session(phase)?;
-        session.run().await
+        self.run_session_with_pid(session).await
+    }
+
+    /// Run a session with PID management for `agent kill` support.
+    async fn run_session_with_pid(&self, session: AgentSession) -> Result<()> {
+        pid::write_pid()?;
+        let result = session.run().await;
+        let _ = pid::remove_pid();
+        result
     }
 
     /// Execute a phase for each item in an iteration file.
     async fn execute_iterate(&mut self, phase: &Phase) -> Result<()> {
+        // Mark that we're inside an iteration loop (for checkpoint instructions)
+        self.in_iteration = true;
+
         let iterate_over = phase
             .execution
             .iterate_over
@@ -155,7 +170,7 @@ impl<'a> PhaseExecutor<'a> {
             // Execute the phase itself (if it has a prompt and no nested phases)
             if !phase.prompt.is_empty() && phase.nested_phases.is_empty() {
                 let session = self.create_session(phase)?;
-                session.run().await?;
+                self.run_session_with_pid(session).await?;
             }
 
             // Execute nested phases
@@ -176,8 +191,14 @@ impl<'a> PhaseExecutor<'a> {
         Ok(())
     }
 
-    /// Completion instruction automatically appended to interactive phase system prompts.
-    const COMPLETION_INSTRUCTION: &'static str = "\n\n---\nWORKFLOW COMPLETION: When you have completed your task, you MUST run these commands in order:\n1. `agent workflow --checkpoint` - saves progress so workflow can resume from here\n2. `agent kill` - signals completion and continues to the next phase\nDo not forget these steps.";
+    /// Completion instruction: checkpoint + kill (interactive iteration phases)
+    const COMPLETION_CHECKPOINT_AND_KILL: &'static str = "\n\n---\nWORKFLOW COMPLETION: When you have completed your task, you MUST run these commands in order:\n1. `agent workflow --checkpoint` - saves progress so workflow can resume from here\n2. `agent kill` - signals completion and continues to the next phase\nDo not forget these steps.";
+
+    /// Completion instruction: checkpoint only (non-interactive iteration phases)
+    const COMPLETION_CHECKPOINT_ONLY: &'static str = "\n\n---\nWORKFLOW COMPLETION: When you have completed your task, run `agent workflow --checkpoint` to save progress so the workflow can resume from here if interrupted.";
+
+    /// Completion instruction: kill only (interactive non-iteration phases)
+    const COMPLETION_KILL_ONLY: &'static str = "\n\n---\nWORKFLOW COMPLETION: When you have completed your task, run `agent kill` to signal completion and continue to the next phase.";
 
     /// Create an AgentSession for a phase.
     fn create_session(&self, phase: &Phase) -> Result<AgentSession> {
@@ -205,11 +226,22 @@ impl<'a> PhaseExecutor<'a> {
             .as_ref()
             .map(|s| self.context_template.expand(s));
 
-        // For interactive sessions, automatically inject completion instruction
-        if interactive {
+        // Inject completion instructions based on context:
+        // - Iteration + interactive: checkpoint + kill
+        // - Iteration + non-interactive: checkpoint only
+        // - Non-iteration + interactive: kill only
+        // - Non-iteration + non-interactive: nothing
+        let instruction = match (self.in_iteration, interactive) {
+            (true, true) => Some(Self::COMPLETION_CHECKPOINT_AND_KILL),
+            (true, false) => Some(Self::COMPLETION_CHECKPOINT_ONLY),
+            (false, true) => Some(Self::COMPLETION_KILL_ONLY),
+            (false, false) => None,
+        };
+
+        if let Some(instr) = instruction {
             system_prompt = Some(match system_prompt {
-                Some(sp) => format!("{}{}", sp, Self::COMPLETION_INSTRUCTION),
-                None => Self::COMPLETION_INSTRUCTION.trim_start().to_string(),
+                Some(sp) => format!("{}{}", sp, instr),
+                None => instr.trim_start().to_string(),
             });
         }
 
