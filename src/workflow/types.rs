@@ -1,0 +1,225 @@
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+/// A workflow definition containing phases to execute
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Workflow {
+    pub name: String,
+    pub version: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub defaults: WorkflowDefaults,
+    pub phases: Vec<Phase>,
+}
+
+/// Default settings for all phases in a workflow
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct WorkflowDefaults {
+    #[serde(default = "default_agent")]
+    pub agent: String,
+    #[serde(default)]
+    pub model: Option<String>,
+    #[serde(default)]
+    pub interactive: bool,
+    #[serde(default)]
+    pub skip_permissions: bool,
+}
+
+fn default_agent() -> String {
+    "claude".to_string()
+}
+
+/// A single phase in a workflow
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Phase {
+    /// Unique identifier for this phase
+    pub id: String,
+    /// Human-readable name
+    pub name: String,
+    /// How this phase should be executed
+    pub execution: ExecutionConfig,
+    /// Override default agent for this phase
+    #[serde(default)]
+    pub agent: Option<String>,
+    /// Override default model for this phase
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Override interactive mode for this phase
+    #[serde(default)]
+    pub interactive: Option<bool>,
+    /// Override skip_permissions for this phase
+    #[serde(default)]
+    pub skip_permissions: Option<bool>,
+    /// System prompt with template variables
+    #[serde(default)]
+    pub system_prompt: Option<String>,
+    /// User prompt with template variables
+    pub prompt: String,
+    /// Output configuration
+    #[serde(default)]
+    pub output: Option<OutputConfig>,
+    /// Phase IDs that must complete before this phase
+    #[serde(default)]
+    pub depends_on: Vec<String>,
+    /// Parent phase ID for nested phases
+    #[serde(default)]
+    pub parent: Option<String>,
+    /// Child phase IDs that run within this phase's iteration
+    #[serde(default)]
+    pub nested_phases: Vec<String>,
+}
+
+/// Configuration for how a phase executes
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ExecutionConfig {
+    /// Execution mode: once, iterate, or nested
+    pub mode: ExecutionMode,
+    /// Path to JSON array file for iteration (required if mode=iterate)
+    #[serde(default)]
+    pub iterate_over: Option<String>,
+    /// Variable name for current item in prompt templates
+    #[serde(default = "default_item_variable")]
+    pub item_variable: String,
+    /// Skip iteration if file is missing or empty
+    #[serde(default)]
+    pub skip_if_empty: bool,
+}
+
+fn default_item_variable() -> String {
+    "item".to_string()
+}
+
+/// Execution mode for a phase
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ExecutionMode {
+    /// Run once
+    Once,
+    /// Run for each item in a JSON array
+    Iterate,
+}
+
+/// Output configuration for a phase
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct OutputConfig {
+    /// Output filename template
+    pub filename: String,
+    /// Output format
+    #[serde(default)]
+    pub format: OutputFormat,
+}
+
+/// Output format for phase results
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OutputFormat {
+    #[default]
+    Text,
+    Json,
+    Markdown,
+}
+
+/// Manifest tracking the state of a workflow run
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RunManifest {
+    /// Workflow name
+    pub workflow: String,
+    /// Unique run identifier (timestamp-based)
+    pub run_id: String,
+    /// ISO 8601 timestamp when run started
+    pub started_at: String,
+    /// Current status of the run
+    pub status: RunStatus,
+    /// Currently executing phase ID
+    #[serde(default)]
+    pub current_phase: Option<String>,
+    /// Current epic being processed (for nested workflows)
+    #[serde(default)]
+    pub current_epic: Option<String>,
+    /// Current ticket being processed (for nested workflows)
+    #[serde(default)]
+    pub current_ticket: Option<String>,
+    /// Current iteration index
+    #[serde(default)]
+    pub current_iteration: Option<usize>,
+    /// Total iterations
+    #[serde(default)]
+    pub total_iterations: Option<usize>,
+    /// Status of each phase
+    #[serde(default)]
+    pub phases: HashMap<String, PhaseStatus>,
+}
+
+/// Status of a workflow run
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RunStatus {
+    Pending,
+    InProgress,
+    Completed,
+    Failed,
+    Paused,
+}
+
+/// Status of a single phase
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PhaseStatus {
+    pub status: RunStatus,
+    #[serde(default)]
+    pub started_at: Option<String>,
+    #[serde(default)]
+    pub completed_at: Option<String>,
+    #[serde(default)]
+    pub iteration: Option<usize>,
+    #[serde(default)]
+    pub total: Option<usize>,
+    #[serde(default)]
+    pub error: Option<String>,
+}
+
+impl PhaseStatus {
+    pub fn pending() -> Self {
+        Self {
+            status: RunStatus::Pending,
+            started_at: None,
+            completed_at: None,
+            iteration: None,
+            total: None,
+            error: None,
+        }
+    }
+
+    pub fn in_progress() -> Self {
+        Self {
+            status: RunStatus::InProgress,
+            started_at: Some(chrono::Utc::now().to_rfc3339()),
+            completed_at: None,
+            iteration: None,
+            total: None,
+            error: None,
+        }
+    }
+
+    pub fn completed(started_at: Option<String>) -> Self {
+        Self {
+            status: RunStatus::Completed,
+            started_at,
+            completed_at: Some(chrono::Utc::now().to_rfc3339()),
+            iteration: None,
+            total: None,
+            error: None,
+        }
+    }
+
+    pub fn failed(started_at: Option<String>, error: String) -> Self {
+        Self {
+            status: RunStatus::Failed,
+            started_at,
+            completed_at: Some(chrono::Utc::now().to_rfc3339()),
+            iteration: None,
+            total: None,
+            error: Some(error),
+        }
+    }
+}

@@ -7,7 +7,7 @@ use std::process::Stdio;
 use tokio::fs;
 use tokio::process::Command;
 
-pub const DEFAULT_MODEL: &str = "gemini-2.5-pro";
+pub const DEFAULT_MODEL: &str = "auto";
 
 pub const AVAILABLE_MODELS: &[(&str, &str)] = &[
     ("auto", "Let the system choose the best model for your task"),

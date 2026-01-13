@@ -6,6 +6,7 @@ mod gemini;
 mod pid;
 mod process;
 mod session;
+mod workflow;
 
 use anyhow::{bail, Result};
 use clap::{Parser, Subcommand};
@@ -125,6 +126,31 @@ enum Commands {
     },
     /// Kill the parent agent session
     Kill,
+    /// Run a multi-phase workflow
+    Workflow {
+        /// Workflow name (e.g., "software")
+        name: Option<String>,
+
+        /// Resume a previous run instead of starting fresh
+        #[arg(short, long)]
+        resume: bool,
+
+        /// Specific run ID to resume (defaults to latest)
+        #[arg(long)]
+        run_id: Option<String>,
+
+        /// Root directory for the workflow (default: current directory)
+        #[arg(long)]
+        root: Option<String>,
+
+        /// List available workflows
+        #[arg(short, long)]
+        list: bool,
+
+        /// List runs for a workflow
+        #[arg(long)]
+        list_runs: bool,
+    },
 }
 
 #[tokio::main]
@@ -181,6 +207,47 @@ async fn main() -> Result<()> {
                 kill(Pid::from_raw(session_pid as i32), Signal::SIGTERM)?;
             } else {
                 bail!("No active agent session found");
+            }
+        }
+        Commands::Workflow {
+            name,
+            resume,
+            run_id,
+            root,
+            list,
+            list_runs,
+        } => {
+            let engine = workflow::WorkflowEngine::new(root.as_deref());
+
+            if list {
+                let workflows = engine.list_workflows()?;
+                println!("Available workflows:");
+                for w in workflows {
+                    println!("  - {}", w);
+                }
+                return Ok(());
+            }
+
+            // Name is required for all other operations
+            let name = name.ok_or_else(|| anyhow::anyhow!("Workflow name is required. Use --list to see available workflows."))?;
+
+            if list_runs {
+                let runs = engine.list_runs(&name)?;
+                if runs.is_empty() {
+                    println!("No runs found for workflow: {}", name);
+                } else {
+                    println!("Runs for workflow '{}':", name);
+                    for run in runs {
+                        println!("  - {}", run);
+                    }
+                }
+                return Ok(());
+            }
+
+            if resume {
+                engine.resume(&name, run_id.as_deref()).await?;
+            } else {
+                engine.run(&name).await?;
             }
         }
     }
