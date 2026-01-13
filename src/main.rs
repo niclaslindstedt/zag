@@ -3,6 +3,7 @@ mod claude;
 mod codex;
 mod copilot;
 mod gemini;
+mod interrupt;
 mod pid;
 mod process;
 mod session;
@@ -217,6 +218,7 @@ async fn main() -> Result<()> {
             list,
             list_runs,
         } => {
+            interrupt::init();
             let engine = workflow::WorkflowEngine::new(root.as_deref());
 
             if list {
