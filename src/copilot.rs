@@ -50,7 +50,11 @@ impl Copilot {
         let base = self.get_base_path();
         let instructions_dir = base.join(".github/instructions/agent");
         fs::create_dir_all(&instructions_dir).await?;
-        fs::write(instructions_dir.join("agent.instructions.md"), &self.system_prompt).await?;
+        fs::write(
+            instructions_dir.join("agent.instructions.md"),
+            &self.system_prompt,
+        )
+        .await?;
         Ok(())
     }
 
@@ -142,17 +146,35 @@ impl Agent for Copilot {
 
         // Clean up empty directories
         let agent_dir = base.join(".github/instructions/agent");
-        if agent_dir.exists() && fs::read_dir(&agent_dir).await?.next_entry().await?.is_none() {
+        if agent_dir.exists()
+            && fs::read_dir(&agent_dir)
+                .await?
+                .next_entry()
+                .await?
+                .is_none()
+        {
             fs::remove_dir(&agent_dir).await?;
         }
 
         let instructions_dir = base.join(".github/instructions");
-        if instructions_dir.exists() && fs::read_dir(&instructions_dir).await?.next_entry().await?.is_none() {
+        if instructions_dir.exists()
+            && fs::read_dir(&instructions_dir)
+                .await?
+                .next_entry()
+                .await?
+                .is_none()
+        {
             fs::remove_dir(&instructions_dir).await?;
         }
 
         let github_dir = base.join(".github");
-        if github_dir.exists() && fs::read_dir(&github_dir).await?.next_entry().await?.is_none() {
+        if github_dir.exists()
+            && fs::read_dir(&github_dir)
+                .await?
+                .next_entry()
+                .await?
+                .is_none()
+        {
             fs::remove_dir(&github_dir).await?;
         }
 

@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::collections::HashSet;
 
 use crate::pid::{self, WorkflowContext};
@@ -56,13 +56,20 @@ impl WorkflowEngine {
         println!("State directory: {}", run_ctx.state_dir().display());
         println!();
 
-        let result = self.execute_workflow(&workflow, &mut run_ctx, agent_override).await;
+        let result = self
+            .execute_workflow(&workflow, &mut run_ctx, agent_override)
+            .await;
         let _ = pid::remove_workflow_context();
         result
     }
 
     /// Resume a paused or failed workflow.
-    pub async fn resume(&self, workflow_name: &str, run_id: Option<&str>, agent_override: Option<&str>) -> Result<()> {
+    pub async fn resume(
+        &self,
+        workflow_name: &str,
+        run_id: Option<&str>,
+        agent_override: Option<&str>,
+    ) -> Result<()> {
         let workflow = self.loader.load(workflow_name)?;
 
         let run_id = match run_id {
@@ -93,7 +100,9 @@ impl WorkflowEngine {
         println!("Previous status: {:?}", run_ctx.manifest.status);
         println!();
 
-        let result = self.execute_workflow(&workflow, &mut run_ctx, agent_override).await;
+        let result = self
+            .execute_workflow(&workflow, &mut run_ctx, agent_override)
+            .await;
         let _ = pid::remove_workflow_context();
         result
     }
@@ -205,7 +214,13 @@ impl WorkflowEngine {
             }
 
             // Create executor for this phase and execute
-            let mut executor = PhaseExecutor::new(workflow, &workflow.defaults, run_ctx, agent_override)?;
+            let mut executor = PhaseExecutor::new(
+                workflow,
+                &workflow.defaults,
+                run_ctx,
+                agent_override,
+                self.root.as_deref(),
+            )?;
             if let Err(e) = executor.execute_phase(phase).await {
                 run_ctx.fail(&e.to_string())?;
                 return Err(e);
@@ -225,22 +240,14 @@ impl WorkflowEngine {
             // Validate dependencies exist
             for dep in &phase.depends_on {
                 if !phase_ids.contains(dep.as_str()) {
-                    bail!(
-                        "Phase '{}' depends on unknown phase '{}'",
-                        phase.id,
-                        dep
-                    );
+                    bail!("Phase '{}' depends on unknown phase '{}'", phase.id, dep);
                 }
             }
 
             // Validate parent exists
             if let Some(ref parent) = phase.parent {
                 if !phase_ids.contains(parent.as_str()) {
-                    bail!(
-                        "Phase '{}' has unknown parent '{}'",
-                        phase.id,
-                        parent
-                    );
+                    bail!("Phase '{}' has unknown parent '{}'", phase.id, parent);
                 }
             }
 
@@ -271,21 +278,14 @@ impl WorkflowEngine {
 
             while let Some(current) = stack.pop() {
                 if visited.contains(&current) {
-                    bail!(
-                        "Circular dependency detected involving phase '{}'",
-                        current
-                    );
+                    bail!("Circular dependency detected involving phase '{}'", current);
                 }
                 visited.insert(current.clone());
 
                 if let Some(deps) = dep_map.get(&current) {
                     for dep in deps {
                         if dep == &phase.id {
-                            bail!(
-                                "Circular dependency: '{}' -> ... -> '{}'",
-                                phase.id,
-                                dep
-                            );
+                            bail!("Circular dependency: '{}' -> ... -> '{}'", phase.id, dep);
                         }
                         stack.push(dep.clone());
                     }

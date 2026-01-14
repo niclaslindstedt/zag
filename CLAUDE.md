@@ -98,6 +98,7 @@ agent workflow --delete my-workflow
 | `src/workflow/variables.rs` | Custom variable resolution (env, bash, file, json) |
 | `src/workflow/definitions.rs` | Definition formatting for system prompts |
 | `src/workflow/manage.rs` | Workflow management (create, modify, delete) |
+| `src/workflow/memory.rs` | Memory system for persistent learnings |
 | `workflows/software.json` | Embedded software workflow |
 | `prompts/workflow-reference.md` | System prompt for workflow creation/modification |
 
@@ -274,3 +275,86 @@ Run `agent workflow --create <name>` to create a new workflow with AI assistance
 ### Modifying Workflows
 
 Run `agent workflow --modify <name>` to modify an existing workflow with AI assistance. The AI will read the current workflow, ask what you want to change, and make the modifications. For embedded workflows (like `software`), a copy is created in `~/.agent/workflows/` for modification.
+
+### Memory System
+
+Memories persist learnings across workflow phases and are automatically injected into system prompts. This helps agents remember project-specific patterns, quirks, and solutions to avoid repeating mistakes.
+
+#### Agent Commands
+
+During workflow execution, agents can save learnings:
+
+```bash
+# Add a memory (auto-detects active workflow)
+agent memory add "this project uses snake_case for all variables"
+
+# Add with a category
+agent memory add "API returns 500 for invalid tokens" --category error_handling
+
+# Remove a memory by ID
+agent memory remove 3
+```
+
+#### CLI Commands
+
+```bash
+# List all memories for a workflow
+agent memory list software
+
+# List memories filtered by category
+agent memory list software --category code_style
+
+# Search memories
+agent memory search "snake_case" --workflow software
+
+# Clear all memories (with confirmation)
+agent memory clear software
+
+# Clear without confirmation
+agent memory clear software -y
+```
+
+#### Memory File Location
+
+Memories are stored in `.agent/workflows/<workflow_name>/memory.jsonl` (project-level).
+
+Each entry is a JSON line:
+```json
+{"id":1,"timestamp":"2024-01-15T10:30:00Z","content":"learned something","category":"code_style","phase":"spec"}
+```
+
+#### System Prompt Injection
+
+Memories are injected into the system prompt in this order:
+1. Workflow definitions (prepended)
+2. Phase system_prompt
+3. **Workflow memories** (injected here)
+4. Completion instructions (appended)
+
+Memory format in system prompt:
+```markdown
+## Workflow Memories
+
+The following are learnings from previous phases in this workflow:
+
+- General learning
+- Another learning (from phase: spec)
+
+### Code Style
+
+- Use snake_case for variables
+- Follow existing patterns
+```
+
+#### Disabling Memories
+
+Disable memory injection for a workflow by setting `memory: false` in defaults:
+
+```json
+{
+  "defaults": {
+    "agent": "claude",
+    "memory": false
+  }
+}
+```

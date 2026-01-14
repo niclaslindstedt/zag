@@ -5,10 +5,10 @@
 //! - Modify: Launch an AI agent to help modify existing workflows
 //! - Delete: Remove user-defined workflows from ~/.agent/workflows/
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::path::PathBuf;
 
-use crate::session::{run_sessions, AgentSession};
+use crate::session::{AgentSession, run_sessions};
 
 /// System prompt for workflow creation and modification.
 const SYSTEM_PROMPT: &str = include_str!("../../prompts/workflow-reference.md");
@@ -126,11 +126,7 @@ pub fn delete_workflow(name: &str) -> Result<()> {
     let path = get_workflow_path(name);
 
     if !path.exists() {
-        bail!(
-            "Workflow '{}' not found at {}",
-            name,
-            path.display()
-        );
+        bail!("Workflow '{}' not found at {}", name, path.display());
     }
 
     std::fs::remove_file(&path)?;
@@ -140,9 +136,8 @@ pub fn delete_workflow(name: &str) -> Result<()> {
 }
 
 /// Embedded workflows (must match loader.rs)
-const EMBEDDED_WORKFLOWS: &[(&str, &str)] = &[
-    ("software", include_str!("../../workflows/software.json")),
-];
+const EMBEDDED_WORKFLOWS: &[(&str, &str)] =
+    &[("software", include_str!("../../workflows/software.json"))];
 
 /// Modify an existing workflow with AI assistance.
 ///

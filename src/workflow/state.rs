@@ -142,8 +142,8 @@ impl RunContext {
     /// Save the manifest to disk.
     pub fn save_manifest(&self) -> Result<()> {
         let path = self.run_dir.join("manifest.json");
-        let content = serde_json::to_string_pretty(&self.manifest)
-            .context("Failed to serialize manifest")?;
+        let content =
+            serde_json::to_string_pretty(&self.manifest).context("Failed to serialize manifest")?;
         std::fs::write(&path, content)
             .with_context(|| format!("Failed to write manifest: {}", path.display()))?;
         Ok(())
@@ -249,8 +249,9 @@ impl RunContext {
     pub fn write_file(&self, path: &str, content: &str) -> Result<()> {
         let file_path = self.run_dir.join(path);
         if let Some(parent) = file_path.parent() {
-            std::fs::create_dir_all(parent)
-                .with_context(|| format!("Failed to create parent directory: {}", parent.display()))?;
+            std::fs::create_dir_all(parent).with_context(|| {
+                format!("Failed to create parent directory: {}", parent.display())
+            })?;
         }
         std::fs::write(&file_path, content)
             .with_context(|| format!("Failed to write file: {}", file_path.display()))?;

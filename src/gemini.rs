@@ -11,9 +11,18 @@ pub const DEFAULT_MODEL: &str = "auto";
 
 pub const AVAILABLE_MODELS: &[(&str, &str)] = &[
     ("auto", "Let the system choose the best model for your task"),
-    ("gemini-2.5-pro", "For complex tasks that require deep reasoning and creativity"),
-    ("gemini-2.5-flash", "For tasks that need a balance of speed and reasoning"),
-    ("gemini-2.5-flash-lite", "For simple tasks that need to be done quickly"),
+    (
+        "gemini-2.5-pro",
+        "For complex tasks that require deep reasoning and creativity",
+    ),
+    (
+        "gemini-2.5-flash",
+        "For tasks that need a balance of speed and reasoning",
+    ),
+    (
+        "gemini-2.5-flash-lite",
+        "For simple tasks that need to be done quickly",
+    ),
 ];
 
 pub struct Gemini {
@@ -138,7 +147,13 @@ impl Agent for Gemini {
             fs::remove_file(&system_file).await?;
         }
 
-        if gemini_dir.exists() && fs::read_dir(&gemini_dir).await?.next_entry().await?.is_none() {
+        if gemini_dir.exists()
+            && fs::read_dir(&gemini_dir)
+                .await?
+                .next_entry()
+                .await?
+                .is_none()
+        {
             fs::remove_dir(&gemini_dir).await?;
         }
 

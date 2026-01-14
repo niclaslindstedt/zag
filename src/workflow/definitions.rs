@@ -100,8 +100,14 @@ mod tests {
     #[test]
     fn test_flat_definitions() {
         let mut defs = HashMap::new();
-        defs.insert("epic".to_string(), DefinitionValue::Simple("A large feature".to_string()));
-        defs.insert("ticket".to_string(), DefinitionValue::Simple("A small unit of work".to_string()));
+        defs.insert(
+            "epic".to_string(),
+            DefinitionValue::Simple("A large feature".to_string()),
+        );
+        defs.insert(
+            "ticket".to_string(),
+            DefinitionValue::Simple("A small unit of work".to_string()),
+        );
 
         let template = TemplateEngine::new();
         let result = format_definitions(&defs, &template).unwrap();
@@ -132,8 +138,14 @@ mod tests {
         section.insert("nested".to_string(), "Nested value".to_string());
 
         let mut defs = HashMap::new();
-        defs.insert("flat".to_string(), DefinitionValue::Simple("Flat value".to_string()));
-        defs.insert("section_name".to_string(), DefinitionValue::Section(section));
+        defs.insert(
+            "flat".to_string(),
+            DefinitionValue::Simple("Flat value".to_string()),
+        );
+        defs.insert(
+            "section_name".to_string(),
+            DefinitionValue::Section(section),
+        );
 
         let template = TemplateEngine::new();
         let result = format_definitions(&defs, &template).unwrap();
@@ -141,13 +153,19 @@ mod tests {
         // Flat definitions come first
         let flat_pos = result.find("**flat**").unwrap();
         let section_pos = result.find("### Section Name").unwrap();
-        assert!(flat_pos < section_pos, "Flat definitions should come before sections");
+        assert!(
+            flat_pos < section_pos,
+            "Flat definitions should come before sections"
+        );
     }
 
     #[test]
     fn test_template_expansion() {
         let mut defs = HashMap::new();
-        defs.insert("path".to_string(), DefinitionValue::Simple("Output to {{state_dir}}".to_string()));
+        defs.insert(
+            "path".to_string(),
+            DefinitionValue::Simple("Output to {{state_dir}}".to_string()),
+        );
 
         let mut template = TemplateEngine::new();
         template.set("state_dir", "/tmp/test".to_string());

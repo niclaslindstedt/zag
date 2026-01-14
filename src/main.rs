@@ -9,11 +9,11 @@ mod process;
 mod session;
 mod workflow;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
-use nix::sys::signal::{kill, Signal};
+use nix::sys::signal::{Signal, kill};
 use nix::unistd::Pid;
-use session::{run_sessions, AgentSession};
+use session::{AgentSession, run_sessions};
 
 #[derive(Parser)]
 #[command(name = "agent")]
@@ -21,6 +21,59 @@ use session::{run_sessions, AgentSession};
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+}
+
+#[derive(Subcommand)]
+enum MemoryAction {
+    /// Add a new memory to the active workflow (used by agents to remember learnings)
+    Add {
+        /// The memory content to add
+        content: String,
+
+        /// Category to organize memories (e.g., "code_style", "project_structure")
+        #[arg(short, long)]
+        category: Option<String>,
+
+        /// Workflow name (auto-detected from active workflow if not specified)
+        #[arg(long)]
+        workflow: Option<String>,
+    },
+    /// List all memories for a workflow
+    List {
+        /// Workflow name (auto-detected from active workflow if not specified)
+        workflow: Option<String>,
+
+        /// Filter by category
+        #[arg(short, long)]
+        category: Option<String>,
+    },
+    /// Search memories by content or category
+    Search {
+        /// Search query
+        query: String,
+
+        /// Workflow name (auto-detected from active workflow if not specified)
+        #[arg(long)]
+        workflow: Option<String>,
+    },
+    /// Remove a memory by its ID
+    Remove {
+        /// Memory ID to remove
+        id: usize,
+
+        /// Workflow name (auto-detected from active workflow if not specified)
+        #[arg(long)]
+        workflow: Option<String>,
+    },
+    /// Clear all memories for a workflow
+    Clear {
+        /// Workflow name (required)
+        workflow: String,
+
+        /// Skip confirmation prompt
+        #[arg(short = 'y', long)]
+        yes: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -127,6 +180,11 @@ enum Commands {
     },
     /// Signal workflow phase completion (used by agents during interactive sessions)
     Kill,
+    /// Manage workflow memories (used by agents to remember learnings across phases)
+    Memory {
+        #[command(subcommand)]
+        action: MemoryAction,
+    },
     /// Run a multi-phase workflow
     Workflow {
         /// Workflow name (e.g., "software")
@@ -191,7 +249,15 @@ async fn main() -> Result<()> {
             auto_approve,
             print,
         } => {
-            let session = AgentSession::new("codex", prompt, system_prompt, model, root, auto_approve, !print);
+            let session = AgentSession::new(
+                "codex",
+                prompt,
+                system_prompt,
+                model,
+                root,
+                auto_approve,
+                !print,
+            );
             run_sessions(vec![session]).await?;
         }
         Commands::Claude {
@@ -202,7 +268,15 @@ async fn main() -> Result<()> {
             auto_approve,
             print,
         } => {
-            let session = AgentSession::new("claude", prompt, system_prompt, model, root, auto_approve, !print);
+            let session = AgentSession::new(
+                "claude",
+                prompt,
+                system_prompt,
+                model,
+                root,
+                auto_approve,
+                !print,
+            );
             run_sessions(vec![session]).await?;
         }
         Commands::Gemini {
@@ -213,7 +287,15 @@ async fn main() -> Result<()> {
             auto_approve,
             print,
         } => {
-            let session = AgentSession::new("gemini", prompt, system_prompt, model, root, auto_approve, !print);
+            let session = AgentSession::new(
+                "gemini",
+                prompt,
+                system_prompt,
+                model,
+                root,
+                auto_approve,
+                !print,
+            );
             run_sessions(vec![session]).await?;
         }
         Commands::Copilot {
@@ -224,7 +306,15 @@ async fn main() -> Result<()> {
             auto_approve,
             print,
         } => {
-            let session = AgentSession::new("copilot", prompt, system_prompt, model, root, auto_approve, !print);
+            let session = AgentSession::new(
+                "copilot",
+                prompt,
+                system_prompt,
+                model,
+                root,
+                auto_approve,
+                !print,
+            );
             run_sessions(vec![session]).await?;
         }
         Commands::Kill => {
@@ -233,6 +323,129 @@ async fn main() -> Result<()> {
                 kill(Pid::from_raw(session_pid as i32), Signal::SIGTERM)?;
             } else {
                 bail!("No active agent session found");
+            }
+        }
+        Commands::Memory { action } => {
+            match action {
+                MemoryAction::Add {
+                    content,
+                    category,
+                    workflow,
+                } => {
+                    // Try to get workflow from context if not provided
+                    let (workflow_name, root) = match pid::read_workflow_context()? {
+                        Some(ctx) => (workflow.unwrap_or(ctx.workflow), ctx.root),
+                        None => {
+                            let wf = workflow.ok_or_else(|| {
+                                anyhow::anyhow!("No active workflow. Provide --workflow name.")
+                            })?;
+                            (wf, None)
+                        }
+                    };
+
+                    let manager = workflow::MemoryManager::new(root.as_deref(), &workflow_name);
+                    let id = manager.add(content.clone(), category.clone(), None)?;
+                    let cat_msg = category.map(|c| format!(" [{}]", c)).unwrap_or_default();
+                    println!(
+                        "Added memory #{}{} to workflow '{}'",
+                        id, cat_msg, workflow_name
+                    );
+                }
+                MemoryAction::List { workflow, category } => {
+                    // Try to get workflow from context if not provided
+                    let (workflow_name, root) = match pid::read_workflow_context()? {
+                        Some(ctx) => (workflow.unwrap_or(ctx.workflow), ctx.root),
+                        None => {
+                            let wf = workflow.ok_or_else(|| {
+                                anyhow::anyhow!("No active workflow. Provide workflow name.")
+                            })?;
+                            (wf, None)
+                        }
+                    };
+
+                    let manager = workflow::MemoryManager::new(root.as_deref(), &workflow_name);
+                    let memories = manager.list(category.as_deref())?;
+
+                    if memories.is_empty() {
+                        println!("No memories for workflow '{}'", workflow_name);
+                    } else {
+                        println!("Memories for workflow '{}':", workflow_name);
+                        for memory in memories {
+                            println!("  {}", memory);
+                        }
+                    }
+                }
+                MemoryAction::Search { query, workflow } => {
+                    // Try to get workflow from context if not provided
+                    let (workflow_name, root) = match pid::read_workflow_context()? {
+                        Some(ctx) => (workflow.unwrap_or(ctx.workflow), ctx.root),
+                        None => {
+                            let wf = workflow.ok_or_else(|| {
+                                anyhow::anyhow!("No active workflow. Provide --workflow name.")
+                            })?;
+                            (wf, None)
+                        }
+                    };
+
+                    let manager = workflow::MemoryManager::new(root.as_deref(), &workflow_name);
+                    let results = manager.search(&query)?;
+
+                    if results.is_empty() {
+                        println!(
+                            "No memories matching '{}' in workflow '{}'",
+                            query, workflow_name
+                        );
+                    } else {
+                        println!(
+                            "Found {} memories matching '{}' in workflow '{}':",
+                            results.len(),
+                            query,
+                            workflow_name
+                        );
+                        for entry in results {
+                            let cat = entry
+                                .category
+                                .map(|c| format!(" [{}]", c))
+                                .unwrap_or_default();
+                            println!("  [{}]{} {}", entry.id, cat, entry.content);
+                        }
+                    }
+                }
+                MemoryAction::Remove { id, workflow } => {
+                    // Try to get workflow from context if not provided
+                    let (workflow_name, root) = match pid::read_workflow_context()? {
+                        Some(ctx) => (workflow.unwrap_or(ctx.workflow), ctx.root),
+                        None => {
+                            let wf = workflow.ok_or_else(|| {
+                                anyhow::anyhow!("No active workflow. Provide --workflow name.")
+                            })?;
+                            (wf, None)
+                        }
+                    };
+
+                    let manager = workflow::MemoryManager::new(root.as_deref(), &workflow_name);
+                    if manager.remove(id)? {
+                        println!("Removed memory #{} from workflow '{}'", id, workflow_name);
+                    } else {
+                        println!("Memory #{} not found in workflow '{}'", id, workflow_name);
+                    }
+                }
+                MemoryAction::Clear { workflow, yes } => {
+                    if !yes {
+                        print!("Clear all memories for workflow '{}'? [y/N] ", workflow);
+                        std::io::Write::flush(&mut std::io::stdout())?;
+                        let mut input = String::new();
+                        std::io::stdin().read_line(&mut input)?;
+                        if !input.trim().eq_ignore_ascii_case("y") {
+                            println!("Cancelled.");
+                            return Ok(());
+                        }
+                    }
+
+                    let manager = workflow::MemoryManager::new(None, &workflow);
+                    manager.clear()?;
+                    println!("Cleared all memories for workflow '{}'", workflow);
+                }
             }
         }
         Commands::Workflow {
@@ -264,14 +477,16 @@ async fn main() -> Result<()> {
             // Create a new workflow with AI assistance
             if let Some(workflow_name) = create {
                 let create_agent = agent.as_deref().unwrap_or("claude");
-                workflow::manage::create_workflow(&workflow_name, create_agent, auto_approve).await?;
+                workflow::manage::create_workflow(&workflow_name, create_agent, auto_approve)
+                    .await?;
                 return Ok(());
             }
 
             // Modify an existing workflow with AI assistance
             if let Some(workflow_name) = modify {
                 let modify_agent = agent.as_deref().unwrap_or("claude");
-                workflow::manage::modify_workflow(&workflow_name, modify_agent, auto_approve).await?;
+                workflow::manage::modify_workflow(&workflow_name, modify_agent, auto_approve)
+                    .await?;
                 return Ok(());
             }
 
@@ -288,7 +503,9 @@ async fn main() -> Result<()> {
             }
 
             // Name is required for all other operations
-            let name = name.ok_or_else(|| anyhow::anyhow!("Workflow name is required. Use --list to see available workflows."))?;
+            let name = name.ok_or_else(|| {
+                anyhow::anyhow!("Workflow name is required. Use --list to see available workflows.")
+            })?;
 
             if list_runs {
                 let runs = engine.list_runs(&name)?;
@@ -304,7 +521,9 @@ async fn main() -> Result<()> {
             }
 
             if resume {
-                engine.resume(&name, run_id.as_deref(), agent.as_deref()).await?;
+                engine
+                    .resume(&name, run_id.as_deref(), agent.as_deref())
+                    .await?;
             } else {
                 engine.run(&name, agent.as_deref()).await?;
             }

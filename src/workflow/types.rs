@@ -80,6 +80,13 @@ pub struct WorkflowDefaults {
     pub interactive: bool,
     #[serde(default)]
     pub skip_permissions: bool,
+    /// Whether to inject workflow memories into system prompts (default: true)
+    #[serde(default = "default_memory_enabled")]
+    pub memory: bool,
+}
+
+fn default_memory_enabled() -> bool {
+    true
 }
 
 fn default_agent() -> String {

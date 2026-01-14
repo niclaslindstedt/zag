@@ -4,7 +4,7 @@ use crate::codex::Codex;
 use crate::copilot::Copilot;
 use crate::gemini::Gemini;
 use crate::pid;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 pub struct AgentSession {
     pub system_prompt: Option<String>,

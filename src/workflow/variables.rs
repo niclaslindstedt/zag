@@ -8,7 +8,7 @@
 //! Variables are automatically sorted by dependencies, so they can be
 //! defined in any order and reference each other via `{{var.name}}`.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::collections::{HashMap, HashSet};
 use std::process::Command;
 
@@ -354,7 +354,10 @@ mod tests {
 
         VariableResolver::resolve_all(&variables, &mut template).unwrap();
         // Custom variables are prefixed with "var."
-        assert_eq!(template.get("var.missing_var"), Some(&"default_value".to_string()));
+        assert_eq!(
+            template.get("var.missing_var"),
+            Some(&"default_value".to_string())
+        );
     }
 
     #[test]
@@ -512,7 +515,12 @@ mod tests {
 
         let result = VariableResolver::resolve_all(&variables, &mut template);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Circular dependency"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Circular dependency")
+        );
     }
 
     #[test]
@@ -538,8 +546,7 @@ mod tests {
         let temp_file = temp_dir.join("test_json_simple.json");
         std::fs::write(&temp_file, r#"{"name": "test", "version": "1.0.0"}"#).unwrap();
 
-        let result =
-            VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".name"));
+        let result = VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".name"));
         assert_eq!(result.unwrap(), "test");
 
         std::fs::remove_file(temp_file).unwrap();
@@ -549,7 +556,11 @@ mod tests {
     fn test_resolve_json_nested_field() {
         let temp_dir = std::env::temp_dir();
         let temp_file = temp_dir.join("test_json_nested.json");
-        std::fs::write(&temp_file, r#"{"config": {"database": {"host": "localhost"}}}"#).unwrap();
+        std::fs::write(
+            &temp_file,
+            r#"{"config": {"database": {"host": "localhost"}}}"#,
+        )
+        .unwrap();
 
         let result = VariableResolver::resolve_json(
             temp_file.to_str().unwrap(),
@@ -566,8 +577,7 @@ mod tests {
         let temp_file = temp_dir.join("test_json_array.json");
         std::fs::write(&temp_file, r#"{"items": ["first", "second", "third"]}"#).unwrap();
 
-        let result =
-            VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".items[1]"));
+        let result = VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".items[1]"));
         assert_eq!(result.unwrap(), "second");
 
         std::fs::remove_file(temp_file).unwrap();
@@ -583,10 +593,8 @@ mod tests {
         )
         .unwrap();
 
-        let result = VariableResolver::resolve_json(
-            temp_file.to_str().unwrap(),
-            Some(".users[0].name"),
-        );
+        let result =
+            VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".users[0].name"));
         assert_eq!(result.unwrap(), "alice");
 
         std::fs::remove_file(temp_file).unwrap();
@@ -598,12 +606,10 @@ mod tests {
         let temp_file = temp_dir.join("test_json_number.json");
         std::fs::write(&temp_file, r#"{"count": 42, "price": 19.99}"#).unwrap();
 
-        let result =
-            VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".count"));
+        let result = VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".count"));
         assert_eq!(result.unwrap(), "42");
 
-        let result =
-            VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".price"));
+        let result = VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".price"));
         assert_eq!(result.unwrap(), "19.99");
 
         std::fs::remove_file(temp_file).unwrap();
@@ -615,8 +621,7 @@ mod tests {
         let temp_file = temp_dir.join("test_json_bool.json");
         std::fs::write(&temp_file, r#"{"enabled": true, "debug": false}"#).unwrap();
 
-        let result =
-            VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".enabled"));
+        let result = VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".enabled"));
         assert_eq!(result.unwrap(), "true");
 
         std::fs::remove_file(temp_file).unwrap();
@@ -628,8 +633,7 @@ mod tests {
         let temp_file = temp_dir.join("test_json_null.json");
         std::fs::write(&temp_file, r#"{"value": null}"#).unwrap();
 
-        let result =
-            VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".value"));
+        let result = VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".value"));
         assert_eq!(result.unwrap(), "null");
 
         std::fs::remove_file(temp_file).unwrap();
@@ -653,8 +657,7 @@ mod tests {
         let temp_file = temp_dir.join("test_json_missing.json");
         std::fs::write(&temp_file, r#"{"name": "test"}"#).unwrap();
 
-        let result =
-            VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".missing"));
+        let result = VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".missing"));
         assert!(result.is_err());
 
         std::fs::remove_file(temp_file).unwrap();
@@ -679,8 +682,7 @@ mod tests {
         let temp_file = temp_dir.join("test_json_invalid.json");
         std::fs::write(&temp_file, "not valid json").unwrap();
 
-        let result =
-            VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".field"));
+        let result = VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".field"));
         assert!(result.is_err());
 
         std::fs::remove_file(temp_file).unwrap();
@@ -688,8 +690,7 @@ mod tests {
 
     #[test]
     fn test_resolve_json_missing_file() {
-        let result =
-            VariableResolver::resolve_json("/nonexistent/path.json", Some(".field"));
+        let result = VariableResolver::resolve_json("/nonexistent/path.json", Some(".field"));
         assert!(result.is_err());
     }
 

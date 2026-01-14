@@ -11,9 +11,18 @@ pub const DEFAULT_MODEL: &str = "gpt-5.2-codex";
 
 pub const AVAILABLE_MODELS: &[(&str, &str)] = &[
     ("gpt-5.2-codex", "Latest frontier agentic coding model"),
-    ("gpt-5.1-codex-max", "Codex-optimized flagship for deep and fast reasoning"),
-    ("gpt-5.1-codex-mini", "Optimized for codex. Cheaper, faster, but less capable"),
-    ("gpt-5.2", "Latest frontier model with improvements across knowledge, reasoning and coding"),
+    (
+        "gpt-5.1-codex-max",
+        "Codex-optimized flagship for deep and fast reasoning",
+    ),
+    (
+        "gpt-5.1-codex-mini",
+        "Optimized for codex. Cheaper, faster, but less capable",
+    ),
+    (
+        "gpt-5.2",
+        "Latest frontier model with improvements across knowledge, reasoning and coding",
+    ),
 ];
 
 pub struct Codex {
@@ -130,7 +139,13 @@ impl Agent for Codex {
             fs::remove_file(&agents_file).await?;
         }
 
-        if codex_dir.exists() && fs::read_dir(&codex_dir).await?.next_entry().await?.is_none() {
+        if codex_dir.exists()
+            && fs::read_dir(&codex_dir)
+                .await?
+                .next_entry()
+                .await?
+                .is_none()
+        {
             fs::remove_dir(&codex_dir).await?;
         }
 

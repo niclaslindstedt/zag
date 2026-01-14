@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::path::PathBuf;
 
 use super::types::Workflow;
@@ -78,9 +78,10 @@ impl WorkflowLoader {
 
     /// Get information about embedded workflows.
     pub fn get_embedded_info() -> Vec<(&'static str, &'static str)> {
-        vec![
-            ("software", "Epic-based software development with review loops"),
-        ]
+        vec![(
+            "software",
+            "Epic-based software development with review loops",
+        )]
     }
 
     fn parse_workflow(&self, content: &str, source: &str) -> Result<Workflow> {

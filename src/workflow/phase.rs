@@ -7,6 +7,7 @@ use crate::interrupt;
 use crate::session::AgentSession;
 
 use super::definitions;
+use super::memory::{self, MemoryManager};
 use super::state::RunContext;
 use super::template::TemplateEngine;
 use super::types::{ExecutionMode, Phase, PhaseStatus, Workflow, WorkflowDefaults};
@@ -23,6 +24,10 @@ pub struct PhaseExecutor<'a> {
     in_iteration: bool,
     /// Optional agent override from CLI (takes precedence over workflow/phase settings)
     agent_override: Option<String>,
+    /// Memory manager for loading workflow memories
+    memory_manager: MemoryManager,
+    /// Whether memory injection is enabled for this workflow
+    memory_enabled: bool,
 }
 
 impl<'a> PhaseExecutor<'a> {
@@ -31,12 +36,17 @@ impl<'a> PhaseExecutor<'a> {
         defaults: &'a WorkflowDefaults,
         run_ctx: &'a mut RunContext,
         agent_override: Option<&str>,
+        project_root: Option<&str>,
     ) -> Result<Self> {
         let mut context_template = TemplateEngine::new();
         context_template.set_state_dir(&run_ctx.state_dir_str());
 
         // Resolve workflow variables
         VariableResolver::resolve_all(&workflow.variables, &mut context_template)?;
+
+        // Initialize memory manager
+        let memory_manager = MemoryManager::new(project_root, &workflow.name);
+        let memory_enabled = defaults.memory;
 
         Ok(Self {
             workflow,
@@ -45,6 +55,8 @@ impl<'a> PhaseExecutor<'a> {
             context_template,
             in_iteration: false,
             agent_override: agent_override.map(|s| s.to_string()),
+            memory_manager,
+            memory_enabled,
         })
     }
 
@@ -87,8 +99,10 @@ impl<'a> PhaseExecutor<'a> {
                         .phases
                         .get(&phase.id)
                         .and_then(|s| s.started_at.clone());
-                    self.run_ctx
-                        .update_phase_status(&phase.id, PhaseStatus::failed(started_at, e.to_string()))?;
+                    self.run_ctx.update_phase_status(
+                        &phase.id,
+                        PhaseStatus::failed(started_at, e.to_string()),
+                    )?;
                 }
             }
 
@@ -140,8 +154,13 @@ impl<'a> PhaseExecutor<'a> {
         let items_content = std::fs::read_to_string(&items_path)
             .with_context(|| format!("Failed to read iteration file: {}", items_path))?;
 
-        let items: Vec<serde_json::Value> = serde_json::from_str(&items_content)
-            .with_context(|| format!("Failed to parse iteration file as JSON array: {}", items_path))?;
+        let items: Vec<serde_json::Value> =
+            serde_json::from_str(&items_content).with_context(|| {
+                format!(
+                    "Failed to parse iteration file as JSON array: {}",
+                    items_path
+                )
+            })?;
 
         if items.is_empty() && phase.execution.skip_if_empty {
             println!("  Skipping iteration: empty array");
@@ -155,13 +174,19 @@ impl<'a> PhaseExecutor<'a> {
             let iteration_num = index + 1;
 
             // Skip completed iterations (checkpoint resume)
-            if self.run_ctx.is_iteration_completed(&phase.id, iteration_num) {
+            if self
+                .run_ctx
+                .is_iteration_completed(&phase.id, iteration_num)
+            {
                 let default_id = format!("{}", iteration_num);
                 let item_id = item
                     .get("id")
                     .and_then(|v| v.as_str())
                     .unwrap_or(&default_id);
-                println!("\n--- Skipping completed iteration {}/{}: {} ---", iteration_num, total, item_id);
+                println!(
+                    "\n--- Skipping completed iteration {}/{}: {} ---",
+                    iteration_num, total, item_id
+                );
                 continue;
             }
 
@@ -178,7 +203,10 @@ impl<'a> PhaseExecutor<'a> {
                 .get("id")
                 .and_then(|v| v.as_str())
                 .unwrap_or(&default_id);
-            println!("\n--- Iteration {}/{}: {} ---", iteration_num, total, item_id);
+            println!(
+                "\n--- Iteration {}/{}: {} ---",
+                iteration_num, total, item_id
+            );
 
             // Execute the phase itself (if it has a prompt and no nested phases)
             if !phase.prompt.is_empty() && phase.nested_phases.is_empty() {
@@ -205,13 +233,13 @@ impl<'a> PhaseExecutor<'a> {
     }
 
     /// Completion instruction: checkpoint + kill (interactive iteration phases)
-    const COMPLETION_CHECKPOINT_AND_KILL: &'static str = "\n\n---\nWORKFLOW COMPLETION: When you have completed your task, you MUST run these commands in order:\n1. `agent workflow --checkpoint` - saves progress so workflow can resume from here\n2. `agent kill` - signals completion and continues to the next phase\nDo not forget these steps.";
+    const COMPLETION_CHECKPOINT_AND_KILL: &'static str = "\n\n---\nWORKFLOW COMPLETION: When you have completed your task, you MUST run these commands in order:\n1. `agent workflow --checkpoint` - saves progress so workflow can resume from here\n2. `agent kill` - signals completion and continues to the next phase\n\nWORKFLOW MEMORY: If you learned something important about this project that should be remembered for future phases (e.g., project structure quirks, special patterns, common mistakes to avoid), save it with:\n`agent memory add \"what you learned\"` (optionally: `--category <category>`)\nDo not forget these steps.";
 
     /// Completion instruction: checkpoint only (non-interactive iteration phases)
-    const COMPLETION_CHECKPOINT_ONLY: &'static str = "\n\n---\nWORKFLOW COMPLETION: When you have completed your task, run `agent workflow --checkpoint` to save progress so the workflow can resume from here if interrupted.";
+    const COMPLETION_CHECKPOINT_ONLY: &'static str = "\n\n---\nWORKFLOW COMPLETION: When you have completed your task, run `agent workflow --checkpoint` to save progress so the workflow can resume from here if interrupted.\n\nWORKFLOW MEMORY: If you learned something important, save it with `agent memory add \"what you learned\"`.";
 
     /// Completion instruction: kill only (interactive non-iteration phases)
-    const COMPLETION_KILL_ONLY: &'static str = "\n\n---\nWORKFLOW COMPLETION: When you have completed your task, run `agent kill` to signal completion and continue to the next phase.";
+    const COMPLETION_KILL_ONLY: &'static str = "\n\n---\nWORKFLOW COMPLETION: When you have completed your task, run `agent kill` to signal completion and continue to the next phase.\n\nWORKFLOW MEMORY: If you learned something important about this project that should be remembered for future phases (e.g., project structure quirks, special patterns, common mistakes to avoid), save it with:\n`agent memory add \"what you learned\"` (optionally: `--category <category>`)";
 
     /// Create an AgentSession for a phase.
     fn create_session(&self, phase: &Phase) -> Result<AgentSession> {
@@ -248,6 +276,18 @@ impl<'a> PhaseExecutor<'a> {
                 Some(sp) => format!("{}\n\n{}", defs, sp),
                 None => defs,
             });
+        }
+
+        // Inject workflow memories (after phase system_prompt, before completion instructions)
+        if self.memory_enabled {
+            if let Ok(entries) = self.memory_manager.load() {
+                if let Some(memories) = memory::format_memories(&entries) {
+                    system_prompt = Some(match system_prompt {
+                        Some(sp) => format!("{}\n\n{}", sp, memories),
+                        None => memories,
+                    });
+                }
+            }
         }
 
         // Inject completion instructions based on context:

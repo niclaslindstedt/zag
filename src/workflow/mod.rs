@@ -32,9 +32,10 @@
 //! workflows or create new ones. See the documentation for the JSON schema.
 
 pub mod definitions;
-pub mod manage;
 pub mod engine;
 pub mod loader;
+pub mod manage;
+pub mod memory;
 pub mod phase;
 pub mod state;
 pub mod template;
@@ -42,3 +43,4 @@ pub mod types;
 pub mod variables;
 
 pub use engine::WorkflowEngine;
+pub use memory::MemoryManager;
