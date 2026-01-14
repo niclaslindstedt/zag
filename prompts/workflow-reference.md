@@ -423,6 +423,88 @@ For **interactive** phases, the workflow engine automatically injects a completi
 
 For **non-interactive** phases (`interactive: false`), the agent exits naturally when done.
 
+## Role-Based Prompts
+
+Assigning a specific role to the agent in each phase significantly improves output quality. Roles establish context, vocabulary, and perspective that shape how the agent approaches the task.
+
+### Why Roles Matter
+
+- **Domain expertise**: A "security auditor" naturally focuses on vulnerabilities; a "UX designer" considers user experience
+- **Appropriate vocabulary**: A "lawyer" uses precise legal terminology; a "developer" uses technical jargon
+- **Consistent perspective**: Roles maintain focus throughout complex tasks
+- **Better reasoning**: Agents perform better when given clear identity context
+
+### Role Prompt Structure
+
+Use this pattern for phase prompts:
+
+```
+You are a <role>. You are tasked with <task>.
+
+<additional context and instructions>
+```
+
+### Examples
+
+**Technical specification writer**:
+```json
+{
+  "id": "spec",
+  "prompt": "You are a senior software architect. You are tasked with writing a technical specification for the requested feature.\n\nAnalyze the requirements and produce a detailed spec covering architecture, data models, APIs, and edge cases. Save to {{state_dir}}/spec.md"
+}
+```
+
+**Code reviewer**:
+```json
+{
+  "id": "review",
+  "prompt": "You are a principal engineer conducting a code review. You are tasked with reviewing the implementation for correctness, security, and maintainability.\n\nFocus on:\n- Logic errors and edge cases\n- Security vulnerabilities\n- Code clarity and documentation\n- Performance implications\n\nSave findings to {{state_dir}}/review.md"
+}
+```
+
+**Security analyst**:
+```json
+{
+  "id": "security-audit",
+  "prompt": "You are a security analyst specializing in application security. You are tasked with auditing the codebase for vulnerabilities.\n\nCheck for OWASP Top 10 issues, authentication flaws, and data exposure risks. Document findings with severity ratings in {{state_dir}}/security-audit.json"
+}
+```
+
+**Technical writer**:
+```json
+{
+  "id": "docs",
+  "prompt": "You are a technical writer. You are tasked with creating user-facing documentation for the new feature.\n\nWrite clear, concise documentation with examples. Target audience: developers integrating with this API. Save to {{state_dir}}/docs.md"
+}
+```
+
+### Role Selection Guidelines
+
+| Task Type | Recommended Role |
+|-----------|------------------|
+| Architecture/design | Senior software architect |
+| Implementation | Senior developer, Backend/Frontend engineer |
+| Code review | Principal engineer, Staff engineer |
+| Security | Security analyst, Penetration tester |
+| Testing | QA engineer, Test automation engineer |
+| Documentation | Technical writer |
+| API design | API designer, Integration architect |
+| Performance | Performance engineer |
+| DevOps/Infrastructure | Platform engineer, SRE |
+| Data modeling | Data architect, Database engineer |
+
+### Combining Roles with System Prompts
+
+For complex phases, use `system_prompt` for persistent role context and `prompt` for task-specific instructions:
+
+```json
+{
+  "id": "implement",
+  "system_prompt": "You are a senior backend engineer with expertise in distributed systems. You write clean, testable code and consider edge cases carefully.",
+  "prompt": "Implement {{ticket.name}}: {{ticket.description}}\n\nFollow the patterns established in the codebase. Write tests for your implementation."
+}
+```
+
 ## Best Practices
 
 1. **Use descriptive IDs**: `create-tickets` not `phase1`
@@ -433,11 +515,12 @@ For **non-interactive** phases (`interactive: false`), the agent exits naturally
 6. **Include context in system prompts**: Reference relevant files
 7. **Use interactive mode for complex tasks**: Allows agent to ask clarifying questions
 8. **Write user-input prompts in first-person**: Use "Ask me which files..." not "Ask the user which files..."
-9. **Design JSON schemas for extraction**: Include fields that later phases will need to reference
-10. **Use JSON variables for dynamic context**: Extract specific values from state files into prompts
-11. **Prefer flat JSON structures**: Deeply nested objects are harder to extract from
-12. **Include metadata in JSON outputs**: Fields like `status`, `priority`, `id` enable filtering and ordering
-13. **Specify JSON schemas in prompts**: Tell agents exactly what structure to produce for consistency
+9. **Assign roles to agents**: Start prompts with "You are a <role>. You are tasked with <task>." to set appropriate context and vocabulary
+10. **Design JSON schemas for extraction**: Include fields that later phases will need to reference
+11. **Use JSON variables for dynamic context**: Extract specific values from state files into prompts
+12. **Prefer flat JSON structures**: Deeply nested objects are harder to extract from
+13. **Include metadata in JSON outputs**: Fields like `status`, `priority`, `id` enable filtering and ordering
+14. **Specify JSON schemas in prompts**: Tell agents exactly what structure to produce for consistency
 
 ## When Modifying Workflows
 
@@ -500,7 +583,7 @@ Common modification patterns:
       "id": "identify-files",
       "name": "Identify Files to Review",
       "execution": { "mode": "once" },
-      "prompt": "List files that need review. Save to {{state_dir}}/files.json as [{\"path\": \"...\", \"priority\": 1}]"
+      "prompt": "You are a senior engineer triaging code changes. You are tasked with identifying files that need review.\n\nAnalyze recent changes and prioritize files by risk and complexity. Save to {{state_dir}}/files.json as [{\"path\": \"...\", \"priority\": 1, \"reason\": \"...\"}]"
     },
     {
       "id": "review-loop",
@@ -518,14 +601,14 @@ Common modification patterns:
       "name": "Review Single File",
       "parent": "review-loop",
       "execution": { "mode": "once" },
-      "prompt": "Review {{file.path}}. Save findings to {{state_dir}}/reviews/{{index}}.md"
+      "prompt": "You are a principal engineer conducting a thorough code review. You are tasked with reviewing {{file.path}}.\n\nPriority reason: {{file.reason}}\n\nExamine for correctness, security vulnerabilities, performance issues, and maintainability. Save findings to {{state_dir}}/reviews/{{index}}.md"
     },
     {
       "id": "summary",
       "name": "Generate Summary",
       "execution": { "mode": "once" },
       "depends_on": ["review-loop"],
-      "prompt": "Read all reviews in {{state_dir}}/reviews/. Create summary at {{state_dir}}/summary.md"
+      "prompt": "You are a technical lead preparing a review summary for the team. You are tasked with synthesizing all review findings.\n\nRead all reviews in {{state_dir}}/reviews/. Create an executive summary highlighting critical issues, patterns, and recommendations at {{state_dir}}/summary.md"
     }
   ]
 }
