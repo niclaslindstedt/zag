@@ -103,7 +103,7 @@ enum Commands {
     },
     /// Run the Copilot agent
     Copilot {
-        /// The prompt to send to the agent (optional in interactive mode, required with -n)
+        /// The prompt to send to the agent (optional in interactive mode, required with -p)
         prompt: Option<String>,
 
         /// System prompt to configure agent behavior
@@ -122,9 +122,9 @@ enum Commands {
         #[arg(short = 'a', long)]
         auto_approve: bool,
 
-        /// Run in non-interactive mode (process prompt and exit, requires a prompt)
-        #[arg(short = 'n', long = "non-interactive")]
-        non_interactive: bool,
+        /// Run in non-interactive mode (print output and exit)
+        #[arg(short = 'p', long = "print")]
+        print: bool,
     },
 }
 
@@ -153,7 +153,6 @@ async fn main() -> Result<()> {
                 auto_approve,
                 prompt,
                 print,
-                false,
             )
             .await?;
         }
@@ -173,7 +172,6 @@ async fn main() -> Result<()> {
                 auto_approve,
                 prompt,
                 print,
-                false,
             )
             .await?;
         }
@@ -193,7 +191,6 @@ async fn main() -> Result<()> {
                 auto_approve,
                 prompt,
                 print,
-                false,
             )
             .await?;
         }
@@ -203,10 +200,10 @@ async fn main() -> Result<()> {
             model,
             root,
             auto_approve,
-            non_interactive,
+            print,
         } => {
-            if non_interactive && prompt.is_none() {
-                bail!("Non-interactive mode requires a prompt");
+            if print && prompt.is_none() {
+                bail!("Print mode requires a prompt");
             }
 
             run_agent(
@@ -216,8 +213,7 @@ async fn main() -> Result<()> {
                 root,
                 auto_approve,
                 prompt,
-                false,
-                non_interactive,
+                print,
             )
             .await?;
         }
@@ -234,7 +230,6 @@ async fn run_agent(
     auto_approve: bool,
     prompt: Option<String>,
     print: bool,
-    non_interactive: bool,
 ) -> Result<()> {
     let agent_name_lower = agent_name.to_lowercase();
 
@@ -272,14 +267,14 @@ async fn run_agent(
     println!("\x1b[32m✓\x1b[0m {} initialized with model {}{}", agent_name, model_name, auto_approve_suffix);
 
     // Run the agent
-    let mode = if print || non_interactive {
+    let mode = if print {
         "non-interactive"
     } else {
         "interactive"
     };
     info!("Starting {} session", mode);
 
-    if print || non_interactive {
+    if print {
         agent.run(prompt.as_deref()).await?;
     } else {
         agent.run_interactive(prompt.as_deref()).await?;
