@@ -19,8 +19,6 @@ pub struct AgentModels {
 /// Default settings applied when not overridden by CLI flags.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Defaults {
-    /// Default agent to use for workflows (claude, codex, gemini, copilot)
-    pub agent: Option<String>,
     /// Auto-approve all actions (skip permission prompts)
     pub auto_approve: Option<bool>,
     /// Default model size for all agents (small, medium, large)
@@ -190,11 +188,6 @@ impl Config {
         self.defaults.auto_approve.unwrap_or(false)
     }
 
-    /// Get the default agent, if configured.
-    pub fn default_agent(&self) -> Option<&str> {
-        self.defaults.agent.as_deref()
-    }
-
     /// Generate default config content with comments.
     fn default_with_comments() -> String {
         r#"# Agent CLI Configuration
@@ -202,9 +195,6 @@ impl Config {
 # Settings here can be overridden by command-line flags.
 
 [defaults]
-# Default agent to use for workflows (claude, codex, gemini, copilot)
-# agent = "claude"
-
 # Auto-approve all actions (skip permission prompts)
 # auto_approve = false
 
@@ -231,7 +221,6 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = Config::default();
-        assert!(config.defaults.agent.is_none());
         assert!(config.defaults.auto_approve.is_none());
         assert!(config.models.claude.is_none());
     }
@@ -240,7 +229,6 @@ mod tests {
     fn test_parse_config() {
         let toml = r#"
 [defaults]
-agent = "claude"
 auto_approve = true
 
 [models]
@@ -248,7 +236,6 @@ claude = "sonnet"
 codex = "gpt-5.1-codex-mini"
 "#;
         let config: Config = toml::from_str(toml).unwrap();
-        assert_eq!(config.defaults.agent, Some("claude".to_string()));
         assert_eq!(config.defaults.auto_approve, Some(true));
         assert_eq!(config.models.claude, Some("sonnet".to_string()));
         assert_eq!(config.models.codex, Some("gpt-5.1-codex-mini".to_string()));

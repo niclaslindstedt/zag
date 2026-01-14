@@ -17,23 +17,22 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 ### Design
 
 - **Trait-based abstraction**: Common `Agent` trait defines the interface for all agent implementations
+- **Factory pattern**: `AgentFactory` creates and configures agents based on parameters
 - **Subprocess delegation**: Each agent spawns its respective CLI tool, passing configuration via arguments or temporary files
-- **Session management**: Tracks active processes and handles graceful shutdown via signal forwarding
+- **Simple execution**: Runs agent processes and waits for completion
 
 ### Key Files
 
 | File | Purpose |
 |------|---------|
 | `src/agent.rs` | Agent trait definition and ModelSize abstraction |
-| `src/session.rs` | AgentSession and run_sessions() |
+| `src/factory.rs` | AgentFactory for creating and configuring agents |
 | `src/main.rs` | CLI entry point with clap |
 | `src/config.rs` | Configuration management |
 | `src/claude.rs` | Claude agent implementation |
 | `src/codex.rs` | Codex agent implementation |
 | `src/gemini.rs` | Gemini agent implementation |
 | `src/copilot.rs` | Copilot agent implementation |
-| `src/interrupt.rs` | CTRL+C signal handling |
-| `src/pid.rs` | Session PID and workflow context |
 
 ## Model Size Abstraction
 
@@ -59,28 +58,6 @@ Each agent implements `model_for_size()` in its `Agent` trait implementation:
 | `medium` / `m` | sonnet | gpt-5.2-codex | gemini-2.5-flash | claude-sonnet-4.5 |
 | `large` / `l` / `max` | opus | gpt-5.1-codex-max | gemini-2.5-pro | claude-opus-4.5 |
 
-### Workflows with Model Sizes
-
-In workflow JSON files, use size aliases in the `model` field:
-
-```json
-{
-  "defaults": {
-    "agent": "claude",
-    "model": "large"
-  },
-  "phases": [
-    {
-      "id": "quick-task",
-      "model": "small",
-      ...
-    }
-  ]
-}
-```
-
-This allows changing the agent without updating all model specifications - the size aliases automatically resolve to the appropriate model for the selected agent.
-
 ## Configuration
 
 Configuration is stored in `.agent/agent.toml` in the project root (or `--root` directory if specified).
@@ -95,9 +72,6 @@ The config file is automatically created on first run at `.agent/agent.toml`.
 # Agent CLI Configuration
 
 [defaults]
-# Default agent to use for workflows (claude, codex, gemini, copilot)
-# agent = "claude"
-
 # Auto-approve all actions (skip permission prompts)
 # auto_approve = false
 
@@ -126,7 +100,6 @@ Settings are applied in this order (later overrides earlier):
 
 | Section | Key | Description |
 |---------|-----|-------------|
-| `defaults` | `agent` | Default agent for workflows |
 | `defaults` | `auto_approve` | Skip permission prompts (default: false) |
 | `defaults` | `model` | Default model size for all agents (default: "medium") |
 | `models` | `claude` | Default model for Claude agent (overrides defaults.model) |
@@ -134,412 +107,59 @@ Settings are applied in this order (later overrides earlier):
 | `models` | `gemini` | Default model for Gemini agent (overrides defaults.model) |
 | `models` | `copilot` | Default model for Copilot agent (overrides defaults.model) |
 
-## Workflow System
+## Usage
 
-Multi-phase workflow orchestration for complex AI agent tasks.
-
-### Interrupt Handling (CTRL+C)
-
-When you press CTRL+C during workflow execution, you'll be prompted:
-
-```
-Save progress and continue to next phase? [y/N]:
-```
-
-- **Yes (y)** - Checkpoints current iteration and continues to next phase
-- **No (N, default)** - Exits immediately without checkpoint (marks phase as failed, can be resumed)
-
-CTRL+C at the prompt will exit to bash.
-
-### Agent Exit Handling
-
-When an interactive agent exits without calling `agent exit` to signal completion, you'll be prompted:
-
-```
-Consider this phase complete and continue? [y/N]:
-```
-
-- **Yes (y)** - Marks the phase as complete and continues to next phase
-- **No (N, default)** - Marks phase as failed (can be resumed later)
-
-CTRL+C at the prompt will exit to bash.
-
-### CLI Usage
+Run any supported AI coding agent with a unified interface:
 
 ```bash
-# Run a workflow
-agent workflow software
+# Interactive mode (default)
+agent claude
+agent claude "write a hello world program"
 
-# Run with a specific agent (overrides workflow settings)
-agent workflow software --agent codex
+# Non-interactive mode (print output and exit)
+agent claude --print "write a hello world program"
+agent codex --print "write a hello world program"
 
-# List available workflows
-agent workflow --list
+# With specific model
+agent claude --model opus "complex task"
+agent gemini --model small "simple task"
 
-# Resume interrupted workflow
-agent workflow software --resume
+# With custom system prompt
+agent claude --system-prompt "You are a Rust expert" "help with ownership"
 
-# Resume with a specific agent
-agent workflow software --resume --agent gemini
+# With root directory
+agent claude --root /path/to/project "analyze this codebase"
 
-# Checkpoint current iteration (for resume)
-agent workflow --checkpoint
-
-# List previous runs
-agent workflow software --list-runs
-
-# Create a new workflow with AI assistance
-agent workflow --create my-workflow
-
-# Create with a different agent
-agent workflow --create my-workflow --agent codex
-
-# Create autonomously (skip confirmations)
-agent workflow --create my-workflow -a
-
-# Modify an existing workflow with AI assistance
-agent workflow --modify my-workflow
-
-# Modify with a different agent
-agent workflow --modify my-workflow --agent codex
-
-# Modify autonomously (skip confirmations)
-agent workflow --modify my-workflow --auto-approve
-
-# Delete a user-defined workflow
-agent workflow --delete my-workflow
-
-# Validate a workflow file
-agent workflow --validate ~/.agent/workflows/my-workflow.json
+# Auto-approve all actions
+agent claude --auto-approve "write tests"
 ```
 
-### Workflow Files
+## Supported Agents
 
-| File | Purpose |
-|------|---------|
-| `src/workflow/mod.rs` | Module exports |
-| `src/workflow/types.rs` | Data structures (Workflow, Phase, etc.) |
-| `src/workflow/engine.rs` | Main orchestrator |
-| `src/workflow/phase.rs` | Phase execution with recursion |
-| `src/workflow/state.rs` | State directory management |
-| `src/workflow/loader.rs` | Load embedded + custom workflows |
-| `src/workflow/template.rs` | Variable expansion (`{{var}}`) |
-| `src/workflow/variables.rs` | Custom variable resolution (env, bash, file, json) |
-| `src/workflow/definitions.rs` | Definition formatting for system prompts |
-| `src/workflow/manage.rs` | Workflow management (create, modify, delete) |
-| `src/workflow/validate.rs` | Workflow validation |
-| `src/workflow/memory.rs` | Memory system for persistent learnings |
-| `workflows/software.json` | Embedded software workflow |
-| `prompts/workflow-reference.md` | System prompt for workflow creation/modification |
-
-### Workflow Loading
-
-1. **User workflows**: `~/.agent/workflows/<name>.json` (takes precedence)
-2. **Embedded workflows**: Compiled into binary via `include_str!`
-
-### Agent Selection Priority
-
-When determining which agent to use for a phase:
-
-1. **CLI override** (`--agent`): Takes highest precedence
-2. **Phase setting**: Agent specified in the phase definition
-3. **Workflow default**: Default agent from workflow's `defaults.agent`
-
-### State Directory
-
-```
-.agent/state/<workflow>/<run_id>/
-├── manifest.json      # Run status and progress tracking
-├── spec.md            # Phase outputs
-├── epics.json
-└── epics/
-    └── epic-001/
-        ├── tickets.json
-        └── tickets/
-            └── T001/
-                └── implementation.md
-```
-
-### Execution Modes
-
-- **once**: Run phase single time
-- **iterate**: Run for each item in JSON array file
-
-### Template Variables
-
-| Variable | Description |
-|----------|-------------|
-| `{{state_dir}}` | Run's state directory path |
-| `{{index}}` | Current iteration index |
-| `{{item.field}}` | Field from iteration item |
-| `{{var.name}}` | Custom variable (see below) |
-
-### Custom Variables
-
-Workflows can define variables resolved at startup from environment, bash commands, files, or JSON files:
-
-```json
-{
-  "variables": [
-    { "name": "branch", "type": "bash", "source": "git branch --show-current" },
-    { "name": "api_key", "type": "env", "source": "MY_API_KEY", "required": false },
-    { "name": "context", "type": "file", "source": "CLAUDE.md" },
-    { "name": "project_context", "type": "file", "source": ["CLAUDE.md", "AGENTS.md", ".github/copilot-instructions.md"] },
-    { "name": "version", "type": "json", "source": "package.json", "path": ".version" },
-    { "name": "first_dep", "type": "json", "source": "config.json", "path": ".dependencies[0].name" }
-  ]
-}
-```
-
-Access in prompts as `{{var.branch}}`, `{{var.api_key}}`, `{{var.context}}`, `{{var.version}}`.
-
-| Type | Description |
-|------|-------------|
-| `env` | Environment variable |
-| `bash` | Command stdout |
-| `file` | File contents (wrapped with injection markers). Supports array of paths - uses first existing file. |
-| `json` | JSON file value at path (dot-notation: `.field`, `.nested.field`, `.array[0]`) |
-
-Variables can reference each other via `{{var.X}}` - dependencies are auto-detected and resolved in correct order. Circular dependencies are reported as errors.
-
-### File Variable Fallbacks
-
-For `type: "file"` variables, the `source` can be an array of paths. The resolver tries each path in order and uses the first existing file. This is useful for supporting different agent instruction files:
-
-```json
-{
-  "name": "project_context",
-  "type": "file",
-  "source": ["CLAUDE.md", "AGENTS.md", ".github/copilot-instructions.md"],
-  "required": false,
-  "default": "No project context file found."
-}
-```
-
-In this example, the workflow will use `CLAUDE.md` if it exists, otherwise `AGENTS.md`, otherwise `.github/copilot-instructions.md`, otherwise the default value.
-
-### File Injection Markers
-
-When file contents are injected via `type: "file"` variables, they are wrapped with special delimiters:
-
-```
-///!agent:injected_file_start:<path>
-<file contents>
-///!agent:injected_file_end:<path>
-```
-
-**Example**: If a workflow injects `CLAUDE.md`:
-
-```markdown
-///!agent:injected_file_start:CLAUDE.md
-# CLAUDE.md
-
-Keep this file updated when making architectural changes...
-///!agent:injected_file_end:CLAUDE.md
-```
-
-These markers help agents:
-- Identify which content came from external files
-- Distinguish between multiple injected files
-- Reference specific files in their responses
-
-The file injection documentation is automatically included in the system prompt for all workflow phases.
-
-### Definitions
-
-Workflows can define terms and concepts that are injected into the system prompt for all phases. Supports both flat key-value pairs and nested sections:
-
-```json
-{
-  "definitions": {
-    "project": "The current software project",
-    "terms": {
-      "epic": "A large feature or capability",
-      "ticket": "A small, implementable unit of work"
-    },
-    "guidelines": {
-      "code_style": "Use snake_case for variables",
-      "testing": "Write unit tests for all functions"
-    }
-  }
-}
-```
-
-**Injection format** (prepended to system prompt):
-
-```markdown
-## Definitions
-
-**project**: The current software project
-
-### Terms
-
-**epic**: A large feature or capability
-**ticket**: A small, implementable unit of work
-
-### Guidelines
-
-**code_style**: Use snake_case for variables
-**testing**: Write unit tests for all functions
-```
-
-- Flat definitions appear first, then sections (both alphabetically sorted)
-- Definition values support template variable expansion (e.g., `{{state_dir}}`, `{{var.name}}`)
-- Section names are converted from snake_case/kebab-case to Title Case
-
-### JSON State Files and Dynamic Prompts
-
-Phases can write structured JSON files that later phases consume. This enables dynamic, context-aware prompts:
-
-**Pattern: Phase Chain with JSON State**
-1. Phase A writes structured JSON to `{{state_dir}}/analysis.json`
-2. JSON variable extracts specific value: `{ "type": "json", "source": "{{state_dir}}/analysis.json", "path": ".summary" }`
-3. Phase B prompt uses extracted value: `"Previous analysis: {{var.summary}}"`
-
-**JSON Path Syntax**:
-- `.field` - Top-level field
-- `.nested.field` - Nested field
-- `.[0]` - Array index (root array)
-- `.array[0].field` - Field in array element
-
-**Best Practices**:
-- Design JSON schemas with downstream extraction in mind
-- Include `id`, `status`, `priority` fields for iteratable items
-- Use `required: false` with `default` for optional state files
-- Specify expected JSON schema in prompts for consistency
-
-### Nested Phases
-
-For epic → ticket → follow-up patterns:
-- Parent phase: `"nested_phases": ["child-id"]`
-- Child phase: `"parent": "parent-id"`
-
-### Automatic Completion
-
-The workflow engine automatically injects completion instructions based on phase type:
-
-| Phase Type | Instructions |
-|------------|--------------|
-| Interactive + iteration | `agent workflow --checkpoint` then `agent exit` |
-| Interactive + non-iteration | `agent exit` |
-| Non-interactive + iteration | `agent workflow --checkpoint` |
-| Non-interactive + non-iteration | *(none - auto-completes on exit)* |
-
-**Important**: Interactive phases MUST call `agent exit` to signal completion. If an agent exits without it, the phase is marked as failed.
-
-Non-interactive phases complete automatically when the agent exits with status 0.
-
-### Checkpoints and Resume
-
-- **Checkpoint**: Marks current iteration as complete (for resume)
-- **Exit**: Signals phase completion and terminates the session
-- **Resume**: Skips iterations that have been checkpointed
-- Context stored in `~/.agent/workflow.json` for auto-detection
-
-### Signal Handling
-
-- **CTRL+C (SIGINT)**: Interrupts current phase, marks it as failed (workflow is resumable)
-- **`agent exit`**: Signals completion and terminates current session
-
-### Software Workflow Phases
-
-1. **spec** - Write technical specification
-2. **epics** - Break spec into epics (features)
-3. **epic-loop** - Iterate over epics
-   - **create-tickets** - Create tickets for current epic
-   - **ticket-loop** - Iterate over tickets
-     - **implement** - Implement ticket
-     - **review** - Review and create follow-ups
-     - **followup-loop** - Complete follow-ups first
-
-### Creating Custom Workflows
-
-Run `agent workflow --create <name>` to create a new workflow with AI assistance. The AI will guide you through defining phases and write the workflow JSON to `~/.agent/workflows/<name>.json`.
-
-### Modifying Workflows
-
-Run `agent workflow --modify <name>` to modify an existing workflow with AI assistance. The AI will read the current workflow, ask what you want to change, and make the modifications. For embedded workflows (like `software`), a copy is created in `~/.agent/workflows/` for modification.
-
-### Memory System
-
-Memories persist learnings across workflow phases and are automatically injected into system prompts. This helps agents remember project-specific patterns, quirks, and solutions to avoid repeating mistakes.
-
-#### Agent Commands
-
-During workflow execution, agents can save learnings:
-
+### Claude
 ```bash
-# Add a memory (auto-detects active workflow)
-agent memory add "this project uses snake_case for all variables"
-
-# Add with a category
-agent memory add "API returns 500 for invalid tokens" --category error_handling
-
-# Remove a memory by ID
-agent memory remove 3
+agent claude [OPTIONS] [PROMPT]
 ```
 
-#### CLI Commands
+**Models**: sonnet (default), opus, haiku
 
+### Codex
 ```bash
-# List all memories for a workflow
-agent memory list software
-
-# List memories filtered by category
-agent memory list software --category code_style
-
-# Search memories
-agent memory search "snake_case" --workflow software
-
-# Clear all memories (with confirmation)
-agent memory clear software
-
-# Clear without confirmation
-agent memory clear software -y
+agent codex [OPTIONS] [PROMPT]
 ```
 
-#### Memory File Location
+**Models**: gpt-5.2-codex (default), gpt-5.1-codex-max, gpt-5.1-codex-mini, gpt-5.2
 
-Memories are stored in `.agent/workflows/<workflow_name>/memory.jsonl` (project-level).
-
-Each entry is a JSON line:
-```json
-{"id":1,"timestamp":"2024-01-15T10:30:00Z","content":"learned something","category":"code_style","phase":"spec"}
+### Gemini
+```bash
+agent gemini [OPTIONS] [PROMPT]
 ```
 
-#### System Prompt Injection
+**Models**: auto (default), gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite
 
-Memories are injected into the system prompt in this order:
-1. Workflow definitions (prepended)
-2. Phase system_prompt
-3. **File injection documentation** (always included)
-4. **Workflow memories** (injected here)
-5. Completion instructions (appended)
-
-Memory format in system prompt:
-```markdown
-## Workflow Memories
-
-The following are learnings from previous phases in this workflow:
-
-- General learning
-- Another learning (from phase: spec)
-
-### Code Style
-
-- Use snake_case for variables
-- Follow existing patterns
+### Copilot
+```bash
+agent copilot [OPTIONS] [PROMPT]
 ```
 
-#### Disabling Memories
-
-Disable memory injection for a workflow by setting `memory: false` in defaults:
-
-```json
-{
-  "defaults": {
-    "agent": "claude",
-    "memory": false
-  }
-}
-```
+**Models**: claude-sonnet-4.5 (default), claude-opus-4.5, claude-haiku-4.5, gpt-5, gpt-5.1, gpt-5.2, gemini-3-pro-preview

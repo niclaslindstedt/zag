@@ -1,5 +1,4 @@
 use crate::agent::{Agent, ModelSize};
-use crate::process::wait_with_pid_tracking;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::path::Path;
@@ -58,12 +57,7 @@ impl Copilot {
         Ok(())
     }
 
-    async fn execute(
-        &self,
-        interactive: bool,
-        prompt: Option<&str>,
-        is_last_phase: bool,
-    ) -> Result<()> {
+    async fn execute(&self, interactive: bool, prompt: Option<&str>) -> Result<()> {
         if !self.system_prompt.is_empty() {
             self.write_instructions_file().await?;
         }
@@ -93,9 +87,11 @@ impl Copilot {
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
 
-        let child = cmd.spawn()?;
-        // Interactive sessions require explicit completion via `agent exit`
-        wait_with_pid_tracking(child, interactive, is_last_phase).await
+        let status = cmd.status().await?;
+        if !status.success() {
+            anyhow::bail!("Copilot command failed with status: {}", status);
+        }
+        Ok(())
     }
 }
 
@@ -143,12 +139,12 @@ impl Agent for Copilot {
         self.skip_permissions = skip;
     }
 
-    async fn run(&self, prompt: Option<&str>, is_last_phase: bool) -> Result<()> {
-        self.execute(false, prompt, is_last_phase).await
+    async fn run(&self, prompt: Option<&str>) -> Result<()> {
+        self.execute(false, prompt).await
     }
 
-    async fn run_interactive(&self, prompt: Option<&str>, is_last_phase: bool) -> Result<()> {
-        self.execute(true, prompt, is_last_phase).await
+    async fn run_interactive(&self, prompt: Option<&str>) -> Result<()> {
+        self.execute(true, prompt).await
     }
 
     async fn cleanup(&self) -> Result<()> {
