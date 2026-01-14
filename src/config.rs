@@ -23,6 +23,8 @@ pub struct Defaults {
     pub agent: Option<String>,
     /// Auto-approve all actions (skip permission prompts)
     pub auto_approve: Option<bool>,
+    /// Default model size for all agents (small, medium, large)
+    pub model: Option<String>,
 }
 
 /// Root configuration structure.
@@ -75,6 +77,7 @@ impl Config {
     /// Initialize config file with defaults if it doesn't exist.
     ///
     /// Returns true if a new config was created, false if it already existed.
+    /// Also ensures `.agent/` is added to `.gitignore` if it isn't already.
     pub fn init(root: Option<&str>) -> Result<bool> {
         let path = Self::config_path(root);
         if path.exists() {
@@ -89,7 +92,47 @@ impl Config {
 
         std::fs::write(&path, config)
             .with_context(|| format!("Failed to write config: {}", path.display()))?;
+
+        // Ensure .agent/ is in .gitignore
+        Self::ensure_gitignore(root)?;
+
         Ok(true)
+    }
+
+    /// Ensure `.agent/` is added to `.gitignore` if it isn't already.
+    fn ensure_gitignore(root: Option<&str>) -> Result<()> {
+        let base = root
+            .map(PathBuf::from)
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+        let gitignore_path = base.join(".gitignore");
+
+        let content = if gitignore_path.exists() {
+            std::fs::read_to_string(&gitignore_path)
+                .with_context(|| format!("Failed to read .gitignore: {}", gitignore_path.display()))?
+        } else {
+            String::new()
+        };
+
+        // Check if .agent/ is already in .gitignore
+        let has_agent_entry = content.lines().any(|line| {
+            let trimmed = line.trim();
+            trimmed == ".agent" || trimmed == ".agent/" || trimmed == "/.agent" || trimmed == "/.agent/"
+        });
+
+        if !has_agent_entry {
+            let new_content = if content.is_empty() {
+                "# Agent CLI state directory\n.agent/\n".to_string()
+            } else if content.ends_with('\n') {
+                format!("{}\n# Agent CLI state directory\n.agent/\n", content)
+            } else {
+                format!("{}\n\n# Agent CLI state directory\n.agent/\n", content)
+            };
+
+            std::fs::write(&gitignore_path, new_content)
+                .with_context(|| format!("Failed to write .gitignore: {}", gitignore_path.display()))?;
+        }
+
+        Ok(())
     }
 
     /// Get the path to the config file.
@@ -117,14 +160,24 @@ impl Config {
     }
 
     /// Get the default model for a specific agent, if configured.
+    /// Checks agent-specific model first, then falls back to defaults.model.
     pub fn get_model(&self, agent: &str) -> Option<&str> {
-        match agent {
+        // First check agent-specific model
+        let agent_model = match agent {
             "claude" => self.models.claude.as_deref(),
             "codex" => self.models.codex.as_deref(),
             "gemini" => self.models.gemini.as_deref(),
             "copilot" => self.models.copilot.as_deref(),
             _ => None,
-        }
+        };
+
+        // Return agent-specific model if set, otherwise fall back to default
+        agent_model.or(self.defaults.model.as_deref())
+    }
+
+    /// Get the global default model (without agent-specific override).
+    pub fn default_model(&self) -> Option<&str> {
+        self.defaults.model.as_deref()
     }
 
     /// Check if auto-approve is enabled by default.
@@ -150,8 +203,13 @@ impl Config {
 # Auto-approve all actions (skip permission prompts)
 # auto_approve = false
 
+# Default model size for all agents (small, medium, large)
+# Can be overridden per-agent in [models] section
+model = "medium"
+
 [models]
-# Default models for each agent (overrides agent defaults)
+# Default models for each agent (overrides defaults.model)
+# Use size aliases (small, medium, large) or specific model names
 # claude = "opus"
 # codex = "gpt-5.2-codex"
 # gemini = "auto"

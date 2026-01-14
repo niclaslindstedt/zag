@@ -101,8 +101,13 @@ The config file is automatically created on first run at `.agent/agent.toml`.
 # Auto-approve all actions (skip permission prompts)
 # auto_approve = false
 
+# Default model size for all agents (small, medium, large)
+# Can be overridden per-agent in [models] section
+model = "medium"
+
 [models]
-# Default models for each agent (overrides agent defaults)
+# Default models for each agent (overrides defaults.model)
+# Use size aliases (small, medium, large) or specific model names
 # claude = "opus"
 # codex = "gpt-5.2-codex"
 # gemini = "auto"
@@ -114,7 +119,7 @@ The config file is automatically created on first run at `.agent/agent.toml`.
 Settings are applied in this order (later overrides earlier):
 
 1. **Agent defaults**: Built-in defaults for each agent
-2. **Config file**: Settings from `.agent/agent.toml`
+2. **Config file**: Settings from `.agent/agent.toml` (defaults.model, then models.<agent>)
 3. **CLI flags**: Command-line arguments (highest priority)
 
 ### Available Settings
@@ -123,10 +128,11 @@ Settings are applied in this order (later overrides earlier):
 |---------|-----|-------------|
 | `defaults` | `agent` | Default agent for workflows |
 | `defaults` | `auto_approve` | Skip permission prompts (default: false) |
-| `models` | `claude` | Default model for Claude agent |
-| `models` | `codex` | Default model for Codex agent |
-| `models` | `gemini` | Default model for Gemini agent |
-| `models` | `copilot` | Default model for Copilot agent |
+| `defaults` | `model` | Default model size for all agents (default: "medium") |
+| `models` | `claude` | Default model for Claude agent (overrides defaults.model) |
+| `models` | `codex` | Default model for Codex agent (overrides defaults.model) |
+| `models` | `gemini` | Default model for Gemini agent (overrides defaults.model) |
+| `models` | `copilot` | Default model for Copilot agent (overrides defaults.model) |
 
 ## Workflow System
 
