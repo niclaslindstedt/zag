@@ -40,6 +40,7 @@ pub mod phase;
 pub mod state;
 pub mod template;
 pub mod types;
+pub mod validate;
 pub mod variables;
 
 pub use engine::WorkflowEngine;

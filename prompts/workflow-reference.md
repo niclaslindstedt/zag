@@ -741,9 +741,31 @@ Common modification patterns:
 }
 ```
 
+## Validation
+
+Always validate workflows after creation or modification:
+
+```bash
+agent workflow --validate ~/.agent/workflows/<name>.json
+agent workflow --validate /path/to/workflow.json
+```
+
+The validator checks:
+- JSON syntax and schema compliance
+- Phase ID uniqueness
+- Dependency references (all `depends_on` phases exist)
+- No circular phase dependencies
+- Iterate mode has `iterate_over` path
+- Nested phase consistency (parent/child references)
+- Variable name uniqueness
+- No circular variable dependencies
+
 ## Testing Commands
 
 ```bash
+# Validate a workflow file
+agent workflow --validate ~/.agent/workflows/<name>.json
+
 # List available workflows
 agent workflow --list
 

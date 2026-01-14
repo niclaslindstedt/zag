@@ -226,6 +226,10 @@ enum Commands {
         #[arg(long)]
         delete: Option<String>,
 
+        /// Validate a workflow file
+        #[arg(long)]
+        validate: Option<String>,
+
         /// Agent to use (overrides workflow/phase settings)
         #[arg(long)]
         agent: Option<String>,
@@ -459,6 +463,7 @@ async fn main() -> Result<()> {
             create,
             modify,
             delete,
+            validate,
             agent,
             auto_approve,
         } => {
@@ -493,6 +498,12 @@ async fn main() -> Result<()> {
             // Delete a user-defined workflow
             if let Some(workflow_name) = delete {
                 workflow::manage::delete_workflow(&workflow_name)?;
+                return Ok(());
+            }
+
+            // Validate a workflow file
+            if let Some(path) = validate {
+                workflow::validate::validate_workflow_file(&path)?;
                 return Ok(());
             }
 

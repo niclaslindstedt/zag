@@ -20,7 +20,8 @@ Your task:
 1. Ask me what the workflow should accomplish and what phases it needs
 2. Design the phases based on my requirements, using the workflow schema from your system prompt
 3. Write the workflow JSON to ~/.agent/workflows/{{name}}.json
-4. Explain how to test the workflow
+4. Validate with: agent workflow --validate ~/.agent/workflows/{{name}}.json
+5. Explain how to test the workflow
 
 Start by asking me about the workflow's purpose and what it should do."#;
 
@@ -33,7 +34,8 @@ Your task:
 1. Design a sensible workflow based on the name "{{name}}"
 2. Create appropriate phases using the workflow schema from your system prompt
 3. Write the workflow JSON to ~/.agent/workflows/{{name}}.json
-4. Briefly explain what you created
+4. Validate with: agent workflow --validate ~/.agent/workflows/{{name}}.json
+5. Briefly explain what you created
 
 Do not ask questions - just create a reasonable workflow based on the name."#;
 
@@ -46,7 +48,8 @@ Your task:
 1. Read the existing workflow file to understand its current structure
 2. Ask me what I want to change or what isn't working as expected
 3. Make the requested modifications using the workflow schema from your system prompt
-4. Explain the changes you made
+4. Validate with: agent workflow --validate {{path}}
+5. Explain the changes you made
 
 Start by reading the workflow file, then ask me what I'd like to modify."#;
 
@@ -61,7 +64,8 @@ Your task:
 1. Read the existing workflow file to understand its current structure
 2. Identify any issues, improvements, or optimizations
 3. Make sensible modifications using the workflow schema from your system prompt
-4. Briefly explain the changes you made
+4. Validate with: agent workflow --validate {{path}}
+5. Briefly explain the changes you made
 
 Do not ask questions - analyze the workflow and make reasonable improvements."#;
 

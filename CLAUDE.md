@@ -82,6 +82,9 @@ agent workflow --modify my-workflow --auto-approve
 
 # Delete a user-defined workflow
 agent workflow --delete my-workflow
+
+# Validate a workflow file
+agent workflow --validate ~/.agent/workflows/my-workflow.json
 ```
 
 ### Workflow Files
@@ -98,6 +101,7 @@ agent workflow --delete my-workflow
 | `src/workflow/variables.rs` | Custom variable resolution (env, bash, file, json) |
 | `src/workflow/definitions.rs` | Definition formatting for system prompts |
 | `src/workflow/manage.rs` | Workflow management (create, modify, delete) |
+| `src/workflow/validate.rs` | Workflow validation |
 | `src/workflow/memory.rs` | Memory system for persistent learnings |
 | `workflows/software.json` | Embedded software workflow |
 | `prompts/workflow-reference.md` | System prompt for workflow creation/modification |
