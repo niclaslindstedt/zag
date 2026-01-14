@@ -70,11 +70,29 @@ pub trait Agent {
         if available.contains(&model) {
             Ok(())
         } else {
+            // Build error message with size aliases first
+            let small = Self::model_for_size(ModelSize::Small);
+            let medium = Self::model_for_size(ModelSize::Medium);
+            let large = Self::model_for_size(ModelSize::Large);
+
+            let mut models = vec![
+                format!("{} (small)", small),
+                format!("{} (medium)", medium),
+                format!("{} (large)", large),
+            ];
+
+            // Add other available models that aren't already in the size mappings
+            for m in available {
+                if m != &small && m != &medium && m != &large {
+                    models.push(m.to_string());
+                }
+            }
+
             anyhow::bail!(
                 "Invalid model '{}' for {}. Available models: {}",
                 model,
                 agent_name,
-                available.join(", ")
+                models.join(", ")
             )
         }
     }
