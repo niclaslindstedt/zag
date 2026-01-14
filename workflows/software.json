@@ -1,28 +1,80 @@
 {
   "name": "software",
-  "version": "1.0.0",
-  "description": "Epic-based software development workflow with review loops. Creates epics from a specification, then iteratively implements tickets per epic with code review.",
+  "version": "2.0.0",
+  "description": "Epic-based software development workflow with iterative review cycles. Creates epics from a specification, implements tickets with code review, and handles review rejections with follow-up iterations until approval.",
   "defaults": {
     "agent": "claude",
-    "model": "opus",
+    "model": "large",
     "interactive": true,
     "skip_permissions": true
+  },
+  "variables": [
+    {
+      "name": "branch",
+      "type": "bash",
+      "source": "git branch --show-current 2>/dev/null || echo 'main'",
+      "required": false,
+      "default": "main"
+    },
+    {
+      "name": "repo_root",
+      "type": "bash",
+      "source": "git rev-parse --show-toplevel 2>/dev/null || pwd"
+    },
+    {
+      "name": "project_context",
+      "type": "file",
+      "source": "CLAUDE.md",
+      "required": false,
+      "default": "No project context file found."
+    },
+    {
+      "name": "recent_commits",
+      "type": "bash",
+      "source": "git log --oneline -10 2>/dev/null || echo 'No git history available'",
+      "required": false,
+      "default": "No git history available"
+    }
+  ],
+  "definitions": {
+    "project_context": "{{var.project_context}}",
+    "git_context": "Branch: {{var.branch}}\nRepository: {{var.repo_root}}\nRecent commits:\n{{var.recent_commits}}",
+    "terminology": {
+      "epic": "A large feature or capability that delivers significant user value, requiring multiple tickets to implement",
+      "ticket": "A small, implementable unit of work that can be completed in a single coding session with clear acceptance criteria",
+      "follow-up": "A corrective task created during code review to address issues found in the implementation",
+      "acceptance_criteria": "Specific, testable conditions that must be met for a ticket to be considered complete"
+    },
+    "workflow_rules": {
+      "implementation": "Write clean, testable code. Run tests before marking complete. Document key decisions.",
+      "review": "Check acceptance criteria, code quality, test coverage, and security. Be thorough but constructive.",
+      "approval": "Only approve when all acceptance criteria are met and code quality is satisfactory",
+      "follow_ups": "Create specific, actionable follow-up tickets for each issue found. Don't combine unrelated issues."
+    },
+    "output_paths": {
+      "specification": "{{state_dir}}/spec.md",
+      "epics": "{{state_dir}}/epics.json",
+      "epic_dir": "{{state_dir}}/epics/<epic-id>/",
+      "tickets": "{{state_dir}}/epics/<epic-id>/tickets.json",
+      "ticket_dir": "{{state_dir}}/epics/<epic-id>/tickets/<ticket-id>/"
+    }
   },
   "phases": [
     {
       "id": "spec",
       "name": "Write Specification",
       "execution": { "mode": "once" },
-      "system_prompt": "You are a technical writer creating software specifications. Your goal is to capture requirements clearly and completely.\n\nState directory: {{state_dir}}\n\nWrite your output to: {{state_dir}}/spec.md",
-      "prompt": "Based on the user requirements, write a detailed technical specification.\n\nThe specification should include:\n1. Overview and goals\n2. Functional requirements\n3. Non-functional requirements (performance, security, etc.)\n4. Technical constraints\n5. Out of scope items\n\nSave the specification to {{state_dir}}/spec.md"
+      "system_prompt": "You are a senior software architect creating technical specifications. You excel at capturing requirements clearly, identifying edge cases, and establishing technical constraints.\n\nState directory: {{state_dir}}",
+      "prompt": "You are tasked with writing a detailed technical specification based on user requirements.\n\nGather requirements from me through conversation, then produce a specification that includes:\n\n1. **Overview and Goals**: What we're building and why\n2. **Functional Requirements**: Specific features and behaviors\n3. **Non-functional Requirements**: Performance, security, scalability, accessibility\n4. **Technical Constraints**: Technology choices, compatibility requirements\n5. **Data Models**: Key entities and their relationships\n6. **API Contracts**: If applicable, key interfaces and endpoints\n7. **Edge Cases**: Known edge cases and how to handle them\n8. **Out of Scope**: What we're explicitly not building\n9. **Open Questions**: Uncertainties that need resolution\n\nSave the specification to {{state_dir}}/spec.md"
     },
     {
       "id": "epics",
       "name": "Plan Epics",
       "execution": { "mode": "once" },
       "depends_on": ["spec"],
-      "system_prompt": "You are a software architect breaking down a specification into epics (major features).\n\nState directory: {{state_dir}}\nSpecification: {{state_dir}}/spec.md\n\nWrite your output to: {{state_dir}}/epics.json",
-      "prompt": "Read the specification at {{state_dir}}/spec.md.\n\nBreak it down into epics (major features/milestones). Each epic should be a cohesive unit of functionality that can be completed independently.\n\nCreate {{state_dir}}/epics.json with the following structure:\n[\n  {\n    \"id\": \"epic-001\",\n    \"name\": \"Epic Name\",\n    \"description\": \"What this epic accomplishes\",\n    \"priority\": 1,\n    \"status\": \"pending\"\n  }\n]\n\nOrder epics by priority (dependencies first, then by business value)."
+      "model": "large",
+      "system_prompt": "You are a software architect decomposing specifications into implementable milestones. You understand dependency ordering and can identify natural boundaries between features.\n\nState directory: {{state_dir}}\nSpecification: {{state_dir}}/spec.md",
+      "prompt": "You are tasked with breaking down the specification into epics.\n\nRead the specification at {{state_dir}}/spec.md.\n\nDecompose it into epics (major features/milestones). Each epic should:\n- Be a cohesive unit of functionality\n- Be independently testable\n- Have clear boundaries with other epics\n- Be ordered by dependencies (foundational work first)\n\nCreate {{state_dir}}/epics.json with this exact structure:\n```json\n[\n  {\n    \"id\": \"epic-001\",\n    \"name\": \"Epic Name\",\n    \"description\": \"What this epic accomplishes and why it matters\",\n    \"priority\": 1,\n    \"status\": \"pending\",\n    \"dependencies\": [],\n    \"acceptance_criteria\": [\"High-level criterion 1\", \"High-level criterion 2\"],\n    \"estimated_tickets\": 3\n  }\n]\n```\n\nOrder epics by: dependencies first, then priority (business value)."
     },
     {
       "id": "epic-loop",
@@ -35,15 +87,16 @@
       "depends_on": ["epics"],
       "nested_phases": ["create-tickets", "ticket-loop"],
       "system_prompt": "Processing epic: {{epic.id}} - {{epic.name}}\n\nState directory: {{state_dir}}\nEpic directory: {{state_dir}}/epics/{{epic.id}}/",
-      "prompt": "Starting work on epic {{epic.id}}: {{epic.name}}\n\nDescription: {{epic.description}}"
+      "prompt": "Starting work on epic {{epic.id}}: {{epic.name}}\n\nDescription: {{epic.description}}\nAcceptance Criteria: {{epic.acceptance_criteria}}"
     },
     {
       "id": "create-tickets",
       "name": "Create Tickets for Epic",
       "execution": { "mode": "once" },
       "parent": "epic-loop",
-      "system_prompt": "You are a project manager creating implementation tickets for a single epic.\n\nState directory: {{state_dir}}\nSpecification: {{state_dir}}/spec.md\nAll epics: {{state_dir}}/epics.json\nCurrent epic: {{epic.id}} - {{epic.name}}\n\nWrite tickets to: {{state_dir}}/epics/{{epic.id}}/tickets.json",
-      "prompt": "Create implementation tickets for epic {{epic.id}}: {{epic.name}}\n\nDescription: {{epic.description}}\n\nBreak this epic into small, actionable tickets. Each ticket should be completable in a single coding session.\n\nCreate {{state_dir}}/epics/{{epic.id}}/tickets.json with structure:\n[\n  {\n    \"id\": \"T001\",\n    \"title\": \"Short title\",\n    \"description\": \"Detailed description of what to implement\",\n    \"acceptance_criteria\": [\"Criterion 1\", \"Criterion 2\"],\n    \"status\": \"pending\"\n  }\n]\n\nOrder tickets by implementation dependency."
+      "model": "large",
+      "system_prompt": "You are a technical lead breaking down an epic into implementable tickets. You create tickets that are small enough to complete in one session but large enough to be meaningful.\n\nState directory: {{state_dir}}\nSpecification: {{state_dir}}/spec.md\nAll epics: {{state_dir}}/epics.json\nCurrent epic: {{epic.id}} - {{epic.name}}\n\nWrite tickets to: {{state_dir}}/epics/{{epic.id}}/tickets.json",
+      "prompt": "You are tasked with creating implementation tickets for epic {{epic.id}}: {{epic.name}}\n\nDescription: {{epic.description}}\nEpic Acceptance Criteria: {{epic.acceptance_criteria}}\n\nBreak this epic into small, actionable tickets. Each ticket should:\n- Be completable in a single coding session (1-3 hours)\n- Have specific, testable acceptance criteria\n- Include clear implementation guidance\n- Be ordered by dependency\n\nCreate {{state_dir}}/epics/{{epic.id}}/tickets.json with this exact structure:\n```json\n[\n  {\n    \"id\": \"T001\",\n    \"title\": \"Short descriptive title\",\n    \"description\": \"Detailed description of what to implement\",\n    \"acceptance_criteria\": [\n      \"Specific testable criterion 1\",\n      \"Specific testable criterion 2\"\n    ],\n    \"implementation_hints\": \"Suggested approach or files to modify\",\n    \"dependencies\": [],\n    \"status\": \"pending\",\n    \"estimated_complexity\": \"small|medium|large\"\n  }\n]\n```\n\nEnsure tickets cover all epic acceptance criteria when combined."
     },
     {
       "id": "ticket-loop",
@@ -56,15 +109,16 @@
       "parent": "epic-loop",
       "nested_phases": ["implement", "review", "followup-loop"],
       "system_prompt": "Implementing ticket {{ticket.id}} for epic {{epic.id}}\n\nTicket directory: {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/",
-      "prompt": "Working on ticket {{ticket.id}}: {{ticket.title}}"
+      "prompt": "Working on ticket {{ticket.id}}: {{ticket.title}}\n\nComplexity: {{ticket.estimated_complexity}}"
     },
     {
       "id": "implement",
       "name": "Implement Ticket",
       "execution": { "mode": "once" },
       "parent": "ticket-loop",
-      "system_prompt": "You are a senior software engineer implementing a feature.\n\nContext:\n- Specification: {{state_dir}}/spec.md\n- Epic: {{epic.id}} - {{epic.name}}\n- All tickets for this epic: {{state_dir}}/epics/{{epic.id}}/tickets.json\n- Previous implementations: {{state_dir}}/epics/{{epic.id}}/tickets/\n\nDocument your implementation in: {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/implementation.md",
-      "prompt": "Implement ticket {{ticket.id}}: {{ticket.title}}\n\nDescription: {{ticket.description}}\n\nAcceptance Criteria:\n{{ticket.acceptance_criteria}}\n\nWrite the code needed to complete this ticket. Document what you implemented in {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/implementation.md including:\n1. Files modified/created\n2. Key implementation decisions\n3. Any assumptions made"
+      "model": "large",
+      "system_prompt": "You are a senior software engineer implementing features. You write clean, testable code, handle edge cases, and follow established patterns in the codebase.\n\nContext:\n- Specification: {{state_dir}}/spec.md\n- Epic: {{epic.id}} - {{epic.name}}\n- All tickets for this epic: {{state_dir}}/epics/{{epic.id}}/tickets.json\n- Previous implementations: {{state_dir}}/epics/{{epic.id}}/tickets/\n\nDocument your implementation in: {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/implementation.md",
+      "prompt": "You are tasked with implementing ticket {{ticket.id}}: {{ticket.title}}\n\nDescription: {{ticket.description}}\n\nAcceptance Criteria:\n{{ticket.acceptance_criteria}}\n\nImplementation Hints: {{ticket.implementation_hints}}\n\nInstructions:\n1. Implement the required functionality\n2. Write or update tests as needed\n3. Run tests to verify your implementation\n4. Document your implementation in {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/implementation.md\n\nThe implementation document should include:\n- Files modified/created (with brief description of changes)\n- Key implementation decisions and rationale\n- How each acceptance criterion is satisfied\n- Tests added or modified\n- Any assumptions or limitations"
     },
     {
       "id": "review",
@@ -72,31 +126,54 @@
       "execution": { "mode": "once" },
       "parent": "ticket-loop",
       "depends_on": ["implement"],
-      "system_prompt": "You are a code reviewer examining an implementation.\n\nContext:\n- Ticket: {{ticket.id}} - {{ticket.title}}\n- Implementation notes: {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/implementation.md\n- Specification: {{state_dir}}/spec.md\n\nWrite your review to: {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/review.md\nWrite follow-up tickets to: {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/followups.json",
-      "prompt": "Review the implementation for ticket {{ticket.id}}: {{ticket.title}}\n\nRead the implementation notes at {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/implementation.md\n\nReview the actual code changes and verify:\n1. Acceptance criteria are met\n2. Code quality is acceptable\n3. No obvious bugs or issues\n4. Tests are adequate\n\nWrite your review to {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/review.md\n\nIf there are issues that need fixing, create follow-up tickets in {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/followups.json with structure:\n[\n  {\n    \"id\": \"T001-F1\",\n    \"title\": \"Fix: Issue description\",\n    \"description\": \"What needs to be fixed\",\n    \"priority\": \"high\",\n    \"status\": \"pending\"\n  }\n]\n\nIf no issues, create an empty array: []"
+      "model": "large",
+      "system_prompt": "You are a principal engineer conducting thorough code reviews. You verify correctness, ensure quality standards, and provide constructive feedback. You are fair but rigorous.\n\nContext:\n- Ticket: {{ticket.id}} - {{ticket.title}}\n- Acceptance Criteria: {{ticket.acceptance_criteria}}\n- Implementation notes: {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/implementation.md\n- Specification: {{state_dir}}/spec.md\n\nWrite your review to: {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/review.json",
+      "prompt": "You are tasked with reviewing the implementation for ticket {{ticket.id}}: {{ticket.title}}\n\nRead the implementation notes at {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/implementation.md\n\nThen review the actual code changes. Verify:\n\n1. **Acceptance Criteria**: Each criterion is demonstrably met\n2. **Code Quality**: Clean, readable, follows project conventions\n3. **Correctness**: Logic is sound, edge cases handled\n4. **Tests**: Adequate test coverage, tests actually verify behavior\n5. **Security**: No obvious vulnerabilities introduced\n6. **Performance**: No obvious performance issues\n\nWrite your review to {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/review.json with this exact structure:\n```json\n{\n  \"status\": \"approved|changes_requested\",\n  \"summary\": \"Brief overall assessment\",\n  \"criteria_verification\": [\n    {\n      \"criterion\": \"The acceptance criterion text\",\n      \"met\": true,\n      \"evidence\": \"How it was verified\"\n    }\n  ],\n  \"findings\": [\n    {\n      \"id\": \"F001\",\n      \"severity\": \"critical|major|minor|suggestion\",\n      \"category\": \"bug|security|performance|style|testing|documentation\",\n      \"description\": \"What the issue is\",\n      \"location\": \"File and line or general area\",\n      \"suggestion\": \"How to fix it\"\n    }\n  ],\n  \"followups\": [\n    {\n      \"id\": \"{{ticket.id}}-F1\",\n      \"title\": \"Fix: Brief description\",\n      \"description\": \"Detailed description of what needs to be fixed\",\n      \"severity\": \"critical|major|minor\",\n      \"related_findings\": [\"F001\"],\n      \"status\": \"pending\"\n    }\n  ]\n}\n```\n\nRules:\n- Set status to \"approved\" only if ALL acceptance criteria are met AND no critical/major findings\n- Create follow-ups for each critical or major finding\n- Minor findings and suggestions don't require follow-ups but should be documented\n- Be specific about what needs to change and where"
     },
     {
       "id": "followup-loop",
       "name": "Process Follow-ups",
       "execution": {
         "mode": "iterate",
-        "iterate_over": "{{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/followups.json",
+        "iterate_over": "{{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/review.json",
         "item_variable": "followup",
+        "iterate_path": ".followups",
         "skip_if_empty": true
       },
       "parent": "ticket-loop",
       "depends_on": ["review"],
-      "nested_phases": ["implement-followup"],
-      "system_prompt": "Processing follow-up ticket from code review.\n\nOriginal ticket: {{ticket.id}}\nFollow-up: {{followup.id}}",
-      "prompt": "Working on follow-up {{followup.id}}: {{followup.title}}"
+      "nested_phases": ["implement-followup", "review-followup"],
+      "system_prompt": "Processing follow-up from code review.\n\nOriginal ticket: {{ticket.id}} - {{ticket.title}}\nFollow-up: {{followup.id}} - {{followup.title}}\nSeverity: {{followup.severity}}",
+      "prompt": "Working on follow-up {{followup.id}}: {{followup.title}}\n\nSeverity: {{followup.severity}}\nRelated findings: {{followup.related_findings}}"
     },
     {
       "id": "implement-followup",
       "name": "Implement Follow-up",
       "execution": { "mode": "once" },
       "parent": "followup-loop",
-      "system_prompt": "You are fixing an issue identified during code review.\n\nOriginal ticket: {{ticket.id}} - {{ticket.title}}\nReview notes: {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/review.md\n\nDocument your fix in: {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/followup-{{followup.id}}.md",
-      "prompt": "Fix follow-up {{followup.id}}: {{followup.title}}\n\nDescription: {{followup.description}}\n\nThis is a follow-up from the code review. Address the issue and document your changes in {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/followup-{{followup.id}}.md"
+      "model": "large",
+      "system_prompt": "You are a software engineer addressing code review feedback. You make targeted fixes while being careful not to introduce new issues.\n\nOriginal ticket: {{ticket.id}} - {{ticket.title}}\nReview: {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/review.json\n\nDocument your fix in: {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/followup-{{followup.id}}.md",
+      "prompt": "You are tasked with fixing follow-up {{followup.id}}: {{followup.title}}\n\nDescription: {{followup.description}}\nSeverity: {{followup.severity}}\nRelated findings: {{followup.related_findings}}\n\nRead the full review at {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/review.json for context.\n\nInstructions:\n1. Address the specific issue described\n2. Run tests to ensure fix doesn't break anything\n3. Document your changes in {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/followup-{{followup.id}}.md\n\nThe document should include:\n- What was changed and why\n- How the finding is now addressed\n- Any tests added or modified"
+    },
+    {
+      "id": "review-followup",
+      "name": "Review Follow-up Fix",
+      "execution": { "mode": "once" },
+      "parent": "followup-loop",
+      "depends_on": ["implement-followup"],
+      "model": "medium",
+      "system_prompt": "You are verifying that a code review finding has been properly addressed. You are focused and efficient.\n\nOriginal review: {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/review.json\nFollow-up implementation: {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/followup-{{followup.id}}.md",
+      "prompt": "You are tasked with verifying follow-up {{followup.id}}: {{followup.title}}\n\nOriginal issue: {{followup.description}}\n\nRead the fix documentation at {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/followup-{{followup.id}}.md\n\nVerify:\n1. The original issue is resolved\n2. No new issues were introduced\n3. Tests pass\n\nUpdate {{state_dir}}/epics/{{epic.id}}/tickets/{{ticket.id}}/followup-{{followup.id}}-review.json:\n```json\n{\n  \"followup_id\": \"{{followup.id}}\",\n  \"status\": \"approved|needs_revision\",\n  \"summary\": \"Brief assessment\",\n  \"original_issue_resolved\": true,\n  \"new_issues\": [],\n  \"notes\": \"Any additional notes\"\n}\n```\n\nIf needs_revision, document what still needs to be fixed in new_issues array."
+    },
+    {
+      "id": "epic-summary",
+      "name": "Epic Completion Summary",
+      "execution": { "mode": "once" },
+      "parent": "epic-loop",
+      "depends_on": ["ticket-loop"],
+      "model": "medium",
+      "system_prompt": "You are a technical lead summarizing completed work. You create clear, useful summaries for stakeholders.\n\nEpic: {{epic.id}} - {{epic.name}}\nEpic directory: {{state_dir}}/epics/{{epic.id}}/",
+      "prompt": "You are tasked with creating a completion summary for epic {{epic.id}}: {{epic.name}}\n\nReview all ticket implementations and reviews in {{state_dir}}/epics/{{epic.id}}/\n\nCreate {{state_dir}}/epics/{{epic.id}}/summary.md with:\n\n1. **Overview**: What was accomplished\n2. **Tickets Completed**: List with brief status\n3. **Key Decisions**: Important implementation choices made\n4. **Technical Debt**: Any shortcuts taken or improvements deferred\n5. **Testing Status**: What's tested and how\n6. **Known Limitations**: What doesn't work or edge cases not handled\n7. **Recommendations**: Suggested follow-up work or improvements"
     }
   ]
 }
