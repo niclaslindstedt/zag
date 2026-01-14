@@ -6,6 +6,7 @@ use std::pin::Pin;
 use crate::interrupt;
 use crate::session::AgentSession;
 
+use super::definitions;
 use super::state::RunContext;
 use super::template::TemplateEngine;
 use super::types::{ExecutionMode, Phase, PhaseStatus, Workflow, WorkflowDefaults};
@@ -238,6 +239,16 @@ impl<'a> PhaseExecutor<'a> {
             .system_prompt
             .as_ref()
             .map(|s| self.context_template.expand(s));
+
+        // Prepend workflow definitions to system prompt
+        if let Some(defs) =
+            definitions::format_definitions(&self.workflow.definitions, &self.context_template)
+        {
+            system_prompt = Some(match system_prompt {
+                Some(sp) => format!("{}\n\n{}", defs, sp),
+                None => defs,
+            });
+        }
 
         // Inject completion instructions based on context:
         // - Iteration + interactive: checkpoint + kill

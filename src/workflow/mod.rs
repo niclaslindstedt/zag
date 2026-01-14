@@ -31,6 +31,7 @@
 //! Place JSON workflow files in `~/.agent/workflows/` to override embedded
 //! workflows or create new ones. See the documentation for the JSON schema.
 
+pub mod definitions;
 pub mod manage;
 pub mod engine;
 pub mod loader;

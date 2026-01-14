@@ -15,6 +15,12 @@ Workflows define multi-phase AI agent sessions that execute sequentially with fi
     "interactive": true,
     "skip_permissions": false
   },
+  "definitions": {
+    "term": "Simple definition",
+    "section_name": {
+      "nested_term": "Definition within a section"
+    }
+  },
   "variables": [
     {
       "name": "variable_name",
@@ -97,6 +103,118 @@ Use `{{variable}}` syntax in prompts. Available variables:
 ```json
 {
   "prompt": "Process item {{item.id}}: {{item.name}}. Save to {{state_dir}}/output/{{item.id}}.md"
+}
+```
+
+## Definitions
+
+Definitions allow you to define terms and concepts that are automatically injected into the system prompt for all phases. This ensures consistent terminology and shared context across the entire workflow.
+
+### Structure
+
+Definitions support two formats:
+
+**Flat definitions** (simple key-value pairs):
+```json
+{
+  "definitions": {
+    "epic": "A large feature or capability that delivers significant user value",
+    "ticket": "A small, implementable unit of work that can be completed in one session"
+  }
+}
+```
+
+**Nested definitions** (sections with grouped terms):
+```json
+{
+  "definitions": {
+    "terms": {
+      "epic": "A large feature or capability",
+      "ticket": "A small unit of work"
+    },
+    "guidelines": {
+      "code_style": "Use snake_case for variables and functions",
+      "testing": "Write unit tests for all public functions"
+    }
+  }
+}
+```
+
+**Mixed** (both flat and nested):
+```json
+{
+  "definitions": {
+    "project": "The current software project being developed",
+    "terms": {
+      "epic": "A large feature",
+      "ticket": "A small unit of work"
+    }
+  }
+}
+```
+
+### System Prompt Injection
+
+Definitions are formatted as markdown and prepended to the system prompt of every phase:
+
+```markdown
+## Definitions
+
+**project**: The current software project being developed
+
+### Terms
+
+**epic**: A large feature
+**ticket**: A small unit of work
+
+### Guidelines
+
+**code_style**: Use snake_case for variables and functions
+**testing**: Write unit tests for all public functions
+```
+
+- Flat definitions appear first, followed by sections
+- Both are sorted alphabetically
+- Section names are converted from snake_case/kebab-case to Title Case
+
+### Template Variables in Definitions
+
+Definition values support template variable expansion:
+
+```json
+{
+  "definitions": {
+    "state_location": "All output should be saved to {{state_dir}}",
+    "current_branch": "Working on branch {{var.branch}}"
+  }
+}
+```
+
+### Best Practices
+
+1. **Define domain terminology**: Ensure the agent uses consistent vocabulary
+2. **Establish guidelines**: Set coding standards, testing requirements, etc.
+3. **Provide project context**: Reference key files, patterns, or conventions
+4. **Keep definitions concise**: Long definitions clutter the system prompt
+5. **Use sections for organization**: Group related terms together
+
+### Example: Software Development Workflow
+
+```json
+{
+  "definitions": {
+    "codebase": "A Rust CLI application using async/await patterns",
+    "terminology": {
+      "epic": "A major feature requiring multiple implementation sessions",
+      "ticket": "A single implementable task with clear acceptance criteria",
+      "spike": "A research task to investigate feasibility or approach"
+    },
+    "standards": {
+      "error_handling": "Use anyhow for application errors, thiserror for library errors",
+      "testing": "Write unit tests for business logic, integration tests for CLI commands",
+      "documentation": "Add rustdoc comments for public APIs"
+    }
+  }
 }
 ```
 
@@ -521,6 +639,8 @@ For complex phases, use `system_prompt` for persistent role context and `prompt`
 12. **Prefer flat JSON structures**: Deeply nested objects are harder to extract from
 13. **Include metadata in JSON outputs**: Fields like `status`, `priority`, `id` enable filtering and ordering
 14. **Specify JSON schemas in prompts**: Tell agents exactly what structure to produce for consistency
+15. **Use definitions for domain terminology**: Ensure consistent vocabulary across all phases
+16. **Group related definitions in sections**: Use nested objects for organized term categories
 
 ## When Modifying Workflows
 
@@ -551,6 +671,13 @@ Common modification patterns:
 - Use `type: file` for file content injection
 - Use `type: json` with `path` to extract specific values from JSON files
 - Set `required: false` with `default` for optional variables
+
+### Adding definitions
+- Add to `definitions` object at workflow level
+- Use flat key-value pairs for simple terms
+- Use nested objects for grouped terms (sections)
+- Definition values support template variables (`{{state_dir}}`, `{{var.name}}`)
+- Definitions are automatically injected into all phase system prompts
 
 ### Adding JSON state files for data passing
 - Have phases write structured JSON to `{{state_dir}}/filename.json`

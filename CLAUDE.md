@@ -90,6 +90,7 @@ agent workflow --delete my-workflow
 | `src/workflow/loader.rs` | Load embedded + custom workflows |
 | `src/workflow/template.rs` | Variable expansion (`{{var}}`) |
 | `src/workflow/variables.rs` | Custom variable resolution (env, bash, file, json) |
+| `src/workflow/definitions.rs` | Definition formatting for system prompts |
 | `src/workflow/manage.rs` | Workflow management (create, modify, delete) |
 | `workflows/software.json` | Embedded software workflow |
 | `prompts/workflow-reference.md` | System prompt for workflow creation/modification |
@@ -162,6 +163,48 @@ Access in prompts as `{{var.branch}}`, `{{var.api_key}}`, `{{var.context}}`, `{{
 | `json` | JSON file value at path (dot-notation: `.field`, `.nested.field`, `.array[0]`) |
 
 Variables can reference each other via `{{var.X}}` - dependencies are auto-detected and resolved in correct order. Circular dependencies are reported as errors.
+
+### Definitions
+
+Workflows can define terms and concepts that are injected into the system prompt for all phases. Supports both flat key-value pairs and nested sections:
+
+```json
+{
+  "definitions": {
+    "project": "The current software project",
+    "terms": {
+      "epic": "A large feature or capability",
+      "ticket": "A small, implementable unit of work"
+    },
+    "guidelines": {
+      "code_style": "Use snake_case for variables",
+      "testing": "Write unit tests for all functions"
+    }
+  }
+}
+```
+
+**Injection format** (prepended to system prompt):
+
+```markdown
+## Definitions
+
+**project**: The current software project
+
+### Terms
+
+**epic**: A large feature or capability
+**ticket**: A small, implementable unit of work
+
+### Guidelines
+
+**code_style**: Use snake_case for variables
+**testing**: Write unit tests for all functions
+```
+
+- Flat definitions appear first, then sections (both alphabetically sorted)
+- Definition values support template variable expansion (e.g., `{{state_dir}}`, `{{var.name}}`)
+- Section names are converted from snake_case/kebab-case to Title Case
 
 ### JSON State Files and Dynamic Prompts
 

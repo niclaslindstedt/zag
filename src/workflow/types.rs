@@ -13,7 +13,20 @@ pub struct Workflow {
     /// Variables to resolve before workflow execution
     #[serde(default)]
     pub variables: Vec<WorkflowVariable>,
+    /// Definitions injected into system prompts for all phases
+    #[serde(default)]
+    pub definitions: HashMap<String, DefinitionValue>,
     pub phases: Vec<Phase>,
+}
+
+/// A definition value - either a simple string or a section with nested definitions
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum DefinitionValue {
+    /// A simple string definition
+    Simple(String),
+    /// A section containing multiple definitions
+    Section(HashMap<String, String>),
 }
 
 /// A variable definition that can be resolved from various sources
