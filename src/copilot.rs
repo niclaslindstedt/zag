@@ -1,4 +1,4 @@
-use crate::agent::Agent;
+use crate::agent::{Agent, ModelSize};
 use crate::process::wait_with_pid_tracking;
 use anyhow::Result;
 use async_trait::async_trait;
@@ -108,6 +108,14 @@ impl Agent for Copilot {
 
     fn default_model() -> &'static str {
         DEFAULT_MODEL
+    }
+
+    fn model_for_size(size: ModelSize) -> &'static str {
+        match size {
+            ModelSize::Small => "claude-haiku-4.5",
+            ModelSize::Medium => "claude-sonnet-4.5",
+            ModelSize::Large => "claude-opus-4.5",
+        }
     }
 
     fn system_prompt(&self) -> &str {

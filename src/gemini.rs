@@ -1,4 +1,4 @@
-use crate::agent::Agent;
+use crate::agent::{Agent, ModelSize};
 use crate::process::wait_with_pid_tracking;
 use anyhow::Result;
 use async_trait::async_trait;
@@ -111,6 +111,14 @@ impl Agent for Gemini {
 
     fn default_model() -> &'static str {
         DEFAULT_MODEL
+    }
+
+    fn model_for_size(size: ModelSize) -> &'static str {
+        match size {
+            ModelSize::Small => "gemini-2.5-flash-lite",
+            ModelSize::Medium => "gemini-2.5-flash",
+            ModelSize::Large => "gemini-2.5-pro",
+        }
     }
 
     fn system_prompt(&self) -> &str {

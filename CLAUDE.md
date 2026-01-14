@@ -24,7 +24,7 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 
 | File | Purpose |
 |------|---------|
-| `src/agent.rs` | Agent trait definition |
+| `src/agent.rs` | Agent trait definition and ModelSize abstraction |
 | `src/session.rs` | AgentSession and run_sessions() |
 | `src/main.rs` | CLI entry point with clap |
 | `src/config.rs` | Configuration management |
@@ -34,6 +34,52 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/copilot.rs` | Copilot agent implementation |
 | `src/interrupt.rs` | CTRL+C signal handling |
 | `src/pid.rs` | Session PID and workflow context |
+
+## Model Size Abstraction
+
+Instead of specifying agent-specific model names, you can use size aliases that automatically map to the appropriate model for each agent:
+
+```bash
+# Use size aliases
+agent claude --model large   # Uses opus
+agent codex --model large    # Uses gpt-5.1-codex-max
+agent gemini --model small   # Uses gemini-2.5-flash-lite
+
+# Or use specific model names (passthrough)
+agent claude --model sonnet  # Uses sonnet directly
+```
+
+### Size Mappings
+
+Each agent implements `model_for_size()` in its `Agent` trait implementation:
+
+| Size | Claude | Codex | Gemini | Copilot |
+|------|--------|-------|--------|---------|
+| `small` / `s` | haiku | gpt-5.1-codex-mini | gemini-2.5-flash-lite | claude-haiku-4.5 |
+| `medium` / `m` | sonnet | gpt-5.2-codex | gemini-2.5-flash | claude-sonnet-4.5 |
+| `large` / `l` / `max` | opus | gpt-5.1-codex-max | gemini-2.5-pro | claude-opus-4.5 |
+
+### Workflows with Model Sizes
+
+In workflow JSON files, use size aliases in the `model` field:
+
+```json
+{
+  "defaults": {
+    "agent": "claude",
+    "model": "large"
+  },
+  "phases": [
+    {
+      "id": "quick-task",
+      "model": "small",
+      ...
+    }
+  ]
+}
+```
+
+This allows changing the agent without updating all model specifications - the size aliases automatically resolve to the appropriate model for the selected agent.
 
 ## Configuration
 

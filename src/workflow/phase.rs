@@ -4,7 +4,7 @@ use std::future::Future;
 use std::pin::Pin;
 
 use crate::interrupt;
-use crate::session::AgentSession;
+use crate::session::{AgentSession, resolve_model_for_agent};
 
 use super::definitions;
 use super::memory::{self, MemoryManager};
@@ -253,11 +253,13 @@ impl<'a> PhaseExecutor<'a> {
             .or_else(|| phase.agent.clone())
             .unwrap_or_else(|| self.defaults.agent.clone());
 
+        // Model priority: phase setting > workflow default
+        // Resolve size aliases (small/medium/large) to actual model names
         let model = phase
             .model
             .as_ref()
             .or(self.defaults.model.as_ref())
-            .cloned();
+            .map(|m| resolve_model_for_agent(&agent, m));
 
         let interactive = phase.interactive.unwrap_or(self.defaults.interactive);
 

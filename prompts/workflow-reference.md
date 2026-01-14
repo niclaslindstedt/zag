@@ -519,9 +519,46 @@ Each phase can override defaults:
 | Field | Description |
 |-------|-------------|
 | `agent` | "claude", "codex", "gemini", "copilot" |
-| `model` | Agent-specific model name |
+| `model` | Model size alias ("small", "medium", "large") or specific model name |
 | `interactive` | Run in interactive mode (true/false) |
 | `skip_permissions` | Auto-approve actions (true/false) |
+
+### Model Size Aliases
+
+**Prefer using size aliases** (`small`, `medium`, `large`) instead of specific model names. This allows workflows to work across different agents without modification:
+
+```json
+{
+  "defaults": {
+    "agent": "claude",
+    "model": "large"
+  },
+  "phases": [
+    {
+      "id": "quick-task",
+      "model": "small",
+      "prompt": "..."
+    },
+    {
+      "id": "complex-reasoning",
+      "model": "large",
+      "prompt": "..."
+    }
+  ]
+}
+```
+
+With size aliases, switching from `"agent": "claude"` to `"agent": "codex"` automatically uses equivalent models:
+
+| Size | Claude | Codex | Gemini | Copilot |
+|------|--------|-------|--------|---------|
+| `small` | haiku | gpt-5.1-codex-mini | gemini-2.5-flash-lite | claude-haiku-4.5 |
+| `medium` | sonnet | gpt-5.2-codex | gemini-2.5-flash | claude-sonnet-4.5 |
+| `large` | opus | gpt-5.1-codex-max | gemini-2.5-pro | claude-opus-4.5 |
+
+Short aliases are also supported: `s` (small), `m` (medium), `l` or `max` (large).
+
+Specific model names still work and pass through unchanged (e.g., `"model": "opus"`).
 
 ## Dependencies
 

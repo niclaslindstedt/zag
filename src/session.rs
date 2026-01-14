@@ -59,10 +59,13 @@ impl AgentSession {
         }
 
         // Use CLI model if provided, otherwise fall back to config default
+        // Model input is resolved through Agent::resolve_model (handles size aliases)
         if let Some(ref model) = self.model_name {
-            agent.set_model(model.clone());
+            let resolved = resolve_model_for_agent(&self.agent_name, model);
+            agent.set_model(resolved);
         } else if let Some(config_model) = config.get_model(&self.agent_name) {
-            agent.set_model(config_model.to_string());
+            let resolved = resolve_model_for_agent(&self.agent_name, config_model);
+            agent.set_model(resolved);
         }
 
         if let Some(ref root) = self.root {
@@ -83,6 +86,19 @@ impl AgentSession {
         println!("Shutting down session");
 
         Ok(())
+    }
+}
+
+/// Resolve a model input (size alias or specific name) for a given agent.
+///
+/// This dispatches to the appropriate Agent::resolve_model implementation.
+pub fn resolve_model_for_agent(agent_name: &str, model_input: &str) -> String {
+    match agent_name.to_lowercase().as_str() {
+        "claude" => Claude::resolve_model(model_input),
+        "codex" => Codex::resolve_model(model_input),
+        "gemini" => Gemini::resolve_model(model_input),
+        "copilot" => Copilot::resolve_model(model_input),
+        _ => model_input.to_string(), // Unknown agent, pass through
     }
 }
 
