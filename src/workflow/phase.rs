@@ -26,6 +26,8 @@ pub struct PhaseExecutor<'a> {
     memory_manager: MemoryManager,
     /// Whether memory injection is enabled for this workflow
     memory_enabled: bool,
+    /// Whether this is the last phase in the workflow
+    is_last_phase: bool,
 }
 
 impl<'a> PhaseExecutor<'a> {
@@ -54,7 +56,12 @@ impl<'a> PhaseExecutor<'a> {
             agent_override: agent_override.map(|s| s.to_string()),
             memory_manager,
             memory_enabled,
+            is_last_phase: false,
         })
+    }
+
+    pub fn set_is_last_phase(&mut self, is_last: bool) {
+        self.is_last_phase = is_last;
     }
 
     /// Execute a phase with the current context.
@@ -104,7 +111,7 @@ impl<'a> PhaseExecutor<'a> {
                         interrupt::clear_interrupt();
                         return Ok(());
                     }
-                    
+
                     let started_at = self
                         .run_ctx
                         .manifest
@@ -136,7 +143,7 @@ impl<'a> PhaseExecutor<'a> {
         if interrupt::was_interrupted() {
             // Prompt user for action
             let continue_to_next = interrupt::prompt_interrupt_action();
-            
+
             if continue_to_next {
                 // Checkpoint and signal to skip to next phase
                 if self.run_ctx.manifest.current_iteration.is_some() {
@@ -337,7 +344,8 @@ impl<'a> PhaseExecutor<'a> {
             None, // root - use current directory
             skip_permissions,
             interactive,
-        ))
+        )
+        .with_last_phase(self.is_last_phase))
     }
 
     /// Get phases that have no parent (top-level phases).

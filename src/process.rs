@@ -26,9 +26,13 @@ fn was_terminated_by_sigint(_status: &std::process::ExitStatus) -> bool {
 /// If `require_explicit_completion` is true (for interactive phases), the agent
 /// must call `agent exit` to signal successful completion. Otherwise, exiting
 /// without `agent exit` is treated as a failure.
+///
+/// If `is_last_phase` is true, skip the completion prompt since there are no
+/// more phases to continue to.
 pub async fn wait_with_pid_tracking(
     mut child: Child,
     require_explicit_completion: bool,
+    is_last_phase: bool,
 ) -> Result<()> {
     // Write child's PID so `agent exit` targets the agent CLI, not the parent
     if let Some(child_pid) = child.id() {
@@ -92,7 +96,8 @@ pub async fn wait_with_pid_tracking(
     // For interactive phases, the agent MUST call `agent exit` to signal
     // successful completion. If it just exits (even with status 0), ask the
     // user if they consider the phase complete.
-    if require_explicit_completion && !was_killed {
+    // Skip the prompt if this is the last phase.
+    if require_explicit_completion && !was_killed && !is_last_phase {
         return prompt_phase_completion();
     }
 
@@ -107,18 +112,16 @@ fn prompt_phase_completion() -> Result<()> {
 
     let mut input = String::new();
     match io::stdin().read_line(&mut input) {
-        Ok(_) => {
-            match input.trim().to_lowercase().as_str() {
-                "y" | "yes" => {
-                    println!("Marking phase as complete and continuing...");
-                    Ok(())
-                }
-                _ => {
-                    println!("Phase marked as failed - workflow can be resumed");
-                    anyhow::bail!("Phase marked as failed")
-                }
+        Ok(_) => match input.trim().to_lowercase().as_str() {
+            "y" | "yes" => {
+                println!("Marking phase as complete and continuing...");
+                Ok(())
             }
-        }
+            _ => {
+                println!("Phase marked as failed - workflow can be resumed");
+                anyhow::bail!("Phase marked as failed")
+            }
+        },
         Err(_) => {
             println!("Phase marked as failed - workflow can be resumed");
             anyhow::bail!("Phase marked as failed")

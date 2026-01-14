@@ -54,7 +54,12 @@ impl Codex {
         Ok(())
     }
 
-    async fn execute(&self, interactive: bool, prompt: Option<&str>) -> Result<()> {
+    async fn execute(
+        &self,
+        interactive: bool,
+        prompt: Option<&str>,
+        is_last_phase: bool,
+    ) -> Result<()> {
         if !self.system_prompt.is_empty() {
             self.write_agents_file().await?;
         }
@@ -72,7 +77,11 @@ impl Codex {
         cmd.args(["--model", &self.model]);
 
         if self.skip_permissions {
-            cmd.args(["--dangerously-bypass-approvals-and-sandbox", "--sandbox", "danger-full-access"]);
+            cmd.args([
+                "--dangerously-bypass-approvals-and-sandbox",
+                "--sandbox",
+                "danger-full-access",
+            ]);
         }
 
         if let Some(p) = prompt {
@@ -85,7 +94,7 @@ impl Codex {
 
         let child = cmd.spawn()?;
         // Interactive sessions require explicit completion via `agent exit`
-        wait_with_pid_tracking(child, interactive).await
+        wait_with_pid_tracking(child, interactive, is_last_phase).await
     }
 }
 
@@ -133,12 +142,12 @@ impl Agent for Codex {
         self.skip_permissions = skip;
     }
 
-    async fn run(&self, prompt: Option<&str>) -> Result<()> {
-        self.execute(false, prompt).await
+    async fn run(&self, prompt: Option<&str>, is_last_phase: bool) -> Result<()> {
+        self.execute(false, prompt, is_last_phase).await
     }
 
-    async fn run_interactive(&self, prompt: Option<&str>) -> Result<()> {
-        self.execute(true, prompt).await
+    async fn run_interactive(&self, prompt: Option<&str>, is_last_phase: bool) -> Result<()> {
+        self.execute(true, prompt, is_last_phase).await
     }
 
     async fn cleanup(&self) -> Result<()> {

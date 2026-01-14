@@ -58,7 +58,12 @@ impl Copilot {
         Ok(())
     }
 
-    async fn execute(&self, interactive: bool, prompt: Option<&str>) -> Result<()> {
+    async fn execute(
+        &self,
+        interactive: bool,
+        prompt: Option<&str>,
+        is_last_phase: bool,
+    ) -> Result<()> {
         if !self.system_prompt.is_empty() {
             self.write_instructions_file().await?;
         }
@@ -90,7 +95,7 @@ impl Copilot {
 
         let child = cmd.spawn()?;
         // Interactive sessions require explicit completion via `agent exit`
-        wait_with_pid_tracking(child, interactive).await
+        wait_with_pid_tracking(child, interactive, is_last_phase).await
     }
 }
 
@@ -138,12 +143,12 @@ impl Agent for Copilot {
         self.skip_permissions = skip;
     }
 
-    async fn run(&self, prompt: Option<&str>) -> Result<()> {
-        self.execute(false, prompt).await
+    async fn run(&self, prompt: Option<&str>, is_last_phase: bool) -> Result<()> {
+        self.execute(false, prompt, is_last_phase).await
     }
 
-    async fn run_interactive(&self, prompt: Option<&str>) -> Result<()> {
-        self.execute(true, prompt).await
+    async fn run_interactive(&self, prompt: Option<&str>, is_last_phase: bool) -> Result<()> {
+        self.execute(true, prompt, is_last_phase).await
     }
 
     async fn cleanup(&self) -> Result<()> {

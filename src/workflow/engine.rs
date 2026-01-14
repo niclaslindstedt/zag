@@ -193,7 +193,8 @@ impl WorkflowEngine {
             .collect();
 
         // Execute top-level phases in order, respecting dependencies
-        for phase in top_level_phases {
+        let total_phases = top_level_phases.len();
+        for (index, phase) in top_level_phases.iter().enumerate() {
             // Check if phase already completed (for resume)
             let is_completed = run_ctx
                 .manifest
@@ -206,6 +207,20 @@ impl WorkflowEngine {
                 println!("Skipping completed phase: {}", phase.name);
                 continue;
             }
+
+            // Check if this is the last remaining phase to execute
+            // (i.e., all phases after this one are already completed)
+            let is_last_to_execute = top_level_phases
+                .iter()
+                .skip(index + 1)
+                .all(|p| {
+                    run_ctx
+                        .manifest
+                        .phases
+                        .get(&p.id)
+                        .map(|s| s.status == RunStatus::Completed)
+                        .unwrap_or(false)
+                });
 
             // Check dependencies are satisfied
             for dep in &phase.depends_on {
@@ -233,6 +248,7 @@ impl WorkflowEngine {
                 agent_override,
                 self.root.as_deref(),
             )?;
+            executor.set_is_last_phase(is_last_to_execute);
             if let Err(e) = executor.execute_phase(phase).await {
                 run_ctx.fail(&e.to_string())?;
                 return Err(e);

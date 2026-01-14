@@ -23,18 +23,16 @@ pub fn prompt_interrupt_action() -> bool {
 
     let mut input = String::new();
     match io::stdin().read_line(&mut input) {
-        Ok(_) => {
-            match input.trim().to_lowercase().as_str() {
-                "y" | "yes" => {
-                    println!("Checkpointing and continuing to next phase...");
-                    true
-                }
-                _ => {
-                    println!("Exiting without checkpoint...");
-                    false
-                }
+        Ok(_) => match input.trim().to_lowercase().as_str() {
+            "y" | "yes" => {
+                println!("Checkpointing and continuing to next phase...");
+                true
             }
-        }
+            _ => {
+                println!("Exiting without checkpoint...");
+                false
+            }
+        },
         Err(_) => false,
     }
 }

@@ -15,6 +15,7 @@ pub struct AgentSession {
     pub root: Option<String>,
     pub skip_permissions: bool,
     pub interactive: bool,
+    pub is_last_phase: bool,
 }
 
 impl AgentSession {
@@ -35,7 +36,13 @@ impl AgentSession {
             root,
             skip_permissions,
             interactive,
+            is_last_phase: false,
         }
+    }
+
+    pub fn with_last_phase(mut self, is_last: bool) -> Self {
+        self.is_last_phase = is_last;
+        self
     }
 
     fn create_agent(&self) -> Result<Box<dyn Agent + Send>> {
@@ -77,9 +84,13 @@ impl AgentSession {
         agent.set_skip_permissions(skip);
 
         if self.interactive {
-            agent.run_interactive(self.prompt.as_deref()).await?;
+            agent
+                .run_interactive(self.prompt.as_deref(), self.is_last_phase)
+                .await?;
         } else {
-            agent.run(self.prompt.as_deref()).await?;
+            agent
+                .run(self.prompt.as_deref(), self.is_last_phase)
+                .await?;
         }
 
         agent.cleanup().await?;
