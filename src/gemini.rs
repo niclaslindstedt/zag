@@ -82,9 +82,7 @@ impl Gemini {
             cmd.args(["--model", &self.model]);
         }
 
-        if interactive {
-            cmd.arg("--prompt-interactive");
-        } else {
+        if !interactive {
             cmd.args(["--output-format", "json"]);
         }
 
