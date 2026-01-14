@@ -572,11 +572,72 @@ Use `depends_on` to ensure phases run in order:
 }
 ```
 
-## Automatic Completion Handling
+## Phase Completion Instructions
 
-For **interactive** phases, the workflow engine automatically injects a completion instruction. This does not need to be included in the workflow JSON.
+Phase prompts **must include explicit completion instructions** that tell the agent exactly when and how to signal completion. Agents do not respond well to generic "when you're done" instructions - they need specific, contextual guidance.
 
-For **non-interactive** phases (`interactive: false`), the agent exits naturally when done.
+### Required Completion Commands
+
+| Phase Type | Required Commands | When to Call |
+|------------|------------------|--------------|
+| Interactive + iteration | `agent workflow --checkpoint` then `agent exit` | After completing the iteration's work |
+| Interactive + non-iteration | `agent exit` | After completing the phase's work |
+| Non-interactive + iteration | `agent workflow --checkpoint` | After completing the iteration's work |
+| Non-interactive + non-iteration | *(none - auto-completes on exit)* | N/A |
+
+### Writing Explicit Completion Instructions
+
+**Bad** (too generic):
+```
+"prompt": "Create the tickets.json file. When done, signal completion."
+```
+
+**Good** (specific and contextual):
+```
+"prompt": "Create {{state_dir}}/tickets.json with the ticket structure.\n\nWhen you have created the tickets.json file, run `agent exit` to signal completion and continue to the next phase."
+```
+
+**Good** (for iteration phases):
+```
+"prompt": "Fix the issue described above.\n\nWhen you have implemented the fix and saved the documentation, run these commands in order:\n1. `agent workflow --checkpoint` - saves your progress for this iteration\n2. `agent exit` - signals completion and continues to next iteration"
+```
+
+### Why Explicit Instructions Matter
+
+1. **Clarity**: Agents need to know the exact trigger condition (e.g., "when tickets.json has been written")
+2. **Command awareness**: Explicit commands like `` `agent exit` `` ensure agents know what to run
+3. **Context**: Explaining what happens next ("continue to the next phase") helps agents understand the workflow
+4. **Iteration awareness**: For iteration phases, agents need to know they're in a loop and should checkpoint progress
+
+### Examples from Real Workflows
+
+**Single task completion**:
+```json
+{
+  "prompt": "Analyze the codebase and document findings in {{state_dir}}/analysis.md\n\nWhen you have saved the analysis file, run `agent exit` to signal completion and continue to the next phase."
+}
+```
+
+**Iteration with checkpoint**:
+```json
+{
+  "prompt": "Implement ticket {{ticket.id}}: {{ticket.title}}\n\n[...implementation instructions...]\n\nWhen you have completed the implementation and saved the documentation, run these commands in order:\n1. `agent workflow --checkpoint` - saves your progress for this ticket iteration\n2. `agent exit` - signals completion and continues to code review"
+}
+```
+
+**Multiple outputs before completion**:
+```json
+{
+  "prompt": "Review the implementation and create two files:\n1. {{state_dir}}/review.md - detailed review\n2. {{state_dir}}/summary.json - structured findings\n\nWhen you have created both files, run `agent exit` to signal completion and continue to the next phase."
+}
+```
+
+### Important Notes
+
+- **Interactive phases** MUST call `agent exit` to signal successful completion. If an agent exits without calling it, the phase is marked as failed.
+- **Non-interactive phases** complete automatically when the agent process exits with status 0.
+- **`agent workflow --checkpoint`** saves progress for the current iteration, allowing workflow resume to skip completed iterations.
+- Always specify the **completion trigger** (e.g., "when file X has been written") rather than generic "when done".
 
 ## Role-Based Prompts
 
