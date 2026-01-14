@@ -683,4 +683,23 @@ mod tests {
                 .any(|e| e.contains("doesn't have it as parent"))
         );
     }
+
+    #[test]
+    fn test_diamond_dependency_not_circular() {
+        // Diamond dependency pattern should NOT be detected as circular:
+        //     a
+        //    / \
+        //   b   c
+        //    \ /
+        //     d
+        // This is a valid DAG (directed acyclic graph)
+        let workflow = make_workflow(vec![
+            make_phase("a", vec![]),
+            make_phase("b", vec!["a"]),
+            make_phase("c", vec!["a"]),
+            make_phase("d", vec!["b", "c"]),
+        ]);
+        let errors = validate_workflow(&workflow);
+        assert!(errors.is_empty(), "Diamond dependency should be valid, but got errors: {:?}", errors);
+    }
 }

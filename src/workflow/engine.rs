@@ -1,5 +1,4 @@
 use anyhow::{Result, bail};
-use std::collections::HashSet;
 
 use crate::pid::{self, WorkflowContext};
 
@@ -262,63 +261,11 @@ impl WorkflowEngine {
     }
 
     fn validate_workflow(&self, workflow: &Workflow) -> Result<()> {
-        let phase_ids: HashSet<_> = workflow.phases.iter().map(|p| p.id.as_str()).collect();
-
-        for phase in &workflow.phases {
-            // Validate dependencies exist
-            for dep in &phase.depends_on {
-                if !phase_ids.contains(dep.as_str()) {
-                    bail!("Phase '{}' depends on unknown phase '{}'", phase.id, dep);
-                }
-            }
-
-            // Validate parent exists
-            if let Some(ref parent) = phase.parent {
-                if !phase_ids.contains(parent.as_str()) {
-                    bail!("Phase '{}' has unknown parent '{}'", phase.id, parent);
-                }
-            }
-
-            // Validate nested phases exist
-            for nested in &phase.nested_phases {
-                if !phase_ids.contains(nested.as_str()) {
-                    bail!(
-                        "Phase '{}' references unknown nested phase '{}'",
-                        phase.id,
-                        nested
-                    );
-                }
-            }
-        }
-
-        // Check for circular dependencies (simple check)
-        self.check_circular_dependencies(workflow)?;
-
-        Ok(())
-    }
-
-    fn check_circular_dependencies(&self, workflow: &Workflow) -> Result<()> {
-        let dep_map = PhaseExecutor::build_dependency_map(workflow);
-
-        for phase in &workflow.phases {
-            let mut visited = HashSet::new();
-            let mut stack = vec![phase.id.clone()];
-
-            while let Some(current) = stack.pop() {
-                if visited.contains(&current) {
-                    bail!("Circular dependency detected involving phase '{}'", current);
-                }
-                visited.insert(current.clone());
-
-                if let Some(deps) = dep_map.get(&current) {
-                    for dep in deps {
-                        if dep == &phase.id {
-                            bail!("Circular dependency: '{}' -> ... -> '{}'", phase.id, dep);
-                        }
-                        stack.push(dep.clone());
-                    }
-                }
-            }
+        // Use the comprehensive validation from validate.rs
+        let errors = crate::workflow::validate::validate_workflow(workflow);
+        
+        if !errors.is_empty() {
+            bail!("Workflow validation failed:\n  {}", errors.join("\n  "));
         }
 
         Ok(())
