@@ -198,7 +198,7 @@ impl WorkflowEngine {
             }
 
             // Create executor for this phase and execute
-            let mut executor = PhaseExecutor::new(workflow, &workflow.defaults, run_ctx);
+            let mut executor = PhaseExecutor::new(workflow, &workflow.defaults, run_ctx)?;
             if let Err(e) = executor.execute_phase(phase).await {
                 run_ctx.fail(&e.to_string())?;
                 return Err(e);

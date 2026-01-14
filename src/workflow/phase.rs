@@ -9,6 +9,7 @@ use crate::session::AgentSession;
 use super::state::RunContext;
 use super::template::TemplateEngine;
 use super::types::{ExecutionMode, Phase, PhaseStatus, Workflow, WorkflowDefaults};
+use super::variables::VariableResolver;
 
 /// Executes workflow phases, handling iteration and nested phases.
 pub struct PhaseExecutor<'a> {
@@ -26,17 +27,20 @@ impl<'a> PhaseExecutor<'a> {
         workflow: &'a Workflow,
         defaults: &'a WorkflowDefaults,
         run_ctx: &'a mut RunContext,
-    ) -> Self {
+    ) -> Result<Self> {
         let mut context_template = TemplateEngine::new();
         context_template.set_state_dir(&run_ctx.state_dir_str());
 
-        Self {
+        // Resolve workflow variables
+        VariableResolver::resolve_all(&workflow.variables, &mut context_template)?;
+
+        Ok(Self {
             workflow,
             defaults,
             run_ctx,
             context_template,
             in_iteration: false,
-        }
+        })
     }
 
     /// Execute a phase with the current context.

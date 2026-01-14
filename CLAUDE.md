@@ -83,6 +83,7 @@ agent workflow --delete my-workflow
 | `src/workflow/state.rs` | State directory management |
 | `src/workflow/loader.rs` | Load embedded + custom workflows |
 | `src/workflow/template.rs` | Variable expansion (`{{var}}`) |
+| `src/workflow/variables.rs` | Custom variable resolution (env, bash, file) |
 | `src/workflow/manage.rs` | Workflow management (create, modify, delete) |
 | `workflows/software.json` | Embedded software workflow |
 | `prompts/workflow-create-system.md` | System prompt for workflow creation |
@@ -120,6 +121,31 @@ agent workflow --delete my-workflow
 | `{{state_dir}}` | Run's state directory path |
 | `{{index}}` | Current iteration index |
 | `{{item.field}}` | Field from iteration item |
+| `{{var.name}}` | Custom variable (see below) |
+
+### Custom Variables
+
+Workflows can define variables resolved at startup from environment, bash commands, or files:
+
+```json
+{
+  "variables": [
+    { "name": "branch", "type": "bash", "source": "git branch --show-current" },
+    { "name": "api_key", "type": "env", "source": "MY_API_KEY", "required": false },
+    { "name": "context", "type": "file", "source": "CLAUDE.md" }
+  ]
+}
+```
+
+Access in prompts as `{{var.branch}}`, `{{var.api_key}}`, `{{var.context}}`.
+
+| Type | Description |
+|------|-------------|
+| `env` | Environment variable |
+| `bash` | Command stdout |
+| `file` | File contents |
+
+Variables can reference each other via `{{var.X}}` - dependencies are auto-detected and resolved in correct order. Circular dependencies are reported as errors.
 
 ### Nested Phases
 

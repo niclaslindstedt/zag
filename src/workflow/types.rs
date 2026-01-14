@@ -10,7 +10,44 @@ pub struct Workflow {
     pub description: Option<String>,
     #[serde(default)]
     pub defaults: WorkflowDefaults,
+    /// Variables to resolve before workflow execution
+    #[serde(default)]
+    pub variables: Vec<WorkflowVariable>,
     pub phases: Vec<Phase>,
+}
+
+/// A variable definition that can be resolved from various sources
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct WorkflowVariable {
+    /// Variable name used in templates (e.g., "branch" for {{branch}})
+    pub name: String,
+    /// Type of variable source
+    #[serde(rename = "type")]
+    pub var_type: VariableType,
+    /// Source specification (env var name, bash command, or file path)
+    pub source: String,
+    /// Whether the variable must be resolved successfully (default: true)
+    #[serde(default = "default_required")]
+    pub required: bool,
+    /// Default value if source is unavailable
+    #[serde(default)]
+    pub default: Option<String>,
+}
+
+/// Type of variable source
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum VariableType {
+    /// Read from environment variable
+    Env,
+    /// Execute bash command and capture stdout
+    Bash,
+    /// Read file contents
+    File,
+}
+
+fn default_required() -> bool {
+    true
 }
 
 /// Default settings for all phases in a workflow

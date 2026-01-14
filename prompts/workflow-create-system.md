@@ -15,6 +15,15 @@ Workflows define multi-phase AI agent sessions that execute sequentially with fi
     "interactive": true,
     "skip_permissions": false
   },
+  "variables": [
+    {
+      "name": "variable_name",
+      "type": "env|bash|file",
+      "source": "SOURCE_VALUE",
+      "required": true,
+      "default": "fallback value"
+    }
+  ],
   "phases": [
     {
       "id": "unique-phase-id",
@@ -81,6 +90,7 @@ Use `{{variable}}` syntax in prompts. Available variables:
 | `{{state_dir}}` | Current run's state directory |
 | `{{index}}` | Current iteration index (0-based) |
 | `{{item.field}}` | Field from current iteration item |
+| `{{var.name}}` | Custom variables defined in `variables` array |
 
 ### Example
 ```json
@@ -88,6 +98,74 @@ Use `{{variable}}` syntax in prompts. Available variables:
   "prompt": "Process item {{item.id}}: {{item.name}}. Save to {{state_dir}}/output/{{item.id}}.md"
 }
 ```
+
+## Custom Variables
+
+Define variables at workflow level that are resolved before execution. Custom variables use the `{{var.name}}` syntax to distinguish them from built-in variables:
+
+```json
+{
+  "variables": [
+    {
+      "name": "branch",
+      "type": "bash",
+      "source": "git branch --show-current"
+    },
+    {
+      "name": "api_key",
+      "type": "env",
+      "source": "MY_API_KEY",
+      "required": false,
+      "default": ""
+    },
+    {
+      "name": "context",
+      "type": "file",
+      "source": "CLAUDE.md",
+      "required": false,
+      "default": "No context available"
+    }
+  ],
+  "phases": [
+    {
+      "prompt": "Working on branch {{var.branch}}. Context:\n{{var.context}}"
+    }
+  ]
+}
+```
+
+### Variable Types
+
+| Type | Description | Source Field |
+|------|-------------|--------------|
+| `env` | Read from environment variable | Environment variable name |
+| `bash` | Execute command and capture stdout | Shell command string |
+| `file` | Read file contents | File path (supports `{{state_dir}}`) |
+
+### Variable Properties
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | string | Yes | Variable name (accessed as `{{var.name}}`) |
+| `type` | enum | Yes | `env`, `bash`, or `file` |
+| `source` | string | Yes | Source specification |
+| `required` | bool | No | Fail if unavailable (default: true) |
+| `default` | string | No | Fallback value if source unavailable |
+
+### Dependency Resolution
+
+Variables are resolved once at workflow start. Dependencies are automatically detected via `{{var.X}}` patterns and resolved in the correct order, so variables can be defined in any order:
+
+```json
+{
+  "variables": [
+    { "name": "config", "type": "file", "source": "{{var.project}}/config.json" },
+    { "name": "project", "type": "env", "source": "PROJECT_NAME" }
+  ]
+}
+```
+
+Circular dependencies are detected and reported as errors.
 
 ## Nested Phases
 
