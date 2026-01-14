@@ -258,6 +258,7 @@ Workflows can define variables resolved at startup from environment, bash comman
     { "name": "branch", "type": "bash", "source": "git branch --show-current" },
     { "name": "api_key", "type": "env", "source": "MY_API_KEY", "required": false },
     { "name": "context", "type": "file", "source": "CLAUDE.md" },
+    { "name": "project_context", "type": "file", "source": ["CLAUDE.md", "AGENTS.md", ".github/copilot-instructions.md"] },
     { "name": "version", "type": "json", "source": "package.json", "path": ".version" },
     { "name": "first_dep", "type": "json", "source": "config.json", "path": ".dependencies[0].name" }
   ]
@@ -270,10 +271,26 @@ Access in prompts as `{{var.branch}}`, `{{var.api_key}}`, `{{var.context}}`, `{{
 |------|-------------|
 | `env` | Environment variable |
 | `bash` | Command stdout |
-| `file` | File contents (wrapped with injection markers) |
+| `file` | File contents (wrapped with injection markers). Supports array of paths - uses first existing file. |
 | `json` | JSON file value at path (dot-notation: `.field`, `.nested.field`, `.array[0]`) |
 
 Variables can reference each other via `{{var.X}}` - dependencies are auto-detected and resolved in correct order. Circular dependencies are reported as errors.
+
+### File Variable Fallbacks
+
+For `type: "file"` variables, the `source` can be an array of paths. The resolver tries each path in order and uses the first existing file. This is useful for supporting different agent instruction files:
+
+```json
+{
+  "name": "project_context",
+  "type": "file",
+  "source": ["CLAUDE.md", "AGENTS.md", ".github/copilot-instructions.md"],
+  "required": false,
+  "default": "No project context file found."
+}
+```
+
+In this example, the workflow will use `CLAUDE.md` if it exists, otherwise `AGENTS.md`, otherwise `.github/copilot-instructions.md`, otherwise the default value.
 
 ### File Injection Markers
 

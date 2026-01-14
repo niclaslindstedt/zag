@@ -13,7 +13,7 @@ use std::collections::{HashMap, HashSet};
 use std::process::Command;
 
 use super::template::TemplateEngine;
-use super::types::{VariableType, WorkflowVariable};
+use super::types::{VariableSource, VariableType, WorkflowVariable};
 
 /// Resolves workflow variables from their sources.
 pub struct VariableResolver;
@@ -42,10 +42,18 @@ impl VariableResolver {
         Ok(())
     }
 
-    /// Extract variable dependencies from a source string.
+    /// Extract variable dependencies from a source.
     /// Looks for `{{var.X}}` patterns and returns the variable names.
-    fn extract_dependencies(source: &str) -> HashSet<String> {
+    fn extract_dependencies(source: &VariableSource) -> HashSet<String> {
         let mut deps = HashSet::new();
+        for src in source.as_slice() {
+            Self::extract_deps_from_str(src, &mut deps);
+        }
+        deps
+    }
+
+    /// Extract dependencies from a single string
+    fn extract_deps_from_str(source: &str, deps: &mut HashSet<String>) {
         let mut remaining = source;
 
         while let Some(start) = remaining.find("{{var.") {
@@ -58,8 +66,6 @@ impl VariableResolver {
                 break;
             }
         }
-
-        deps
     }
 
     /// Topologically sort variables by their dependencies.
@@ -144,16 +150,30 @@ impl VariableResolver {
     }
 
     fn resolve_one(var: &WorkflowVariable, template: &TemplateEngine) -> Result<String> {
-        // Expand templates in source (e.g., {{state_dir}}/file.md)
-        let source = template.expand(&var.source);
+        // Expand templates in source(s)
+        let expanded_sources: Vec<String> = var
+            .source
+            .as_slice()
+            .iter()
+            .map(|s| template.expand(s))
+            .collect();
         // Expand templates in path if present
         let path = var.path.as_ref().map(|p| template.expand(p));
 
         let result = match var.var_type {
-            VariableType::Env => Self::resolve_env(&source),
-            VariableType::Bash => Self::resolve_bash(&source),
-            VariableType::File => Self::resolve_file(&source),
-            VariableType::Json => Self::resolve_json(&source, path.as_deref()),
+            VariableType::Env => {
+                let source = expanded_sources.first().map(|s| s.as_str()).unwrap_or("");
+                Self::resolve_env(source)
+            }
+            VariableType::Bash => {
+                let source = expanded_sources.first().map(|s| s.as_str()).unwrap_or("");
+                Self::resolve_bash(source)
+            }
+            VariableType::File => Self::resolve_file_with_fallbacks(&expanded_sources),
+            VariableType::Json => {
+                let source = expanded_sources.first().map(|s| s.as_str()).unwrap_or("");
+                Self::resolve_json(source, path.as_deref())
+            }
         };
 
         match result {
@@ -198,6 +218,27 @@ impl VariableResolver {
             "///!agent:injected_file_start:{}\n{}\n///!agent:injected_file_end:{}",
             path, contents, path
         ))
+    }
+
+    /// Resolve file with fallback paths - tries each path in order, returns first existing
+    fn resolve_file_with_fallbacks(paths: &[String]) -> Result<String> {
+        if paths.is_empty() {
+            bail!("No file paths provided");
+        }
+
+        // Try each path in order
+        for path in paths {
+            if std::path::Path::new(path).exists() {
+                return Self::resolve_file(path);
+            }
+        }
+
+        // None found - return error listing all tried paths
+        if paths.len() == 1 {
+            bail!("Failed to read file: {}", paths[0])
+        } else {
+            bail!("None of the file paths exist: {}", paths.join(", "))
+        }
     }
 
     fn resolve_json(file_path: &str, json_path: Option<&str>) -> Result<String> {
@@ -358,7 +399,7 @@ mod tests {
         let variables = vec![WorkflowVariable {
             name: "missing_var".to_string(),
             var_type: VariableType::Env,
-            source: "NONEXISTENT_VAR_88888".to_string(),
+            source: VariableSource::Single("NONEXISTENT_VAR_88888".to_string()),
             path: None,
             required: false,
             default: Some("default_value".to_string()),
@@ -378,7 +419,7 @@ mod tests {
         let variables = vec![WorkflowVariable {
             name: "required_var".to_string(),
             var_type: VariableType::Env,
-            source: "NONEXISTENT_VAR_77777".to_string(),
+            source: VariableSource::Single("NONEXISTENT_VAR_77777".to_string()),
             path: None,
             required: true,
             default: None,
@@ -396,7 +437,7 @@ mod tests {
         let variables = vec![WorkflowVariable {
             name: "result".to_string(),
             var_type: VariableType::Bash,
-            source: "echo {{state_dir}}".to_string(),
+            source: VariableSource::Single("echo {{state_dir}}".to_string()),
             path: None,
             required: true,
             default: None,
@@ -415,7 +456,7 @@ mod tests {
             WorkflowVariable {
                 name: "first".to_string(),
                 var_type: VariableType::Bash,
-                source: "echo hello".to_string(),
+                source: VariableSource::Single("echo hello".to_string()),
                 path: None,
                 required: true,
                 default: None,
@@ -423,7 +464,7 @@ mod tests {
             WorkflowVariable {
                 name: "second".to_string(),
                 var_type: VariableType::Bash,
-                source: "echo {{var.first}} world".to_string(),
+                source: VariableSource::Single("echo {{var.first}} world".to_string()),
                 path: None,
                 required: true,
                 default: None,
@@ -444,7 +485,7 @@ mod tests {
             WorkflowVariable {
                 name: "second".to_string(),
                 var_type: VariableType::Bash,
-                source: "echo {{var.first}} world".to_string(),
+                source: VariableSource::Single("echo {{var.first}} world".to_string()),
                 path: None,
                 required: true,
                 default: None,
@@ -452,7 +493,7 @@ mod tests {
             WorkflowVariable {
                 name: "first".to_string(),
                 var_type: VariableType::Bash,
-                source: "echo hello".to_string(),
+                source: VariableSource::Single("echo hello".to_string()),
                 path: None,
                 required: true,
                 default: None,
@@ -473,7 +514,7 @@ mod tests {
             WorkflowVariable {
                 name: "c".to_string(),
                 var_type: VariableType::Bash,
-                source: "echo {{var.b}} c".to_string(),
+                source: VariableSource::Single("echo {{var.b}} c".to_string()),
                 path: None,
                 required: true,
                 default: None,
@@ -481,7 +522,7 @@ mod tests {
             WorkflowVariable {
                 name: "b".to_string(),
                 var_type: VariableType::Bash,
-                source: "echo {{var.a}} b".to_string(),
+                source: VariableSource::Single("echo {{var.a}} b".to_string()),
                 path: None,
                 required: true,
                 default: None,
@@ -489,7 +530,7 @@ mod tests {
             WorkflowVariable {
                 name: "a".to_string(),
                 var_type: VariableType::Bash,
-                source: "echo a".to_string(),
+                source: VariableSource::Single("echo a".to_string()),
                 path: None,
                 required: true,
                 default: None,
@@ -510,7 +551,7 @@ mod tests {
             WorkflowVariable {
                 name: "a".to_string(),
                 var_type: VariableType::Bash,
-                source: "echo {{var.b}}".to_string(),
+                source: VariableSource::Single("echo {{var.b}}".to_string()),
                 path: None,
                 required: true,
                 default: None,
@@ -518,7 +559,7 @@ mod tests {
             WorkflowVariable {
                 name: "b".to_string(),
                 var_type: VariableType::Bash,
-                source: "echo {{var.a}}".to_string(),
+                source: VariableSource::Single("echo {{var.a}}".to_string()),
                 path: None,
                 required: true,
                 default: None,
@@ -537,7 +578,9 @@ mod tests {
 
     #[test]
     fn test_extract_dependencies() {
-        let deps = VariableResolver::extract_dependencies("echo {{var.foo}} and {{var.bar}}");
+        let deps = VariableResolver::extract_dependencies(&VariableSource::Single(
+            "echo {{var.foo}} and {{var.bar}}".to_string(),
+        ));
         assert!(deps.contains("foo"));
         assert!(deps.contains("bar"));
         assert_eq!(deps.len(), 2);
@@ -545,9 +588,22 @@ mod tests {
 
     #[test]
     fn test_extract_dependencies_ignores_non_var() {
-        let deps = VariableResolver::extract_dependencies("{{state_dir}}/{{var.name}}/file");
+        let deps = VariableResolver::extract_dependencies(&VariableSource::Single(
+            "{{state_dir}}/{{var.name}}/file".to_string(),
+        ));
         assert!(deps.contains("name"));
         assert_eq!(deps.len(), 1);
+    }
+
+    #[test]
+    fn test_extract_dependencies_multiple_sources() {
+        let deps = VariableResolver::extract_dependencies(&VariableSource::Multiple(vec![
+            "{{var.foo}}/file1".to_string(),
+            "{{var.bar}}/file2".to_string(),
+        ]));
+        assert!(deps.contains("foo"));
+        assert!(deps.contains("bar"));
+        assert_eq!(deps.len(), 2);
     }
 
     // JSON variable tests
@@ -744,5 +800,119 @@ mod tests {
         let value: serde_json::Value = serde_json::from_str(r#"["a", "b", "c"]"#).unwrap();
         let result = VariableResolver::navigate_json_path(&value, "[1]");
         assert_eq!(result.unwrap().as_str().unwrap(), "b");
+    }
+
+    // File fallback tests
+
+    #[test]
+    fn test_resolve_file_with_fallbacks_first_exists() {
+        let temp_dir = std::env::temp_dir();
+        let file1 = temp_dir.join("test_fallback_first.txt");
+        let file2 = temp_dir.join("test_fallback_second.txt");
+
+        std::fs::write(&file1, "first file").unwrap();
+        std::fs::write(&file2, "second file").unwrap();
+
+        let paths = vec![
+            file1.to_str().unwrap().to_string(),
+            file2.to_str().unwrap().to_string(),
+        ];
+        let result = VariableResolver::resolve_file_with_fallbacks(&paths).unwrap();
+
+        assert!(result.contains("first file"));
+        assert!(result.contains(&format!("injected_file_start:{}", file1.to_str().unwrap())));
+
+        std::fs::remove_file(file1).unwrap();
+        std::fs::remove_file(file2).unwrap();
+    }
+
+    #[test]
+    fn test_resolve_file_with_fallbacks_second_exists() {
+        let temp_dir = std::env::temp_dir();
+        let file2 = temp_dir.join("test_fallback_only_second.txt");
+
+        std::fs::write(&file2, "second file").unwrap();
+
+        let paths = vec![
+            "/nonexistent/first.txt".to_string(),
+            file2.to_str().unwrap().to_string(),
+        ];
+        let result = VariableResolver::resolve_file_with_fallbacks(&paths).unwrap();
+
+        assert!(result.contains("second file"));
+        assert!(result.contains(&format!("injected_file_start:{}", file2.to_str().unwrap())));
+
+        std::fs::remove_file(file2).unwrap();
+    }
+
+    #[test]
+    fn test_resolve_file_with_fallbacks_none_exist() {
+        let paths = vec![
+            "/nonexistent/first.txt".to_string(),
+            "/nonexistent/second.txt".to_string(),
+        ];
+        let result = VariableResolver::resolve_file_with_fallbacks(&paths);
+
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("None of the file paths exist"));
+        assert!(err.contains("/nonexistent/first.txt"));
+        assert!(err.contains("/nonexistent/second.txt"));
+    }
+
+    #[test]
+    fn test_resolve_file_with_fallbacks_empty() {
+        let paths: Vec<String> = vec![];
+        let result = VariableResolver::resolve_file_with_fallbacks(&paths);
+
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("No file paths provided")
+        );
+    }
+
+    #[test]
+    fn test_resolve_file_with_fallbacks_single() {
+        let temp_dir = std::env::temp_dir();
+        let file = temp_dir.join("test_fallback_single.txt");
+
+        std::fs::write(&file, "single file").unwrap();
+
+        let paths = vec![file.to_str().unwrap().to_string()];
+        let result = VariableResolver::resolve_file_with_fallbacks(&paths).unwrap();
+
+        assert!(result.contains("single file"));
+
+        std::fs::remove_file(file).unwrap();
+    }
+
+    #[test]
+    fn test_resolve_all_with_file_fallbacks() {
+        let temp_dir = std::env::temp_dir();
+        let file = temp_dir.join("test_resolve_all_fallback.txt");
+
+        std::fs::write(&file, "fallback content").unwrap();
+
+        let mut template = TemplateEngine::new();
+        let variables = vec![WorkflowVariable {
+            name: "context".to_string(),
+            var_type: VariableType::File,
+            source: VariableSource::Multiple(vec![
+                "/nonexistent/CLAUDE.md".to_string(),
+                file.to_str().unwrap().to_string(),
+            ]),
+            path: None,
+            required: true,
+            default: None,
+        }];
+
+        VariableResolver::resolve_all(&variables, &mut template).unwrap();
+        let result = template.get("var.context").unwrap();
+        assert!(result.contains("fallback content"));
+
+        std::fs::remove_file(file).unwrap();
     }
 }

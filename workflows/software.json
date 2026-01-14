@@ -24,7 +24,7 @@
     {
       "name": "project_context",
       "type": "file",
-      "source": "CLAUDE.md",
+      "source": ["CLAUDE.md", "AGENTS.md", ".github/copilot-instructions.md"],
       "required": false,
       "default": "No project context file found."
     },

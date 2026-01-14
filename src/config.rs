@@ -107,8 +107,9 @@ impl Config {
         let gitignore_path = base.join(".gitignore");
 
         let content = if gitignore_path.exists() {
-            std::fs::read_to_string(&gitignore_path)
-                .with_context(|| format!("Failed to read .gitignore: {}", gitignore_path.display()))?
+            std::fs::read_to_string(&gitignore_path).with_context(|| {
+                format!("Failed to read .gitignore: {}", gitignore_path.display())
+            })?
         } else {
             String::new()
         };
@@ -116,7 +117,10 @@ impl Config {
         // Check if .agent/ is already in .gitignore
         let has_agent_entry = content.lines().any(|line| {
             let trimmed = line.trim();
-            trimmed == ".agent" || trimmed == ".agent/" || trimmed == "/.agent" || trimmed == "/.agent/"
+            trimmed == ".agent"
+                || trimmed == ".agent/"
+                || trimmed == "/.agent"
+                || trimmed == "/.agent/"
         });
 
         if !has_agent_entry {
@@ -128,8 +132,9 @@ impl Config {
                 format!("{}\n\n# Agent CLI state directory\n.agent/\n", content)
             };
 
-            std::fs::write(&gitignore_path, new_content)
-                .with_context(|| format!("Failed to write .gitignore: {}", gitignore_path.display()))?;
+            std::fs::write(&gitignore_path, new_content).with_context(|| {
+                format!("Failed to write .gitignore: {}", gitignore_path.display())
+            })?;
         }
 
         Ok(())

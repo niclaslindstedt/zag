@@ -29,6 +29,43 @@ pub enum DefinitionValue {
     Section(HashMap<String, String>),
 }
 
+/// Source specification - either a single value or an array of values (for file type fallbacks)
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum VariableSource {
+    /// A single source value
+    Single(String),
+    /// Multiple source values (for file type: tries each in order, uses first existing)
+    Multiple(Vec<String>),
+}
+
+impl VariableSource {
+    /// Get as a single string (for non-file types or when only one value exists)
+    pub fn as_single(&self) -> Option<&str> {
+        match self {
+            VariableSource::Single(s) => Some(s),
+            VariableSource::Multiple(v) if v.len() == 1 => Some(&v[0]),
+            VariableSource::Multiple(_) => None,
+        }
+    }
+
+    /// Get all values as a slice
+    pub fn as_slice(&self) -> Vec<&str> {
+        match self {
+            VariableSource::Single(s) => vec![s.as_str()],
+            VariableSource::Multiple(v) => v.iter().map(|s| s.as_str()).collect(),
+        }
+    }
+
+    /// Get the first value (for display/error messages)
+    pub fn first(&self) -> &str {
+        match self {
+            VariableSource::Single(s) => s,
+            VariableSource::Multiple(v) => v.first().map(|s| s.as_str()).unwrap_or(""),
+        }
+    }
+}
+
 /// A variable definition that can be resolved from various sources
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct WorkflowVariable {
@@ -38,7 +75,8 @@ pub struct WorkflowVariable {
     #[serde(rename = "type")]
     pub var_type: VariableType,
     /// Source specification (env var name, bash command, or file path)
-    pub source: String,
+    /// For file type, can be an array of paths - uses first existing file
+    pub source: VariableSource,
     /// JSON path for extracting values (only used with type=json)
     /// Supports dot-notation: .field, .nested.field, .array[0], .array[0].field
     #[serde(default)]

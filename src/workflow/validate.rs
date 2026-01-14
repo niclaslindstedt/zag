@@ -301,6 +301,35 @@ fn validate_schema(json: &Value) -> Vec<String> {
                         "Variable {} is missing required field: source",
                         var_name
                     ));
+                } else {
+                    // Validate source is string or array of strings
+                    let source = &var_obj["source"];
+                    let vtype = var_obj["type"].as_str();
+                    if !source.is_string() && !source.is_array() {
+                        errors.push(format!(
+                            "Variable {} source must be a string or array of strings",
+                            var_name
+                        ));
+                    } else if source.is_array() {
+                        // Array sources only valid for file type
+                        if vtype != Some("file") {
+                            errors.push(format!(
+                                "Variable {} has array source but type is not \"file\" (array sources only supported for file type)",
+                                var_name
+                            ));
+                        }
+                        // Validate all elements are strings
+                        if let Some(arr) = source.as_array() {
+                            for (j, elem) in arr.iter().enumerate() {
+                                if !elem.is_string() {
+                                    errors.push(format!(
+                                        "Variable {} source[{}] must be a string",
+                                        var_name, j
+                                    ));
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -495,15 +524,18 @@ fn detect_variable_cycles(workflow: &Workflow) -> Option<String> {
     for var in &workflow.variables {
         let mut var_deps = Vec::new();
 
-        // Scan source for {{var.X}} references
+        // Scan source(s) for {{var.X}} references
         for other_name in &var_names {
             let pattern = format!("{{{{var.{}}}}}", other_name);
-            if var.source.contains(&pattern) {
-                var_deps.push(*other_name);
+            // Check all source paths
+            for src in var.source.as_slice() {
+                if src.contains(&pattern) && !var_deps.contains(other_name) {
+                    var_deps.push(*other_name);
+                }
             }
             // Also check path field for json type
             if let Some(path) = &var.path {
-                if path.contains(&pattern) {
+                if path.contains(&pattern) && !var_deps.contains(other_name) {
                     var_deps.push(*other_name);
                 }
             }
