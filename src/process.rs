@@ -19,14 +19,14 @@ fn was_terminated_by_sigint(_status: &std::process::ExitStatus) -> bool {
 }
 
 /// Wait for a child process to complete.
-/// Writes the child's PID so `agent kill` can terminate it directly.
+/// Writes the child's PID so `agent exit` can terminate it directly.
 /// Uses select! to race between child completion and CTRL+C signal.
 ///
 /// If `require_explicit_completion` is true (for interactive phases), the agent
-/// must call `agent kill` to signal successful completion. Otherwise, exiting
-/// without `agent kill` is treated as an interruption.
+/// must call `agent exit` to signal successful completion. Otherwise, exiting
+/// without `agent exit` is treated as a failure.
 pub async fn wait_with_pid_tracking(mut child: Child, require_explicit_completion: bool) -> Result<()> {
-    // Write child's PID so `agent kill` targets the agent CLI, not the parent
+    // Write child's PID so `agent exit` targets the agent CLI, not the parent
     if let Some(child_pid) = child.id() {
         let _ = pid::write_pid_for(child_pid);
     }
@@ -58,7 +58,7 @@ pub async fn wait_with_pid_tracking(mut child: Child, require_explicit_completio
         anyhow::bail!("Session was interrupted by Ctrl+C");
     }
 
-    // Check if killed via `agent kill` - this is intentional termination
+    // Check if exited via `agent exit` - this is intentional termination
     // and should succeed to allow workflow continuation
     let was_killed = pid::was_killed();
     if was_killed {
@@ -85,11 +85,11 @@ pub async fn wait_with_pid_tracking(mut child: Child, require_explicit_completio
         anyhow::bail!("process exited with status: {}", status);
     }
 
-    // For interactive phases, the agent MUST call `agent kill` to signal
+    // For interactive phases, the agent MUST call `agent exit` to signal
     // successful completion. If it just exits (even with status 0), treat
-    // it as the user wanting to stop the workflow.
+    // it as a failure - the agent didn't follow the completion instructions.
     if require_explicit_completion && !was_killed {
-        anyhow::bail!("Session exited without signaling completion (use `agent kill` to complete)");
+        anyhow::bail!("Agent exited without signaling completion (did not run `agent exit`)");
     }
 
     Ok(())

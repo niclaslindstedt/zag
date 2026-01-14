@@ -290,7 +290,10 @@ impl<'a> PhaseExecutor<'a> {
             }
         }
 
-        // Inject completion instructions based on phase type:
+        let mut prompt = self.context_template.expand(&phase.prompt);
+
+        // Inject completion instructions at the END of the user prompt (not system prompt)
+        // so they're the last thing the agent sees before starting work.
         // - Interactive iteration: checkpoint + exit
         // - Interactive non-iteration: exit only
         // - Non-interactive iteration: checkpoint only (auto-exits when done)
@@ -303,13 +306,8 @@ impl<'a> PhaseExecutor<'a> {
         };
 
         if let Some(instr) = instruction {
-            system_prompt = Some(match system_prompt {
-                Some(sp) => format!("{}{}", sp, instr),
-                None => instr.trim_start().to_string(),
-            });
+            prompt = format!("{}{}", prompt, instr);
         }
-
-        let prompt = self.context_template.expand(&phase.prompt);
 
         Ok(AgentSession::new(
             agent,

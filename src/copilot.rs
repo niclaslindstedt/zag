@@ -88,7 +88,7 @@ impl Copilot {
             .stderr(Stdio::inherit());
 
         let child = cmd.spawn()?;
-        // Interactive sessions require explicit completion via `agent kill`
+        // Interactive sessions require explicit completion via `agent exit`
         wait_with_pid_tracking(child, interactive).await
     }
 }
