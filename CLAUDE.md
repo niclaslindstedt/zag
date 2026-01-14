@@ -92,8 +92,7 @@ agent workflow --delete my-workflow
 | `src/workflow/variables.rs` | Custom variable resolution (env, bash, file, json) |
 | `src/workflow/manage.rs` | Workflow management (create, modify, delete) |
 | `workflows/software.json` | Embedded software workflow |
-| `prompts/workflow-create-system.md` | System prompt for workflow creation |
-| `prompts/workflow-modify-system.md` | System prompt for workflow modification |
+| `prompts/workflow-reference.md` | System prompt for workflow creation/modification |
 
 ### Workflow Loading
 
@@ -163,6 +162,27 @@ Access in prompts as `{{var.branch}}`, `{{var.api_key}}`, `{{var.context}}`, `{{
 | `json` | JSON file value at path (dot-notation: `.field`, `.nested.field`, `.array[0]`) |
 
 Variables can reference each other via `{{var.X}}` - dependencies are auto-detected and resolved in correct order. Circular dependencies are reported as errors.
+
+### JSON State Files and Dynamic Prompts
+
+Phases can write structured JSON files that later phases consume. This enables dynamic, context-aware prompts:
+
+**Pattern: Phase Chain with JSON State**
+1. Phase A writes structured JSON to `{{state_dir}}/analysis.json`
+2. JSON variable extracts specific value: `{ "type": "json", "source": "{{state_dir}}/analysis.json", "path": ".summary" }`
+3. Phase B prompt uses extracted value: `"Previous analysis: {{var.summary}}"`
+
+**JSON Path Syntax**:
+- `.field` - Top-level field
+- `.nested.field` - Nested field
+- `.[0]` - Array index (root array)
+- `.array[0].field` - Field in array element
+
+**Best Practices**:
+- Design JSON schemas with downstream extraction in mind
+- Include `id`, `status`, `priority` fields for iteratable items
+- Use `required: false` with `default` for optional state files
+- Specify expected JSON schema in prompts for consistency
 
 ### Nested Phases
 

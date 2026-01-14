@@ -10,11 +10,8 @@ use std::path::PathBuf;
 
 use crate::session::{run_sessions, AgentSession};
 
-/// System prompt for workflow creation.
-const CREATE_SYSTEM_PROMPT: &str = include_str!("../../prompts/workflow-create-system.md");
-
-/// System prompt for workflow modification.
-const MODIFY_SYSTEM_PROMPT: &str = include_str!("../../prompts/workflow-modify-system.md");
+/// System prompt for workflow creation and modification.
+const SYSTEM_PROMPT: &str = include_str!("../../prompts/workflow-reference.md");
 
 /// User prompt template for workflow creation.
 const CREATE_USER_PROMPT_TEMPLATE: &str = r#"Help me create a new workflow named "{{name}}".
@@ -55,7 +52,7 @@ pub async fn create_workflow(name: &str, agent_name: &str) -> Result<()> {
     let session = AgentSession::new(
         agent_name,
         user_prompt,
-        Some(CREATE_SYSTEM_PROMPT.to_string()),
+        Some(SYSTEM_PROMPT.to_string()),
         None,  // default model
         None,  // current directory
         false, // require permissions
@@ -158,7 +155,7 @@ pub async fn modify_workflow(name: &str, agent_name: &str) -> Result<()> {
     let session = AgentSession::new(
         agent_name,
         user_prompt,
-        Some(MODIFY_SYSTEM_PROMPT.to_string()),
+        Some(SYSTEM_PROMPT.to_string()),
         None,  // default model
         None,  // current directory
         false, // require permissions

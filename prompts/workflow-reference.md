@@ -18,8 +18,9 @@ Workflows define multi-phase AI agent sessions that execute sequentially with fi
   "variables": [
     {
       "name": "variable_name",
-      "type": "env|bash|file",
+      "type": "env|bash|file|json",
       "source": "SOURCE_VALUE",
+      "path": ".json.path",
       "required": true,
       "default": "fallback value"
     }
@@ -124,11 +125,17 @@ Define variables at workflow level that are resolved before execution. Custom va
       "source": "CLAUDE.md",
       "required": false,
       "default": "No context available"
+    },
+    {
+      "name": "project_name",
+      "type": "json",
+      "source": "package.json",
+      "path": ".name"
     }
   ],
   "phases": [
     {
-      "prompt": "Working on branch {{var.branch}}. Context:\n{{var.context}}"
+      "prompt": "Working on {{var.project_name}} branch {{var.branch}}. Context:\n{{var.context}}"
     }
   ]
 }
@@ -141,14 +148,16 @@ Define variables at workflow level that are resolved before execution. Custom va
 | `env` | Read from environment variable | Environment variable name |
 | `bash` | Execute command and capture stdout | Shell command string |
 | `file` | Read file contents | File path (supports `{{state_dir}}`) |
+| `json` | Extract value from JSON file | JSON file path |
 
 ### Variable Properties
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `name` | string | Yes | Variable name (accessed as `{{var.name}}`) |
-| `type` | enum | Yes | `env`, `bash`, or `file` |
+| `type` | enum | Yes | `env`, `bash`, `file`, or `json` |
 | `source` | string | Yes | Source specification |
+| `path` | string | No | JSON path for `json` type (e.g., `.field`, `.nested.field`, `.array[0]`) |
 | `required` | bool | No | Fail if unavailable (default: true) |
 | `default` | string | No | Fallback value if source unavailable |
 
@@ -166,6 +175,184 @@ Variables are resolved once at workflow start. Dependencies are automatically de
 ```
 
 Circular dependencies are detected and reported as errors.
+
+## JSON State Files and Dynamic Prompts
+
+JSON state files are the backbone of dynamic workflows. Design them carefully to enable powerful data passing between phases.
+
+### Why JSON State Files Matter
+
+1. **Structure enables automation**: Well-designed JSON schemas let later phases extract specific values
+2. **Iteration support**: JSON arrays drive `iterate` mode for batch processing
+3. **Dynamic prompts**: Extract specific fields to craft context-aware prompts
+4. **Traceability**: Structured data makes workflow state inspectable and debuggable
+
+### Designing JSON Schemas
+
+When a phase produces JSON output, design the schema with downstream consumption in mind:
+
+**Good Schema (flat, extractable fields)**:
+```json
+[
+  {
+    "id": "feature-001",
+    "name": "User Authentication",
+    "description": "Implement login and session management",
+    "priority": 1,
+    "estimated_complexity": "medium",
+    "dependencies": [],
+    "tags": ["security", "core"]
+  }
+]
+```
+
+**Why it's good**:
+- Flat structure with named fields
+- Each item has an `id` for identification
+- Fields like `priority` and `estimated_complexity` can inform later prompts
+- `dependencies` array supports ordering logic
+
+### Using JSON Variables for Dynamic Prompts
+
+The `json` variable type extracts specific values from JSON files to inject into prompts:
+
+```json
+{
+  "variables": [
+    {
+      "name": "analysis_summary",
+      "type": "json",
+      "source": "{{state_dir}}/analysis.json",
+      "path": ".summary",
+      "required": false,
+      "default": "No analysis available"
+    },
+    {
+      "name": "issue_count",
+      "type": "json",
+      "source": "{{state_dir}}/analysis.json",
+      "path": ".metrics.issues_found",
+      "required": false,
+      "default": "0"
+    }
+  ],
+  "phases": [
+    {
+      "id": "report",
+      "prompt": "Found {{var.issue_count}} issues. Summary: {{var.analysis_summary}}"
+    }
+  ]
+}
+```
+
+### JSON Path Syntax
+
+| Pattern | Description | Example |
+|---------|-------------|---------|
+| `.field` | Top-level field | `.name` → `"value"` |
+| `.nested.field` | Nested field | `.config.timeout` → `30` |
+| `.[0]` | Array index (root array) | `.[0]` → first element |
+| `.array[0]` | Array index | `.items[0]` → first item |
+| `.array[0].field` | Field in array element | `.users[0].email` |
+
+### Pattern: Phase Chain with JSON State
+
+This pattern shows how phases can write JSON that later phases read via variables:
+
+```json
+{
+  "name": "analysis-workflow",
+  "variables": [
+    {
+      "name": "summary",
+      "type": "json",
+      "source": "{{state_dir}}/analysis.json",
+      "path": ".summary",
+      "required": false,
+      "default": "Analysis not yet complete"
+    },
+    {
+      "name": "risk_level",
+      "type": "json",
+      "source": "{{state_dir}}/analysis.json",
+      "path": ".risk_level",
+      "required": false,
+      "default": "unknown"
+    }
+  ],
+  "phases": [
+    {
+      "id": "analyze",
+      "name": "Analyze Codebase",
+      "execution": { "mode": "once" },
+      "prompt": "Analyze the codebase and write results to {{state_dir}}/analysis.json:\n{\n  \"summary\": \"Brief summary of findings\",\n  \"risk_level\": \"low|medium|high\",\n  \"issues\": [{\"id\": \"...\", \"severity\": \"...\", \"description\": \"...\"}],\n  \"recommendations\": [\"...\"]\n}"
+    },
+    {
+      "id": "report",
+      "name": "Generate Report",
+      "execution": { "mode": "once" },
+      "depends_on": ["analyze"],
+      "prompt": "Previous analysis found risk level: {{var.risk_level}}\nSummary: {{var.summary}}\n\nRead full analysis from {{state_dir}}/analysis.json and generate a detailed report at {{state_dir}}/report.md"
+    },
+    {
+      "id": "fix-issues",
+      "name": "Fix Issues",
+      "execution": {
+        "mode": "iterate",
+        "iterate_over": "{{state_dir}}/analysis.json",
+        "item_variable": "issue",
+        "skip_if_empty": true
+      },
+      "depends_on": ["analyze"],
+      "prompt": "Fix issue {{issue.id}} ({{issue.severity}}): {{issue.description}}"
+    }
+  ]
+}
+```
+
+### Recommended JSON Schemas
+
+**For iteration (tasks/tickets/items)**:
+```json
+[
+  {
+    "id": "unique-id",
+    "name": "Human readable name",
+    "description": "Detailed description",
+    "status": "pending|in_progress|completed",
+    "metadata": { "any": "additional data" }
+  }
+]
+```
+
+**For analysis results**:
+```json
+{
+  "summary": "Brief overview",
+  "status": "success|warning|error",
+  "findings": [
+    { "id": "F001", "severity": "high", "message": "...", "location": "..." }
+  ],
+  "metrics": {
+    "total_files": 42,
+    "issues_found": 3
+  }
+}
+```
+
+**For configuration/context**:
+```json
+{
+  "project": {
+    "name": "...",
+    "version": "...",
+    "type": "..."
+  },
+  "settings": {
+    "key": "value"
+  }
+}
+```
 
 ## Nested Phases
 
@@ -246,6 +433,59 @@ For **non-interactive** phases (`interactive: false`), the agent exits naturally
 6. **Include context in system prompts**: Reference relevant files
 7. **Use interactive mode for complex tasks**: Allows agent to ask clarifying questions
 8. **Write user-input prompts in first-person**: Use "Ask me which files..." not "Ask the user which files..."
+9. **Design JSON schemas for extraction**: Include fields that later phases will need to reference
+10. **Use JSON variables for dynamic context**: Extract specific values from state files into prompts
+11. **Prefer flat JSON structures**: Deeply nested objects are harder to extract from
+12. **Include metadata in JSON outputs**: Fields like `status`, `priority`, `id` enable filtering and ordering
+13. **Specify JSON schemas in prompts**: Tell agents exactly what structure to produce for consistency
+
+## When Modifying Workflows
+
+Common modification patterns:
+
+### Adding a new phase
+- Determine where in the workflow it should run (use `depends_on`)
+- Consider if it's part of an iteration loop (use `parent`)
+
+### Fixing iteration issues
+- Check `iterate_over` path uses correct variables
+- Verify `item_variable` matches usage in prompts
+- Add `skip_if_empty: true` if the file might not exist
+
+### Changing prompts
+- Keep prompts focused on a single task
+- Use `{{state_dir}}` for file paths
+- Use `{{item.field}}` for iteration data
+
+### Adjusting agent settings
+- Change `agent`, `model`, `interactive`, or `skip_permissions`
+- Can be set per-phase or in `defaults`
+
+### Adding variables
+- Add to `variables` array at workflow level
+- Use `type: env` for environment variables
+- Use `type: bash` for dynamic command output
+- Use `type: file` for file content injection
+- Use `type: json` with `path` to extract specific values from JSON files
+- Set `required: false` with `default` for optional variables
+
+### Adding JSON state files for data passing
+- Have phases write structured JSON to `{{state_dir}}/filename.json`
+- Define JSON schemas in prompts so output is consistent
+- Add JSON variables to extract specific values for later phases
+- Use `iterate_over` to loop through JSON arrays
+
+### Making prompts more dynamic with JSON variables
+- Identify static context that could come from previous phase output
+- Add `type: json` variables with appropriate `path` to extract values
+- Update prompts to use `{{var.name}}` for dynamic context
+- Always set `required: false` with `default` for state files that may not exist yet
+
+### Improving JSON schemas in prompts
+- Add explicit schemas showing expected structure
+- Include all fields that later phases will need to reference
+- Prefer flat structures over deeply nested objects
+- Include `id`, `status`, and `priority` fields for items that will be iterated
 
 ## Example: Code Review Workflow
 
