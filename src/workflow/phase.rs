@@ -20,8 +20,6 @@ pub struct PhaseExecutor<'a> {
     run_ctx: &'a mut RunContext,
     /// Template engine with accumulated context (epic, ticket, etc.)
     context_template: TemplateEngine,
-    /// Whether we're currently inside an iteration loop (for checkpoint instructions)
-    in_iteration: bool,
     /// Optional agent override from CLI (takes precedence over workflow/phase settings)
     agent_override: Option<String>,
     /// Memory manager for loading workflow memories
@@ -53,7 +51,6 @@ impl<'a> PhaseExecutor<'a> {
             defaults,
             run_ctx,
             context_template,
-            in_iteration: false,
             agent_override: agent_override.map(|s| s.to_string()),
             memory_manager,
             memory_enabled,
@@ -130,9 +127,6 @@ impl<'a> PhaseExecutor<'a> {
 
     /// Execute a phase for each item in an iteration file.
     async fn execute_iterate(&mut self, phase: &Phase) -> Result<()> {
-        // Mark that we're inside an iteration loop (for checkpoint instructions)
-        self.in_iteration = true;
-
         let iterate_over = phase
             .execution
             .iterate_over
@@ -235,15 +229,6 @@ impl<'a> PhaseExecutor<'a> {
     /// File injection marker documentation (always injected into system prompt)
     const FILE_INJECTION_INFO: &'static str = "## File Injection Markers\n\nWhen file contents are injected into prompts via workflow variables (type: \"file\"), they are wrapped with special delimiters:\n\n```\n///!agent:injected_file_start:<path>\n<file contents>\n///!agent:injected_file_end:<path>\n```\n\nThese markers help you identify which content came from external files and distinguish between multiple injected files. You can reference files by their path shown in the markers.";
 
-    /// Completion instruction for interactive iteration phases (checkpoint + exit)
-    const COMPLETION_CHECKPOINT_AND_EXIT: &'static str = "\n\n---\nWORKFLOW COMPLETION: After you have finished ALL your work for this task, run these commands in order:\n1. `agent workflow --checkpoint` - saves your progress for this iteration\n2. `agent exit` - signals completion and continues to next iteration/phase\n\nIMPORTANT: Run both commands AFTER completing your work. If you exit without these, the workflow will fail.\n\nWORKFLOW MEMORY: If you learned something important about this project, save it with:\n`agent memory add \"what you learned\"` (optionally: `--category <category>`)";
-
-    /// Completion instruction for interactive non-iteration phases (exit only)
-    const COMPLETION_EXIT_ONLY: &'static str = "\n\n---\nWORKFLOW COMPLETION: After you have finished ALL your work for this task, run:\n`agent exit`\n\nThis signals completion and continues to the next phase.\n\nIMPORTANT: Run the exit command AFTER completing your work. If you exit without it, the workflow will fail.\n\nWORKFLOW MEMORY: If you learned something important about this project, save it with:\n`agent memory add \"what you learned\"` (optionally: `--category <category>`)";
-
-    /// Completion instruction for non-interactive iteration phases (checkpoint only)
-    const COMPLETION_CHECKPOINT_ONLY: &'static str = "\n\n---\nWORKFLOW COMPLETION: After you have finished ALL your work for this task, run:\n`agent workflow --checkpoint`\n\nThis saves your progress for this iteration so the workflow can resume from here if interrupted.\n\nWORKFLOW MEMORY: If you learned something important about this project, save it with:\n`agent memory add \"what you learned\"`";
-
     /// Create an AgentSession for a phase.
     fn create_session(&self, phase: &Phase) -> Result<AgentSession> {
         // Agent priority: CLI override > phase setting > workflow default
@@ -301,24 +286,7 @@ impl<'a> PhaseExecutor<'a> {
             }
         }
 
-        let mut prompt = self.context_template.expand(&phase.prompt);
-
-        // Inject completion instructions at the END of the user prompt (not system prompt)
-        // so they're the last thing the agent sees before starting work.
-        // - Interactive iteration: checkpoint + exit
-        // - Interactive non-iteration: exit only
-        // - Non-interactive iteration: checkpoint only (auto-exits when done)
-        // - Non-interactive non-iteration: nothing (auto-exits and completes)
-        let instruction = match (self.in_iteration, interactive) {
-            (true, true) => Some(Self::COMPLETION_CHECKPOINT_AND_EXIT),
-            (false, true) => Some(Self::COMPLETION_EXIT_ONLY),
-            (true, false) => Some(Self::COMPLETION_CHECKPOINT_ONLY),
-            (false, false) => None,
-        };
-
-        if let Some(instr) = instruction {
-            prompt = format!("{}{}", prompt, instr);
-        }
+        let prompt = self.context_template.expand(&phase.prompt);
 
         Ok(AgentSession::new(
             agent,
