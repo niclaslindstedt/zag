@@ -1,7 +1,8 @@
-//! Workflow management (create, delete).
+//! Workflow management (create, modify, delete).
 //!
 //! Provides commands for managing user-defined workflows:
 //! - Create: Launch an AI agent to help design and write workflow JSON
+//! - Modify: Launch an AI agent to help modify existing workflows
 //! - Delete: Remove user-defined workflows from ~/.agent/workflows/
 
 use anyhow::{bail, Result};
@@ -9,19 +10,35 @@ use std::path::PathBuf;
 
 use crate::session::{run_sessions, AgentSession};
 
-/// System prompt embedded at compile time.
-const SYSTEM_PROMPT: &str = include_str!("../../prompts/workflow-create-system.md");
+/// System prompt for workflow creation.
+const CREATE_SYSTEM_PROMPT: &str = include_str!("../../prompts/workflow-create-system.md");
+
+/// System prompt for workflow modification.
+const MODIFY_SYSTEM_PROMPT: &str = include_str!("../../prompts/workflow-modify-system.md");
 
 /// User prompt template for workflow creation.
-const USER_PROMPT_TEMPLATE: &str = r#"Create a new workflow named "{{name}}".
+const CREATE_USER_PROMPT_TEMPLATE: &str = r#"Help me create a new workflow named "{{name}}".
 
-Instructions:
-1. Ask me what the workflow should accomplish
-2. Design the phases based on my requirements
+Your task:
+1. Ask me what the workflow should accomplish and what phases it needs
+2. Design the phases based on my requirements, using the workflow schema from your system prompt
 3. Write the workflow JSON to ~/.agent/workflows/{{name}}.json
-4. Provide testing instructions for the workflow
+4. Explain how to test the workflow
 
-Start by asking me about the workflow's purpose."#;
+Start by asking me about the workflow's purpose and what it should do."#;
+
+/// User prompt template for workflow modification.
+const MODIFY_USER_PROMPT_TEMPLATE: &str = r#"Help me modify the workflow "{{name}}".
+
+The workflow file is located at: {{path}}
+
+Your task:
+1. Read the existing workflow file to understand its current structure
+2. Ask me what I want to change or what isn't working as expected
+3. Make the requested modifications using the workflow schema from your system prompt
+4. Explain the changes you made
+
+Start by reading the workflow file, then ask me what I'd like to modify."#;
 
 /// Create a new workflow with AI assistance.
 ///
@@ -33,12 +50,12 @@ Start by asking me about the workflow's purpose."#;
 /// * `name` - Name for the new workflow (used in filename and prompts)
 /// * `agent_name` - Which agent to use ("claude", "codex", "gemini", "copilot")
 pub async fn create_workflow(name: &str, agent_name: &str) -> Result<()> {
-    let user_prompt = USER_PROMPT_TEMPLATE.replace("{{name}}", name);
+    let user_prompt = CREATE_USER_PROMPT_TEMPLATE.replace("{{name}}", name);
 
     let session = AgentSession::new(
         agent_name,
         user_prompt,
-        Some(SYSTEM_PROMPT.to_string()),
+        Some(CREATE_SYSTEM_PROMPT.to_string()),
         None,  // default model
         None,  // current directory
         false, // require permissions
@@ -89,4 +106,64 @@ pub fn delete_workflow(name: &str) -> Result<()> {
     println!("Deleted workflow: {}", name);
 
     Ok(())
+}
+
+/// Embedded workflows (must match loader.rs)
+const EMBEDDED_WORKFLOWS: &[(&str, &str)] = &[
+    ("software", include_str!("../../workflows/software.json")),
+];
+
+/// Modify an existing workflow with AI assistance.
+///
+/// Launches an interactive agent session to help modify a workflow.
+/// For embedded workflows, creates a copy in the user directory first.
+///
+/// # Arguments
+///
+/// * `name` - Name of the workflow to modify
+/// * `agent_name` - Which agent to use ("claude", "codex", "gemini", "copilot")
+pub async fn modify_workflow(name: &str, agent_name: &str) -> Result<()> {
+    let user_path = get_workflow_path(name);
+
+    // Check if workflow exists (user or embedded)
+    let is_embedded = EMBEDDED_WORKFLOWS.iter().any(|(n, _)| *n == name);
+
+    if !user_path.exists() && !is_embedded {
+        bail!(
+            "Workflow '{}' not found. Use --list to see available workflows.",
+            name
+        );
+    }
+
+    // For embedded workflows without a user override, copy to user directory first
+    if !user_path.exists() && is_embedded {
+        if let Some((_, content)) = EMBEDDED_WORKFLOWS.iter().find(|(n, _)| *n == name) {
+            // Create directory if it doesn't exist
+            if let Some(parent) = user_path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::write(&user_path, content)?;
+            println!(
+                "Copied embedded workflow '{}' to {} for modification",
+                name,
+                user_path.display()
+            );
+        }
+    }
+
+    let user_prompt = MODIFY_USER_PROMPT_TEMPLATE
+        .replace("{{name}}", name)
+        .replace("{{path}}", &user_path.display().to_string());
+
+    let session = AgentSession::new(
+        agent_name,
+        user_prompt,
+        Some(MODIFY_SYSTEM_PROMPT.to_string()),
+        None,  // default model
+        None,  // current directory
+        false, // require permissions
+        true,  // interactive
+    );
+
+    run_sessions(vec![session]).await
 }

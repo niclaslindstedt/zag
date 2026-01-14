@@ -62,6 +62,12 @@ agent workflow --create my-workflow
 # Create with a different agent
 agent workflow --create my-workflow --agent codex
 
+# Modify an existing workflow with AI assistance
+agent workflow --modify my-workflow
+
+# Modify with a different agent
+agent workflow --modify my-workflow --agent codex
+
 # Delete a user-defined workflow
 agent workflow --delete my-workflow
 ```
@@ -77,9 +83,10 @@ agent workflow --delete my-workflow
 | `src/workflow/state.rs` | State directory management |
 | `src/workflow/loader.rs` | Load embedded + custom workflows |
 | `src/workflow/template.rs` | Variable expansion (`{{var}}`) |
-| `src/workflow/manage.rs` | Workflow management (create, delete) |
+| `src/workflow/manage.rs` | Workflow management (create, modify, delete) |
 | `workflows/software.json` | Embedded software workflow |
 | `prompts/workflow-create-system.md` | System prompt for workflow creation |
+| `prompts/workflow-modify-system.md` | System prompt for workflow modification |
 
 ### Workflow Loading
 
@@ -151,3 +158,7 @@ For interactive phases, the workflow engine automatically injects a completion i
 ### Creating Custom Workflows
 
 Run `agent workflow --create <name>` to create a new workflow with AI assistance. The AI will guide you through defining phases and write the workflow JSON to `~/.agent/workflows/<name>.json`.
+
+### Modifying Workflows
+
+Run `agent workflow --modify <name>` to modify an existing workflow with AI assistance. The AI will read the current workflow, ask what you want to change, and make the modifications. For embedded workflows (like `software`), a copy is created in `~/.agent/workflows/` for modification.

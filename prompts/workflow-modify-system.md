@@ -169,6 +169,26 @@ For **non-interactive** phases (`interactive: false`), the agent exits naturally
 7. **Use interactive mode for complex tasks**: Allows agent to ask clarifying questions
 8. **Write user-input prompts in first-person**: Use "Ask me which files..." not "Ask the user which files..."
 
+## Common Modification Patterns
+
+### Adding a new phase
+- Determine where in the workflow it should run (use `depends_on`)
+- Consider if it's part of an iteration loop (use `parent`)
+
+### Fixing iteration issues
+- Check `iterate_over` path uses correct variables
+- Verify `item_variable` matches usage in prompts
+- Add `skip_if_empty: true` if the file might not exist
+
+### Changing prompts
+- Keep prompts focused on a single task
+- Use `{{state_dir}}` for file paths
+- Use `{{item.field}}` for iteration data
+
+### Adjusting agent settings
+- Change `agent`, `model`, `interactive`, or `skip_permissions`
+- Can be set per-phase or in `defaults`
+
 ## Example: Code Review Workflow
 
 ```json

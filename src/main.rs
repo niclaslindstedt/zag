@@ -160,6 +160,10 @@ enum Commands {
         #[arg(long)]
         create: Option<String>,
 
+        /// Modify an existing workflow with AI assistance
+        #[arg(long)]
+        modify: Option<String>,
+
         /// Delete a user-defined workflow
         #[arg(long)]
         delete: Option<String>,
@@ -236,6 +240,7 @@ async fn main() -> Result<()> {
             list,
             list_runs,
             create,
+            modify,
             delete,
             agent,
         } => {
@@ -254,6 +259,12 @@ async fn main() -> Result<()> {
             // Create a new workflow with AI assistance
             if let Some(workflow_name) = create {
                 workflow::manage::create_workflow(&workflow_name, &agent).await?;
+                return Ok(());
+            }
+
+            // Modify an existing workflow with AI assistance
+            if let Some(workflow_name) = modify {
+                workflow::manage::modify_workflow(&workflow_name, &agent).await?;
                 return Ok(());
             }
 
