@@ -72,7 +72,7 @@ impl Codex {
         cmd.args(["--model", &self.model]);
 
         if self.skip_permissions {
-            cmd.arg("--dangerously-bypass-approvals-and-sandbox");
+            cmd.args(["--dangerously-bypass-approvals-and-sandbox", "--sandbox", "danger-full-access"]);
         }
 
         if let Some(p) = prompt {
