@@ -79,7 +79,7 @@ impl Copilot {
 
         match (interactive, prompt) {
             (true, Some(p)) => cmd.args(["-i", p]),
-            (true, None) => cmd.arg("-i"),
+            (true, None) => &mut cmd, // Interactive is default for copilot CLI
             (false, Some(p)) => cmd.args(["-p", p]),
             (false, None) => &mut cmd, // No prompt in non-interactive mode
         };

@@ -156,7 +156,7 @@ enum Commands {
     },
     /// Run the Copilot agent
     Copilot {
-        /// The prompt to send to the agent (optional - starts interactive session if omitted)
+        /// The prompt to send to the agent (optional in interactive mode, required with -n)
         prompt: Option<String>,
 
         /// System prompt to configure agent behavior
@@ -175,9 +175,9 @@ enum Commands {
         #[arg(short = 'a', long)]
         auto_approve: bool,
 
-        /// Run in non-interactive mode (print output and exit)
-        #[arg(short = 'p', long = "print")]
-        print: bool,
+        /// Run in non-interactive mode (process prompt and exit, requires a prompt)
+        #[arg(short = 'n', long = "non-interactive")]
+        non_interactive: bool,
     },
     /// Signal workflow phase completion and exit (used by agents during interactive sessions)
     Exit,
@@ -309,8 +309,11 @@ async fn main() -> Result<()> {
             model,
             root,
             auto_approve,
-            print,
+            non_interactive,
         } => {
+            if non_interactive && prompt.is_none() {
+                bail!("Non-interactive mode requires a prompt");
+            }
             let session = AgentSession::new(
                 "copilot",
                 prompt,
@@ -318,7 +321,7 @@ async fn main() -> Result<()> {
                 model,
                 root.clone(),
                 auto_approve,
-                !print,
+                !non_interactive,
             );
             run_sessions(vec![session], root.as_deref()).await?;
         }

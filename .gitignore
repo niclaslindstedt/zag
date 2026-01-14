@@ -1,1 +1,4 @@
 /target
+
+# Agent CLI state directory
+.agent/
