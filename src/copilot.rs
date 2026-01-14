@@ -8,20 +8,20 @@ use tokio::process::Command;
 
 pub const DEFAULT_MODEL: &str = "claude-sonnet-4.5";
 
-pub const AVAILABLE_MODELS: &[(&str, &str)] = &[
-    ("claude-sonnet-4.5", "Claude Sonnet 4.5"),
-    ("claude-haiku-4.5", "Claude Haiku 4.5"),
-    ("claude-opus-4.5", "Claude Opus 4.5"),
-    ("claude-sonnet-4", "Claude Sonnet 4"),
-    ("gpt-5.1-codex-max", "GPT 5.1 Codex Max"),
-    ("gpt-5.1-codex", "GPT 5.1 Codex"),
-    ("gpt-5.2", "GPT 5.2"),
-    ("gpt-5.1", "GPT 5.1"),
-    ("gpt-5", "GPT 5"),
-    ("gpt-5.1-codex-mini", "GPT 5.1 Codex Mini"),
-    ("gpt-5-mini", "GPT 5 Mini"),
-    ("gpt-4.1", "GPT 4.1"),
-    ("gemini-3-pro-preview", "Gemini 3 Pro Preview"),
+pub const AVAILABLE_MODELS: &[&str] = &[
+    "claude-sonnet-4.5",
+    "claude-haiku-4.5",
+    "claude-opus-4.5",
+    "claude-sonnet-4",
+    "gpt-5.1-codex-max",
+    "gpt-5.1-codex",
+    "gpt-5.2",
+    "gpt-5.1",
+    "gpt-5",
+    "gpt-5.1-codex-mini",
+    "gpt-5-mini",
+    "gpt-4.1",
+    "gemini-3-pro-preview",
 ];
 
 pub struct Copilot {
@@ -119,12 +119,20 @@ impl Agent for Copilot {
         }
     }
 
+    fn available_models() -> &'static [&'static str] {
+        AVAILABLE_MODELS
+    }
+
     fn system_prompt(&self) -> &str {
         &self.system_prompt
     }
 
     fn set_system_prompt(&mut self, prompt: String) {
         self.system_prompt = prompt;
+    }
+
+    fn get_model(&self) -> &str {
+        &self.model
     }
 
     fn set_model(&mut self, model: String) {

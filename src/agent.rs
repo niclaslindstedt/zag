@@ -54,9 +54,36 @@ pub trait Agent {
         }
     }
 
+    /// Get the list of available models for this agent.
+    fn available_models() -> &'static [&'static str]
+    where
+        Self: Sized;
+
+    /// Validate that a model name is supported by this agent.
+    ///
+    /// Returns Ok(()) if valid, or an error with available models if invalid.
+    fn validate_model(model: &str, agent_name: &str) -> Result<()>
+    where
+        Self: Sized,
+    {
+        let available = Self::available_models();
+        if available.contains(&model) {
+            Ok(())
+        } else {
+            anyhow::bail!(
+                "Invalid model '{}' for {}. Available models: {}",
+                model,
+                agent_name,
+                available.join(", ")
+            )
+        }
+    }
+
     fn system_prompt(&self) -> &str;
 
     fn set_system_prompt(&mut self, prompt: String);
+
+    fn get_model(&self) -> &str;
 
     fn set_model(&mut self, model: String);
 

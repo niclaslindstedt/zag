@@ -8,20 +8,13 @@ use tokio::process::Command;
 
 pub const DEFAULT_MODEL: &str = "auto";
 
-pub const AVAILABLE_MODELS: &[(&str, &str)] = &[
-    ("auto", "Let the system choose the best model for your task"),
-    (
-        "gemini-2.5-pro",
-        "For complex tasks that require deep reasoning and creativity",
-    ),
-    (
-        "gemini-2.5-flash",
-        "For tasks that need a balance of speed and reasoning",
-    ),
-    (
-        "gemini-2.5-flash-lite",
-        "For simple tasks that need to be done quickly",
-    ),
+pub const AVAILABLE_MODELS: &[&str] = &[
+    "auto",
+    "gemini-3-pro-preview",
+    "gemini-3-flash-preview",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
 ];
 
 pub struct Gemini {
@@ -120,12 +113,20 @@ impl Agent for Gemini {
         }
     }
 
+    fn available_models() -> &'static [&'static str] {
+        AVAILABLE_MODELS
+    }
+
     fn system_prompt(&self) -> &str {
         &self.system_prompt
     }
 
     fn set_system_prompt(&mut self, prompt: String) {
         self.system_prompt = prompt;
+    }
+
+    fn get_model(&self) -> &str {
+        &self.model
     }
 
     fn set_model(&mut self, model: String) {

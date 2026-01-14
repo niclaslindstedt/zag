@@ -5,15 +5,21 @@ mod config;
 mod copilot;
 mod factory;
 mod gemini;
+mod logging;
 
 use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
 use factory::AgentFactory;
+use log::{debug, info};
 
 #[derive(Parser)]
 #[command(name = "agent")]
 #[command(about = "A wrapper for different AI agents")]
 struct Cli {
+    /// Enable debug logging
+    #[arg(short, long, global = true)]
+    debug: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -126,6 +132,10 @@ enum Commands {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
+    // Initialize logging
+    logging::init(cli.debug);
+    debug!("Debug logging enabled");
+
     match cli.command {
         Commands::Codex {
             prompt,
@@ -135,16 +145,17 @@ async fn main() -> Result<()> {
             auto_approve,
             print,
         } => {
-            let agent = AgentFactory::create("codex", system_prompt, model, root, auto_approve)?;
-
-            if print {
-                agent.run(prompt.as_deref()).await?;
-            } else {
-                agent.run_interactive(prompt.as_deref()).await?;
-            }
-
-            agent.cleanup().await?;
-            println!("Shutting down session");
+            run_agent(
+                "Codex",
+                system_prompt,
+                model,
+                root,
+                auto_approve,
+                prompt,
+                print,
+                false,
+            )
+            .await?;
         }
         Commands::Claude {
             prompt,
@@ -154,16 +165,17 @@ async fn main() -> Result<()> {
             auto_approve,
             print,
         } => {
-            let agent = AgentFactory::create("claude", system_prompt, model, root, auto_approve)?;
-
-            if print {
-                agent.run(prompt.as_deref()).await?;
-            } else {
-                agent.run_interactive(prompt.as_deref()).await?;
-            }
-
-            agent.cleanup().await?;
-            println!("Shutting down session");
+            run_agent(
+                "Claude",
+                system_prompt,
+                model,
+                root,
+                auto_approve,
+                prompt,
+                print,
+                false,
+            )
+            .await?;
         }
         Commands::Gemini {
             prompt,
@@ -173,16 +185,17 @@ async fn main() -> Result<()> {
             auto_approve,
             print,
         } => {
-            let agent = AgentFactory::create("gemini", system_prompt, model, root, auto_approve)?;
-
-            if print {
-                agent.run(prompt.as_deref()).await?;
-            } else {
-                agent.run_interactive(prompt.as_deref()).await?;
-            }
-
-            agent.cleanup().await?;
-            println!("Shutting down session");
+            run_agent(
+                "Gemini",
+                system_prompt,
+                model,
+                root,
+                auto_approve,
+                prompt,
+                print,
+                false,
+            )
+            .await?;
         }
         Commands::Copilot {
             prompt,
@@ -196,18 +209,86 @@ async fn main() -> Result<()> {
                 bail!("Non-interactive mode requires a prompt");
             }
 
-            let agent = AgentFactory::create("copilot", system_prompt, model, root, auto_approve)?;
-
-            if non_interactive {
-                agent.run(prompt.as_deref()).await?;
-            } else {
-                agent.run_interactive(prompt.as_deref()).await?;
-            }
-
-            agent.cleanup().await?;
-            println!("Shutting down session");
+            run_agent(
+                "Copilot",
+                system_prompt,
+                model,
+                root,
+                auto_approve,
+                prompt,
+                false,
+                non_interactive,
+            )
+            .await?;
         }
     }
+
+    Ok(())
+}
+
+async fn run_agent(
+    agent_name: &str,
+    system_prompt: Option<String>,
+    model: Option<String>,
+    root: Option<String>,
+    auto_approve: bool,
+    prompt: Option<String>,
+    print: bool,
+    non_interactive: bool,
+) -> Result<()> {
+    let agent_name_lower = agent_name.to_lowercase();
+
+    // Log configuration details
+    if let Some(ref m) = model {
+        debug!("Model specified: {}", m);
+    }
+    if let Some(ref r) = root {
+        debug!("Root directory: {}", r);
+    }
+    if auto_approve {
+        debug!("Auto-approve enabled");
+    }
+    if let Some(ref sp) = system_prompt {
+        debug!("System prompt: {}", sp);
+    }
+
+    // Create agent with spinner
+    let spinner = logging::spinner(format!("Initializing {} agent", agent_name));
+    let agent = AgentFactory::create(
+        &agent_name_lower,
+        system_prompt,
+        model.clone(),
+        root,
+        auto_approve,
+    )?;
+    logging::finish_spinner_quiet(&spinner);
+
+    // Log agent creation details after spinner clears
+    debug!("Agent configuration complete");
+
+    // Get the actual model being used (after resolution)
+    let model_name = agent.get_model();
+    let auto_approve_suffix = if auto_approve { " (auto approve)" } else { "" };
+    println!("\x1b[32m✓\x1b[0m {} initialized with model {}{}", agent_name, model_name, auto_approve_suffix);
+
+    // Run the agent
+    let mode = if print || non_interactive {
+        "non-interactive"
+    } else {
+        "interactive"
+    };
+    info!("Starting {} session", mode);
+
+    if print || non_interactive {
+        agent.run(prompt.as_deref()).await?;
+    } else {
+        agent.run_interactive(prompt.as_deref()).await?;
+    }
+
+    // Cleanup
+    debug!("Cleaning up agent resources");
+    agent.cleanup().await?;
+    info!("Session terminated");
 
     Ok(())
 }

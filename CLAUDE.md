@@ -18,6 +18,7 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 
 - **Trait-based abstraction**: Common `Agent` trait defines the interface for all agent implementations
 - **Factory pattern**: `AgentFactory` creates and configures agents based on parameters
+- **Model validation**: Validates model names against agent-specific allowed lists with helpful error messages
 - **Subprocess delegation**: Each agent spawns its respective CLI tool, passing configuration via arguments or temporary files
 - **Simple execution**: Runs agent processes and waits for completion
 
@@ -29,6 +30,7 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/factory.rs` | AgentFactory for creating and configuring agents |
 | `src/main.rs` | CLI entry point with clap |
 | `src/config.rs` | Configuration management |
+| `src/logging.rs` | Logging infrastructure and progress indicators |
 | `src/claude.rs` | Claude agent implementation |
 | `src/codex.rs` | Codex agent implementation |
 | `src/gemini.rs` | Gemini agent implementation |
@@ -107,6 +109,68 @@ Settings are applied in this order (later overrides earlier):
 | `models` | `gemini` | Default model for Gemini agent (overrides defaults.model) |
 | `models` | `copilot` | Default model for Copilot agent (overrides defaults.model) |
 
+## Logging
+
+The CLI includes professional logging and progress indicators to provide clear feedback about operations.
+
+### Features
+
+- **Info messages**: Professional status messages with orange `>` prefix describing operations
+- **Debug logging**: Detailed logging with `[DEBUG]` prefix for troubleshooting with the `--debug` flag
+- **Progress indicators**: Animated spinner for long-running operations that clears on completion
+- **Success indicators**: Green checkmark (✓) for successful operations
+- **Model display**: Shows the actual model name being used
+
+### Debug Mode
+
+Enable debug logging with the `--debug` (or `-d`) flag:
+
+```bash
+# Enable debug logging
+agent claude --debug "write a hello world program"
+
+# Debug logging shows:
+# - Configuration loading details
+# - Model resolution (size aliases -> actual models)
+# - System prompt configuration
+# - Permission settings
+# - Agent lifecycle events
+```
+
+### Example Output
+
+```bash
+# Normal mode
+$ agent claude --model sonnet
+⠋ Initializing Claude agent
+✓ Claude initialized with model sonnet
+> Starting interactive session
+[Agent output...]
+> Session terminated
+
+# Debug mode
+$ agent claude --model medium --debug
+[DEBUG] Debug logging enabled
+[DEBUG] Model specified: medium
+[DEBUG] Creating agent: claude
+[DEBUG] Configuration loaded
+[DEBUG] Agent instance created
+[DEBUG] Model resolved from CLI: medium -> sonnet
+✓ Claude initialized with model sonnet
+[DEBUG] Agent configuration complete
+> Starting interactive session
+[Agent output...]
+[DEBUG] Cleaning up agent resources
+> Session terminated
+
+# With auto-approve
+$ agent claude --model haiku -a
+✓ Claude initialized with model haiku (auto approve)
+> Starting interactive session
+[Agent output...]
+> Session terminated
+```
+
 ## Usage
 
 Run any supported AI coding agent with a unified interface:
@@ -132,7 +196,24 @@ agent claude --root /path/to/project "analyze this codebase"
 
 # Auto-approve all actions
 agent claude --auto-approve "write tests"
+
+# Enable debug logging
+agent claude --debug "analyze this code"
+
+# Combine flags
+agent claude --debug --model opus --auto-approve "complex task"
 ```
+
+## Model Validation
+
+The CLI validates model names to catch typos and provide helpful error messages. If you specify an invalid model, you'll get a clear error with the available options:
+
+```bash
+$ agent claude --model gpt-5
+Error: Invalid model 'gpt-5' for Claude. Available models: sonnet, opus, haiku
+```
+
+Size aliases (small, medium, large) are always valid and automatically resolve to the appropriate model for each agent.
 
 ## Supported Agents
 
@@ -141,21 +222,24 @@ agent claude --auto-approve "write tests"
 agent claude [OPTIONS] [PROMPT]
 ```
 
-**Models**: sonnet (default), opus, haiku
+**Available models**: sonnet, opus, haiku
+**Default**: opus
 
 ### Codex
 ```bash
 agent codex [OPTIONS] [PROMPT]
 ```
 
-**Models**: gpt-5.2-codex (default), gpt-5.1-codex-max, gpt-5.1-codex-mini, gpt-5.2
+**Available models**: gpt-5.2-codex, gpt-5.1-codex-max, gpt-5.1-codex-mini, gpt-5.2
+**Default**: gpt-5.2-codex
 
 ### Gemini
 ```bash
 agent gemini [OPTIONS] [PROMPT]
 ```
 
-**Models**: auto (default), gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite
+**Available models**: auto, gemini-3-pro-preview, gemini-3-flash-preview, gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite
+**Default**: auto
 
 ### Copilot
 ```bash

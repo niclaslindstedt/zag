@@ -6,11 +6,7 @@ use tokio::process::Command;
 
 pub const DEFAULT_MODEL: &str = "opus";
 
-pub const AVAILABLE_MODELS: &[(&str, &str)] = &[
-    ("sonnet", "Balanced model for most tasks"),
-    ("opus", "Most capable model for complex tasks"),
-    ("haiku", "Fast and lightweight model"),
-];
+pub const AVAILABLE_MODELS: &[&str] = &["sonnet", "opus", "haiku"];
 
 pub struct Claude {
     system_prompt: String,
@@ -90,12 +86,20 @@ impl Agent for Claude {
         }
     }
 
+    fn available_models() -> &'static [&'static str] {
+        AVAILABLE_MODELS
+    }
+
     fn system_prompt(&self) -> &str {
         &self.system_prompt
     }
 
     fn set_system_prompt(&mut self, prompt: String) {
         self.system_prompt = prompt;
+    }
+
+    fn get_model(&self) -> &str {
+        &self.model
     }
 
     fn set_model(&mut self, model: String) {

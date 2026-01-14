@@ -8,20 +8,11 @@ use tokio::process::Command;
 
 pub const DEFAULT_MODEL: &str = "gpt-5.2-codex";
 
-pub const AVAILABLE_MODELS: &[(&str, &str)] = &[
-    ("gpt-5.2-codex", "Latest frontier agentic coding model"),
-    (
-        "gpt-5.1-codex-max",
-        "Codex-optimized flagship for deep and fast reasoning",
-    ),
-    (
-        "gpt-5.1-codex-mini",
-        "Optimized for codex. Cheaper, faster, but less capable",
-    ),
-    (
-        "gpt-5.2",
-        "Latest frontier model with improvements across knowledge, reasoning and coding",
-    ),
+pub const AVAILABLE_MODELS: &[&str] = &[
+    "gpt-5.2-codex",
+    "gpt-5.1-codex-max",
+    "gpt-5.1-codex-mini",
+    "gpt-5.2",
 ];
 
 pub struct Codex {
@@ -118,12 +109,20 @@ impl Agent for Codex {
         }
     }
 
+    fn available_models() -> &'static [&'static str] {
+        AVAILABLE_MODELS
+    }
+
     fn system_prompt(&self) -> &str {
         &self.system_prompt
     }
 
     fn set_system_prompt(&mut self, prompt: String) {
         self.system_prompt = prompt;
+    }
+
+    fn get_model(&self) -> &str {
+        &self.model
     }
 
     fn set_model(&mut self, model: String) {
