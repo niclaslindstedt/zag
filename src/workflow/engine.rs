@@ -117,8 +117,10 @@ impl WorkflowEngine {
         self.state_manager.list_runs(workflow_name)
     }
 
-    /// Checkpoint the current iteration of a running workflow.
-    /// This marks the current iteration as complete so resume will skip it.
+    /// Checkpoint the current workflow phase/iteration.
+    /// For iteration phases: marks the current iteration as complete so resume will skip it.
+    /// For non-iteration phases: just signals completion.
+    /// Also signals that the agent has completed its work (allows clean exit).
     /// If workflow_name is None, tries to auto-detect from active workflow context.
     pub fn checkpoint(workflow_name: Option<&str>, run_id: Option<&str>) -> Result<()> {
         // Try to get context from active workflow, or use provided args
@@ -149,11 +151,21 @@ impl WorkflowEngine {
 
         let state_mgr = StateManager::new(root.as_deref());
         let mut run_ctx = state_mgr.resume_run(&workflow, &run)?;
-        run_ctx.checkpoint_iteration()?;
 
-        let phase = run_ctx.manifest.current_phase.as_deref().unwrap_or("?");
-        let iter = run_ctx.manifest.current_iteration.unwrap_or(0);
-        println!("Checkpointed: phase={}, iteration={}", phase, iter);
+        let phase = run_ctx
+            .manifest
+            .current_phase
+            .clone()
+            .unwrap_or_else(|| "?".to_string());
+        let iter = run_ctx.manifest.current_iteration;
+
+        // For iteration phases, mark the iteration as complete
+        if let Some(iteration) = iter {
+            run_ctx.checkpoint_iteration()?;
+            println!("Checkpointed: phase={}, iteration={}", phase, iteration);
+        } else {
+            println!("Checkpointed: phase={}", phase);
+        }
 
         Ok(())
     }

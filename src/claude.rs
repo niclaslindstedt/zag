@@ -58,7 +58,8 @@ impl Claude {
             .stderr(Stdio::inherit());
 
         let child = cmd.spawn()?;
-        wait_with_pid_tracking(child).await
+        // Interactive sessions require explicit completion via `agent kill`
+        wait_with_pid_tracking(child, interactive).await
     }
 }
 

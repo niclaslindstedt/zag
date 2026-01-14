@@ -18,3 +18,9 @@ pub fn init() {
 pub fn was_interrupted() -> bool {
     INTERRUPTED.load(Ordering::SeqCst)
 }
+
+/// Set the interrupted flag manually.
+/// Used when we detect SIGINT via process exit status before the signal handler runs.
+pub fn set_interrupted() {
+    INTERRUPTED.store(true, Ordering::SeqCst);
+}

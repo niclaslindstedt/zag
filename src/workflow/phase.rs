@@ -232,14 +232,14 @@ impl<'a> PhaseExecutor<'a> {
         Ok(())
     }
 
-    /// Completion instruction: checkpoint + kill (interactive iteration phases)
-    const COMPLETION_CHECKPOINT_AND_KILL: &'static str = "\n\n---\nWORKFLOW COMPLETION: When you have completed your task, you MUST run these commands in order:\n1. `agent workflow --checkpoint` - saves progress so workflow can resume from here\n2. `agent kill` - signals completion and continues to the next phase\n\nWORKFLOW MEMORY: If you learned something important about this project that should be remembered for future phases (e.g., project structure quirks, special patterns, common mistakes to avoid), save it with:\n`agent memory add \"what you learned\"` (optionally: `--category <category>`)\nDo not forget these steps.";
+    /// Completion instruction for interactive iteration phases (checkpoint + exit)
+    const COMPLETION_CHECKPOINT_AND_EXIT: &'static str = "\n\n---\nWORKFLOW COMPLETION: After you have finished ALL your work for this task, run these commands in order:\n1. `agent workflow --checkpoint` - saves your progress for this iteration\n2. `agent exit` - signals completion and continues to next iteration/phase\n\nIMPORTANT: Run both commands AFTER completing your work. If you exit without these, the workflow will fail.\n\nWORKFLOW MEMORY: If you learned something important about this project, save it with:\n`agent memory add \"what you learned\"` (optionally: `--category <category>`)";
 
-    /// Completion instruction: checkpoint only (non-interactive iteration phases)
-    const COMPLETION_CHECKPOINT_ONLY: &'static str = "\n\n---\nWORKFLOW COMPLETION: When you have completed your task, run `agent workflow --checkpoint` to save progress so the workflow can resume from here if interrupted.\n\nWORKFLOW MEMORY: If you learned something important, save it with `agent memory add \"what you learned\"`.";
+    /// Completion instruction for interactive non-iteration phases (exit only)
+    const COMPLETION_EXIT_ONLY: &'static str = "\n\n---\nWORKFLOW COMPLETION: After you have finished ALL your work for this task, run:\n`agent exit`\n\nThis signals completion and continues to the next phase.\n\nIMPORTANT: Run the exit command AFTER completing your work. If you exit without it, the workflow will fail.\n\nWORKFLOW MEMORY: If you learned something important about this project, save it with:\n`agent memory add \"what you learned\"` (optionally: `--category <category>`)";
 
-    /// Completion instruction: kill only (interactive non-iteration phases)
-    const COMPLETION_KILL_ONLY: &'static str = "\n\n---\nWORKFLOW COMPLETION: When you have completed your task, run `agent kill` to signal completion and continue to the next phase.\n\nWORKFLOW MEMORY: If you learned something important about this project that should be remembered for future phases (e.g., project structure quirks, special patterns, common mistakes to avoid), save it with:\n`agent memory add \"what you learned\"` (optionally: `--category <category>`)";
+    /// Completion instruction for non-interactive iteration phases (checkpoint only)
+    const COMPLETION_CHECKPOINT_ONLY: &'static str = "\n\n---\nWORKFLOW COMPLETION: After you have finished ALL your work for this task, run:\n`agent workflow --checkpoint`\n\nThis saves your progress for this iteration so the workflow can resume from here if interrupted.\n\nWORKFLOW MEMORY: If you learned something important about this project, save it with:\n`agent memory add \"what you learned\"`";
 
     /// Create an AgentSession for a phase.
     fn create_session(&self, phase: &Phase) -> Result<AgentSession> {
@@ -290,15 +290,15 @@ impl<'a> PhaseExecutor<'a> {
             }
         }
 
-        // Inject completion instructions based on context:
-        // - Iteration + interactive: checkpoint + kill
-        // - Iteration + non-interactive: checkpoint only
-        // - Non-iteration + interactive: kill only
-        // - Non-iteration + non-interactive: nothing
+        // Inject completion instructions based on phase type:
+        // - Interactive iteration: checkpoint + exit
+        // - Interactive non-iteration: exit only
+        // - Non-interactive iteration: checkpoint only (auto-exits when done)
+        // - Non-interactive non-iteration: nothing (auto-exits and completes)
         let instruction = match (self.in_iteration, interactive) {
-            (true, true) => Some(Self::COMPLETION_CHECKPOINT_AND_KILL),
+            (true, true) => Some(Self::COMPLETION_CHECKPOINT_AND_EXIT),
+            (false, true) => Some(Self::COMPLETION_EXIT_ONLY),
             (true, false) => Some(Self::COMPLETION_CHECKPOINT_ONLY),
-            (false, true) => Some(Self::COMPLETION_KILL_ONLY),
             (false, false) => None,
         };
 

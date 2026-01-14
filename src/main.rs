@@ -178,8 +178,8 @@ enum Commands {
         #[arg(short = 'p', long = "print")]
         print: bool,
     },
-    /// Signal workflow phase completion (used by agents during interactive sessions)
-    Kill,
+    /// Signal workflow phase completion and exit (used by agents during interactive sessions)
+    Exit,
     /// Manage workflow memories (used by agents to remember learnings across phases)
     Memory {
         #[command(subcommand)]
@@ -321,7 +321,7 @@ async fn main() -> Result<()> {
             );
             run_sessions(vec![session]).await?;
         }
-        Commands::Kill => {
+        Commands::Exit => {
             if let Some(session_pid) = pid::read_pid()? {
                 pid::write_killed_marker()?;
                 kill(Pid::from_raw(session_pid as i32), Signal::SIGTERM)?;

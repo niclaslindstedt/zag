@@ -246,20 +246,30 @@ For epic → ticket → follow-up patterns:
 
 ### Automatic Completion
 
-For interactive phases, the workflow engine automatically injects a completion instruction telling the agent to:
-1. Run `agent workflow --checkpoint` to save progress
-2. Run `agent kill` to continue to the next phase
+The workflow engine automatically injects completion instructions based on phase type:
+
+| Phase Type | Instructions |
+|------------|--------------|
+| Interactive + iteration | `agent workflow --checkpoint` then `agent exit` |
+| Interactive + non-iteration | `agent exit` |
+| Non-interactive + iteration | `agent workflow --checkpoint` |
+| Non-interactive + non-iteration | *(none - auto-completes on exit)* |
+
+**Important**: Interactive phases MUST call `agent exit` to signal completion. If an agent exits without it, the phase is marked as failed.
+
+Non-interactive phases complete automatically when the agent exits with status 0.
 
 ### Checkpoints and Resume
 
-- **Checkpoint**: Marks current iteration as complete in manifest
+- **Checkpoint**: Marks current iteration as complete (for resume)
+- **Exit**: Signals phase completion and terminates the session
 - **Resume**: Skips iterations that have been checkpointed
 - Context stored in `~/.agent/workflow.json` for auto-detection
 
 ### Signal Handling
 
 - **CTRL+C (SIGINT)**: Interrupts current phase, marks it as failed (workflow is resumable)
-- **`agent kill` (SIGTERM)**: Terminates current session, continues to next phase/iteration
+- **`agent exit`**: Signals completion and terminates current session
 
 ### Software Workflow Phases
 
