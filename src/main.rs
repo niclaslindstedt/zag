@@ -136,7 +136,7 @@ enum Commands {
         #[arg(short, long)]
         resume: bool,
 
-        /// Checkpoint the current iteration (mark as complete for resume)
+        /// Checkpoint the current iteration (used by agents during workflows to enable resume)
         #[arg(short, long)]
         checkpoint: bool,
 
