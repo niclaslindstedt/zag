@@ -27,12 +27,60 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/agent.rs` | Agent trait definition |
 | `src/session.rs` | AgentSession and run_sessions() |
 | `src/main.rs` | CLI entry point with clap |
+| `src/config.rs` | Configuration management |
 | `src/claude.rs` | Claude agent implementation |
 | `src/codex.rs` | Codex agent implementation |
 | `src/gemini.rs` | Gemini agent implementation |
 | `src/copilot.rs` | Copilot agent implementation |
 | `src/interrupt.rs` | CTRL+C signal handling |
 | `src/pid.rs` | Session PID and workflow context |
+
+## Configuration
+
+Configuration is stored in `.agent/agent.toml` in the project root (or `--root` directory if specified).
+
+### Config File Location
+
+The config file is automatically created on first run at `.agent/agent.toml`.
+
+### Config File Format
+
+```toml
+# Agent CLI Configuration
+
+[defaults]
+# Default agent to use for workflows (claude, codex, gemini, copilot)
+# agent = "claude"
+
+# Auto-approve all actions (skip permission prompts)
+# auto_approve = false
+
+[models]
+# Default models for each agent (overrides agent defaults)
+# claude = "opus"
+# codex = "gpt-5.2-codex"
+# gemini = "auto"
+# copilot = "claude-sonnet-4.5"
+```
+
+### Configuration Priority
+
+Settings are applied in this order (later overrides earlier):
+
+1. **Agent defaults**: Built-in defaults for each agent
+2. **Config file**: Settings from `.agent/agent.toml`
+3. **CLI flags**: Command-line arguments (highest priority)
+
+### Available Settings
+
+| Section | Key | Description |
+|---------|-----|-------------|
+| `defaults` | `agent` | Default agent for workflows |
+| `defaults` | `auto_approve` | Skip permission prompts (default: false) |
+| `models` | `claude` | Default model for Claude agent |
+| `models` | `codex` | Default model for Codex agent |
+| `models` | `gemini` | Default model for Gemini agent |
+| `models` | `copilot` | Default model for Copilot agent |
 
 ## Workflow System
 

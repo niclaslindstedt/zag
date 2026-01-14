@@ -1,6 +1,7 @@
 mod agent;
 mod claude;
 mod codex;
+mod config;
 mod copilot;
 mod gemini;
 mod interrupt;
@@ -258,11 +259,11 @@ async fn main() -> Result<()> {
                 prompt,
                 system_prompt,
                 model,
-                root,
+                root.clone(),
                 auto_approve,
                 !print,
             );
-            run_sessions(vec![session]).await?;
+            run_sessions(vec![session], root.as_deref()).await?;
         }
         Commands::Claude {
             prompt,
@@ -277,11 +278,11 @@ async fn main() -> Result<()> {
                 prompt,
                 system_prompt,
                 model,
-                root,
+                root.clone(),
                 auto_approve,
                 !print,
             );
-            run_sessions(vec![session]).await?;
+            run_sessions(vec![session], root.as_deref()).await?;
         }
         Commands::Gemini {
             prompt,
@@ -296,11 +297,11 @@ async fn main() -> Result<()> {
                 prompt,
                 system_prompt,
                 model,
-                root,
+                root.clone(),
                 auto_approve,
                 !print,
             );
-            run_sessions(vec![session]).await?;
+            run_sessions(vec![session], root.as_deref()).await?;
         }
         Commands::Copilot {
             prompt,
@@ -315,11 +316,11 @@ async fn main() -> Result<()> {
                 prompt,
                 system_prompt,
                 model,
-                root,
+                root.clone(),
                 auto_approve,
                 !print,
             );
-            run_sessions(vec![session]).await?;
+            run_sessions(vec![session], root.as_deref()).await?;
         }
         Commands::Exit => {
             if let Some(session_pid) = pid::read_pid()? {

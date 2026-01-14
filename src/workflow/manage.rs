@@ -62,7 +62,7 @@ pub async fn create_workflow(name: &str, agent_name: &str, auto_approve: bool) -
         true,         // interactive
     );
 
-    run_sessions(vec![session]).await
+    run_sessions(vec![session], None).await
 }
 
 /// Get the path to a user-defined workflow file.
@@ -161,5 +161,5 @@ pub async fn modify_workflow(name: &str, agent_name: &str, auto_approve: bool) -
         true,         // interactive
     );
 
-    run_sessions(vec![session]).await
+    run_sessions(vec![session], None).await
 }

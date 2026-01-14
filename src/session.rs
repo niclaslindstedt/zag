@@ -1,6 +1,7 @@
 use crate::agent::Agent;
 use crate::claude::Claude;
 use crate::codex::Codex;
+use crate::config::Config;
 use crate::copilot::Copilot;
 use crate::gemini::Gemini;
 use crate::pid;
@@ -48,21 +49,29 @@ impl AgentSession {
     }
 
     pub async fn run(&self) -> Result<()> {
+        // Load config for defaults
+        let config = Config::load(self.root.as_deref()).unwrap_or_default();
+
         let mut agent = self.create_agent()?;
 
         if let Some(ref sp) = self.system_prompt {
             agent.set_system_prompt(sp.clone());
         }
 
+        // Use CLI model if provided, otherwise fall back to config default
         if let Some(ref model) = self.model_name {
             agent.set_model(model.clone());
+        } else if let Some(config_model) = config.get_model(&self.agent_name) {
+            agent.set_model(config_model.to_string());
         }
 
         if let Some(ref root) = self.root {
             agent.set_root(root.clone());
         }
 
-        agent.set_skip_permissions(self.skip_permissions);
+        // Use CLI skip_permissions if true, otherwise check config
+        let skip = self.skip_permissions || config.auto_approve();
+        agent.set_skip_permissions(skip);
 
         if self.interactive {
             agent.run_interactive(self.prompt.as_deref()).await?;
@@ -77,7 +86,10 @@ impl AgentSession {
     }
 }
 
-pub async fn run_sessions(sessions: Vec<AgentSession>) -> Result<()> {
+pub async fn run_sessions(sessions: Vec<AgentSession>, root: Option<&str>) -> Result<()> {
+    // Initialize .agent directory and config on first run
+    let _ = Config::init(root);
+
     pid::write_pid()?;
 
     let result = async {
