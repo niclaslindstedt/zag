@@ -578,11 +578,13 @@ Phase prompts **must include explicit completion instructions** that tell the ag
 
 ### Required Completion Commands
 
+All commands must be executed using the **Bash tool**.
+
 | Phase Type | Required Commands | When to Call |
 |------------|------------------|--------------|
-| Interactive + iteration | `agent workflow --checkpoint` then `agent exit` | After completing the iteration's work |
-| Interactive + non-iteration | `agent exit` | After completing the phase's work |
-| Non-interactive + iteration | `agent workflow --checkpoint` | After completing the iteration's work |
+| Interactive + iteration | Use Bash tool to run `agent workflow --checkpoint` then `agent exit` | After completing the iteration's work |
+| Interactive + non-iteration | Use Bash tool to run `agent exit` | After completing the phase's work |
+| Non-interactive + iteration | Use Bash tool to run `agent workflow --checkpoint` | After completing the iteration's work |
 | Non-interactive + non-iteration | *(none - auto-completes on exit)* | N/A |
 
 ### Writing Explicit Completion Instructions
@@ -594,12 +596,12 @@ Phase prompts **must include explicit completion instructions** that tell the ag
 
 **Good** (specific and contextual):
 ```
-"prompt": "Create {{state_dir}}/tickets.json with the ticket structure.\n\nWhen you have created the tickets.json file, run `agent exit` to signal completion and continue to the next phase."
+"prompt": "Create {{state_dir}}/tickets.json with the ticket structure.\n\nWhen you have created the tickets.json file, use the Bash tool to run `agent exit` to signal completion and continue to the next phase."
 ```
 
 **Good** (for iteration phases):
 ```
-"prompt": "Fix the issue described above.\n\nWhen you have implemented the fix and saved the documentation, run these commands in order:\n1. `agent workflow --checkpoint` - saves your progress for this iteration\n2. `agent exit` - signals completion and continues to next iteration"
+"prompt": "Fix the issue described above.\n\nWhen you have implemented the fix and saved the documentation, use the Bash tool to run these commands in order:\n1. `agent workflow --checkpoint` - saves your progress for this iteration\n2. `agent exit` - signals completion and continues to next iteration"
 ```
 
 ### Why Explicit Instructions Matter
@@ -614,29 +616,30 @@ Phase prompts **must include explicit completion instructions** that tell the ag
 **Single task completion**:
 ```json
 {
-  "prompt": "Analyze the codebase and document findings in {{state_dir}}/analysis.md\n\nWhen you have saved the analysis file, run `agent exit` to signal completion and continue to the next phase."
+  "prompt": "Analyze the codebase and document findings in {{state_dir}}/analysis.md\n\nWhen you have saved the analysis file, use the Bash tool to run `agent exit` to signal completion and continue to the next phase."
 }
 ```
 
 **Iteration with checkpoint**:
 ```json
 {
-  "prompt": "Implement ticket {{ticket.id}}: {{ticket.title}}\n\n[...implementation instructions...]\n\nWhen you have completed the implementation and saved the documentation, run these commands in order:\n1. `agent workflow --checkpoint` - saves your progress for this ticket iteration\n2. `agent exit` - signals completion and continues to code review"
+  "prompt": "Implement ticket {{ticket.id}}: {{ticket.title}}\n\n[...implementation instructions...]\n\nWhen you have completed the implementation and saved the documentation, use the Bash tool to run these commands in order:\n1. `agent workflow --checkpoint` - saves your progress for this ticket iteration\n2. `agent exit` - signals completion and continues to code review"
 }
 ```
 
 **Multiple outputs before completion**:
 ```json
 {
-  "prompt": "Review the implementation and create two files:\n1. {{state_dir}}/review.md - detailed review\n2. {{state_dir}}/summary.json - structured findings\n\nWhen you have created both files, run `agent exit` to signal completion and continue to the next phase."
+  "prompt": "Review the implementation and create two files:\n1. {{state_dir}}/review.md - detailed review\n2. {{state_dir}}/summary.json - structured findings\n\nWhen you have created both files, use the Bash tool to run `agent exit` to signal completion and continue to the next phase."
 }
 ```
 
 ### Important Notes
 
+- **All commands** (`agent exit`, `agent workflow --checkpoint`) must be executed using the **Bash tool**. Do not just mention the commands - explicitly instruct to use the Bash tool.
 - **Interactive phases** MUST call `agent exit` to signal successful completion. If an agent exits without calling it, the phase is marked as failed.
 - **Non-interactive phases** complete automatically when the agent process exits with status 0.
-- **`agent workflow --checkpoint`** saves progress for the current iteration, allowing workflow resume to skip completed iterations.
+- **Non-interactive iteration phases** MUST call `agent workflow --checkpoint` using the Bash tool to save progress for the current iteration, allowing workflow resume to skip completed iterations.
 - Always specify the **completion trigger** (e.g., "when file X has been written") rather than generic "when done".
 
 ## Role-Based Prompts
