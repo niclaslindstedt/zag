@@ -13,12 +13,10 @@ pub fn init(debug: bool) {
 
     Builder::new()
         .filter_level(level)
-        .format(|buf, record| {
-            match record.level() {
-                log::Level::Debug => writeln!(buf, "[DEBUG] {}", record.args()),
-                log::Level::Info => writeln!(buf, "\x1b[33m>\x1b[0m {}", record.args()),
-                _ => writeln!(buf, "{}", record.args()),
-            }
+        .format(|buf, record| match record.level() {
+            log::Level::Debug => writeln!(buf, "[DEBUG] {}", record.args()),
+            log::Level::Info => writeln!(buf, "\x1b[33m>\x1b[0m {}", record.args()),
+            _ => writeln!(buf, "{}", record.args()),
         })
         .init();
 }

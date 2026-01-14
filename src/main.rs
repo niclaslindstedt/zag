@@ -50,6 +50,10 @@ enum Commands {
         /// Run in non-interactive mode (print output and exit)
         #[arg(short = 'p', long = "print")]
         print: bool,
+
+        /// Output format for print mode (text, json, stream-json)
+        #[arg(short = 'o', long)]
+        output: Option<String>,
     },
     /// Run the Claude agent
     Claude {
@@ -75,6 +79,10 @@ enum Commands {
         /// Run in non-interactive mode (print output and exit)
         #[arg(short = 'p', long = "print")]
         print: bool,
+
+        /// Output format for print mode (text, json, stream-json)
+        #[arg(short = 'o', long)]
+        output: Option<String>,
     },
     /// Run the Gemini agent
     Gemini {
@@ -100,6 +108,10 @@ enum Commands {
         /// Run in non-interactive mode (print output and exit)
         #[arg(short = 'p', long = "print")]
         print: bool,
+
+        /// Output format for print mode (text, json, stream-json)
+        #[arg(short = 'o', long)]
+        output: Option<String>,
     },
     /// Run the Copilot agent
     Copilot {
@@ -125,6 +137,10 @@ enum Commands {
         /// Run in non-interactive mode (print output and exit)
         #[arg(short = 'p', long = "print")]
         print: bool,
+
+        /// Output format for print mode (text, json, stream-json)
+        #[arg(short = 'o', long)]
+        output: Option<String>,
     },
 }
 
@@ -144,6 +160,7 @@ async fn main() -> Result<()> {
             root,
             auto_approve,
             print,
+            output,
         } => {
             run_agent(
                 "Codex",
@@ -153,6 +170,7 @@ async fn main() -> Result<()> {
                 auto_approve,
                 prompt,
                 print,
+                output,
             )
             .await?;
         }
@@ -163,6 +181,7 @@ async fn main() -> Result<()> {
             root,
             auto_approve,
             print,
+            output,
         } => {
             run_agent(
                 "Claude",
@@ -172,6 +191,7 @@ async fn main() -> Result<()> {
                 auto_approve,
                 prompt,
                 print,
+                output,
             )
             .await?;
         }
@@ -182,6 +202,7 @@ async fn main() -> Result<()> {
             root,
             auto_approve,
             print,
+            output,
         } => {
             run_agent(
                 "Gemini",
@@ -191,6 +212,7 @@ async fn main() -> Result<()> {
                 auto_approve,
                 prompt,
                 print,
+                output,
             )
             .await?;
         }
@@ -201,6 +223,7 @@ async fn main() -> Result<()> {
             root,
             auto_approve,
             print,
+            output,
         } => {
             if print && prompt.is_none() {
                 bail!("Print mode requires a prompt");
@@ -214,6 +237,7 @@ async fn main() -> Result<()> {
                 auto_approve,
                 prompt,
                 print,
+                output,
             )
             .await?;
         }
@@ -230,6 +254,7 @@ async fn run_agent(
     auto_approve: bool,
     prompt: Option<String>,
     print: bool,
+    output: Option<String>,
 ) -> Result<()> {
     let agent_name_lower = agent_name.to_lowercase();
 
@@ -246,16 +271,23 @@ async fn run_agent(
     if let Some(ref sp) = system_prompt {
         debug!("System prompt: {}", sp);
     }
+    if let Some(ref o) = output {
+        debug!("Output format: {}", o);
+    }
 
     // Create agent with spinner
     let spinner = logging::spinner(format!("Initializing {} agent", agent_name));
-    let agent = AgentFactory::create(
+    let mut agent = AgentFactory::create(
         &agent_name_lower,
         system_prompt,
         model.clone(),
         root,
         auto_approve,
     )?;
+
+    // Set output format if specified
+    agent.set_output_format(output);
+
     logging::finish_spinner_quiet(&spinner);
 
     // Log agent creation details after spinner clears
@@ -264,7 +296,10 @@ async fn run_agent(
     // Get the actual model being used (after resolution)
     let model_name = agent.get_model();
     let auto_approve_suffix = if auto_approve { " (auto approve)" } else { "" };
-    println!("\x1b[32m✓\x1b[0m {} initialized with model {}{}", agent_name, model_name, auto_approve_suffix);
+    println!(
+        "\x1b[32m✓\x1b[0m {} initialized with model {}{}",
+        agent_name, model_name, auto_approve_suffix
+    );
 
     // Run the agent
     let mode = if print {

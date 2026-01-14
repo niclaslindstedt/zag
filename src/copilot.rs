@@ -29,6 +29,7 @@ pub struct Copilot {
     model: String,
     root: Option<String>,
     skip_permissions: bool,
+    output_format: Option<String>,
 }
 
 impl Copilot {
@@ -38,6 +39,7 @@ impl Copilot {
             model: DEFAULT_MODEL.to_string(),
             root: None,
             skip_permissions: false,
+            output_format: None,
         }
     }
 
@@ -58,6 +60,13 @@ impl Copilot {
     }
 
     async fn execute(&self, interactive: bool, prompt: Option<&str>) -> Result<()> {
+        // Check if output format is set (not supported by Copilot)
+        if self.output_format.is_some() {
+            anyhow::bail!(
+                "Copilot does not support the --output flag. Remove the flag and try again."
+            );
+        }
+
         if !self.system_prompt.is_empty() {
             self.write_instructions_file().await?;
         }
@@ -68,7 +77,8 @@ impl Copilot {
             cmd.current_dir(root);
         }
 
-        if self.skip_permissions {
+        // In non-interactive mode, --allow-all-tools is required
+        if !interactive || self.skip_permissions {
             cmd.arg("--allow-all-tools");
         }
 
@@ -145,6 +155,10 @@ impl Agent for Copilot {
 
     fn set_skip_permissions(&mut self, skip: bool) {
         self.skip_permissions = skip;
+    }
+
+    fn set_output_format(&mut self, format: Option<String>) {
+        self.output_format = format;
     }
 
     async fn run(&self, prompt: Option<&str>) -> Result<()> {

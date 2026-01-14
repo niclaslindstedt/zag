@@ -20,6 +20,7 @@ pub struct Codex {
     model: String,
     root: Option<String>,
     skip_permissions: bool,
+    output_format: Option<String>,
 }
 
 impl Codex {
@@ -29,6 +30,7 @@ impl Codex {
             model: DEFAULT_MODEL.to_string(),
             root: None,
             skip_permissions: false,
+            output_format: None,
         }
     }
 
@@ -52,7 +54,12 @@ impl Codex {
         let mut cmd = Command::new("codex");
 
         if !interactive {
-            cmd.args(["exec", "--skip-git-repo-check", "--json"]);
+            cmd.args(["exec", "--skip-git-repo-check"]);
+            if let Some(ref format) = self.output_format {
+                if format == "json" {
+                    cmd.arg("--json");
+                }
+            }
         }
 
         if let Some(ref root) = self.root {
@@ -135,6 +142,10 @@ impl Agent for Codex {
 
     fn set_skip_permissions(&mut self, skip: bool) {
         self.skip_permissions = skip;
+    }
+
+    fn set_output_format(&mut self, format: Option<String>) {
+        self.output_format = format;
     }
 
     async fn run(&self, prompt: Option<&str>) -> Result<()> {

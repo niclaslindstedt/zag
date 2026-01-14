@@ -13,6 +13,7 @@ pub struct Claude {
     model: String,
     root: Option<String>,
     skip_permissions: bool,
+    output_format: Option<String>,
 }
 
 impl Claude {
@@ -22,6 +23,7 @@ impl Claude {
             model: DEFAULT_MODEL.to_string(),
             root: None,
             skip_permissions: false,
+            output_format: None,
         }
     }
 
@@ -33,7 +35,14 @@ impl Claude {
         }
 
         if !interactive {
-            cmd.args(["--print", "--verbose", "--output-format", "json"]);
+            cmd.arg("--print");
+
+            // Add --verbose and --output-format for JSON outputs
+            if let Some(ref format) = self.output_format {
+                if format == "json" || format == "stream-json" {
+                    cmd.args(["--verbose", "--output-format", format]);
+                }
+            }
         }
 
         if self.skip_permissions {
@@ -112,6 +121,10 @@ impl Agent for Claude {
 
     fn set_skip_permissions(&mut self, skip: bool) {
         self.skip_permissions = skip;
+    }
+
+    fn set_output_format(&mut self, format: Option<String>) {
+        self.output_format = format;
     }
 
     async fn run(&self, prompt: Option<&str>) -> Result<()> {

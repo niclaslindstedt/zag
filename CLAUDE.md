@@ -184,6 +184,18 @@ agent claude "write a hello world program"
 agent claude --print "write a hello world program"
 agent codex --print "write a hello world program"
 
+# Non-interactive mode with JSON output (requires -p/--print)
+agent claude -p -o json "write a hello world program"
+agent gemini -p --output json "analyze this code"
+agent codex -p -o json "list all functions"
+
+# Non-interactive mode with text output (default when no --output specified)
+agent claude -p -o text "simple task"
+
+# Non-interactive mode with streaming JSON output
+agent claude -p -o stream-json "complex task"
+agent gemini -p -o stream-json "analyze project"
+
 # With specific model
 agent claude --model opus "complex task"
 agent gemini --model small "simple task"
@@ -202,7 +214,24 @@ agent claude --debug "analyze this code"
 
 # Combine flags
 agent claude --debug --model opus --auto-approve "complex task"
+agent claude -p -o json --model sonnet "get JSON response"
 ```
+
+### Output Formats
+
+When using print mode (`-p` or `--print`), you can specify the output format with the `-o` or `--output` flag:
+
+- **text**: Plain text output (default when no --output specified)
+- **json**: JSON formatted output (for Claude, automatically adds `--verbose` flag)
+- **stream-json**: Streaming JSON output for real-time processing
+
+**Agent-specific behavior:**
+- **Claude**: When using `json` or `stream-json`, the CLI automatically adds the `--verbose` flag to the underlying `claude` command
+- **Gemini**: Passes the output format directly to the `gemini` CLI using `-o` flag
+- **Codex**: When using `json`, adds the `--json` flag to the `codex exec` command
+- **Copilot**:
+  - Output format not supported - using the `--output` flag with Copilot will result in an error
+  - Automatically adds `--allow-all-tools` flag when running in non-interactive mode (required by Copilot CLI)
 
 ## Model Validation
 

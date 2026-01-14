@@ -22,6 +22,7 @@ pub struct Gemini {
     model: String,
     root: Option<String>,
     skip_permissions: bool,
+    output_format: Option<String>,
 }
 
 impl Gemini {
@@ -31,6 +32,7 @@ impl Gemini {
             model: DEFAULT_MODEL.to_string(),
             root: None,
             skip_permissions: false,
+            output_format: None,
         }
     }
 
@@ -70,7 +72,9 @@ impl Gemini {
         }
 
         if !interactive {
-            cmd.args(["--output-format", "json"]);
+            if let Some(ref format) = self.output_format {
+                cmd.args(["--output-format", format]);
+            }
         }
 
         if let Some(p) = prompt {
@@ -139,6 +143,10 @@ impl Agent for Gemini {
 
     fn set_skip_permissions(&mut self, skip: bool) {
         self.skip_permissions = skip;
+    }
+
+    fn set_output_format(&mut self, format: Option<String>) {
+        self.output_format = format;
     }
 
     async fn run(&self, prompt: Option<&str>) -> Result<()> {
