@@ -44,11 +44,17 @@ Multi-phase workflow orchestration for complex AI agent tasks.
 # Run a workflow
 agent workflow software
 
+# Run with a specific agent (overrides workflow settings)
+agent workflow software --agent codex
+
 # List available workflows
 agent workflow --list
 
 # Resume interrupted workflow
 agent workflow software --resume
+
+# Resume with a specific agent
+agent workflow software --resume --agent gemini
 
 # Checkpoint current iteration (for resume)
 agent workflow --checkpoint
@@ -83,7 +89,7 @@ agent workflow --delete my-workflow
 | `src/workflow/state.rs` | State directory management |
 | `src/workflow/loader.rs` | Load embedded + custom workflows |
 | `src/workflow/template.rs` | Variable expansion (`{{var}}`) |
-| `src/workflow/variables.rs` | Custom variable resolution (env, bash, file) |
+| `src/workflow/variables.rs` | Custom variable resolution (env, bash, file, json) |
 | `src/workflow/manage.rs` | Workflow management (create, modify, delete) |
 | `workflows/software.json` | Embedded software workflow |
 | `prompts/workflow-create-system.md` | System prompt for workflow creation |
@@ -93,6 +99,14 @@ agent workflow --delete my-workflow
 
 1. **User workflows**: `~/.agent/workflows/<name>.json` (takes precedence)
 2. **Embedded workflows**: Compiled into binary via `include_str!`
+
+### Agent Selection Priority
+
+When determining which agent to use for a phase:
+
+1. **CLI override** (`--agent`): Takes highest precedence
+2. **Phase setting**: Agent specified in the phase definition
+3. **Workflow default**: Default agent from workflow's `defaults.agent`
 
 ### State Directory
 
@@ -125,25 +139,28 @@ agent workflow --delete my-workflow
 
 ### Custom Variables
 
-Workflows can define variables resolved at startup from environment, bash commands, or files:
+Workflows can define variables resolved at startup from environment, bash commands, files, or JSON files:
 
 ```json
 {
   "variables": [
     { "name": "branch", "type": "bash", "source": "git branch --show-current" },
     { "name": "api_key", "type": "env", "source": "MY_API_KEY", "required": false },
-    { "name": "context", "type": "file", "source": "CLAUDE.md" }
+    { "name": "context", "type": "file", "source": "CLAUDE.md" },
+    { "name": "version", "type": "json", "source": "package.json", "path": ".version" },
+    { "name": "first_dep", "type": "json", "source": "config.json", "path": ".dependencies[0].name" }
   ]
 }
 ```
 
-Access in prompts as `{{var.branch}}`, `{{var.api_key}}`, `{{var.context}}`.
+Access in prompts as `{{var.branch}}`, `{{var.api_key}}`, `{{var.context}}`, `{{var.version}}`.
 
 | Type | Description |
 |------|-------------|
 | `env` | Environment variable |
 | `bash` | Command stdout |
 | `file` | File contents |
+| `json` | JSON file value at path (dot-notation: `.field`, `.nested.field`, `.array[0]`) |
 
 Variables can reference each other via `{{var.X}}` - dependencies are auto-detected and resolved in correct order. Circular dependencies are reported as errors.
 

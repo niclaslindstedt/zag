@@ -146,11 +146,14 @@ impl VariableResolver {
     fn resolve_one(var: &WorkflowVariable, template: &TemplateEngine) -> Result<String> {
         // Expand templates in source (e.g., {{state_dir}}/file.md)
         let source = template.expand(&var.source);
+        // Expand templates in path if present
+        let path = var.path.as_ref().map(|p| template.expand(p));
 
         let result = match var.var_type {
             VariableType::Env => Self::resolve_env(&source),
             VariableType::Bash => Self::resolve_bash(&source),
             VariableType::File => Self::resolve_file(&source),
+            VariableType::Json => Self::resolve_json(&source, path.as_deref()),
         };
 
         match result {
@@ -188,6 +191,98 @@ impl VariableResolver {
 
     fn resolve_file(path: &str) -> Result<String> {
         std::fs::read_to_string(path).with_context(|| format!("Failed to read file: {}", path))
+    }
+
+    fn resolve_json(file_path: &str, json_path: Option<&str>) -> Result<String> {
+        let contents = std::fs::read_to_string(file_path)
+            .with_context(|| format!("Failed to read JSON file: {}", file_path))?;
+
+        let value: serde_json::Value = serde_json::from_str(&contents)
+            .with_context(|| format!("Failed to parse JSON file: {}", file_path))?;
+
+        let path = json_path.unwrap_or("");
+        let result = Self::navigate_json_path(&value, path)
+            .with_context(|| format!("Failed to resolve path '{}' in {}", path, file_path))?;
+
+        // Convert the result to a string
+        match result {
+            serde_json::Value::String(s) => Ok(s.clone()),
+            serde_json::Value::Number(n) => Ok(n.to_string()),
+            serde_json::Value::Bool(b) => Ok(b.to_string()),
+            serde_json::Value::Null => Ok("null".to_string()),
+            // For objects and arrays, return pretty-printed JSON
+            _ => Ok(serde_json::to_string_pretty(result)?),
+        }
+    }
+
+    /// Navigate a JSON value using dot-notation path.
+    /// Supports: .field, .nested.field, .array[0], .array[0].field
+    fn navigate_json_path<'a>(
+        value: &'a serde_json::Value,
+        path: &str,
+    ) -> Result<&'a serde_json::Value> {
+        // Handle empty path or just "." - return the whole value
+        let path = path.trim();
+        if path.is_empty() || path == "." {
+            return Ok(value);
+        }
+
+        // Remove leading dot if present
+        let path = path.strip_prefix('.').unwrap_or(path);
+
+        let mut current = value;
+
+        // Parse and navigate each segment
+        let mut remaining = path;
+        while !remaining.is_empty() {
+            // Check for array index: field[n] or [n]
+            if let Some(bracket_pos) = remaining.find('[') {
+                // Get field name before bracket (if any)
+                let field = &remaining[..bracket_pos];
+                if !field.is_empty() {
+                    current = current
+                        .get(field)
+                        .ok_or_else(|| anyhow::anyhow!("Field '{}' not found", field))?;
+                }
+
+                // Find closing bracket
+                let after_bracket = &remaining[bracket_pos + 1..];
+                let close_pos = after_bracket
+                    .find(']')
+                    .ok_or_else(|| anyhow::anyhow!("Unclosed bracket in path"))?;
+
+                // Parse index
+                let index_str = &after_bracket[..close_pos];
+                let index: usize = index_str
+                    .parse()
+                    .with_context(|| format!("Invalid array index: {}", index_str))?;
+
+                current = current
+                    .get(index)
+                    .ok_or_else(|| anyhow::anyhow!("Array index {} out of bounds", index))?;
+
+                // Move past the bracket and continue
+                remaining = &after_bracket[close_pos + 1..];
+                // Skip leading dot for next segment
+                remaining = remaining.strip_prefix('.').unwrap_or(remaining);
+            } else {
+                // No bracket - find next dot or end
+                let (field, rest) = match remaining.find('.') {
+                    Some(dot_pos) => (&remaining[..dot_pos], &remaining[dot_pos + 1..]),
+                    None => (remaining, ""),
+                };
+
+                if !field.is_empty() {
+                    current = current
+                        .get(field)
+                        .ok_or_else(|| anyhow::anyhow!("Field '{}' not found", field))?;
+                }
+
+                remaining = rest;
+            }
+        }
+
+        Ok(current)
     }
 }
 
@@ -252,6 +347,7 @@ mod tests {
             name: "missing_var".to_string(),
             var_type: VariableType::Env,
             source: "NONEXISTENT_VAR_88888".to_string(),
+            path: None,
             required: false,
             default: Some("default_value".to_string()),
         }];
@@ -268,6 +364,7 @@ mod tests {
             name: "required_var".to_string(),
             var_type: VariableType::Env,
             source: "NONEXISTENT_VAR_77777".to_string(),
+            path: None,
             required: true,
             default: None,
         }];
@@ -285,6 +382,7 @@ mod tests {
             name: "result".to_string(),
             var_type: VariableType::Bash,
             source: "echo {{state_dir}}".to_string(),
+            path: None,
             required: true,
             default: None,
         }];
@@ -303,6 +401,7 @@ mod tests {
                 name: "first".to_string(),
                 var_type: VariableType::Bash,
                 source: "echo hello".to_string(),
+                path: None,
                 required: true,
                 default: None,
             },
@@ -310,6 +409,7 @@ mod tests {
                 name: "second".to_string(),
                 var_type: VariableType::Bash,
                 source: "echo {{var.first}} world".to_string(),
+                path: None,
                 required: true,
                 default: None,
             },
@@ -330,6 +430,7 @@ mod tests {
                 name: "second".to_string(),
                 var_type: VariableType::Bash,
                 source: "echo {{var.first}} world".to_string(),
+                path: None,
                 required: true,
                 default: None,
             },
@@ -337,6 +438,7 @@ mod tests {
                 name: "first".to_string(),
                 var_type: VariableType::Bash,
                 source: "echo hello".to_string(),
+                path: None,
                 required: true,
                 default: None,
             },
@@ -357,6 +459,7 @@ mod tests {
                 name: "c".to_string(),
                 var_type: VariableType::Bash,
                 source: "echo {{var.b}} c".to_string(),
+                path: None,
                 required: true,
                 default: None,
             },
@@ -364,6 +467,7 @@ mod tests {
                 name: "b".to_string(),
                 var_type: VariableType::Bash,
                 source: "echo {{var.a}} b".to_string(),
+                path: None,
                 required: true,
                 default: None,
             },
@@ -371,6 +475,7 @@ mod tests {
                 name: "a".to_string(),
                 var_type: VariableType::Bash,
                 source: "echo a".to_string(),
+                path: None,
                 required: true,
                 default: None,
             },
@@ -391,6 +496,7 @@ mod tests {
                 name: "a".to_string(),
                 var_type: VariableType::Bash,
                 source: "echo {{var.b}}".to_string(),
+                path: None,
                 required: true,
                 default: None,
             },
@@ -398,6 +504,7 @@ mod tests {
                 name: "b".to_string(),
                 var_type: VariableType::Bash,
                 source: "echo {{var.a}}".to_string(),
+                path: None,
                 required: true,
                 default: None,
             },
@@ -421,5 +528,182 @@ mod tests {
         let deps = VariableResolver::extract_dependencies("{{state_dir}}/{{var.name}}/file");
         assert!(deps.contains("name"));
         assert_eq!(deps.len(), 1);
+    }
+
+    // JSON variable tests
+
+    #[test]
+    fn test_resolve_json_simple_field() {
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("test_json_simple.json");
+        std::fs::write(&temp_file, r#"{"name": "test", "version": "1.0.0"}"#).unwrap();
+
+        let result =
+            VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".name"));
+        assert_eq!(result.unwrap(), "test");
+
+        std::fs::remove_file(temp_file).unwrap();
+    }
+
+    #[test]
+    fn test_resolve_json_nested_field() {
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("test_json_nested.json");
+        std::fs::write(&temp_file, r#"{"config": {"database": {"host": "localhost"}}}"#).unwrap();
+
+        let result = VariableResolver::resolve_json(
+            temp_file.to_str().unwrap(),
+            Some(".config.database.host"),
+        );
+        assert_eq!(result.unwrap(), "localhost");
+
+        std::fs::remove_file(temp_file).unwrap();
+    }
+
+    #[test]
+    fn test_resolve_json_array_index() {
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("test_json_array.json");
+        std::fs::write(&temp_file, r#"{"items": ["first", "second", "third"]}"#).unwrap();
+
+        let result =
+            VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".items[1]"));
+        assert_eq!(result.unwrap(), "second");
+
+        std::fs::remove_file(temp_file).unwrap();
+    }
+
+    #[test]
+    fn test_resolve_json_array_object() {
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("test_json_array_obj.json");
+        std::fs::write(
+            &temp_file,
+            r#"{"users": [{"name": "alice"}, {"name": "bob"}]}"#,
+        )
+        .unwrap();
+
+        let result = VariableResolver::resolve_json(
+            temp_file.to_str().unwrap(),
+            Some(".users[0].name"),
+        );
+        assert_eq!(result.unwrap(), "alice");
+
+        std::fs::remove_file(temp_file).unwrap();
+    }
+
+    #[test]
+    fn test_resolve_json_number() {
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("test_json_number.json");
+        std::fs::write(&temp_file, r#"{"count": 42, "price": 19.99}"#).unwrap();
+
+        let result =
+            VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".count"));
+        assert_eq!(result.unwrap(), "42");
+
+        let result =
+            VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".price"));
+        assert_eq!(result.unwrap(), "19.99");
+
+        std::fs::remove_file(temp_file).unwrap();
+    }
+
+    #[test]
+    fn test_resolve_json_boolean() {
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("test_json_bool.json");
+        std::fs::write(&temp_file, r#"{"enabled": true, "debug": false}"#).unwrap();
+
+        let result =
+            VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".enabled"));
+        assert_eq!(result.unwrap(), "true");
+
+        std::fs::remove_file(temp_file).unwrap();
+    }
+
+    #[test]
+    fn test_resolve_json_null() {
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("test_json_null.json");
+        std::fs::write(&temp_file, r#"{"value": null}"#).unwrap();
+
+        let result =
+            VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".value"));
+        assert_eq!(result.unwrap(), "null");
+
+        std::fs::remove_file(temp_file).unwrap();
+    }
+
+    #[test]
+    fn test_resolve_json_no_path_returns_whole() {
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("test_json_whole.json");
+        std::fs::write(&temp_file, r#"{"a": 1}"#).unwrap();
+
+        let result = VariableResolver::resolve_json(temp_file.to_str().unwrap(), None);
+        assert!(result.unwrap().contains("\"a\": 1"));
+
+        std::fs::remove_file(temp_file).unwrap();
+    }
+
+    #[test]
+    fn test_resolve_json_missing_field() {
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("test_json_missing.json");
+        std::fs::write(&temp_file, r#"{"name": "test"}"#).unwrap();
+
+        let result =
+            VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".missing"));
+        assert!(result.is_err());
+
+        std::fs::remove_file(temp_file).unwrap();
+    }
+
+    #[test]
+    fn test_resolve_json_invalid_index() {
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("test_json_invalid_idx.json");
+        std::fs::write(&temp_file, r#"{"items": ["a", "b"]}"#).unwrap();
+
+        let result =
+            VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".items[99]"));
+        assert!(result.is_err());
+
+        std::fs::remove_file(temp_file).unwrap();
+    }
+
+    #[test]
+    fn test_resolve_json_invalid_json() {
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("test_json_invalid.json");
+        std::fs::write(&temp_file, "not valid json").unwrap();
+
+        let result =
+            VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".field"));
+        assert!(result.is_err());
+
+        std::fs::remove_file(temp_file).unwrap();
+    }
+
+    #[test]
+    fn test_resolve_json_missing_file() {
+        let result =
+            VariableResolver::resolve_json("/nonexistent/path.json", Some(".field"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_navigate_json_path_without_leading_dot() {
+        let value: serde_json::Value = serde_json::from_str(r#"{"name": "test"}"#).unwrap();
+        let result = VariableResolver::navigate_json_path(&value, "name");
+        assert_eq!(result.unwrap().as_str().unwrap(), "test");
+    }
+
+    #[test]
+    fn test_navigate_json_path_root_array() {
+        let value: serde_json::Value = serde_json::from_str(r#"["a", "b", "c"]"#).unwrap();
+        let result = VariableResolver::navigate_json_path(&value, "[1]");
+        assert_eq!(result.unwrap().as_str().unwrap(), "b");
     }
 }

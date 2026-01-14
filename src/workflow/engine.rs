@@ -34,7 +34,7 @@ impl WorkflowEngine {
     }
 
     /// Run a workflow from the beginning.
-    pub async fn run(&self, workflow_name: &str) -> Result<()> {
+    pub async fn run(&self, workflow_name: &str, agent_override: Option<&str>) -> Result<()> {
         let workflow = self.loader.load(workflow_name)?;
         let mut run_ctx = self.state_manager.create_run(workflow_name)?;
 
@@ -49,17 +49,20 @@ impl WorkflowEngine {
         if let Some(ref desc) = workflow.description {
             println!("Description: {}", desc);
         }
+        if let Some(agent) = agent_override {
+            println!("Agent override: {}", agent);
+        }
         println!("Run ID: {}", run_ctx.manifest.run_id);
         println!("State directory: {}", run_ctx.state_dir().display());
         println!();
 
-        let result = self.execute_workflow(&workflow, &mut run_ctx).await;
+        let result = self.execute_workflow(&workflow, &mut run_ctx, agent_override).await;
         let _ = pid::remove_workflow_context();
         result
     }
 
     /// Resume a paused or failed workflow.
-    pub async fn resume(&self, workflow_name: &str, run_id: Option<&str>) -> Result<()> {
+    pub async fn resume(&self, workflow_name: &str, run_id: Option<&str>, agent_override: Option<&str>) -> Result<()> {
         let workflow = self.loader.load(workflow_name)?;
 
         let run_id = match run_id {
@@ -82,12 +85,15 @@ impl WorkflowEngine {
         })?;
 
         println!("Resuming workflow: {} v{}", workflow.name, workflow.version);
+        if let Some(agent) = agent_override {
+            println!("Agent override: {}", agent);
+        }
         println!("Run ID: {}", run_id);
         println!("State directory: {}", run_ctx.state_dir().display());
         println!("Previous status: {:?}", run_ctx.manifest.status);
         println!();
 
-        let result = self.execute_workflow(&workflow, &mut run_ctx).await;
+        let result = self.execute_workflow(&workflow, &mut run_ctx, agent_override).await;
         let _ = pid::remove_workflow_context();
         result
     }
@@ -153,6 +159,7 @@ impl WorkflowEngine {
         &self,
         workflow: &Workflow,
         run_ctx: &mut RunContext,
+        agent_override: Option<&str>,
     ) -> Result<()> {
         // Validate workflow structure
         self.validate_workflow(workflow)?;
@@ -198,7 +205,7 @@ impl WorkflowEngine {
             }
 
             // Create executor for this phase and execute
-            let mut executor = PhaseExecutor::new(workflow, &workflow.defaults, run_ctx)?;
+            let mut executor = PhaseExecutor::new(workflow, &workflow.defaults, run_ctx, agent_override)?;
             if let Err(e) = executor.execute_phase(phase).await {
                 run_ctx.fail(&e.to_string())?;
                 return Err(e);

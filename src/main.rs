@@ -168,9 +168,9 @@ enum Commands {
         #[arg(long)]
         delete: Option<String>,
 
-        /// Agent to use for workflow creation (default: claude)
-        #[arg(long, default_value = "claude")]
-        agent: String,
+        /// Agent to use (overrides workflow/phase settings)
+        #[arg(long)]
+        agent: Option<String>,
     },
 }
 
@@ -258,13 +258,15 @@ async fn main() -> Result<()> {
 
             // Create a new workflow with AI assistance
             if let Some(workflow_name) = create {
-                workflow::manage::create_workflow(&workflow_name, &agent).await?;
+                let create_agent = agent.as_deref().unwrap_or("claude");
+                workflow::manage::create_workflow(&workflow_name, create_agent).await?;
                 return Ok(());
             }
 
             // Modify an existing workflow with AI assistance
             if let Some(workflow_name) = modify {
-                workflow::manage::modify_workflow(&workflow_name, &agent).await?;
+                let modify_agent = agent.as_deref().unwrap_or("claude");
+                workflow::manage::modify_workflow(&workflow_name, modify_agent).await?;
                 return Ok(());
             }
 
@@ -297,9 +299,9 @@ async fn main() -> Result<()> {
             }
 
             if resume {
-                engine.resume(&name, run_id.as_deref()).await?;
+                engine.resume(&name, run_id.as_deref(), agent.as_deref()).await?;
             } else {
-                engine.run(&name).await?;
+                engine.run(&name, agent.as_deref()).await?;
             }
         }
     }

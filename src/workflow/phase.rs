@@ -20,6 +20,8 @@ pub struct PhaseExecutor<'a> {
     context_template: TemplateEngine,
     /// Whether we're currently inside an iteration loop (for checkpoint instructions)
     in_iteration: bool,
+    /// Optional agent override from CLI (takes precedence over workflow/phase settings)
+    agent_override: Option<String>,
 }
 
 impl<'a> PhaseExecutor<'a> {
@@ -27,6 +29,7 @@ impl<'a> PhaseExecutor<'a> {
         workflow: &'a Workflow,
         defaults: &'a WorkflowDefaults,
         run_ctx: &'a mut RunContext,
+        agent_override: Option<&str>,
     ) -> Result<Self> {
         let mut context_template = TemplateEngine::new();
         context_template.set_state_dir(&run_ctx.state_dir_str());
@@ -40,6 +43,7 @@ impl<'a> PhaseExecutor<'a> {
             run_ctx,
             context_template,
             in_iteration: false,
+            agent_override: agent_override.map(|s| s.to_string()),
         })
     }
 
@@ -210,11 +214,12 @@ impl<'a> PhaseExecutor<'a> {
 
     /// Create an AgentSession for a phase.
     fn create_session(&self, phase: &Phase) -> Result<AgentSession> {
-        let agent = phase
-            .agent
-            .as_ref()
-            .unwrap_or(&self.defaults.agent)
-            .clone();
+        // Agent priority: CLI override > phase setting > workflow default
+        let agent = self
+            .agent_override
+            .clone()
+            .or_else(|| phase.agent.clone())
+            .unwrap_or_else(|| self.defaults.agent.clone());
 
         let model = phase
             .model

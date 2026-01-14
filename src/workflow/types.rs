@@ -26,6 +26,10 @@ pub struct WorkflowVariable {
     pub var_type: VariableType,
     /// Source specification (env var name, bash command, or file path)
     pub source: String,
+    /// JSON path for extracting values (only used with type=json)
+    /// Supports dot-notation: .field, .nested.field, .array[0], .array[0].field
+    #[serde(default)]
+    pub path: Option<String>,
     /// Whether the variable must be resolved successfully (default: true)
     #[serde(default = "default_required")]
     pub required: bool,
@@ -44,6 +48,8 @@ pub enum VariableType {
     Bash,
     /// Read file contents
     File,
+    /// Read JSON file and extract value at path
+    Json,
 }
 
 fn default_required() -> bool {
