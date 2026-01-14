@@ -68,11 +68,17 @@ agent workflow --create my-workflow
 # Create with a different agent
 agent workflow --create my-workflow --agent codex
 
+# Create autonomously (skip confirmations)
+agent workflow --create my-workflow -a
+
 # Modify an existing workflow with AI assistance
 agent workflow --modify my-workflow
 
 # Modify with a different agent
 agent workflow --modify my-workflow --agent codex
+
+# Modify autonomously (skip confirmations)
+agent workflow --modify my-workflow --auto-approve
 
 # Delete a user-defined workflow
 agent workflow --delete my-workflow

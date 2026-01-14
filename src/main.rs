@@ -125,7 +125,7 @@ enum Commands {
         #[arg(short = 'p', long = "print")]
         print: bool,
     },
-    /// Kill the parent agent session
+    /// Signal workflow phase completion (used by agents during interactive sessions)
     Kill,
     /// Run a multi-phase workflow
     Workflow {
@@ -171,6 +171,10 @@ enum Commands {
         /// Agent to use (overrides workflow/phase settings)
         #[arg(long)]
         agent: Option<String>,
+
+        /// Auto-approve all actions (skip permission prompts)
+        #[arg(short = 'a', long)]
+        auto_approve: bool,
     },
 }
 
@@ -243,6 +247,7 @@ async fn main() -> Result<()> {
             modify,
             delete,
             agent,
+            auto_approve,
         } => {
             interrupt::init();
             let engine = workflow::WorkflowEngine::new(root.as_deref());
@@ -259,14 +264,14 @@ async fn main() -> Result<()> {
             // Create a new workflow with AI assistance
             if let Some(workflow_name) = create {
                 let create_agent = agent.as_deref().unwrap_or("claude");
-                workflow::manage::create_workflow(&workflow_name, create_agent).await?;
+                workflow::manage::create_workflow(&workflow_name, create_agent, auto_approve).await?;
                 return Ok(());
             }
 
             // Modify an existing workflow with AI assistance
             if let Some(workflow_name) = modify {
                 let modify_agent = agent.as_deref().unwrap_or("claude");
-                workflow::manage::modify_workflow(&workflow_name, modify_agent).await?;
+                workflow::manage::modify_workflow(&workflow_name, modify_agent, auto_approve).await?;
                 return Ok(());
             }
 

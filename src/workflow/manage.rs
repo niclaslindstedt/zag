@@ -13,7 +13,7 @@ use crate::session::{run_sessions, AgentSession};
 /// System prompt for workflow creation and modification.
 const SYSTEM_PROMPT: &str = include_str!("../../prompts/workflow-reference.md");
 
-/// User prompt template for workflow creation.
+/// User prompt template for workflow creation (interactive).
 const CREATE_USER_PROMPT_TEMPLATE: &str = r#"Help me create a new workflow named "{{name}}".
 
 Your task:
@@ -24,7 +24,20 @@ Your task:
 
 Start by asking me about the workflow's purpose and what it should do."#;
 
-/// User prompt template for workflow modification.
+/// User prompt template for workflow creation (auto-approve mode - autonomous).
+const CREATE_USER_PROMPT_AUTO_TEMPLATE: &str = r#"Create a new workflow named "{{name}}".
+
+AUTO-APPROVE MODE: Work autonomously without asking questions. Make reasonable design decisions.
+
+Your task:
+1. Design a sensible workflow based on the name "{{name}}"
+2. Create appropriate phases using the workflow schema from your system prompt
+3. Write the workflow JSON to ~/.agent/workflows/{{name}}.json
+4. Briefly explain what you created
+
+Do not ask questions - just create a reasonable workflow based on the name."#;
+
+/// User prompt template for workflow modification (interactive).
 const MODIFY_USER_PROMPT_TEMPLATE: &str = r#"Help me modify the workflow "{{name}}".
 
 The workflow file is located at: {{path}}
@@ -37,6 +50,21 @@ Your task:
 
 Start by reading the workflow file, then ask me what I'd like to modify."#;
 
+/// User prompt template for workflow modification (auto-approve mode - autonomous).
+const MODIFY_USER_PROMPT_AUTO_TEMPLATE: &str = r#"Modify the workflow "{{name}}".
+
+The workflow file is located at: {{path}}
+
+AUTO-APPROVE MODE: Work autonomously without asking questions. Analyze and improve the workflow.
+
+Your task:
+1. Read the existing workflow file to understand its current structure
+2. Identify any issues, improvements, or optimizations
+3. Make sensible modifications using the workflow schema from your system prompt
+4. Briefly explain the changes you made
+
+Do not ask questions - analyze the workflow and make reasonable improvements."#;
+
 /// Create a new workflow with AI assistance.
 ///
 /// Launches an interactive agent session with embedded prompts that guide
@@ -46,17 +74,23 @@ Start by reading the workflow file, then ask me what I'd like to modify."#;
 ///
 /// * `name` - Name for the new workflow (used in filename and prompts)
 /// * `agent_name` - Which agent to use ("claude", "codex", "gemini", "copilot")
-pub async fn create_workflow(name: &str, agent_name: &str) -> Result<()> {
-    let user_prompt = CREATE_USER_PROMPT_TEMPLATE.replace("{{name}}", name);
+/// * `auto_approve` - Skip confirmations and work autonomously
+pub async fn create_workflow(name: &str, agent_name: &str, auto_approve: bool) -> Result<()> {
+    let template = if auto_approve {
+        CREATE_USER_PROMPT_AUTO_TEMPLATE
+    } else {
+        CREATE_USER_PROMPT_TEMPLATE
+    };
+    let user_prompt = template.replace("{{name}}", name);
 
     let session = AgentSession::new(
         agent_name,
         user_prompt,
         Some(SYSTEM_PROMPT.to_string()),
-        None,  // default model
-        None,  // current directory
-        false, // require permissions
-        true,  // interactive
+        None,         // default model
+        None,         // current directory
+        auto_approve, // skip permissions
+        true,         // interactive
     );
 
     run_sessions(vec![session]).await
@@ -119,7 +153,8 @@ const EMBEDDED_WORKFLOWS: &[(&str, &str)] = &[
 ///
 /// * `name` - Name of the workflow to modify
 /// * `agent_name` - Which agent to use ("claude", "codex", "gemini", "copilot")
-pub async fn modify_workflow(name: &str, agent_name: &str) -> Result<()> {
+/// * `auto_approve` - Skip confirmations and work autonomously
+pub async fn modify_workflow(name: &str, agent_name: &str, auto_approve: bool) -> Result<()> {
     let user_path = get_workflow_path(name);
 
     // Check if workflow exists (user or embedded)
@@ -148,7 +183,12 @@ pub async fn modify_workflow(name: &str, agent_name: &str) -> Result<()> {
         }
     }
 
-    let user_prompt = MODIFY_USER_PROMPT_TEMPLATE
+    let template = if auto_approve {
+        MODIFY_USER_PROMPT_AUTO_TEMPLATE
+    } else {
+        MODIFY_USER_PROMPT_TEMPLATE
+    };
+    let user_prompt = template
         .replace("{{name}}", name)
         .replace("{{path}}", &user_path.display().to_string());
 
@@ -156,10 +196,10 @@ pub async fn modify_workflow(name: &str, agent_name: &str) -> Result<()> {
         agent_name,
         user_prompt,
         Some(SYSTEM_PROMPT.to_string()),
-        None,  // default model
-        None,  // current directory
-        false, // require permissions
-        true,  // interactive
+        None,         // default model
+        None,         // current directory
+        auto_approve, // skip permissions
+        true,         // interactive
     );
 
     run_sessions(vec![session]).await
