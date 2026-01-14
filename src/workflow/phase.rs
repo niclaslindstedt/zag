@@ -232,6 +232,9 @@ impl<'a> PhaseExecutor<'a> {
         Ok(())
     }
 
+    /// File injection marker documentation (always injected into system prompt)
+    const FILE_INJECTION_INFO: &'static str = "## File Injection Markers\n\nWhen file contents are injected into prompts via workflow variables (type: \"file\"), they are wrapped with special delimiters:\n\n```\n///!agent:injected_file_start:<path>\n<file contents>\n///!agent:injected_file_end:<path>\n```\n\nThese markers help you identify which content came from external files and distinguish between multiple injected files. You can reference files by their path shown in the markers.";
+
     /// Completion instruction for interactive iteration phases (checkpoint + exit)
     const COMPLETION_CHECKPOINT_AND_EXIT: &'static str = "\n\n---\nWORKFLOW COMPLETION: After you have finished ALL your work for this task, run these commands in order:\n1. `agent workflow --checkpoint` - saves your progress for this iteration\n2. `agent exit` - signals completion and continues to next iteration/phase\n\nIMPORTANT: Run both commands AFTER completing your work. If you exit without these, the workflow will fail.\n\nWORKFLOW MEMORY: If you learned something important about this project, save it with:\n`agent memory add \"what you learned\"` (optionally: `--category <category>`)";
 
@@ -277,6 +280,12 @@ impl<'a> PhaseExecutor<'a> {
                 None => defs,
             });
         }
+
+        // Inject file injection documentation (always shown)
+        system_prompt = Some(match system_prompt {
+            Some(sp) => format!("{}\n\n{}", sp, Self::FILE_INJECTION_INFO),
+            None => Self::FILE_INJECTION_INFO.to_string(),
+        });
 
         // Inject workflow memories (after phase system_prompt, before completion instructions)
         if self.memory_enabled {

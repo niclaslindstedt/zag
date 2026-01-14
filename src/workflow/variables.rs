@@ -190,7 +190,14 @@ impl VariableResolver {
     }
 
     fn resolve_file(path: &str) -> Result<String> {
-        std::fs::read_to_string(path).with_context(|| format!("Failed to read file: {}", path))
+        let contents = std::fs::read_to_string(path)
+            .with_context(|| format!("Failed to read file: {}", path))?;
+        
+        // Wrap file contents with injection markers
+        Ok(format!(
+            "///!agent:injected_file_start:{}\n{}\n///!agent:injected_file_end:{}",
+            path, contents, path
+        ))
     }
 
     fn resolve_json(file_path: &str, json_path: Option<&str>) -> Result<String> {
@@ -326,10 +333,15 @@ mod tests {
     fn test_resolve_file() {
         let temp_dir = std::env::temp_dir();
         let temp_file = temp_dir.join("test_var_file.txt");
+        let path_str = temp_file.to_str().unwrap();
         std::fs::write(&temp_file, "file contents").unwrap();
 
-        let result = VariableResolver::resolve_file(temp_file.to_str().unwrap());
-        assert_eq!(result.unwrap(), "file contents");
+        let result = VariableResolver::resolve_file(path_str);
+        let expected = format!(
+            "///!agent:injected_file_start:{}\nfile contents\n///!agent:injected_file_end:{}",
+            path_str, path_str
+        );
+        assert_eq!(result.unwrap(), expected);
 
         std::fs::remove_file(temp_file).unwrap();
     }
@@ -684,6 +696,32 @@ mod tests {
 
         let result = VariableResolver::resolve_json(temp_file.to_str().unwrap(), Some(".field"));
         assert!(result.is_err());
+
+        std::fs::remove_file(temp_file).unwrap();
+    }
+
+    #[test]
+    fn test_file_injection_markers_format() {
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("test_file_injection_markers.txt");
+        let path_str = temp_file.to_str().unwrap();
+        std::fs::write(&temp_file, "Line 1\nLine 2").unwrap();
+
+        let result = VariableResolver::resolve_file(path_str).unwrap();
+
+        // Verify markers are present
+        assert!(result.starts_with(&format!("///!agent:injected_file_start:{}", path_str)));
+        assert!(result.ends_with(&format!("///!agent:injected_file_end:{}", path_str)));
+
+        // Verify content is in the middle
+        assert!(result.contains("Line 1\nLine 2"));
+
+        // Verify complete format
+        let expected = format!(
+            "///!agent:injected_file_start:{}\nLine 1\nLine 2\n///!agent:injected_file_end:{}",
+            path_str, path_str
+        );
+        assert_eq!(result, expected);
 
         std::fs::remove_file(temp_file).unwrap();
     }

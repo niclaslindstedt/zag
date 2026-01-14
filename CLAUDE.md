@@ -170,10 +170,37 @@ Access in prompts as `{{var.branch}}`, `{{var.api_key}}`, `{{var.context}}`, `{{
 |------|-------------|
 | `env` | Environment variable |
 | `bash` | Command stdout |
-| `file` | File contents |
+| `file` | File contents (wrapped with injection markers) |
 | `json` | JSON file value at path (dot-notation: `.field`, `.nested.field`, `.array[0]`) |
 
 Variables can reference each other via `{{var.X}}` - dependencies are auto-detected and resolved in correct order. Circular dependencies are reported as errors.
+
+### File Injection Markers
+
+When file contents are injected via `type: "file"` variables, they are wrapped with special delimiters:
+
+```
+///!agent:injected_file_start:<path>
+<file contents>
+///!agent:injected_file_end:<path>
+```
+
+**Example**: If a workflow injects `CLAUDE.md`:
+
+```markdown
+///!agent:injected_file_start:CLAUDE.md
+# CLAUDE.md
+
+Keep this file updated when making architectural changes...
+///!agent:injected_file_end:CLAUDE.md
+```
+
+These markers help agents:
+- Identify which content came from external files
+- Distinguish between multiple injected files
+- Reference specific files in their responses
+
+The file injection documentation is automatically included in the system prompt for all workflow phases.
 
 ### Definitions
 
@@ -342,8 +369,9 @@ Each entry is a JSON line:
 Memories are injected into the system prompt in this order:
 1. Workflow definitions (prepended)
 2. Phase system_prompt
-3. **Workflow memories** (injected here)
-4. Completion instructions (appended)
+3. **File injection documentation** (always included)
+4. **Workflow memories** (injected here)
+5. Completion instructions (appended)
 
 Memory format in system prompt:
 ```markdown
