@@ -138,6 +138,32 @@ Settings are applied in this order (later overrides earlier):
 
 Multi-phase workflow orchestration for complex AI agent tasks.
 
+### Interrupt Handling (CTRL+C)
+
+When you press CTRL+C during workflow execution, you'll be prompted:
+
+```
+Save progress and continue to next phase? [y/N]:
+```
+
+- **Yes (y)** - Checkpoints current iteration and continues to next phase
+- **No (N, default)** - Exits immediately without checkpoint (marks phase as failed, can be resumed)
+
+CTRL+C at the prompt will exit to bash.
+
+### Agent Exit Handling
+
+When an interactive agent exits without calling `agent exit` to signal completion, you'll be prompted:
+
+```
+Consider this phase complete and continue? [y/N]:
+```
+
+- **Yes (y)** - Marks the phase as complete and continues to next phase
+- **No (N, default)** - Marks phase as failed (can be resumed later)
+
+CTRL+C at the prompt will exit to bash.
+
 ### CLI Usage
 
 ```bash

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use std::io::{self, Write};
 use tokio::process::Child;
 use tokio::signal;
 
@@ -89,11 +90,38 @@ pub async fn wait_with_pid_tracking(
     }
 
     // For interactive phases, the agent MUST call `agent exit` to signal
-    // successful completion. If it just exits (even with status 0), treat
-    // it as a failure - the agent didn't follow the completion instructions.
+    // successful completion. If it just exits (even with status 0), ask the
+    // user if they consider the phase complete.
     if require_explicit_completion && !was_killed {
-        anyhow::bail!("Agent exited without signaling completion (did not run `agent exit`)");
+        return prompt_phase_completion();
     }
 
     Ok(())
+}
+
+/// Prompt the user whether they consider the phase complete.
+fn prompt_phase_completion() -> Result<()> {
+    println!("\n=== Agent exited without signaling completion ===");
+    print!("Consider this phase complete and continue? [y/N]: ");
+    io::stdout().flush().ok();
+
+    let mut input = String::new();
+    match io::stdin().read_line(&mut input) {
+        Ok(_) => {
+            match input.trim().to_lowercase().as_str() {
+                "y" | "yes" => {
+                    println!("Marking phase as complete and continuing...");
+                    Ok(())
+                }
+                _ => {
+                    println!("Phase marked as failed - workflow can be resumed");
+                    anyhow::bail!("Phase marked as failed")
+                }
+            }
+        }
+        Err(_) => {
+            println!("Phase marked as failed - workflow can be resumed");
+            anyhow::bail!("Phase marked as failed")
+        }
+    }
 }

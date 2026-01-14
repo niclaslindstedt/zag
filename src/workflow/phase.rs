@@ -90,6 +90,21 @@ impl<'a> PhaseExecutor<'a> {
                         .update_phase_status(&phase.id, PhaseStatus::completed(started_at))?;
                 }
                 Err(e) => {
+                    // Check if this is a skip-to-next-phase signal
+                    if e.to_string() == "SKIP_TO_NEXT_PHASE" {
+                        let started_at = self
+                            .run_ctx
+                            .manifest
+                            .phases
+                            .get(&phase.id)
+                            .and_then(|s| s.started_at.clone());
+                        self.run_ctx
+                            .update_phase_status(&phase.id, PhaseStatus::completed(started_at))?;
+                        println!("Skipping to next phase...");
+                        interrupt::clear_interrupt();
+                        return Ok(());
+                    }
+                    
                     let started_at = self
                         .run_ctx
                         .manifest
@@ -114,12 +129,24 @@ impl<'a> PhaseExecutor<'a> {
     }
 
     /// Run a session, detecting if it was interrupted.
-    async fn run_session(&self, session: AgentSession) -> Result<()> {
+    async fn run_session(&mut self, session: AgentSession) -> Result<()> {
         let result = session.run().await;
 
         // Check if interrupted via Ctrl+C
         if interrupt::was_interrupted() {
-            anyhow::bail!("Session was interrupted");
+            // Prompt user for action
+            let continue_to_next = interrupt::prompt_interrupt_action();
+            
+            if continue_to_next {
+                // Checkpoint and signal to skip to next phase
+                if self.run_ctx.manifest.current_iteration.is_some() {
+                    self.run_ctx.checkpoint_iteration()?;
+                }
+                anyhow::bail!("SKIP_TO_NEXT_PHASE");
+            } else {
+                // Exit without checkpoint
+                anyhow::bail!("Session interrupted");
+            }
         }
 
         result
@@ -205,7 +232,14 @@ impl<'a> PhaseExecutor<'a> {
             // Execute the phase itself (if it has a prompt and no nested phases)
             if !phase.prompt.is_empty() && phase.nested_phases.is_empty() {
                 let session = self.create_session(phase)?;
-                self.run_session(session).await?;
+                if let Err(e) = self.run_session(session).await {
+                    // Check if this is a skip-to-next-phase signal
+                    if e.to_string() == "SKIP_TO_NEXT_PHASE" {
+                        println!("Breaking out of iteration loop...");
+                        return Err(e);
+                    }
+                    return Err(e);
+                }
             }
 
             // Execute nested phases
@@ -219,7 +253,14 @@ impl<'a> PhaseExecutor<'a> {
                     .clone();
 
                 // Recursively execute nested phase (using boxed future)
-                self.execute_phase(&nested_phase).await?;
+                if let Err(e) = self.execute_phase(&nested_phase).await {
+                    // Check if this is a skip-to-next-phase signal
+                    if e.to_string() == "SKIP_TO_NEXT_PHASE" {
+                        println!("Breaking out of iteration loop...");
+                        return Err(e);
+                    }
+                    return Err(e);
+                }
             }
         }
 
