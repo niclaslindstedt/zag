@@ -3,6 +3,7 @@
 //! Validates workflow JSON files for structural and semantic correctness.
 
 use anyhow::{Context, Result, bail};
+use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
@@ -21,14 +22,15 @@ pub fn validate_workflow_file(path: &str) -> Result<()> {
         bail!("File not found: {}", path.display());
     }
 
-    // Read and parse JSON
+    // Read file
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read file: {}", path.display()))?;
 
-    let workflow: Workflow = match serde_json::from_str(&content) {
-        Ok(w) => {
+    // Parse as generic JSON first to check syntax
+    let json_value: Value = match serde_json::from_str(&content) {
+        Ok(v) => {
             println!("  [ok] JSON syntax valid");
-            w
+            v
         }
         Err(e) => {
             println!("  [FAIL] JSON syntax error: {}", e);
@@ -36,7 +38,40 @@ pub fn validate_workflow_file(path: &str) -> Result<()> {
         }
     };
 
-    // Run validations
+    // Validate schema (required fields) before deserializing
+    let schema_errors = validate_schema(&json_value);
+
+    // Try to deserialize - this catches additional type errors with line/column info
+    let workflow: Workflow = match serde_json::from_str(&content) {
+        Ok(w) => w,
+        Err(e) => {
+            // If we have schema errors, report those (more readable)
+            // Otherwise fall back to serde's error with line/column
+            if !schema_errors.is_empty() {
+                for error in &schema_errors {
+                    println!("  [FAIL] {}", error);
+                }
+                println!("\nValidation failed with {} error(s).", schema_errors.len());
+            } else {
+                // Format serde error to be more readable while keeping location
+                let error_msg = format_serde_error(&e);
+                println!("  [FAIL] {}", error_msg);
+                println!("\nValidation failed with 1 error(s).");
+            }
+            bail!("Workflow validation failed");
+        }
+    };
+
+    // If deserialization succeeded but we found schema issues, report them
+    if !schema_errors.is_empty() {
+        for error in &schema_errors {
+            println!("  [FAIL] {}", error);
+        }
+        println!("\nValidation failed with {} error(s).", schema_errors.len());
+        bail!("Workflow validation failed");
+    }
+
+    // Run semantic validations
     let errors = validate_workflow(&workflow);
 
     // Print results
@@ -57,6 +92,221 @@ pub fn validate_workflow_file(path: &str) -> Result<()> {
         println!("\nValidation failed with {} error(s).", errors.len());
         bail!("Workflow validation failed");
     }
+}
+
+/// Format serde error to be more readable while preserving line/column info.
+fn format_serde_error(e: &serde_json::Error) -> String {
+    let msg = e.to_string();
+    let line = e.line();
+    let col = e.column();
+
+    // Try to extract and improve common error patterns
+    if msg.contains("missing field") {
+        // Extract field name from "missing field `fieldname`"
+        if let Some(start) = msg.find("missing field `") {
+            let rest = &msg[start + 15..];
+            if let Some(end) = rest.find('`') {
+                let field = &rest[..end];
+                return format!(
+                    "Missing required field '{}' at line {}, column {}",
+                    field, line, col
+                );
+            }
+        }
+    } else if msg.contains("unknown field") {
+        if let Some(start) = msg.find("unknown field `") {
+            let rest = &msg[start + 15..];
+            if let Some(end) = rest.find('`') {
+                let field = &rest[..end];
+                return format!("Unknown field '{}' at line {}, column {}", field, line, col);
+            }
+        }
+    } else if msg.contains("invalid type") {
+        return format!("Type error at line {}, column {}: {}", line, col, msg);
+    }
+
+    // Fallback: just add line/column if not already present
+    if !msg.contains("line") {
+        format!("{} (at line {}, column {})", msg, line, col)
+    } else {
+        msg
+    }
+}
+
+/// Validate JSON schema - check required fields are present with clear error messages.
+fn validate_schema(json: &Value) -> Vec<String> {
+    let mut errors = Vec::new();
+
+    // Check root is an object
+    let obj = match json.as_object() {
+        Some(o) => o,
+        None => {
+            errors.push("Workflow must be a JSON object".to_string());
+            return errors;
+        }
+    };
+
+    // Check required workflow fields
+    if !obj.contains_key("name") {
+        errors.push("Workflow is missing required field: name".to_string());
+    } else if !obj["name"].is_string() {
+        errors.push("Workflow field 'name' must be a string".to_string());
+    }
+
+    if !obj.contains_key("version") {
+        errors.push("Workflow is missing required field: version".to_string());
+    } else if !obj["version"].is_string() {
+        errors.push("Workflow field 'version' must be a string".to_string());
+    }
+
+    if !obj.contains_key("phases") {
+        errors.push("Workflow is missing required field: phases".to_string());
+        return errors;
+    }
+
+    let phases = match obj["phases"].as_array() {
+        Some(p) => p,
+        None => {
+            errors.push("Workflow field 'phases' must be an array".to_string());
+            return errors;
+        }
+    };
+
+    if phases.is_empty() {
+        errors.push("Workflow must have at least one phase".to_string());
+    }
+
+    // Validate each phase
+    for (i, phase) in phases.iter().enumerate() {
+        let phase_obj = match phase.as_object() {
+            Some(o) => o,
+            None => {
+                errors.push(format!("Phase {} must be a JSON object", i + 1));
+                continue;
+            }
+        };
+
+        // Get phase id for error messages (or use index)
+        let phase_id = phase_obj
+            .get("id")
+            .and_then(|v| v.as_str())
+            .map(|s| format!("\"{}\"", s))
+            .unwrap_or_else(|| format!("at index {}", i));
+
+        // Check required phase fields
+        if !phase_obj.contains_key("id") {
+            errors.push(format!("Phase {} is missing required field: id", i + 1));
+        } else if !phase_obj["id"].is_string() {
+            errors.push(format!("Phase {} field 'id' must be a string", phase_id));
+        }
+
+        if !phase_obj.contains_key("name") {
+            errors.push(format!(
+                "Phase {} is missing required field: name",
+                phase_id
+            ));
+        } else if !phase_obj["name"].is_string() {
+            errors.push(format!("Phase {} field 'name' must be a string", phase_id));
+        }
+
+        if !phase_obj.contains_key("prompt") {
+            errors.push(format!(
+                "Phase {} is missing required field: prompt",
+                phase_id
+            ));
+        } else if !phase_obj["prompt"].is_string() {
+            errors.push(format!(
+                "Phase {} field 'prompt' must be a string",
+                phase_id
+            ));
+        }
+
+        if !phase_obj.contains_key("execution") {
+            errors.push(format!(
+                "Phase {} is missing required field: execution",
+                phase_id
+            ));
+        } else {
+            // Validate execution config
+            let exec = &phase_obj["execution"];
+            if let Some(exec_obj) = exec.as_object() {
+                if !exec_obj.contains_key("mode") {
+                    errors.push(format!(
+                        "Phase {} execution is missing required field: mode",
+                        phase_id
+                    ));
+                } else if let Some(mode) = exec_obj["mode"].as_str() {
+                    if mode != "once" && mode != "iterate" {
+                        errors.push(format!(
+                            "Phase {} has invalid execution mode: \"{}\" (must be \"once\" or \"iterate\")",
+                            phase_id, mode
+                        ));
+                    }
+                } else {
+                    errors.push(format!(
+                        "Phase {} execution field 'mode' must be a string",
+                        phase_id
+                    ));
+                }
+            } else {
+                errors.push(format!(
+                    "Phase {} field 'execution' must be an object",
+                    phase_id
+                ));
+            }
+        }
+    }
+
+    // Validate variables if present
+    if let Some(vars) = obj.get("variables") {
+        if let Some(vars_arr) = vars.as_array() {
+            for (i, var) in vars_arr.iter().enumerate() {
+                let var_obj = match var.as_object() {
+                    Some(o) => o,
+                    None => {
+                        errors.push(format!("Variable {} must be a JSON object", i + 1));
+                        continue;
+                    }
+                };
+
+                let var_name = var_obj
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .map(|s| format!("\"{}\"", s))
+                    .unwrap_or_else(|| format!("at index {}", i));
+
+                if !var_obj.contains_key("name") {
+                    errors.push(format!(
+                        "Variable {} is missing required field: name",
+                        i + 1
+                    ));
+                }
+
+                if !var_obj.contains_key("type") {
+                    errors.push(format!(
+                        "Variable {} is missing required field: type",
+                        var_name
+                    ));
+                } else if let Some(vtype) = var_obj["type"].as_str() {
+                    if !["env", "bash", "file", "json"].contains(&vtype) {
+                        errors.push(format!(
+                            "Variable {} has invalid type: \"{}\" (must be \"env\", \"bash\", \"file\", or \"json\")",
+                            var_name, vtype
+                        ));
+                    }
+                }
+
+                if !var_obj.contains_key("source") {
+                    errors.push(format!(
+                        "Variable {} is missing required field: source",
+                        var_name
+                    ));
+                }
+            }
+        }
+    }
+
+    errors
 }
 
 /// Validate a workflow and return a list of errors.
