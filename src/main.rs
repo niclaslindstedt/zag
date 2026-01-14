@@ -155,6 +155,18 @@ enum Commands {
         /// List runs for a workflow
         #[arg(long)]
         list_runs: bool,
+
+        /// Create a new workflow with AI assistance
+        #[arg(long)]
+        create: Option<String>,
+
+        /// Delete a user-defined workflow
+        #[arg(long)]
+        delete: Option<String>,
+
+        /// Agent to use for workflow creation (default: claude)
+        #[arg(long, default_value = "claude")]
+        agent: String,
     },
 }
 
@@ -223,6 +235,9 @@ async fn main() -> Result<()> {
             root,
             list,
             list_runs,
+            create,
+            delete,
+            agent,
         } => {
             interrupt::init();
             let engine = workflow::WorkflowEngine::new(root.as_deref());
@@ -233,6 +248,18 @@ async fn main() -> Result<()> {
                 for w in workflows {
                     println!("  - {}", w);
                 }
+                return Ok(());
+            }
+
+            // Create a new workflow with AI assistance
+            if let Some(workflow_name) = create {
+                workflow::manage::create_workflow(&workflow_name, &agent).await?;
+                return Ok(());
+            }
+
+            // Delete a user-defined workflow
+            if let Some(workflow_name) = delete {
+                workflow::manage::delete_workflow(&workflow_name)?;
                 return Ok(());
             }
 

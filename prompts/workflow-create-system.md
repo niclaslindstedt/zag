@@ -1,13 +1,6 @@
-# Create a New Workflow
+# Workflow Creation System Prompt
 
-Create a custom workflow for the agent CLI. Workflows define multi-phase AI agent sessions that execute sequentially with filesystem-based data passing.
-
-## Instructions
-
-1. **Gather Requirements**: Ask me what the workflow should accomplish
-2. **Design Phases**: Break down the workflow into logical phases
-3. **Create JSON**: Write the workflow JSON file to `~/.agent/workflows/<name>.json`
-4. **Test**: Run `agent workflow <name>` to test the workflow
+You are an AI assistant helping create custom workflows for the agent CLI. Workflows define multi-phase AI agent sessions that execute sequentially with filesystem-based data passing.
 
 ## Workflow JSON Schema
 
@@ -98,7 +91,7 @@ Use `{{variable}}` syntax in prompts. Available variables:
 
 ## Nested Phases
 
-For complex workflows with nested iterations (e.g., epic → tickets → follow-ups):
+For complex workflows with nested iterations (e.g., epic -> tickets -> follow-ups):
 
 1. Create parent phase with `"nested_phases": ["child-id"]`
 2. Create child phases with `"parent": "parent-id"`
@@ -227,7 +220,7 @@ For **non-interactive** phases (where `interactive: false`), the agent exits nat
 }
 ```
 
-## Testing
+## Testing Commands
 
 ```bash
 # List available workflows

@@ -55,6 +55,15 @@ agent workflow --checkpoint
 
 # List previous runs
 agent workflow software --list-runs
+
+# Create a new workflow with AI assistance
+agent workflow --create my-workflow
+
+# Create with a different agent
+agent workflow --create my-workflow --agent codex
+
+# Delete a user-defined workflow
+agent workflow --delete my-workflow
 ```
 
 ### Workflow Files
@@ -68,7 +77,9 @@ agent workflow software --list-runs
 | `src/workflow/state.rs` | State directory management |
 | `src/workflow/loader.rs` | Load embedded + custom workflows |
 | `src/workflow/template.rs` | Variable expansion (`{{var}}`) |
+| `src/workflow/manage.rs` | Workflow management (create, delete) |
 | `workflows/software.json` | Embedded software workflow |
+| `prompts/workflow-create-system.md` | System prompt for workflow creation |
 
 ### Workflow Loading
 
@@ -139,4 +150,4 @@ For interactive phases, the workflow engine automatically injects a completion i
 
 ### Creating Custom Workflows
 
-See `.claude/commands/new-workflow.md` for full documentation.
+Run `agent workflow --create <name>` to create a new workflow with AI assistance. The AI will guide you through defining phases and write the workflow JSON to `~/.agent/workflows/<name>.json`.
