@@ -30,7 +30,7 @@ impl Claude {
         }
     }
 
-    async fn execute(&self, interactive: bool, prompt: &str) -> Result<()> {
+    async fn execute(&self, interactive: bool, prompt: Option<&str>) -> Result<()> {
         let mut cmd = Command::new("claude");
 
         if let Some(ref root) = self.root {
@@ -51,7 +51,9 @@ impl Claude {
             cmd.args(["--append-system-prompt", &self.system_prompt]);
         }
 
-        cmd.arg(prompt);
+        if let Some(p) = prompt {
+            cmd.arg(p);
+        }
 
         cmd.stdin(Stdio::inherit())
             .stdout(Stdio::inherit())
@@ -99,11 +101,11 @@ impl Agent for Claude {
         self.skip_permissions = skip;
     }
 
-    async fn run(&self, prompt: &str) -> Result<()> {
+    async fn run(&self, prompt: Option<&str>) -> Result<()> {
         self.execute(false, prompt).await
     }
 
-    async fn run_interactive(&self, prompt: &str) -> Result<()> {
+    async fn run_interactive(&self, prompt: Option<&str>) -> Result<()> {
         self.execute(true, prompt).await
     }
 

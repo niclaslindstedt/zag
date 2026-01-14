@@ -192,7 +192,7 @@ impl VariableResolver {
     fn resolve_file(path: &str) -> Result<String> {
         let contents = std::fs::read_to_string(path)
             .with_context(|| format!("Failed to read file: {}", path))?;
-        
+
         // Wrap file contents with injection markers
         Ok(format!(
             "///!agent:injected_file_start:{}\n{}\n///!agent:injected_file_end:{}",

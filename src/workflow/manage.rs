@@ -54,7 +54,7 @@ pub async fn create_workflow(name: &str, agent_name: &str, auto_approve: bool) -
 
     let session = AgentSession::new(
         agent_name,
-        user_prompt,
+        Some(user_prompt),
         Some(SYSTEM_PROMPT.to_string()),
         None,         // default model
         None,         // current directory
@@ -153,7 +153,7 @@ pub async fn modify_workflow(name: &str, agent_name: &str, auto_approve: bool) -
 
     let session = AgentSession::new(
         agent_name,
-        user_prompt,
+        Some(user_prompt),
         Some(SYSTEM_PROMPT.to_string()),
         None,         // default model
         None,         // current directory

@@ -19,9 +19,9 @@ pub trait Agent {
 
     fn set_skip_permissions(&mut self, skip: bool);
 
-    async fn run(&self, prompt: &str) -> Result<()>;
+    async fn run(&self, prompt: Option<&str>) -> Result<()>;
 
-    async fn run_interactive(&self, prompt: &str) -> Result<()>;
+    async fn run_interactive(&self, prompt: Option<&str>) -> Result<()>;
 
     async fn cleanup(&self) -> Result<()>;
 }

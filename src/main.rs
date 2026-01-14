@@ -80,8 +80,8 @@ enum MemoryAction {
 enum Commands {
     /// Run the Codex agent
     Codex {
-        /// The prompt to send to the agent
-        prompt: String,
+        /// The prompt to send to the agent (optional - starts interactive session if omitted)
+        prompt: Option<String>,
 
         /// System prompt to configure agent behavior
         #[arg(short, long)]
@@ -105,8 +105,8 @@ enum Commands {
     },
     /// Run the Claude agent
     Claude {
-        /// The prompt to send to the agent
-        prompt: String,
+        /// The prompt to send to the agent (optional - starts interactive session if omitted)
+        prompt: Option<String>,
 
         /// System prompt to configure agent behavior
         #[arg(short, long)]
@@ -130,8 +130,8 @@ enum Commands {
     },
     /// Run the Gemini agent
     Gemini {
-        /// The prompt to send to the agent
-        prompt: String,
+        /// The prompt to send to the agent (optional - starts interactive session if omitted)
+        prompt: Option<String>,
 
         /// System prompt to configure agent behavior
         #[arg(short, long)]
@@ -155,8 +155,8 @@ enum Commands {
     },
     /// Run the Copilot agent
     Copilot {
-        /// The prompt to send to the agent
-        prompt: String,
+        /// The prompt to send to the agent (optional - starts interactive session if omitted)
+        prompt: Option<String>,
 
         /// System prompt to configure agent behavior
         #[arg(short, long)]

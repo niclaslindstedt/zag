@@ -25,7 +25,10 @@ fn was_terminated_by_sigint(_status: &std::process::ExitStatus) -> bool {
 /// If `require_explicit_completion` is true (for interactive phases), the agent
 /// must call `agent exit` to signal successful completion. Otherwise, exiting
 /// without `agent exit` is treated as a failure.
-pub async fn wait_with_pid_tracking(mut child: Child, require_explicit_completion: bool) -> Result<()> {
+pub async fn wait_with_pid_tracking(
+    mut child: Child,
+    require_explicit_completion: bool,
+) -> Result<()> {
     // Write child's PID so `agent exit` targets the agent CLI, not the parent
     if let Some(child_pid) = child.id() {
         let _ = pid::write_pid_for(child_pid);

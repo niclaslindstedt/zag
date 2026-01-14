@@ -320,7 +320,7 @@ impl<'a> PhaseExecutor<'a> {
 
         Ok(AgentSession::new(
             agent,
-            prompt,
+            Some(prompt),
             system_prompt,
             model,
             None, // root - use current directory

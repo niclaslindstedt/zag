@@ -58,7 +58,7 @@ impl Copilot {
         Ok(())
     }
 
-    async fn execute(&self, interactive: bool, prompt: &str) -> Result<()> {
+    async fn execute(&self, interactive: bool, prompt: Option<&str>) -> Result<()> {
         if !self.system_prompt.is_empty() {
             self.write_instructions_file().await?;
         }
@@ -77,11 +77,12 @@ impl Copilot {
             cmd.args(["--model", &self.model]);
         }
 
-        if interactive {
-            cmd.args(["-i", prompt]);
-        } else {
-            cmd.args(["-p", prompt]);
-        }
+        match (interactive, prompt) {
+            (true, Some(p)) => cmd.args(["-i", p]),
+            (true, None) => cmd.arg("-i"),
+            (false, Some(p)) => cmd.args(["-p", p]),
+            (false, None) => &mut cmd, // No prompt in non-interactive mode
+        };
 
         cmd.stdin(Stdio::inherit())
             .stdout(Stdio::inherit())
@@ -129,11 +130,11 @@ impl Agent for Copilot {
         self.skip_permissions = skip;
     }
 
-    async fn run(&self, prompt: &str) -> Result<()> {
+    async fn run(&self, prompt: Option<&str>) -> Result<()> {
         self.execute(false, prompt).await
     }
 
-    async fn run_interactive(&self, prompt: &str) -> Result<()> {
+    async fn run_interactive(&self, prompt: Option<&str>) -> Result<()> {
         self.execute(true, prompt).await
     }
 

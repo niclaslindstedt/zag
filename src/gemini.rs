@@ -54,7 +54,7 @@ impl Gemini {
         Ok(())
     }
 
-    async fn execute(&self, interactive: bool, prompt: &str) -> Result<()> {
+    async fn execute(&self, interactive: bool, prompt: Option<&str>) -> Result<()> {
         if !self.system_prompt.is_empty() {
             self.write_system_file().await?;
         }
@@ -83,7 +83,9 @@ impl Gemini {
             cmd.args(["--output-format", "json"]);
         }
 
-        cmd.arg(prompt);
+        if let Some(p) = prompt {
+            cmd.arg(p);
+        }
 
         cmd.stdin(Stdio::inherit())
             .stdout(Stdio::inherit())
@@ -131,11 +133,11 @@ impl Agent for Gemini {
         self.skip_permissions = skip;
     }
 
-    async fn run(&self, prompt: &str) -> Result<()> {
+    async fn run(&self, prompt: Option<&str>) -> Result<()> {
         self.execute(false, prompt).await
     }
 
-    async fn run_interactive(&self, prompt: &str) -> Result<()> {
+    async fn run_interactive(&self, prompt: Option<&str>) -> Result<()> {
         self.execute(true, prompt).await
     }
 

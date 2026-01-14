@@ -8,7 +8,7 @@ use anyhow::{Result, bail};
 
 pub struct AgentSession {
     pub system_prompt: Option<String>,
-    pub prompt: String,
+    pub prompt: Option<String>,
     pub agent_name: String,
     pub model_name: Option<String>,
     pub root: Option<String>,
@@ -19,7 +19,7 @@ pub struct AgentSession {
 impl AgentSession {
     pub fn new(
         agent_name: impl Into<String>,
-        prompt: impl Into<String>,
+        prompt: Option<String>,
         system_prompt: Option<String>,
         model_name: Option<String>,
         root: Option<String>,
@@ -28,7 +28,7 @@ impl AgentSession {
     ) -> Self {
         Self {
             system_prompt,
-            prompt: prompt.into(),
+            prompt,
             agent_name: agent_name.into(),
             model_name,
             root,
@@ -65,9 +65,9 @@ impl AgentSession {
         agent.set_skip_permissions(self.skip_permissions);
 
         if self.interactive {
-            agent.run_interactive(&self.prompt).await?;
+            agent.run_interactive(self.prompt.as_deref()).await?;
         } else {
-            agent.run(&self.prompt).await?;
+            agent.run(self.prompt.as_deref()).await?;
         }
 
         agent.cleanup().await?;
