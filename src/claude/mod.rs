@@ -11,6 +11,7 @@ use crate::output::AgentOutput;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::process::Stdio;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
 pub const DEFAULT_MODEL: &str = "opus";
@@ -63,6 +64,9 @@ impl Claude {
                     // We handle the pretty printing in the wrapper
                     cmd.args(["--verbose", "--output-format", "json"]);
                 } else if format == "stream-json" {
+                    // Note: Not using --include-partial-messages because it adds stream_event types
+                    // that would require additional parsing. The NDJSON format without it is sufficient
+                    // for most use cases.
                     cmd.args(["--verbose", "--output-format", "stream-json"]);
                 }
             }
@@ -83,23 +87,56 @@ impl Claude {
         }
 
         if capture_json {
-            // Capture output for JSON parsing
-            cmd.stdin(Stdio::inherit()).stderr(Stdio::inherit());
-            cmd.stdout(Stdio::piped());
+            let is_stream_json = self
+                .output_format
+                .as_ref()
+                .map_or(false, |f| f == "stream-json");
 
-            let output = cmd.output().await?;
-            if !output.status.success() {
-                anyhow::bail!("Claude command failed with status: {}", output.status);
+            if is_stream_json {
+                // For stream-json, stream output directly to stdout line-by-line
+                cmd.stdin(Stdio::inherit()).stderr(Stdio::inherit());
+                cmd.stdout(Stdio::piped());
+
+                let mut child = cmd.spawn()?;
+                let stdout = child
+                    .stdout
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("Failed to capture stdout"))?;
+
+                let reader = BufReader::new(stdout);
+                let mut lines = reader.lines();
+
+                // Stream each line to stdout as it arrives
+                while let Some(line) = lines.next_line().await? {
+                    println!("{}", line);
+                }
+
+                let status = child.wait().await?;
+                if !status.success() {
+                    anyhow::bail!("Claude command failed with status: {}", status);
+                }
+
+                // Return None to indicate output was streamed directly
+                Ok(None)
+            } else {
+                // For json/json-pretty, capture all output then parse
+                cmd.stdin(Stdio::inherit()).stderr(Stdio::inherit());
+                cmd.stdout(Stdio::piped());
+
+                let output = cmd.output().await?;
+                if !output.status.success() {
+                    anyhow::bail!("Claude command failed with status: {}", output.status);
+                }
+
+                // Parse JSON output
+                let json_str = String::from_utf8(output.stdout)?;
+                let claude_output: models::ClaudeOutput = serde_json::from_str(&json_str)
+                    .map_err(|e| anyhow::anyhow!("Failed to parse Claude JSON output: {}", e))?;
+
+                // Convert to unified AgentOutput
+                let agent_output: AgentOutput = claude_output.into();
+                Ok(Some(agent_output))
             }
-
-            // Parse JSON output
-            let json_str = String::from_utf8(output.stdout)?;
-            let claude_output: models::ClaudeOutput = serde_json::from_str(&json_str)
-                .map_err(|e| anyhow::anyhow!("Failed to parse Claude JSON output: {}", e))?;
-
-            // Convert to unified AgentOutput
-            let agent_output: AgentOutput = claude_output.into();
-            Ok(Some(agent_output))
         } else {
             // Normal mode - inherit stdout
             cmd.stdin(Stdio::inherit())

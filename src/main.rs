@@ -353,6 +353,13 @@ async fn run_agent(
                     let json = serde_json::to_string_pretty(&agent_out)?;
                     println!("{}", json);
                 }
+                Some("stream-json") => {
+                    // NDJSON format - each event on a separate line
+                    for event in &agent_out.events {
+                        let json = serde_json::to_string(&event)?;
+                        println!("{}", json);
+                    }
+                }
                 _ => {
                     // Otherwise, print the pretty processed output
                     process_agent_output(&agent_out, show_usage)?;
