@@ -60,7 +60,7 @@ enum Commands {
         #[arg(short = 'p', long = "print")]
         print: bool,
 
-        /// Output format for print mode (text, json, stream-json)
+        /// Output format for print mode (text, json, json-pretty, stream-json)
         #[arg(short = 'o', long)]
         output: Option<String>,
     },
@@ -89,7 +89,7 @@ enum Commands {
         #[arg(short = 'p', long = "print")]
         print: bool,
 
-        /// Output format for print mode (text, json, stream-json)
+        /// Output format for print mode (text, json, json-pretty, stream-json)
         #[arg(short = 'o', long)]
         output: Option<String>,
     },
@@ -118,7 +118,7 @@ enum Commands {
         #[arg(short = 'p', long = "print")]
         print: bool,
 
-        /// Output format for print mode (text, json, stream-json)
+        /// Output format for print mode (text, json, json-pretty, stream-json)
         #[arg(short = 'o', long)]
         output: Option<String>,
     },
@@ -147,7 +147,7 @@ enum Commands {
         #[arg(short = 'p', long = "print")]
         print: bool,
 
-        /// Output format for print mode (text, json, stream-json)
+        /// Output format for print mode (text, json, json-pretty, stream-json)
         #[arg(short = 'o', long)]
         output: Option<String>,
     },
@@ -342,12 +342,21 @@ async fn run_agent(
         // Process structured output if available
         if let Some(agent_out) = agent_output {
             // If output format is JSON, print the unified JSON format
-            if output_format.as_deref() == Some("json") {
-                let json = serde_json::to_string_pretty(&agent_out)?;
-                println!("{}", json);
-            } else {
-                // Otherwise, print the pretty processed output
-                process_agent_output(&agent_out, show_usage)?;
+            match output_format.as_deref() {
+                Some("json") => {
+                    // Compact JSON (no pretty printing)
+                    let json = serde_json::to_string(&agent_out)?;
+                    println!("{}", json);
+                }
+                Some("json-pretty") => {
+                    // Pretty-printed JSON
+                    let json = serde_json::to_string_pretty(&agent_out)?;
+                    println!("{}", json);
+                }
+                _ => {
+                    // Otherwise, print the pretty processed output
+                    process_agent_output(&agent_out, show_usage)?;
+                }
             }
         }
         // Note: If agent_output is None, the agent already printed to stdout via Stdio::inherit()

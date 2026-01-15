@@ -212,10 +212,14 @@ agent claude "write a hello world program"
 agent claude --print "write a hello world program"
 agent codex --print "write a hello world program"
 
-# Non-interactive mode with JSON output (requires -p/--print)
+# Non-interactive mode with JSON output (compact, requires -p/--print)
 agent claude -p -o json "write a hello world program"
 agent gemini -p --output json "analyze this code"
 agent codex -p -o json "list all functions"
+
+# Non-interactive mode with pretty-printed JSON output
+agent claude -p -o json-pretty "write a hello world program"
+agent gemini -p --output json-pretty "analyze this code"
 
 # Non-interactive mode with text output (default when no --output specified)
 agent claude -p -o text "simple task"
@@ -246,7 +250,8 @@ agent claude -q -p "analyze this code"
 
 # Combine flags
 agent claude --debug --model opus --auto-approve "complex task"
-agent claude -p -o json --model sonnet "get JSON response"
+agent claude -p -o json --model sonnet "get compact JSON response"
+agent claude -p -o json-pretty --model sonnet "get pretty JSON response"
 agent claude -q -p -o json --model haiku "simple task"
 ```
 
@@ -255,11 +260,12 @@ agent claude -q -p -o json --model haiku "simple task"
 When using print mode (`-p` or `--print`), you can specify the output format with the `-o` or `--output` flag:
 
 - **text**: Plain text output (default when no --output specified)
-- **json**: JSON formatted output (for Claude, automatically adds `--verbose` flag)
+- **json**: Compact JSON output (single-line, no pretty printing)
+- **json-pretty**: Pretty-printed JSON output (formatted with indentation)
 - **stream-json**: Streaming JSON output for real-time processing
 
 **Agent-specific behavior:**
-- **Claude**: When using `json` or `stream-json`, the CLI automatically adds the `--verbose` flag to the underlying `claude` command
+- **Claude**: When using `json`, `json-pretty`, or `stream-json`, the CLI automatically adds the `--verbose` flag to the underlying `claude` command. Both `json` and `json-pretty` use the same underlying format but differ in how the wrapper formats the final output.
 - **Gemini**: Passes the output format directly to the `gemini` CLI using `-o` flag
 - **Codex**: When using `json`, adds the `--json` flag to the `codex exec` command
 - **Copilot**:

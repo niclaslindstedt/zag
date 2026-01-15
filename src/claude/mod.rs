@@ -51,15 +51,19 @@ impl Claude {
             && self
                 .output_format
                 .as_ref()
-                .map_or(false, |f| f == "json" || f == "stream-json");
+                .map_or(false, |f| f == "json" || f == "json-pretty" || f == "stream-json");
 
         if !interactive {
             cmd.arg("--print");
 
             // Add --verbose and --output-format for JSON outputs
             if let Some(ref format) = self.output_format {
-                if format == "json" || format == "stream-json" {
-                    cmd.args(["--verbose", "--output-format", format]);
+                if format == "json" || format == "json-pretty" {
+                    // For both json and json-pretty, pass "json" to claude CLI
+                    // We handle the pretty printing in the wrapper
+                    cmd.args(["--verbose", "--output-format", "json"]);
+                } else if format == "stream-json" {
+                    cmd.args(["--verbose", "--output-format", "stream-json"]);
                 }
             }
         }
