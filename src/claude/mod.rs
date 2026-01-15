@@ -24,6 +24,7 @@ pub struct Claude {
     root: Option<String>,
     skip_permissions: bool,
     output_format: Option<String>,
+    input_format: Option<String>,
 }
 
 impl Claude {
@@ -34,7 +35,12 @@ impl Claude {
             root: None,
             skip_permissions: false,
             output_format: None,
+            input_format: None,
         }
+    }
+
+    pub fn set_input_format(&mut self, format: Option<String>) {
+        self.input_format = format;
     }
 
     async fn execute(
@@ -95,6 +101,13 @@ impl Claude {
 
         if !self.system_prompt.is_empty() {
             cmd.args(["--append-system-prompt", &self.system_prompt]);
+        }
+
+        // Add input format if specified (only works with --print)
+        if !interactive {
+            if let Some(ref input_fmt) = self.input_format {
+                cmd.args(["--input-format", input_fmt]);
+            }
         }
 
         if let Some(p) = prompt {
@@ -368,6 +381,10 @@ impl Agent for Claude {
 
     fn set_output_format(&mut self, format: Option<String>) {
         self.output_format = format;
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 
     async fn run(&self, prompt: Option<&str>) -> Result<Option<AgentOutput>> {

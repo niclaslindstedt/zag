@@ -162,6 +162,10 @@ impl Agent for Copilot {
         self.output_format = format;
     }
 
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
     async fn run(&self, prompt: Option<&str>) -> Result<Option<AgentOutput>> {
         self.execute(false, prompt).await?;
         Ok(None)

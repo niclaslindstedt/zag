@@ -232,6 +232,10 @@ agent claude -p -o text "simple task"
 agent claude -p -o native-json "write a hello world program"
 agent claude -p --output native-json "analyze this code"
 
+# Non-interactive mode with stream-json input format (Claude only)
+echo '{"type":"message","content":"hello"}' | agent claude -p -i stream-json
+cat input.ndjson | agent claude -p --input-format stream-json
+
 # With specific model
 agent claude --model opus "complex task"
 agent gemini --model small "simple task"
@@ -258,6 +262,27 @@ agent claude -p -o json --model sonnet "get compact JSON response"
 agent claude -p -o json-pretty --model sonnet "get pretty JSON response"
 agent claude -q -p -o json --model haiku "simple task"
 ```
+
+### Input Formats (Claude Only)
+
+When using print mode with Claude (`-p` or `--print`), you can specify the input format with the `-i` or `--input-format` flag. This allows for structured streaming input:
+
+- **text** (default): Plain text input from stdin
+- **stream-json**: Streaming JSON input (NDJSON format) for realtime structured input
+
+**Usage:**
+```bash
+# Stream JSON events to Claude
+echo '{"type":"message","content":"analyze this"}' | agent claude -p -i stream-json
+
+# Pipe NDJSON file
+cat events.ndjson | agent claude -p --input-format stream-json
+
+# Default text input (no flag needed)
+cat file.txt | agent claude -p "analyze this"
+```
+
+**Note:** The `--input-format` flag only works with Claude in print mode (`-p`). Other agents (Codex, Gemini, Copilot) accept stdin input but don't support structured input formats.
 
 ### Output Formats
 

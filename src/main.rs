@@ -92,6 +92,10 @@ enum Commands {
         /// Output format for print mode (text, json, json-pretty, stream-json, native-json)
         #[arg(short = 'o', long)]
         output: Option<String>,
+
+        /// Input format for print mode (text, stream-json)
+        #[arg(short = 'i', long)]
+        input_format: Option<String>,
     },
     /// Run the Gemini agent
     Gemini {
@@ -183,6 +187,7 @@ async fn main() -> Result<()> {
                 prompt,
                 print,
                 output,
+                None, // input_format not supported for Codex
                 show_usage,
                 quiet,
             )
@@ -196,6 +201,7 @@ async fn main() -> Result<()> {
             auto_approve,
             print,
             output,
+            input_format,
         } => {
             run_agent(
                 "Claude",
@@ -206,6 +212,7 @@ async fn main() -> Result<()> {
                 prompt,
                 print,
                 output,
+                input_format,
                 show_usage,
                 quiet,
             )
@@ -229,6 +236,7 @@ async fn main() -> Result<()> {
                 prompt,
                 print,
                 output,
+                None, // input_format not supported for Gemini
                 show_usage,
                 quiet,
             )
@@ -256,6 +264,7 @@ async fn main() -> Result<()> {
                 prompt,
                 print,
                 output,
+                None, // input_format not supported for Copilot
                 show_usage,
                 quiet,
             )
@@ -275,6 +284,7 @@ async fn run_agent(
     prompt: Option<String>,
     print: bool,
     output: Option<String>,
+    input_format: Option<String>,
     show_usage: bool,
     quiet: bool,
 ) -> Result<()> {
@@ -296,6 +306,9 @@ async fn run_agent(
     if let Some(ref o) = output {
         debug!("Output format: {}", o);
     }
+    if let Some(ref i) = input_format {
+        debug!("Input format: {}", i);
+    }
 
     // Create agent with spinner
     let spinner = logging::spinner(format!("Initializing {} agent", agent_name));
@@ -310,6 +323,16 @@ async fn run_agent(
     // Set output format if specified
     let output_format = output.clone();
     agent.set_output_format(output);
+
+    // Set input format if specified (Claude only)
+    if let Some(input_fmt) = input_format {
+        if agent_name_lower == "claude" {
+            // Cast to Claude agent and set input format
+            if let Some(claude_agent) = agent.as_any_mut().downcast_mut::<crate::claude::Claude>() {
+                claude_agent.set_input_format(Some(input_fmt));
+            }
+        }
+    }
 
     logging::finish_spinner_quiet(&spinner);
 

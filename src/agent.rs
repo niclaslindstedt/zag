@@ -112,6 +112,9 @@ pub trait Agent {
 
     fn set_output_format(&mut self, format: Option<String>);
 
+    /// Get a mutable reference to the concrete agent type (for downcasting).
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
+
     /// Run the agent in non-interactive mode.
     ///
     /// Returns `Some(AgentOutput)` if the agent supports structured output
