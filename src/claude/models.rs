@@ -5,7 +5,6 @@
 /// deserialized from JSON and then converted to the unified `AgentOutput` format.
 ///
 /// See README.md in this directory for detailed documentation on the output format.
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -230,7 +229,9 @@ impl From<ClaudeOutput> for AgentOutput {
                     events.push(UnifiedEvent::Init {
                         model,
                         tools,
-                        working_directory: extra.get("cwd").and_then(|v| v.as_str().map(|s| s.to_string())),
+                        working_directory: extra
+                            .get("cwd")
+                            .and_then(|v| v.as_str().map(|s| s.to_string())),
                         metadata: extra,
                     });
                 }
@@ -339,8 +340,14 @@ impl From<ClaudeOutput> for AgentOutput {
                         output_tokens: u.output_tokens,
                         cache_read_tokens: Some(u.cache_read_input_tokens),
                         cache_creation_tokens: Some(u.cache_creation_input_tokens),
-                        web_search_requests: u.server_tool_use.as_ref().map(|s| s.web_search_requests),
-                        web_fetch_requests: u.server_tool_use.as_ref().map(|s| s.web_fetch_requests),
+                        web_search_requests: u
+                            .server_tool_use
+                            .as_ref()
+                            .map(|s| s.web_search_requests),
+                        web_fetch_requests: u
+                            .server_tool_use
+                            .as_ref()
+                            .map(|s| s.web_fetch_requests),
                     });
 
                     // Add permission denial events

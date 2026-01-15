@@ -4,7 +4,6 @@
 /// - Agent trait implementation for executing Claude commands
 /// - JSON output models for parsing Claude's verbose output
 /// - Conversion to unified AgentOutput format
-
 pub mod models;
 
 use crate::agent::{Agent, ModelSize};
@@ -37,15 +36,22 @@ impl Claude {
         }
     }
 
-    async fn execute(&self, interactive: bool, prompt: Option<&str>) -> Result<Option<AgentOutput>> {
+    async fn execute(
+        &self,
+        interactive: bool,
+        prompt: Option<&str>,
+    ) -> Result<Option<AgentOutput>> {
         let mut cmd = Command::new("claude");
 
         if let Some(ref root) = self.root {
             cmd.current_dir(root);
         }
 
-        let capture_json = !interactive &&
-            self.output_format.as_ref().map_or(false, |f| f == "json" || f == "stream-json");
+        let capture_json = !interactive
+            && self
+                .output_format
+                .as_ref()
+                .map_or(false, |f| f == "json" || f == "stream-json");
 
         if !interactive {
             cmd.arg("--print");

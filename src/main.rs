@@ -21,6 +21,10 @@ struct Cli {
     #[arg(short, long, global = true)]
     debug: bool,
 
+    /// Quiet mode - disable all logging except agent output
+    #[arg(short, long, global = true)]
+    quiet: bool,
+
     /// Show token usage statistics (only applies to JSON output mode)
     #[arg(long, global = true)]
     show_usage: bool,
@@ -154,10 +158,11 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     // Initialize logging
-    logging::init(cli.debug);
+    logging::init(cli.debug, cli.quiet);
     debug!("Debug logging enabled");
 
     let show_usage = cli.show_usage;
+    let quiet = cli.quiet;
 
     match cli.command {
         Commands::Codex {
@@ -179,6 +184,7 @@ async fn main() -> Result<()> {
                 print,
                 output,
                 show_usage,
+                quiet,
             )
             .await?;
         }
@@ -201,6 +207,7 @@ async fn main() -> Result<()> {
                 print,
                 output,
                 show_usage,
+                quiet,
             )
             .await?;
         }
@@ -223,6 +230,7 @@ async fn main() -> Result<()> {
                 print,
                 output,
                 show_usage,
+                quiet,
             )
             .await?;
         }
@@ -249,6 +257,7 @@ async fn main() -> Result<()> {
                 print,
                 output,
                 show_usage,
+                quiet,
             )
             .await?;
         }
@@ -267,6 +276,7 @@ async fn run_agent(
     print: bool,
     output: Option<String>,
     show_usage: bool,
+    quiet: bool,
 ) -> Result<()> {
     let agent_name_lower = agent_name.to_lowercase();
 
@@ -309,10 +319,14 @@ async fn run_agent(
     // Get the actual model being used (after resolution)
     let model_name = agent.get_model();
     let auto_approve_suffix = if auto_approve { " (auto approve)" } else { "" };
-    println!(
-        "\x1b[32m✓\x1b[0m {} initialized with model {}{}",
-        agent_name, model_name, auto_approve_suffix
-    );
+
+    // Only show initialization message if not in quiet mode
+    if !quiet {
+        println!(
+            "\x1b[32m✓\x1b[0m {} initialized with model {}{}",
+            agent_name, model_name, auto_approve_suffix
+        );
+    }
 
     // Run the agent
     let mode = if print {
@@ -350,84 +364,92 @@ async fn run_agent(
 }
 
 /// Process and display structured agent output
-fn process_agent_output(
-    output: &crate::output::AgentOutput,
-    show_usage: bool,
-) -> Result<()> {
+fn process_agent_output(output: &crate::output::AgentOutput, show_usage: bool) -> Result<()> {
     use crate::output::{Event, LogLevel};
 
-    // Determine minimum log level based on debug flag
-    // For now, we'll use Info level; this can be made configurable via CLI flags
-    let min_level = LogLevel::Info;
+    // Check if quiet mode is enabled
+    let quiet = logging::is_quiet();
 
-    // Extract and display log entries
-    let log_entries = output.to_log_entries(min_level);
-    for entry in log_entries {
-        match entry.level {
-            LogLevel::Debug => debug!("{}", entry.message),
-            LogLevel::Info => info!("{}", entry.message),
-            LogLevel::Warn => log::warn!("{}", entry.message),
-            LogLevel::Error => log::error!("{}", entry.message),
+    if !quiet {
+        // Determine minimum log level based on debug flag
+        // For now, we'll use Info level; this can be made configurable via CLI flags
+        let min_level = LogLevel::Info;
+
+        // Extract and display log entries
+        let log_entries = output.to_log_entries(min_level);
+        for entry in log_entries {
+            match entry.level {
+                LogLevel::Debug => debug!("{}", entry.message),
+                LogLevel::Info => info!("{}", entry.message),
+                LogLevel::Warn => log::warn!("{}", entry.message),
+                LogLevel::Error => log::error!("{}", entry.message),
+            }
         }
-    }
 
-    // Always display tool executions
-    for event in &output.events {
-        if let Event::ToolExecution {
-            tool_name, result, ..
-        } = event
-        {
-            if result.success {
-                info!("✓ Tool '{}' executed successfully", tool_name);
-            } else {
-                log::warn!(
-                    "✗ Tool '{}' failed: {}",
-                    tool_name,
-                    result.error.as_deref().unwrap_or("unknown error")
-                );
+        // Always display tool executions
+        for event in &output.events {
+            if let Event::ToolExecution {
+                tool_name, result, ..
+            } = event
+            {
+                if result.success {
+                    info!("✓ Tool '{}' executed successfully", tool_name);
+                } else {
+                    log::warn!(
+                        "✗ Tool '{}' failed: {}",
+                        tool_name,
+                        result.error.as_deref().unwrap_or("unknown error")
+                    );
+                }
             }
         }
     }
 
-    // Display final result if available
+    // Display final result if available (always shown, even in quiet mode)
     if let Some(result) = output.final_result() {
-        println!("\n{}", result);
+        if quiet {
+            println!("{}", result);
+        } else {
+            println!("\n{}", result);
+        }
     }
 
-    // Display cost if available
-    if let Some(cost) = output.total_cost_usd {
-        info!("Total cost: ${:.4}", cost);
-    }
+    if !quiet {
+        // Display cost if available
+        if let Some(cost) = output.total_cost_usd {
+            info!("Total cost: ${:.4}", cost);
+        }
 
-    // Display usage statistics if requested
-    if show_usage {
-        if let Some(usage) = &output.usage {
-            info!(
-                "Token usage - Input: {}, Output: {}",
-                usage.input_tokens, usage.output_tokens
-            );
+        // Display usage statistics if requested
+        if show_usage {
+            if let Some(usage) = &output.usage {
+                info!(
+                    "Token usage - Input: {}, Output: {}",
+                    usage.input_tokens, usage.output_tokens
+                );
 
-            if let Some(cache_read) = usage.cache_read_tokens {
-                if cache_read > 0 {
-                    info!("Cache read: {} tokens", cache_read);
+                if let Some(cache_read) = usage.cache_read_tokens {
+                    if cache_read > 0 {
+                        info!("Cache read: {} tokens", cache_read);
+                    }
                 }
-            }
 
-            if let Some(cache_creation) = usage.cache_creation_tokens {
-                if cache_creation > 0 {
-                    info!("Cache created: {} tokens", cache_creation);
+                if let Some(cache_creation) = usage.cache_creation_tokens {
+                    if cache_creation > 0 {
+                        info!("Cache created: {} tokens", cache_creation);
+                    }
                 }
-            }
 
-            if let Some(web_search) = usage.web_search_requests {
-                if web_search > 0 {
-                    info!("Web search requests: {}", web_search);
+                if let Some(web_search) = usage.web_search_requests {
+                    if web_search > 0 {
+                        info!("Web search requests: {}", web_search);
+                    }
                 }
-            }
 
-            if let Some(web_fetch) = usage.web_fetch_requests {
-                if web_fetch > 0 {
-                    info!("Web fetch requests: {}", web_fetch);
+                if let Some(web_fetch) = usage.web_fetch_requests {
+                    if web_fetch > 0 {
+                        info!("Web fetch requests: {}", web_fetch);
+                    }
                 }
             }
         }

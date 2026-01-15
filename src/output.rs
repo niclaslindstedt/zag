@@ -4,7 +4,6 @@
 /// AI coding agents (Claude, Codex, Gemini, Copilot). By normalizing outputs into
 /// a unified format, we can provide consistent logging, debugging, and observability
 /// across all agents.
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -92,9 +91,7 @@ pub enum Event {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlock {
     /// Plain text content
-    Text {
-        text: String,
-    },
+    Text { text: String },
 
     /// A tool invocation
     ToolUse {
@@ -250,7 +247,9 @@ fn event_to_log_entry(event: &Event) -> Option<LogEntry> {
             }
         }
 
-        Event::ToolExecution { tool_name, result, .. } => {
+        Event::ToolExecution {
+            tool_name, result, ..
+        } => {
             let level = if result.success {
                 LogLevel::Debug
             } else {
@@ -275,7 +274,9 @@ fn event_to_log_entry(event: &Event) -> Option<LogEntry> {
             })
         }
 
-        Event::Result { success, message, .. } => {
+        Event::Result {
+            success, message, ..
+        } => {
             let level = if *success {
                 LogLevel::Info
             } else {
@@ -303,7 +304,9 @@ fn event_to_log_entry(event: &Event) -> Option<LogEntry> {
             timestamp: None,
         }),
 
-        Event::PermissionRequest { tool_name, granted, .. } => {
+        Event::PermissionRequest {
+            tool_name, granted, ..
+        } => {
             let level = if *granted {
                 LogLevel::Debug
             } else {

@@ -1,6 +1,6 @@
+use crate::output::AgentOutput;
 use anyhow::Result;
 use async_trait::async_trait;
-use crate::output::AgentOutput;
 
 /// Model size categories that map to agent-specific models.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

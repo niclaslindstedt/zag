@@ -137,6 +137,30 @@ agent claude --debug "write a hello world program"
 # - Agent lifecycle events
 ```
 
+### Quiet Mode
+
+Disable all logging except agent output with the `--quiet` (or `-q`) flag. This is useful for scripting and piping agent output:
+
+```bash
+# Quiet mode - only shows agent output
+agent claude --quiet "write a hello world program"
+agent claude -q -p "write a hello world program"
+
+# Useful for scripting
+result=$(agent claude -q -p "analyze this code")
+
+# Quiet mode suppresses:
+# - Spinner animations
+# - Initialization messages (✓ Agent initialized...)
+# - Session start/end messages
+# - Debug logs
+# - Info messages
+# - Tool execution status
+# - Cost and usage statistics
+```
+
+**Note**: Quiet mode is particularly useful with print mode (`-p`) for non-interactive scripts where you only want the structured output without any additional logging.
+
 ### Example Output
 
 ```bash
@@ -169,6 +193,10 @@ $ agent claude --model haiku -a
 > Starting interactive session
 [Agent output...]
 > Session terminated
+
+# Quiet mode (only agent output, no logging)
+$ agent claude --model sonnet -q -p "write a hello world program"
+[Agent output only...]
 ```
 
 ## Usage
@@ -212,9 +240,14 @@ agent claude --auto-approve "write tests"
 # Enable debug logging
 agent claude --debug "analyze this code"
 
+# Enable quiet mode (suppress all logging)
+agent claude --quiet "write tests"
+agent claude -q -p "analyze this code"
+
 # Combine flags
 agent claude --debug --model opus --auto-approve "complex task"
 agent claude -p -o json --model sonnet "get JSON response"
+agent claude -q -p -o json --model haiku "simple task"
 ```
 
 ### Output Formats
