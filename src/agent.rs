@@ -1,5 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use crate::output::AgentOutput;
 
 /// Model size categories that map to agent-specific models.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -111,7 +112,11 @@ pub trait Agent {
 
     fn set_output_format(&mut self, format: Option<String>);
 
-    async fn run(&self, prompt: Option<&str>) -> Result<()>;
+    /// Run the agent in non-interactive mode.
+    ///
+    /// Returns `Some(AgentOutput)` if the agent supports structured output
+    /// (e.g., JSON mode), otherwise returns `None`.
+    async fn run(&self, prompt: Option<&str>) -> Result<Option<AgentOutput>>;
 
     async fn run_interactive(&self, prompt: Option<&str>) -> Result<()>;
 

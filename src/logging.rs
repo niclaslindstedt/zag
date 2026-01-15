@@ -14,9 +14,11 @@ pub fn init(debug: bool) {
     Builder::new()
         .filter_level(level)
         .format(|buf, record| match record.level() {
-            log::Level::Debug => writeln!(buf, "[DEBUG] {}", record.args()),
-            log::Level::Info => writeln!(buf, "\x1b[33m>\x1b[0m {}", record.args()),
-            _ => writeln!(buf, "{}", record.args()),
+            log::Level::Debug => writeln!(buf, "\x1b[90m*\x1b[0m {}", record.args()), // Dim gray asterisk
+            log::Level::Info => writeln!(buf, "\x1b[33m>\x1b[0m {}", record.args()),  // Orange arrow
+            log::Level::Warn => writeln!(buf, "\x1b[93m!\x1b[0m {}", record.args()),  // Bright yellow exclamation
+            log::Level::Error => writeln!(buf, "\x1b[91m✗\x1b[0m {}", record.args()), // Bright red X
+            log::Level::Trace => writeln!(buf, "\x1b[90m·\x1b[0m {}", record.args()), // Dim gray dot
         })
         .init();
 }

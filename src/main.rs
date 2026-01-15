@@ -6,6 +6,7 @@ mod copilot;
 mod factory;
 mod gemini;
 mod logging;
+mod output;
 
 use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
@@ -19,6 +20,10 @@ struct Cli {
     /// Enable debug logging
     #[arg(short, long, global = true)]
     debug: bool,
+
+    /// Show token usage statistics (only applies to JSON output mode)
+    #[arg(long, global = true)]
+    show_usage: bool,
 
     #[command(subcommand)]
     command: Commands,
@@ -152,6 +157,8 @@ async fn main() -> Result<()> {
     logging::init(cli.debug);
     debug!("Debug logging enabled");
 
+    let show_usage = cli.show_usage;
+
     match cli.command {
         Commands::Codex {
             prompt,
@@ -171,6 +178,7 @@ async fn main() -> Result<()> {
                 prompt,
                 print,
                 output,
+                show_usage,
             )
             .await?;
         }
@@ -192,6 +200,7 @@ async fn main() -> Result<()> {
                 prompt,
                 print,
                 output,
+                show_usage,
             )
             .await?;
         }
@@ -213,6 +222,7 @@ async fn main() -> Result<()> {
                 prompt,
                 print,
                 output,
+                show_usage,
             )
             .await?;
         }
@@ -238,6 +248,7 @@ async fn main() -> Result<()> {
                 prompt,
                 print,
                 output,
+                show_usage,
             )
             .await?;
         }
@@ -255,6 +266,7 @@ async fn run_agent(
     prompt: Option<String>,
     print: bool,
     output: Option<String>,
+    show_usage: bool,
 ) -> Result<()> {
     let agent_name_lower = agent_name.to_lowercase();
 
@@ -286,6 +298,7 @@ async fn run_agent(
     )?;
 
     // Set output format if specified
+    let output_format = output.clone();
     agent.set_output_format(output);
 
     logging::finish_spinner_quiet(&spinner);
@@ -310,7 +323,20 @@ async fn run_agent(
     info!("Starting {} session", mode);
 
     if print {
-        agent.run(prompt.as_deref()).await?;
+        let agent_output = agent.run(prompt.as_deref()).await?;
+
+        // Process structured output if available
+        if let Some(agent_out) = agent_output {
+            // If output format is JSON, print the unified JSON format
+            if output_format.as_deref() == Some("json") {
+                let json = serde_json::to_string_pretty(&agent_out)?;
+                println!("{}", json);
+            } else {
+                // Otherwise, print the pretty processed output
+                process_agent_output(&agent_out, show_usage)?;
+            }
+        }
+        // Note: If agent_output is None, the agent already printed to stdout via Stdio::inherit()
     } else {
         agent.run_interactive(prompt.as_deref()).await?;
     }
@@ -319,6 +345,93 @@ async fn run_agent(
     debug!("Cleaning up agent resources");
     agent.cleanup().await?;
     info!("Session terminated");
+
+    Ok(())
+}
+
+/// Process and display structured agent output
+fn process_agent_output(
+    output: &crate::output::AgentOutput,
+    show_usage: bool,
+) -> Result<()> {
+    use crate::output::{Event, LogLevel};
+
+    // Determine minimum log level based on debug flag
+    // For now, we'll use Info level; this can be made configurable via CLI flags
+    let min_level = LogLevel::Info;
+
+    // Extract and display log entries
+    let log_entries = output.to_log_entries(min_level);
+    for entry in log_entries {
+        match entry.level {
+            LogLevel::Debug => debug!("{}", entry.message),
+            LogLevel::Info => info!("{}", entry.message),
+            LogLevel::Warn => log::warn!("{}", entry.message),
+            LogLevel::Error => log::error!("{}", entry.message),
+        }
+    }
+
+    // Always display tool executions
+    for event in &output.events {
+        if let Event::ToolExecution {
+            tool_name, result, ..
+        } = event
+        {
+            if result.success {
+                info!("✓ Tool '{}' executed successfully", tool_name);
+            } else {
+                log::warn!(
+                    "✗ Tool '{}' failed: {}",
+                    tool_name,
+                    result.error.as_deref().unwrap_or("unknown error")
+                );
+            }
+        }
+    }
+
+    // Display final result if available
+    if let Some(result) = output.final_result() {
+        println!("\n{}", result);
+    }
+
+    // Display cost if available
+    if let Some(cost) = output.total_cost_usd {
+        info!("Total cost: ${:.4}", cost);
+    }
+
+    // Display usage statistics if requested
+    if show_usage {
+        if let Some(usage) = &output.usage {
+            info!(
+                "Token usage - Input: {}, Output: {}",
+                usage.input_tokens, usage.output_tokens
+            );
+
+            if let Some(cache_read) = usage.cache_read_tokens {
+                if cache_read > 0 {
+                    info!("Cache read: {} tokens", cache_read);
+                }
+            }
+
+            if let Some(cache_creation) = usage.cache_creation_tokens {
+                if cache_creation > 0 {
+                    info!("Cache created: {} tokens", cache_creation);
+                }
+            }
+
+            if let Some(web_search) = usage.web_search_requests {
+                if web_search > 0 {
+                    info!("Web search requests: {}", web_search);
+                }
+            }
+
+            if let Some(web_fetch) = usage.web_fetch_requests {
+                if web_fetch > 0 {
+                    info!("Web fetch requests: {}", web_fetch);
+                }
+            }
+        }
+    }
 
     Ok(())
 }

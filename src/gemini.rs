@@ -1,4 +1,5 @@
 use crate::agent::{Agent, ModelSize};
+use crate::output::AgentOutput;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::path::Path;
@@ -149,8 +150,9 @@ impl Agent for Gemini {
         self.output_format = format;
     }
 
-    async fn run(&self, prompt: Option<&str>) -> Result<()> {
-        self.execute(false, prompt).await
+    async fn run(&self, prompt: Option<&str>) -> Result<Option<AgentOutput>> {
+        self.execute(false, prompt).await?;
+        Ok(None)
     }
 
     async fn run_interactive(&self, prompt: Option<&str>) -> Result<()> {

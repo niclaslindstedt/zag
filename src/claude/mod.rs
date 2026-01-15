@@ -1,4 +1,14 @@
+/// Claude agent implementation.
+///
+/// This module provides the Claude agent implementation, including:
+/// - Agent trait implementation for executing Claude commands
+/// - JSON output models for parsing Claude's verbose output
+/// - Conversion to unified AgentOutput format
+
+pub mod models;
+
 use crate::agent::{Agent, ModelSize};
+use crate::output::AgentOutput;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::process::Stdio;
@@ -27,12 +37,15 @@ impl Claude {
         }
     }
 
-    async fn execute(&self, interactive: bool, prompt: Option<&str>) -> Result<()> {
+    async fn execute(&self, interactive: bool, prompt: Option<&str>) -> Result<Option<AgentOutput>> {
         let mut cmd = Command::new("claude");
 
         if let Some(ref root) = self.root {
             cmd.current_dir(root);
         }
+
+        let capture_json = !interactive &&
+            self.output_format.as_ref().map_or(false, |f| f == "json" || f == "stream-json");
 
         if !interactive {
             cmd.arg("--print");
@@ -59,15 +72,36 @@ impl Claude {
             cmd.arg(p);
         }
 
-        cmd.stdin(Stdio::inherit())
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit());
+        if capture_json {
+            // Capture output for JSON parsing
+            cmd.stdin(Stdio::inherit()).stderr(Stdio::inherit());
+            cmd.stdout(Stdio::piped());
 
-        let status = cmd.status().await?;
-        if !status.success() {
-            anyhow::bail!("Claude command failed with status: {}", status);
+            let output = cmd.output().await?;
+            if !output.status.success() {
+                anyhow::bail!("Claude command failed with status: {}", output.status);
+            }
+
+            // Parse JSON output
+            let json_str = String::from_utf8(output.stdout)?;
+            let claude_output: models::ClaudeOutput = serde_json::from_str(&json_str)
+                .map_err(|e| anyhow::anyhow!("Failed to parse Claude JSON output: {}", e))?;
+
+            // Convert to unified AgentOutput
+            let agent_output: AgentOutput = claude_output.into();
+            Ok(Some(agent_output))
+        } else {
+            // Normal mode - inherit stdout
+            cmd.stdin(Stdio::inherit())
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit());
+
+            let status = cmd.status().await?;
+            if !status.success() {
+                anyhow::bail!("Claude command failed with status: {}", status);
+            }
+            Ok(None)
         }
-        Ok(())
     }
 }
 
@@ -127,12 +161,13 @@ impl Agent for Claude {
         self.output_format = format;
     }
 
-    async fn run(&self, prompt: Option<&str>) -> Result<()> {
+    async fn run(&self, prompt: Option<&str>) -> Result<Option<AgentOutput>> {
         self.execute(false, prompt).await
     }
 
     async fn run_interactive(&self, prompt: Option<&str>) -> Result<()> {
-        self.execute(true, prompt).await
+        self.execute(true, prompt).await?;
+        Ok(())
     }
 
     async fn cleanup(&self) -> Result<()> {
