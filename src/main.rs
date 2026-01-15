@@ -60,7 +60,7 @@ enum Commands {
         #[arg(short = 'p', long = "print")]
         print: bool,
 
-        /// Output format for print mode (text, json, json-pretty, stream-json)
+        /// Output format for print mode (text, json, json-pretty, stream-json, native-json)
         #[arg(short = 'o', long)]
         output: Option<String>,
     },
@@ -89,7 +89,7 @@ enum Commands {
         #[arg(short = 'p', long = "print")]
         print: bool,
 
-        /// Output format for print mode (text, json, json-pretty, stream-json)
+        /// Output format for print mode (text, json, json-pretty, stream-json, native-json)
         #[arg(short = 'o', long)]
         output: Option<String>,
     },
@@ -118,7 +118,7 @@ enum Commands {
         #[arg(short = 'p', long = "print")]
         print: bool,
 
-        /// Output format for print mode (text, json, json-pretty, stream-json)
+        /// Output format for print mode (text, json, json-pretty, stream-json, native-json)
         #[arg(short = 'o', long)]
         output: Option<String>,
     },
@@ -147,7 +147,7 @@ enum Commands {
         #[arg(short = 'p', long = "print")]
         print: bool,
 
-        /// Output format for print mode (text, json, json-pretty, stream-json)
+        /// Output format for print mode (text, json, json-pretty, stream-json, native-json)
         #[arg(short = 'o', long)]
         output: Option<String>,
     },

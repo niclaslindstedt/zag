@@ -74,6 +74,10 @@ impl Claude {
                     // for most use cases.
                     cmd.args(["--verbose", "--output-format", "stream-json"]);
                 }
+                Some("native-json") => {
+                    // Native JSON mode - output Claude's raw JSON without conversion
+                    cmd.args(["--verbose", "--output-format", "json"]);
+                }
                 Some("text") => {
                     // Explicit text mode - don't add output format flags
                 }
@@ -97,7 +101,21 @@ impl Claude {
             cmd.arg(p);
         }
 
-        if capture_json {
+        // Check if we should pass through native JSON without conversion
+        let is_native_json = self.output_format.as_deref() == Some("native-json");
+
+        if is_native_json {
+            // Native JSON mode - pass through Claude's raw JSON output
+            cmd.stdin(Stdio::inherit())
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit());
+
+            let status = cmd.status().await?;
+            if !status.success() {
+                anyhow::bail!("Claude command failed with status: {}", status);
+            }
+            Ok(None)
+        } else if capture_json {
             let output_format = self.output_format.as_deref();
             let is_streaming = output_format == Some("stream-json") || output_format.is_none();
 

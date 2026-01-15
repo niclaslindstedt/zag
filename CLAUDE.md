@@ -228,6 +228,10 @@ agent gemini -p --output json-pretty "analyze this code"
 # Non-interactive mode with plain text output (no JSON parsing)
 agent claude -p -o text "simple task"
 
+# Non-interactive mode with native JSON output (Claude's raw JSON format)
+agent claude -p -o native-json "write a hello world program"
+agent claude -p --output native-json "analyze this code"
+
 # With specific model
 agent claude --model opus "complex task"
 agent gemini --model small "simple task"
@@ -264,6 +268,7 @@ When using print mode (`-p` or `--print`), you can specify the output format wit
 - **json**: Compact JSON output (single-line, no pretty printing) - captures the full session then outputs unified AgentOutput format
 - **json-pretty**: Pretty-printed JSON output (formatted with indentation) - captures the full session then outputs unified AgentOutput format
 - **stream-json**: Streaming JSON output in NDJSON format - each line is a unified Event as JSON for real-time processing
+- **native-json**: Claude's raw JSON output without conversion to unified format (Claude only)
 
 **Agent-specific behavior:**
 - **Claude**:
@@ -271,6 +276,7 @@ When using print mode (`-p` or `--print`), you can specify the output format wit
   - `text`: Plain text passthrough without JSON parsing
   - `json` and `json-pretty`: Capture full session, then output unified AgentOutput format
   - `stream-json`: Streams unified Event objects as NDJSON (one JSON object per line)
+  - `native-json`: Outputs Claude's raw JSON format without conversion (uses `--verbose --output-format json`)
   - Under the hood: All streaming modes use `--verbose --output-format stream-json` on the underlying `claude` CLI and convert events to the unified format
 - **Gemini**: Passes the output format directly to the `gemini` CLI using `-o` flag (no unified format conversion)
 - **Codex**: When using `json`, adds the `--json` flag to the `codex exec` command (no unified format conversion)
