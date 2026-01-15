@@ -209,24 +209,24 @@ agent claude
 agent claude "write a hello world program"
 
 # Non-interactive mode (print output and exit)
+# By default, streams beautiful formatted text in real-time (Claude only)
 agent claude --print "write a hello world program"
-agent codex --print "write a hello world program"
+agent claude -p "analyze this code"
 
-# Non-interactive mode with JSON output (compact, requires -p/--print)
+# Non-interactive mode with streaming JSON events (NDJSON format)
+agent claude -p -o stream-json "complex task"
+
+# Non-interactive mode with compact JSON output (full session after completion)
 agent claude -p -o json "write a hello world program"
 agent gemini -p --output json "analyze this code"
 agent codex -p -o json "list all functions"
 
-# Non-interactive mode with pretty-printed JSON output
+# Non-interactive mode with pretty-printed JSON output (full session)
 agent claude -p -o json-pretty "write a hello world program"
 agent gemini -p --output json-pretty "analyze this code"
 
-# Non-interactive mode with text output (default when no --output specified)
+# Non-interactive mode with plain text output (no JSON parsing)
 agent claude -p -o text "simple task"
-
-# Non-interactive mode with streaming JSON output
-agent claude -p -o stream-json "complex task"
-agent gemini -p -o stream-json "analyze project"
 
 # With specific model
 agent claude --model opus "complex task"
@@ -259,15 +259,21 @@ agent claude -q -p -o json --model haiku "simple task"
 
 When using print mode (`-p` or `--print`), you can specify the output format with the `-o` or `--output` flag:
 
-- **text**: Plain text output (default when no --output specified)
-- **json**: Compact JSON output (single-line, no pretty printing)
-- **json-pretty**: Pretty-printed JSON output (formatted with indentation)
-- **stream-json**: Streaming JSON output for real-time processing
+- **Default (no `-o` flag)**: Streams events and formats them as beautiful text in real-time (Claude only). Shows colorized, human-readable output with status indicators like ✓ and ✗. Other agents use text output.
+- **text**: Plain text output - bypasses JSON parsing and streams raw agent output
+- **json**: Compact JSON output (single-line, no pretty printing) - captures the full session then outputs unified AgentOutput format
+- **json-pretty**: Pretty-printed JSON output (formatted with indentation) - captures the full session then outputs unified AgentOutput format
+- **stream-json**: Streaming JSON output in NDJSON format - each line is a unified Event as JSON for real-time processing
 
 **Agent-specific behavior:**
-- **Claude**: When using `json`, `json-pretty`, or `stream-json`, the CLI automatically adds the `--verbose` flag to the underlying `claude` command. Both `json` and `json-pretty` use the same underlying format but differ in how the wrapper formats the final output.
-- **Gemini**: Passes the output format directly to the `gemini` CLI using `-o` flag
-- **Codex**: When using `json`, adds the `--json` flag to the `codex exec` command
+- **Claude**:
+  - Default (no `-o`): Streams events in real-time, converts to unified format, displays as beautiful formatted text with colors and status indicators
+  - `text`: Plain text passthrough without JSON parsing
+  - `json` and `json-pretty`: Capture full session, then output unified AgentOutput format
+  - `stream-json`: Streams unified Event objects as NDJSON (one JSON object per line)
+  - Under the hood: All streaming modes use `--verbose --output-format stream-json` on the underlying `claude` CLI and convert events to the unified format
+- **Gemini**: Passes the output format directly to the `gemini` CLI using `-o` flag (no unified format conversion)
+- **Codex**: When using `json`, adds the `--json` flag to the `codex exec` command (no unified format conversion)
 - **Copilot**:
   - Output format not supported - using the `--output` flag with Copilot will result in an error
   - Automatically adds `--allow-all-tools` flag when running in non-interactive mode (required by Copilot CLI)

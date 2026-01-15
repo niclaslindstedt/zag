@@ -341,3 +341,219 @@ impl std::fmt::Display for LogEntry {
         write!(f, "[{}] {}", level_str, self.message)
     }
 }
+
+/// Get a consistent color for a tool ID using round-robin color selection.
+fn get_tool_id_color(tool_id: &str) -> &'static str {
+    // 10 distinct colors for tool IDs
+    const TOOL_COLORS: [&str; 10] = [
+        "\x1b[38;5;33m",  // Blue
+        "\x1b[38;5;35m",  // Green
+        "\x1b[38;5;141m", // Purple
+        "\x1b[38;5;208m", // Orange
+        "\x1b[38;5;213m", // Pink
+        "\x1b[38;5;51m",  // Cyan
+        "\x1b[38;5;226m", // Yellow
+        "\x1b[38;5;205m", // Magenta
+        "\x1b[38;5;87m",  // Aqua
+        "\x1b[38;5;215m", // Peach
+    ];
+
+    // Hash the tool_id to get a consistent color
+    let hash: u32 = tool_id.bytes().map(|b| b as u32).sum();
+    let index = (hash as usize) % TOOL_COLORS.len();
+    TOOL_COLORS[index]
+}
+
+/// Format a single event as beautiful text output.
+///
+/// This can be used to stream events in real-time with nice formatting.
+pub fn format_event_as_text(event: &Event) -> Option<String> {
+    const INDENT: &str = "    ";
+    const INDENT_RESULT: &str = "      "; // 6 spaces for tool result continuation
+    const RECORD_ICON: &str = "⏺";
+    const ARROW_ICON: &str = "←";
+    const ORANGE: &str = "\x1b[38;5;208m";
+    const GREEN: &str = "\x1b[32m";
+    const RED: &str = "\x1b[31m";
+    const DIM: &str = "\x1b[38;5;240m"; // Gray color for better visibility than dim
+    const RESET: &str = "\x1b[0m";
+
+    match event {
+        Event::Init { model, .. } => {
+            Some(format!("\x1b[32m✓\x1b[0m Initialized with model {}", model))
+        }
+
+        Event::AssistantMessage { content, .. } => {
+            let formatted: Vec<String> = content
+                .iter()
+                .filter_map(|block| match block {
+                    ContentBlock::Text { text } => {
+                        // Orange text with record icon, indented
+                        // Handle multi-line text - first line with icon, rest indented 6 spaces
+                        let lines: Vec<&str> = text.lines().collect();
+                        if lines.is_empty() {
+                            None
+                        } else {
+                            let mut formatted_lines = Vec::new();
+                            for (i, line) in lines.iter().enumerate() {
+                                if i == 0 {
+                                    // First line with record icon
+                                    formatted_lines.push(format!(
+                                        "{}{}{} {}{}",
+                                        INDENT, ORANGE, RECORD_ICON, line, RESET
+                                    ));
+                                } else {
+                                    // Subsequent lines, indented 6 spaces (still orange)
+                                    formatted_lines.push(format!(
+                                        "{}{}{}{}",
+                                        INDENT_RESULT, ORANGE, line, RESET
+                                    ));
+                                }
+                            }
+                            Some(formatted_lines.join("\n"))
+                        }
+                    }
+                    ContentBlock::ToolUse { id, name, input } => {
+                        // Tool call with colored id (last 4 chars)
+                        let id_suffix = &id[id.len().saturating_sub(4)..];
+                        let id_color = get_tool_id_color(id_suffix);
+                        const BLUE: &str = "\x1b[34m";
+
+                        // Special formatting for Bash tool
+                        if name == "Bash" {
+                            if let serde_json::Value::Object(obj) = input {
+                                let description = obj.get("description")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("Run command");
+                                let command = obj.get("command")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("");
+
+                                return Some(format!(
+                                    "{}{}{} {}{} {}[{}]{}\n{}{}└── {}{}",
+                                    INDENT, BLUE, RECORD_ICON, description, RESET, id_color, id_suffix, RESET,
+                                    INDENT_RESULT, DIM, command, RESET
+                                ));
+                            }
+                        }
+
+                        // Format input parameters for non-Bash tools
+                        let input_str = if let serde_json::Value::Object(obj) = input {
+                            if obj.is_empty() {
+                                String::new()
+                            } else {
+                                // Format the parameters as key=value pairs
+                                let params: Vec<String> = obj.iter()
+                                    .map(|(key, value)| {
+                                        let value_str = match value {
+                                            serde_json::Value::String(s) => {
+                                                // Truncate long strings
+                                                if s.len() > 60 {
+                                                    format!("\"{}...\"", &s[..57])
+                                                } else {
+                                                    format!("\"{}\"", s)
+                                                }
+                                            },
+                                            serde_json::Value::Number(n) => n.to_string(),
+                                            serde_json::Value::Bool(b) => b.to_string(),
+                                            serde_json::Value::Null => "null".to_string(),
+                                            _ => "...".to_string(),
+                                        };
+                                        format!("{}={}", key, value_str)
+                                    })
+                                    .collect();
+                                params.join(", ")
+                            }
+                        } else {
+                            "...".to_string()
+                        };
+
+                        Some(format!(
+                            "{}{}{} {}({}) {}[{}]{}",
+                            INDENT, BLUE, RECORD_ICON, name, input_str, id_color, id_suffix, RESET
+                        ))
+                    }
+                })
+                .collect();
+
+            if !formatted.is_empty() {
+                // Add blank line after
+                Some(format!("{}\n", formatted.join("\n")))
+            } else {
+                None
+            }
+        }
+
+        Event::ToolExecution {
+            tool_id,
+            result,
+            ..
+        } => {
+            let id_suffix = &tool_id[tool_id.len().saturating_sub(4)..];
+            let id_color = get_tool_id_color(id_suffix);
+            let (icon_color, status_text) = if result.success {
+                (GREEN, "success")
+            } else {
+                (RED, "failed")
+            };
+
+            // Get full result text (all lines)
+            let result_text = if result.success {
+                result.output.as_deref().unwrap_or(status_text)
+            } else {
+                result.error.as_deref().unwrap_or(status_text)
+            };
+
+            // Split into lines and format each one
+            let mut lines: Vec<&str> = result_text.lines().collect();
+            if lines.is_empty() {
+                lines.push(status_text);
+            }
+
+            let mut formatted_lines = Vec::new();
+
+            // First line: arrow icon with tool ID
+            formatted_lines.push(format!(
+                "{}{}{}{} {}[{}]{}",
+                INDENT,
+                icon_color,
+                ARROW_ICON,
+                RESET,
+                id_color,
+                id_suffix,
+                RESET
+            ));
+
+            // All result lines indented at 6 spaces
+            for line in lines.iter() {
+                formatted_lines.push(format!("{}{}{}{}", INDENT_RESULT, DIM, line, RESET));
+            }
+
+            // Add blank line after
+            Some(format!("{}\n", formatted_lines.join("\n")))
+        }
+
+        Event::Result { .. } => {
+            // Don't output the final result since it's already been streamed
+            None
+        }
+
+        Event::Error { message, .. } => Some(format!("\x1b[31mError:\x1b[0m {}", message)),
+
+        Event::PermissionRequest {
+            tool_name, granted, ..
+        } => {
+            if *granted {
+                Some(format!(
+                    "\x1b[32m✓\x1b[0m Permission granted for tool '{}'",
+                    tool_name
+                ))
+            } else {
+                Some(format!(
+                    "\x1b[33m!\x1b[0m Permission denied for tool '{}'",
+                    tool_name
+                ))
+            }
+        }
+    }
+}
