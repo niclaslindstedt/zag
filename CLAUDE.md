@@ -62,11 +62,21 @@ Each agent implements `model_for_size()` in its `Agent` trait implementation:
 
 ## Configuration
 
-Configuration is stored in `.agent/agent.toml` in the project root (or `--root` directory if specified).
+Configuration is stored in `.agent/agent.toml`, with smart location detection:
 
 ### Config File Location
 
-The config file is automatically created on first run at `.agent/agent.toml`.
+The config location is automatically determined using this priority:
+
+1. **Explicit `--root` flag**: If provided, uses `<root>/.agent/agent.toml`
+2. **Git repository root**: If current directory is in a git repo, uses `<repo-root>/.agent/agent.toml`
+3. **Global config**: If not in a repo, uses `~/.config/agent/.agent/agent.toml` (Linux/macOS) or `~/AppData/Roaming/agent/.agent/agent.toml` (Windows)
+
+This means:
+- Each git repository has its own config
+- No scattered `.agent` folders in subdirectories
+- Global fallback for non-repository usage
+- `.gitignore` entry is automatically added for repository configs
 
 ### Config File Format
 

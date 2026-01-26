@@ -5,7 +5,8 @@
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 /// Agent-specific model configuration.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -98,10 +99,25 @@ impl Config {
     }
 
     /// Ensure `.agent/` is added to `.gitignore` if it isn't already.
+    /// Only applies when the config is stored in a git repository.
     fn ensure_gitignore(root: Option<&str>) -> Result<()> {
-        let base = root
-            .map(PathBuf::from)
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+        let base = Self::resolve_base_dir(root);
+        
+        // Only add to .gitignore if we're in a git repository
+        // (i.e., not using global config directory)
+        if let Some(r) = root {
+            // Explicit root was provided - check if it's a git repo
+            if Self::find_git_root(&PathBuf::from(r)).is_none() {
+                return Ok(());
+            }
+        } else {
+            let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+            if Self::find_git_root(&current_dir).is_none() {
+                // Not in a git repo, using global config - no .gitignore needed
+                return Ok(());
+            }
+        }
+        
         let gitignore_path = base.join(".gitignore");
 
         let content = if gitignore_path.exists() {
@@ -138,19 +154,67 @@ impl Config {
         Ok(())
     }
 
+    /// Detect git repository root from a given directory.
+    /// Returns None if not in a git repository.
+    fn find_git_root(start_dir: &Path) -> Option<PathBuf> {
+        let output = Command::new("git")
+            .arg("rev-parse")
+            .arg("--show-toplevel")
+            .current_dir(start_dir)
+            .output()
+            .ok()?;
+
+        if output.status.success() {
+            let root = String::from_utf8(output.stdout).ok()?;
+            Some(PathBuf::from(root.trim()))
+        } else {
+            None
+        }
+    }
+
+    /// Get the global config directory (~/.config/agent on Unix, ~/AppData/Roaming/agent on Windows).
+    fn global_config_dir() -> PathBuf {
+        if cfg!(target_os = "windows") {
+            dirs::data_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join("agent")
+        } else {
+            dirs::config_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join("agent")
+        }
+    }
+
+    /// Resolve the base directory for config storage.
+    /// Priority:
+    /// 1. Explicit root parameter if provided
+    /// 2. Git repository root if current directory is in a repo
+    /// 3. Global config directory (~/.config/agent)
+    fn resolve_base_dir(root: Option<&str>) -> PathBuf {
+        if let Some(r) = root {
+            return PathBuf::from(r);
+        }
+
+        let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        
+        // Try to find git root
+        if let Some(git_root) = Self::find_git_root(&current_dir) {
+            return git_root;
+        }
+
+        // Fall back to global config directory
+        Self::global_config_dir()
+    }
+
     /// Get the path to the config file.
     pub fn config_path(root: Option<&str>) -> PathBuf {
-        let base = root
-            .map(PathBuf::from)
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+        let base = Self::resolve_base_dir(root);
         base.join(".agent").join("agent.toml")
     }
 
     /// Get the .agent directory path.
     pub fn agent_dir(root: Option<&str>) -> PathBuf {
-        let base = root
-            .map(PathBuf::from)
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+        let base = Self::resolve_base_dir(root);
         base.join(".agent")
     }
 

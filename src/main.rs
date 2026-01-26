@@ -178,6 +178,7 @@ async fn main() -> Result<()> {
             print,
             output,
         } => {
+            // input_format not supported for Codex
             run_agent(
                 "Codex",
                 system_prompt,
@@ -187,7 +188,7 @@ async fn main() -> Result<()> {
                 prompt,
                 print,
                 output,
-                None, // input_format not supported for Codex
+                None,
                 show_usage,
                 quiet,
             )
