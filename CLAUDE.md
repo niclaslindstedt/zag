@@ -29,7 +29,7 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/agent.rs` | Agent trait definition and ModelSize abstraction |
 | `src/factory.rs` | AgentFactory for creating and configuring agents |
 | `src/main.rs` | CLI entry point with clap |
-| `src/config.rs` | Configuration management |
+| `src/config.rs` | Configuration management with get/set support |
 | `src/logging.rs` | Logging infrastructure and progress indicators |
 | `src/claude.rs` | Claude agent implementation |
 | `src/codex.rs` | Codex agent implementation |
@@ -42,12 +42,12 @@ Instead of specifying agent-specific model names, you can use size aliases that 
 
 ```bash
 # Use size aliases
-agent claude --model large run    # Uses opus
-agent codex --model large run     # Uses gpt-5.1-codex-max
-agent gemini --model small run    # Uses gemini-2.5-flash-lite
+agent --model large run              # Uses opus (default provider: claude)
+agent -p codex --model large run     # Uses gpt-5.1-codex-max
+agent -p gemini --model small run    # Uses gemini-2.5-flash-lite
 
 # Or use specific model names (passthrough)
-agent claude --model sonnet run   # Uses sonnet directly
+agent --model sonnet run             # Uses sonnet directly
 ```
 
 ### Size Mappings
@@ -84,6 +84,9 @@ This means:
 # Agent CLI Configuration
 
 [defaults]
+# Default provider (claude, codex, gemini, copilot)
+# provider = "claude"
+
 # Auto-approve all actions (skip permission prompts)
 # auto_approve = false
 
@@ -100,6 +103,22 @@ model = "medium"
 # copilot = "claude-sonnet-4.5"
 ```
 
+### Config Subcommand
+
+View or set configuration values with `agent config`:
+
+```bash
+# Print full config file
+agent config
+
+# Set values (space or = syntax)
+agent config provider claude
+agent config provider=claude
+agent config model opus
+agent config model.claude=opus
+agent config auto_approve true
+```
+
 ### Configuration Priority
 
 Settings are applied in this order (later overrides earlier):
@@ -110,14 +129,15 @@ Settings are applied in this order (later overrides earlier):
 
 ### Available Settings
 
-| Section | Key | Description |
-|---------|-----|-------------|
-| `defaults` | `auto_approve` | Skip permission prompts (default: false) |
-| `defaults` | `model` | Default model size for all agents (default: "medium") |
-| `models` | `claude` | Default model for Claude agent (overrides defaults.model) |
-| `models` | `codex` | Default model for Codex agent (overrides defaults.model) |
-| `models` | `gemini` | Default model for Gemini agent (overrides defaults.model) |
-| `models` | `copilot` | Default model for Copilot agent (overrides defaults.model) |
+| Key | Description |
+|-----|-------------|
+| `provider` | Default provider (default: "claude") |
+| `auto_approve` | Skip permission prompts (default: false) |
+| `model` | Default model size for all agents (default: "medium") |
+| `model.claude` | Default model for Claude agent (overrides model) |
+| `model.codex` | Default model for Codex agent (overrides model) |
+| `model.gemini` | Default model for Gemini agent (overrides model) |
+| `model.copilot` | Default model for Copilot agent (overrides model) |
 
 ## Logging
 
@@ -137,7 +157,7 @@ Enable debug logging with the `--debug` (or `-d`) flag:
 
 ```bash
 # Enable debug logging
-agent claude --debug run "write a hello world program"
+agent --debug run "write a hello world program"
 
 # Debug logging shows:
 # - Configuration loading details
@@ -153,10 +173,10 @@ Disable all logging except agent output with the `--quiet` (or `-q`) flag. This 
 
 ```bash
 # Quiet mode - only shows agent output
-agent claude -q exec "write a hello world program"
+agent -q exec "write a hello world program"
 
 # Useful for scripting
-result=$(agent claude -q exec "analyze this code")
+result=$(agent -q exec "analyze this code")
 
 # Quiet mode suppresses:
 # - Spinner animations
@@ -172,7 +192,7 @@ result=$(agent claude -q exec "analyze this code")
 
 ```bash
 # Normal mode
-$ agent claude --model sonnet run
+$ agent --model sonnet run
 ⠋ Initializing Claude agent
 ✓ Claude initialized with model sonnet
 > Starting interactive session
@@ -180,7 +200,7 @@ $ agent claude --model sonnet run
 > Session terminated
 
 # Debug mode
-$ agent claude --model medium --debug run
+$ agent --model medium --debug run
 [DEBUG] Debug logging enabled
 [DEBUG] Model specified: medium
 [DEBUG] Creating agent: claude
@@ -195,91 +215,100 @@ $ agent claude --model medium --debug run
 > Session terminated
 
 # With auto-approve
-$ agent claude --model haiku -a run
+$ agent --model haiku -a run
 ✓ Claude initialized with model haiku (auto approve)
 > Starting interactive session
 [Agent output...]
 > Session terminated
 
 # Quiet mode (only agent output, no logging)
-$ agent claude --model sonnet -q exec "write a hello world program"
+$ agent --model sonnet -q exec "write a hello world program"
 [Agent output only...]
 ```
 
 ## Usage
 
-The CLI uses a subcommand structure: `agent <agent> <action> [options]`.
+The CLI uses a subcommand structure: `agent [flags] <action> [options]`.
 
-### Subcommands
+The provider is specified via the `--provider` (or `-p`) flag. If omitted, it defaults to the configured provider (fallback: claude).
 
-Each agent supports three actions:
+### Actions
 
 - **`run`** - Start an interactive session
 - **`exec`** - Run non-interactively (print output and exit)
 - **`resume`** - Resume a previous session
-
-Running `agent claude` without a subcommand shows help.
+- **`review`** - Review code changes (uses Codex)
+- **`config`** - View or set configuration values
 
 ```bash
-# Interactive mode
-agent claude run
-agent claude run "write a hello world program"
+# Interactive mode (uses default provider, typically claude)
+agent run
+agent run "write a hello world program"
+
+# With explicit provider
+agent -p codex run
+agent -p gemini -m large run
 
 # Non-interactive mode (exec)
-agent claude exec "write a hello world program"
-agent claude exec "analyze this code" -o json
+agent exec "write a hello world program"
+agent exec "analyze this code" -o json
 
 # Non-interactive mode with streaming JSON events (NDJSON format)
-agent claude exec "complex task" -o stream-json
+agent exec "complex task" -o stream-json
 
 # Non-interactive mode with compact JSON output
-agent claude exec "write a hello world program" -o json
-agent gemini exec "analyze this code" --output json
+agent exec "write a hello world program" -o json
+agent -p gemini exec "analyze this code" --output json
 
 # Non-interactive mode with pretty-printed JSON output
-agent claude exec "write a hello world program" -o json-pretty
+agent exec "write a hello world program" -o json-pretty
 
 # Non-interactive mode with plain text output (no JSON parsing)
-agent claude exec "simple task" -o text
+agent exec "simple task" -o text
 
 # Non-interactive mode with native JSON output (Claude's raw JSON format)
-agent claude exec "write a hello world program" -o native-json
+agent exec "write a hello world program" -o native-json
 
 # Non-interactive mode with stream-json input format (Claude only)
-echo '{"type":"message","content":"hello"}' | agent claude exec -i stream-json "analyze"
-cat input.ndjson | agent claude exec --input-format stream-json "process"
+echo '{"type":"message","content":"hello"}' | agent exec -i stream-json "analyze"
+cat input.ndjson | agent exec --input-format stream-json "process"
 
 # Resume a session
-agent claude resume                    # Resume most recent / show picker
-agent claude resume <session-id>       # Resume specific session
-agent claude resume --last             # Resume most recent session
+agent resume                    # Resume most recent / show picker
+agent resume <session-id>       # Resume specific session
+agent resume --last             # Resume most recent session
 
 # With specific model
-agent claude --model opus exec "complex task"
-agent gemini --model small exec "simple task"
+agent --model opus exec "complex task"
+agent -p gemini --model small exec "simple task"
 
 # With custom system prompt
-agent claude --system-prompt "You are a Rust expert" exec "help with ownership"
+agent --system-prompt "You are a Rust expert" exec "help with ownership"
 
 # With root directory
-agent claude --root /path/to/project run
+agent --root /path/to/project run
 
 # Auto-approve all actions
-agent claude --auto-approve exec "write tests"
+agent --auto-approve exec "write tests"
 
 # Additional directories
-agent claude --add-dir ../other-repo run
-agent gemini --add-dir /path/to/docs --add-dir /path/to/specs exec "analyze"
+agent --add-dir ../other-repo run
+agent -p gemini --add-dir /path/to/docs --add-dir /path/to/specs exec "analyze"
 
 # Enable debug logging
-agent claude --debug exec "analyze this code"
+agent --debug exec "analyze this code"
 
 # Enable quiet mode (suppress all logging)
-agent claude -q exec "write tests"
+agent -q exec "write tests"
 
 # Combine flags
-agent claude --debug --model opus -a exec "complex task"
-agent claude -q exec "simple task" -o json
+agent --debug --model opus -a exec "complex task"
+agent -q exec "simple task" -o json
+
+# Configuration
+agent config                       # Print full config
+agent config provider gemini       # Set default provider
+agent config model.claude=opus     # Set claude-specific model
 ```
 
 ### Review Command
@@ -328,7 +357,7 @@ When using `exec`, you can specify the output format with the `-o` or `--output`
 The CLI validates model names to catch typos and provide helpful error messages. If you specify an invalid model, you'll get a clear error with the available options:
 
 ```bash
-$ agent claude --model gpt-5 run
+$ agent --model gpt-5 run
 Error: Invalid model 'gpt-5' for Claude. Available models: sonnet, opus, haiku
 ```
 
@@ -336,9 +365,9 @@ Size aliases (small, medium, large) are always valid and automatically resolve t
 
 ## Supported Agents
 
-### Claude
+### Claude (default)
 ```bash
-agent claude <run|exec|resume> [OPTIONS]
+agent [-p claude] <run|exec|resume> [OPTIONS]
 ```
 
 **Available models**: sonnet, opus, haiku
@@ -346,7 +375,7 @@ agent claude <run|exec|resume> [OPTIONS]
 
 ### Codex
 ```bash
-agent codex <run|exec|resume> [OPTIONS]
+agent -p codex <run|exec|resume> [OPTIONS]
 ```
 
 **Available models**: gpt-5.2-codex, gpt-5.1-codex-max, gpt-5.1-codex-mini, gpt-5.2
@@ -354,7 +383,7 @@ agent codex <run|exec|resume> [OPTIONS]
 
 ### Gemini
 ```bash
-agent gemini <run|exec|resume> [OPTIONS]
+agent -p gemini <run|exec|resume> [OPTIONS]
 ```
 
 **Available models**: auto, gemini-3-pro-preview, gemini-3-flash-preview, gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite
@@ -362,7 +391,7 @@ agent gemini <run|exec|resume> [OPTIONS]
 
 ### Copilot
 ```bash
-agent copilot <run|exec|resume> [OPTIONS]
+agent -p copilot <run|exec|resume> [OPTIONS]
 ```
 
 **Models**: claude-sonnet-4.5 (default), claude-opus-4.5, claude-haiku-4.5, gpt-5, gpt-5.1, gpt-5.2, gemini-3-pro-preview

@@ -24,6 +24,8 @@ pub struct Defaults {
     pub auto_approve: Option<bool>,
     /// Default model size for all agents (small, medium, large)
     pub model: Option<String>,
+    /// Default provider (claude, codex, gemini, copilot)
+    pub provider: Option<String>,
 }
 
 /// Root configuration structure.
@@ -252,6 +254,62 @@ impl Config {
         self.defaults.auto_approve.unwrap_or(false)
     }
 
+    /// Get the default provider, if configured.
+    pub fn provider(&self) -> Option<&str> {
+        self.defaults.provider.as_deref()
+    }
+
+    /// Valid provider names.
+    pub const VALID_PROVIDERS: &'static [&'static str] = &["claude", "codex", "gemini", "copilot"];
+
+    /// Get a config value by dot-notation key.
+    pub fn get_value(&self, key: &str) -> Option<String> {
+        match key {
+            "provider" => self.defaults.provider.clone(),
+            "model" => self.defaults.model.clone(),
+            "auto_approve" => self.defaults.auto_approve.map(|v| v.to_string()),
+            "model.claude" => self.models.claude.clone(),
+            "model.codex" => self.models.codex.clone(),
+            "model.gemini" => self.models.gemini.clone(),
+            "model.copilot" => self.models.copilot.clone(),
+            _ => None,
+        }
+    }
+
+    /// Set a config value by dot-notation key. Validates inputs.
+    pub fn set_value(&mut self, key: &str, value: &str) -> Result<()> {
+        match key {
+            "provider" => {
+                let v = value.to_lowercase();
+                if !Self::VALID_PROVIDERS.contains(&v.as_str()) {
+                    anyhow::bail!(
+                        "Invalid provider '{}'. Available: {}",
+                        value,
+                        Self::VALID_PROVIDERS.join(", ")
+                    );
+                }
+                self.defaults.provider = Some(v);
+            }
+            "model" => {
+                self.defaults.model = Some(value.to_string());
+            }
+            "auto_approve" => match value.to_lowercase().as_str() {
+                "true" | "1" | "yes" => self.defaults.auto_approve = Some(true),
+                "false" | "0" | "no" => self.defaults.auto_approve = Some(false),
+                _ => anyhow::bail!("Invalid value '{}' for auto_approve. Use true or false.", value),
+            },
+            "model.claude" => self.models.claude = Some(value.to_string()),
+            "model.codex" => self.models.codex = Some(value.to_string()),
+            "model.gemini" => self.models.gemini = Some(value.to_string()),
+            "model.copilot" => self.models.copilot = Some(value.to_string()),
+            _ => anyhow::bail!(
+                "Unknown config key '{}'. Available: provider, model, auto_approve, model.claude, model.codex, model.gemini, model.copilot",
+                key
+            ),
+        }
+        Ok(())
+    }
+
     /// Generate default config content with comments.
     fn default_with_comments() -> String {
         r#"# Agent CLI Configuration
@@ -259,6 +317,9 @@ impl Config {
 # Settings here can be overridden by command-line flags.
 
 [defaults]
+# Default provider (claude, codex, gemini, copilot)
+# provider = "claude"
+
 # Auto-approve all actions (skip permission prompts)
 # auto_approve = false
 
@@ -317,5 +378,76 @@ codex = "gpt-5.1-codex-mini"
         };
         assert_eq!(config.get_model("claude"), Some("opus"));
         assert_eq!(config.get_model("codex"), None);
+    }
+
+    #[test]
+    fn test_provider_config() {
+        let toml = r#"
+[defaults]
+provider = "gemini"
+"#;
+        let config: Config = toml::from_str(toml).unwrap();
+        assert_eq!(config.provider(), Some("gemini"));
+    }
+
+    #[test]
+    fn test_get_value() {
+        let config = Config {
+            defaults: Defaults {
+                provider: Some("codex".to_string()),
+                model: Some("large".to_string()),
+                auto_approve: Some(true),
+            },
+            models: AgentModels {
+                claude: Some("opus".to_string()),
+                ..Default::default()
+            },
+        };
+        assert_eq!(config.get_value("provider"), Some("codex".to_string()));
+        assert_eq!(config.get_value("model"), Some("large".to_string()));
+        assert_eq!(config.get_value("auto_approve"), Some("true".to_string()));
+        assert_eq!(config.get_value("model.claude"), Some("opus".to_string()));
+        assert_eq!(config.get_value("model.codex"), None);
+        assert_eq!(config.get_value("unknown"), None);
+    }
+
+    #[test]
+    fn test_set_value() {
+        let mut config = Config::default();
+
+        config.set_value("provider", "gemini").unwrap();
+        assert_eq!(config.defaults.provider, Some("gemini".to_string()));
+
+        config.set_value("model", "large").unwrap();
+        assert_eq!(config.defaults.model, Some("large".to_string()));
+
+        config.set_value("auto_approve", "true").unwrap();
+        assert_eq!(config.defaults.auto_approve, Some(true));
+
+        config.set_value("model.claude", "opus").unwrap();
+        assert_eq!(config.models.claude, Some("opus".to_string()));
+    }
+
+    #[test]
+    fn test_set_value_invalid_provider() {
+        let mut config = Config::default();
+        let result = config.set_value("provider", "invalid");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid provider"));
+    }
+
+    #[test]
+    fn test_set_value_invalid_auto_approve() {
+        let mut config = Config::default();
+        let result = config.set_value("auto_approve", "maybe");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_set_value_unknown_key() {
+        let mut config = Config::default();
+        let result = config.set_value("unknown_key", "value");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Unknown config key"));
     }
 }

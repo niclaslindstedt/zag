@@ -10,6 +10,7 @@ mod output;
 
 use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
+use config::Config;
 use factory::AgentFactory;
 use log::{debug, info};
 
@@ -29,36 +30,36 @@ struct Cli {
     #[arg(long, global = true)]
     show_usage: bool,
 
+    /// Provider to use (claude, codex, gemini, copilot)
+    #[arg(short = 'p', long, global = true)]
+    provider: Option<String>,
+
+    /// System prompt to configure agent behavior
+    #[arg(short, long, global = true)]
+    system_prompt: Option<String>,
+
+    /// Model to use (agent-specific or size alias: small, medium, large)
+    #[arg(short, long, global = true)]
+    model: Option<String>,
+
+    /// Root directory to run the agent in
+    #[arg(short, long, global = true)]
+    root: Option<String>,
+
+    /// Auto-approve all actions (skip permission prompts)
+    #[arg(short = 'a', long, global = true)]
+    auto_approve: bool,
+
+    /// Additional directories to include
+    #[arg(long = "add-dir", global = true)]
+    add_dirs: Vec<String>,
+
     #[command(subcommand)]
     command: Commands,
 }
 
-/// Shared flags for all agent subcommands.
-#[derive(Parser, Debug, Clone)]
-struct SharedFlags {
-    /// System prompt to configure agent behavior
-    #[arg(short, long)]
-    system_prompt: Option<String>,
-
-    /// Model to use (agent-specific or size alias: small, medium, large)
-    #[arg(short, long)]
-    model: Option<String>,
-
-    /// Root directory to run the agent in
-    #[arg(short, long)]
-    root: Option<String>,
-
-    /// Auto-approve all actions (skip permission prompts)
-    #[arg(short = 'a', long)]
-    auto_approve: bool,
-
-    /// Additional directories to include
-    #[arg(long = "add-dir")]
-    add_dirs: Vec<String>,
-}
-
 #[derive(Subcommand)]
-enum AgentAction {
+enum Commands {
     /// Start an interactive session
     Run {
         /// Initial prompt for the session
@@ -86,42 +87,6 @@ enum AgentAction {
         #[arg(long)]
         last: bool,
     },
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Run the Claude agent
-    Claude {
-        #[command(subcommand)]
-        action: AgentAction,
-
-        #[command(flatten)]
-        flags: SharedFlags,
-    },
-    /// Run the Codex agent
-    Codex {
-        #[command(subcommand)]
-        action: AgentAction,
-
-        #[command(flatten)]
-        flags: SharedFlags,
-    },
-    /// Run the Gemini agent
-    Gemini {
-        #[command(subcommand)]
-        action: AgentAction,
-
-        #[command(flatten)]
-        flags: SharedFlags,
-    },
-    /// Run the Copilot agent
-    Copilot {
-        #[command(subcommand)]
-        action: AgentAction,
-
-        #[command(flatten)]
-        flags: SharedFlags,
-    },
     /// Review code changes (uses Codex under the hood)
     Review {
         /// Review staged/unstaged/untracked changes
@@ -139,9 +104,11 @@ enum Commands {
         /// Optional title for the review summary
         #[arg(long)]
         title: Option<String>,
-
-        #[command(flatten)]
-        flags: SharedFlags,
+    },
+    /// View or set configuration values
+    Config {
+        /// Config key and value (e.g., "provider claude" or "provider=claude")
+        args: Vec<String>,
     },
 }
 
@@ -157,61 +124,153 @@ async fn main() -> Result<()> {
     let quiet = cli.quiet;
 
     match cli.command {
-        Commands::Claude { action, flags } => {
-            run_agent_action("Claude", action, flags, show_usage, quiet).await?;
-        }
-        Commands::Codex { action, flags } => {
-            run_agent_action("Codex", action, flags, show_usage, quiet).await?;
-        }
-        Commands::Gemini { action, flags } => {
-            run_agent_action("Gemini", action, flags, show_usage, quiet).await?;
-        }
-        Commands::Copilot { action, flags } => {
-            run_agent_action("Copilot", action, flags, show_usage, quiet).await?;
+        Commands::Config { args } => {
+            run_config(args, cli.root.as_deref())?;
         }
         Commands::Review {
             uncommitted,
             base,
             commit,
             title,
-            flags,
         } => {
-            run_review(uncommitted, base, commit, title, flags, quiet).await?;
+            run_review(
+                uncommitted,
+                base,
+                commit,
+                title,
+                cli.system_prompt,
+                cli.model,
+                cli.root,
+                cli.auto_approve,
+                cli.add_dirs,
+                quiet,
+            )
+            .await?;
+        }
+        action => {
+            let provider = resolve_provider(cli.provider.as_deref(), cli.root.as_deref())?;
+            let display_name = capitalize(&provider);
+            run_agent_action(
+                &display_name,
+                &provider,
+                action,
+                cli.system_prompt,
+                cli.model,
+                cli.root,
+                cli.auto_approve,
+                cli.add_dirs,
+                show_usage,
+                quiet,
+            )
+            .await?;
         }
     }
 
     Ok(())
 }
 
+/// Resolve the provider name from CLI flag, config, or default.
+fn resolve_provider(flag: Option<&str>, root: Option<&str>) -> Result<String> {
+    if let Some(p) = flag {
+        let p = p.to_lowercase();
+        if !Config::VALID_PROVIDERS.contains(&p.as_str()) {
+            bail!(
+                "Invalid provider '{}'. Available: {}",
+                p,
+                Config::VALID_PROVIDERS.join(", ")
+            );
+        }
+        return Ok(p);
+    }
+
+    let config = Config::load(root).unwrap_or_default();
+    if let Some(p) = config.provider() {
+        return Ok(p.to_string());
+    }
+
+    Ok("claude".to_string())
+}
+
+/// Capitalize the first letter of a string.
+fn capitalize(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(c) => c.to_uppercase().collect::<String>() + chars.as_str(),
+    }
+}
+
+/// Handle `agent config` subcommand.
+fn run_config(args: Vec<String>, root: Option<&str>) -> Result<()> {
+    if args.is_empty() {
+        // Print full config file contents
+        let path = Config::config_path(root);
+        if path.exists() {
+            let content = std::fs::read_to_string(&path)?;
+            print!("{}", content);
+        } else {
+            println!("No config file found at {}", path.display());
+            println!("Run any agent command to create a default config.");
+        }
+        return Ok(());
+    }
+
+    // Parse key=value or key value
+    let (key, value) = if args.len() == 1 {
+        // Single arg — check for key=value
+        if let Some((k, v)) = args[0].split_once('=') {
+            (k.to_string(), v.to_string())
+        } else {
+            bail!(
+                "Missing value. Usage: agent config {}=<value> or agent config {} <value>",
+                args[0],
+                args[0]
+            );
+        }
+    } else {
+        // Two args: key value
+        (args[0].clone(), args[1].clone())
+    };
+
+    let mut config = Config::load(root).unwrap_or_default();
+    config.set_value(&key, &value)?;
+    config.save(root)?;
+    println!("{} = {}", key, value);
+    Ok(())
+}
+
 async fn run_agent_action(
     agent_name: &str,
-    action: AgentAction,
-    flags: SharedFlags,
+    provider: &str,
+    action: Commands,
+    system_prompt: Option<String>,
+    model: Option<String>,
+    root: Option<String>,
+    auto_approve: bool,
+    add_dirs: Vec<String>,
     show_usage: bool,
     quiet: bool,
 ) -> Result<()> {
-    let agent_name_lower = agent_name.to_lowercase();
-
     // Log configuration details
-    if let Some(ref m) = flags.model {
+    if let Some(ref m) = model {
         debug!("Model specified: {}", m);
     }
-    if let Some(ref r) = flags.root {
+    if let Some(ref r) = root {
         debug!("Root directory: {}", r);
     }
-    if flags.auto_approve {
+    if auto_approve {
         debug!("Auto-approve enabled");
     }
-    if let Some(ref sp) = flags.system_prompt {
+    if let Some(ref sp) = system_prompt {
         debug!("System prompt: {}", sp);
     }
-    if !flags.add_dirs.is_empty() {
-        debug!("Additional directories: {:?}", flags.add_dirs);
+    if !add_dirs.is_empty() {
+        debug!("Additional directories: {:?}", add_dirs);
     }
 
     // Extract output/input format from exec action
     let (output_format, input_format) = match &action {
-        AgentAction::Exec {
+        Commands::Exec {
             output,
             input_format,
             ..
@@ -229,12 +288,12 @@ async fn run_agent_action(
     // Create agent with spinner
     let spinner = logging::spinner(format!("Initializing {} agent", agent_name));
     let mut agent = AgentFactory::create(
-        &agent_name_lower,
-        flags.system_prompt,
-        flags.model,
-        flags.root,
-        flags.auto_approve,
-        flags.add_dirs,
+        provider,
+        system_prompt,
+        model,
+        root,
+        auto_approve,
+        add_dirs,
     )?;
 
     // Set output format if specified
@@ -243,7 +302,7 @@ async fn run_agent_action(
 
     // Set input format if specified (Claude only)
     if let Some(input_fmt) = input_format
-        && agent_name_lower == "claude"
+        && provider == "claude"
         && let Some(claude_agent) = agent.as_any_mut().downcast_mut::<crate::claude::Claude>()
     {
         claude_agent.set_input_format(Some(input_fmt));
@@ -254,11 +313,7 @@ async fn run_agent_action(
 
     // Get the actual model being used (after resolution)
     let model_name = agent.get_model();
-    let auto_approve_suffix = if flags.auto_approve {
-        " (auto approve)"
-    } else {
-        ""
-    };
+    let auto_approve_suffix = if auto_approve { " (auto approve)" } else { "" };
 
     if !quiet {
         println!(
@@ -268,11 +323,11 @@ async fn run_agent_action(
     }
 
     match action {
-        AgentAction::Run { prompt } => {
+        Commands::Run { prompt } => {
             info!("Starting interactive session");
             agent.run_interactive(prompt.as_deref()).await?;
         }
-        AgentAction::Exec { prompt, .. } => {
+        Commands::Exec { prompt, .. } => {
             info!("Starting non-interactive session");
             let agent_output = agent.run(Some(&prompt)).await?;
 
@@ -298,12 +353,13 @@ async fn run_agent_action(
                 }
             }
         }
-        AgentAction::Resume { session_id, last } => {
+        Commands::Resume { session_id, last } => {
             info!("Resuming session");
             agent
                 .run_resume(session_id.as_deref(), last)
                 .await?;
         }
+        _ => unreachable!(),
     }
 
     // Cleanup
@@ -319,7 +375,11 @@ async fn run_review(
     base: Option<String>,
     commit: Option<String>,
     title: Option<String>,
-    flags: SharedFlags,
+    system_prompt: Option<String>,
+    model: Option<String>,
+    root: Option<String>,
+    auto_approve: bool,
+    add_dirs: Vec<String>,
     quiet: bool,
 ) -> Result<()> {
     if !uncommitted && base.is_none() && commit.is_none() {
@@ -331,11 +391,11 @@ async fn run_review(
     let spinner = logging::spinner("Initializing Codex for review".to_string());
     let mut agent = AgentFactory::create(
         "codex",
-        flags.system_prompt,
-        flags.model,
-        flags.root,
-        flags.auto_approve,
-        flags.add_dirs,
+        system_prompt,
+        model,
+        root,
+        auto_approve,
+        add_dirs,
     )?;
     logging::finish_spinner_quiet(&spinner);
 
