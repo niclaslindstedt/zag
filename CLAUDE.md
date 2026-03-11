@@ -35,6 +35,7 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/codex.rs` | Codex agent implementation |
 | `src/gemini.rs` | Gemini agent implementation |
 | `src/copilot.rs` | Copilot agent implementation |
+| `src/process.rs` | Subprocess helpers for stderr capture |
 
 ## Model Size Abstraction
 
@@ -150,6 +151,8 @@ The CLI includes professional logging and progress indicators to provide clear f
 - **Progress indicators**: Animated spinner for long-running operations that clears on completion
 - **Success indicators**: Green checkmark (✓) for successful operations
 - **Model display**: Shows the actual model name being used
+- **File-based logging**: All log messages are written to session log files in `~/.config/agent/.agent/logs/` (always at debug level)
+- **Stderr capture**: In non-interactive (exec) mode, agent subprocess stderr is captured and logged to file. On failure, stderr is included in the error message. Interactive sessions pass stderr through unchanged.
 
 ### Debug Mode
 

@@ -1,18 +1,29 @@
+use crate::config::Config;
 use env_logger::Builder;
 use indicatif::{ProgressBar, ProgressStyle};
 use log::LevelFilter;
+use std::fs::{self, File, OpenOptions};
 use std::io::Write;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 
 /// Global flag to track if quiet mode is enabled
 static QUIET_MODE: AtomicBool = AtomicBool::new(false);
 
-/// Initialize logging with the specified debug and quiet levels
+/// Global log file handle
+static LOG_FILE: Mutex<Option<File>> = Mutex::new(None);
+
+/// Initialize logging with the specified debug and quiet levels.
+/// Also creates a session log file in the global logs directory.
 pub fn init(debug: bool, quiet: bool) {
     // Store quiet mode state globally
     QUIET_MODE.store(quiet, Ordering::Relaxed);
 
-    // In quiet mode, disable all logging
+    // Initialize file-based logging
+    init_log_file();
+
+    // In quiet mode, disable all terminal logging
     let level = if quiet {
         LevelFilter::Off
     } else if debug {
@@ -23,14 +34,61 @@ pub fn init(debug: bool, quiet: bool) {
 
     Builder::new()
         .filter_level(level)
-        .format(|buf, record| match record.level() {
-            log::Level::Debug => writeln!(buf, "\x1b[90m*\x1b[0m {}", record.args()), // Dim gray asterisk
-            log::Level::Info => writeln!(buf, "\x1b[33m>\x1b[0m {}", record.args()), // Orange arrow
-            log::Level::Warn => writeln!(buf, "\x1b[93m!\x1b[0m {}", record.args()), // Bright yellow exclamation
-            log::Level::Error => writeln!(buf, "\x1b[91m✗\x1b[0m {}", record.args()), // Bright red X
-            log::Level::Trace => writeln!(buf, "\x1b[90m·\x1b[0m {}", record.args()), // Dim gray dot
+        .format(|buf, record| {
+            // Always write to log file regardless of terminal log level
+            write_to_log_file(&format!("[{}] {}", record.level(), record.args()));
+
+            match record.level() {
+                log::Level::Debug => writeln!(buf, "\x1b[90m*\x1b[0m {}", record.args()), // Dim gray asterisk
+                log::Level::Info => writeln!(buf, "\x1b[33m>\x1b[0m {}", record.args()), // Orange arrow
+                log::Level::Warn => writeln!(buf, "\x1b[93m!\x1b[0m {}", record.args()), // Bright yellow exclamation
+                log::Level::Error => writeln!(buf, "\x1b[91m✗\x1b[0m {}", record.args()), // Bright red X
+                log::Level::Trace => writeln!(buf, "\x1b[90m·\x1b[0m {}", record.args()), // Dim gray dot
+            }
         })
         .init();
+}
+
+/// Initialize the log file for this session.
+fn init_log_file() {
+    let logs_dir = Config::global_logs_dir();
+    if fs::create_dir_all(&logs_dir).is_err() {
+        return;
+    }
+
+    let timestamp = chrono::Local::now().format("%Y-%m-%dT%H-%M-%S");
+    let log_path = logs_dir.join(format!("agent-{}.log", timestamp));
+
+    if let Ok(file) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+    {
+        if let Ok(mut guard) = LOG_FILE.lock() {
+            *guard = Some(file);
+        }
+    }
+}
+
+/// Write a message to the log file.
+fn write_to_log_file(msg: &str) {
+    if let Ok(mut guard) = LOG_FILE.lock() {
+        if let Some(ref mut file) = *guard {
+            let timestamp = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%.3f");
+            let _ = writeln!(file, "{} {}", timestamp, msg);
+        }
+    }
+}
+
+/// Log a message directly to the log file (bypasses terminal output).
+/// Used for captured stderr and other internal diagnostics.
+pub fn log_to_file(msg: &str) {
+    write_to_log_file(msg);
+}
+
+/// Get the path to the current session's log directory.
+pub fn logs_dir() -> PathBuf {
+    Config::global_logs_dir()
 }
 
 /// Check if quiet mode is enabled

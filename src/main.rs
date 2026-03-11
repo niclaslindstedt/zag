@@ -7,6 +7,7 @@ mod factory;
 mod gemini;
 mod logging;
 mod output;
+mod process;
 
 use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};

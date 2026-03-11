@@ -2,3 +2,5 @@
 
 # Agent CLI state directory
 .agent/
+
+.DS_Store

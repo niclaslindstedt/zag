@@ -123,8 +123,8 @@ impl Claude {
         // Check if we should pass through native JSON without conversion
         let is_native_json = self.output_format.as_deref() == Some("native-json");
 
-        if is_native_json {
-            // Native JSON mode - pass through Claude's raw JSON output
+        if interactive {
+            // Interactive mode - inherit all stdio
             cmd.stdin(Stdio::inherit())
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit());
@@ -134,16 +134,23 @@ impl Claude {
                 anyhow::bail!("Claude command failed with status: {}", status);
             }
             Ok(None)
+        } else if is_native_json {
+            // Native JSON mode - pass through Claude's raw JSON output, capture stderr
+            cmd.stdin(Stdio::inherit())
+                .stdout(Stdio::inherit());
+
+            crate::process::run_with_captured_stderr(&mut cmd).await?;
+            Ok(None)
         } else if capture_json {
             let output_format = self.output_format.as_deref();
             let is_streaming = output_format == Some("stream-json") || output_format.is_none();
 
             if is_streaming {
                 // For stream-json or default (None), stream output and convert to unified format
-                cmd.stdin(Stdio::inherit()).stderr(Stdio::inherit());
+                cmd.stdin(Stdio::inherit());
                 cmd.stdout(Stdio::piped());
 
-                let mut child = cmd.spawn()?;
+                let mut child = crate::process::spawn_with_captured_stderr(&mut cmd).await?;
                 let stdout = child
                     .stdout
                     .take()
@@ -180,21 +187,33 @@ impl Claude {
                     }
                 }
 
-                let status = child.wait().await?;
-                if !status.success() {
-                    anyhow::bail!("Claude command failed with status: {}", status);
-                }
+                crate::process::wait_with_stderr(child).await?;
 
                 // Return None to indicate output was streamed directly
                 Ok(None)
             } else {
                 // For json/json-pretty, capture all output then parse
-                cmd.stdin(Stdio::inherit()).stderr(Stdio::inherit());
-                cmd.stdout(Stdio::piped());
+                cmd.stdin(Stdio::inherit());
+                cmd.stdout(Stdio::piped())
+                    .stderr(Stdio::piped());
 
                 let output = cmd.output().await?;
+
+                // Handle stderr
+                let stderr_text = String::from_utf8_lossy(&output.stderr);
+                let stderr_text = stderr_text.trim();
+                if !stderr_text.is_empty() {
+                    for line in stderr_text.lines() {
+                        crate::logging::log_to_file(&format!("[STDERR] {}", line));
+                    }
+                }
+
                 if !output.status.success() {
-                    anyhow::bail!("Claude command failed with status: {}", output.status);
+                    if stderr_text.is_empty() {
+                        anyhow::bail!("Claude command failed with status: {}", output.status);
+                    } else {
+                        anyhow::bail!("{}", stderr_text);
+                    }
                 }
 
                 // Parse JSON output
@@ -207,15 +226,11 @@ impl Claude {
                 Ok(Some(agent_output))
             }
         } else {
-            // Explicit text mode - inherit stdout (pass through)
+            // Explicit text mode - inherit stdout, capture stderr
             cmd.stdin(Stdio::inherit())
-                .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit());
+                .stdout(Stdio::inherit());
 
-            let status = cmd.status().await?;
-            if !status.success() {
-                anyhow::bail!("Claude command failed with status: {}", status);
-            }
+            crate::process::run_with_captured_stderr(&mut cmd).await?;
             Ok(None)
         }
     }

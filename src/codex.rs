@@ -90,13 +90,9 @@ impl Codex {
         }
 
         cmd.stdin(Stdio::inherit())
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit());
+            .stdout(Stdio::inherit());
 
-        let status = cmd.status().await?;
-        if !status.success() {
-            anyhow::bail!("Codex review failed with status: {}", status);
-        }
+        crate::process::run_with_captured_stderr(&mut cmd).await?;
         Ok(())
     }
 
@@ -139,13 +135,18 @@ impl Codex {
         }
 
         cmd.stdin(Stdio::inherit())
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit());
+            .stdout(Stdio::inherit());
 
-        let status = cmd.status().await?;
-        if !status.success() {
-            anyhow::bail!("Codex command failed with status: {}", status);
+        if interactive {
+            cmd.stderr(Stdio::inherit());
+            let status = cmd.status().await?;
+            if !status.success() {
+                anyhow::bail!("Codex command failed with status: {}", status);
+            }
+        } else {
+            crate::process::run_with_captured_stderr(&mut cmd).await?;
         }
+
         Ok(())
     }
 }

@@ -220,6 +220,12 @@ impl Config {
         base.join(".agent")
     }
 
+    /// Get the global logs directory path.
+    /// Always uses the global config dir so logs are centralized.
+    pub fn global_logs_dir() -> PathBuf {
+        Self::global_config_dir().join(".agent").join("logs")
+    }
+
     /// Ensure the .agent directory exists.
     pub fn ensure_agent_dir(root: Option<&str>) -> Result<PathBuf> {
         let dir = Self::agent_dir(root);

@@ -101,13 +101,18 @@ impl Copilot {
         };
 
         cmd.stdin(Stdio::inherit())
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit());
+            .stdout(Stdio::inherit());
 
-        let status = cmd.status().await?;
-        if !status.success() {
-            anyhow::bail!("Copilot command failed with status: {}", status);
+        if interactive {
+            cmd.stderr(Stdio::inherit());
+            let status = cmd.status().await?;
+            if !status.success() {
+                anyhow::bail!("Copilot command failed with status: {}", status);
+            }
+        } else {
+            crate::process::run_with_captured_stderr(&mut cmd).await?;
         }
+
         Ok(())
     }
 }
