@@ -22,6 +22,7 @@ pub struct Codex {
     root: Option<String>,
     skip_permissions: bool,
     output_format: Option<String>,
+    add_dirs: Vec<String>,
 }
 
 impl Codex {
@@ -32,6 +33,7 @@ impl Codex {
             root: None,
             skip_permissions: false,
             output_format: None,
+            add_dirs: Vec::new(),
         }
     }
 
@@ -44,6 +46,57 @@ impl Codex {
         let codex_dir = base.join(".codex");
         fs::create_dir_all(&codex_dir).await?;
         fs::write(codex_dir.join("AGENTS.md"), &self.system_prompt).await?;
+        Ok(())
+    }
+
+    pub async fn review(
+        &self,
+        uncommitted: bool,
+        base: Option<&str>,
+        commit: Option<&str>,
+        title: Option<&str>,
+    ) -> Result<()> {
+        let mut cmd = Command::new("codex");
+        cmd.arg("review");
+
+        if uncommitted {
+            cmd.arg("--uncommitted");
+        }
+
+        if let Some(b) = base {
+            cmd.args(["--base", b]);
+        }
+
+        if let Some(c) = commit {
+            cmd.args(["--commit", c]);
+        }
+
+        if let Some(t) = title {
+            cmd.args(["--title", t]);
+        }
+
+        if let Some(ref root) = self.root {
+            cmd.args(["--cd", root]);
+        }
+
+        cmd.args(["--model", &self.model]);
+
+        if self.skip_permissions {
+            cmd.args([
+                "--dangerously-bypass-approvals-and-sandbox",
+                "--sandbox",
+                "danger-full-access",
+            ]);
+        }
+
+        cmd.stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit());
+
+        let status = cmd.status().await?;
+        if !status.success() {
+            anyhow::bail!("Codex review failed with status: {}", status);
+        }
         Ok(())
     }
 
@@ -68,6 +121,10 @@ impl Codex {
         }
 
         cmd.args(["--model", &self.model]);
+
+        for dir in &self.add_dirs {
+            cmd.args(["--add-dir", dir]);
+        }
 
         if self.skip_permissions {
             cmd.args([
@@ -149,6 +206,10 @@ impl Agent for Codex {
         self.output_format = format;
     }
 
+    fn set_add_dirs(&mut self, dirs: Vec<String>) {
+        self.add_dirs = dirs;
+    }
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
@@ -160,6 +221,45 @@ impl Agent for Codex {
 
     async fn run_interactive(&self, prompt: Option<&str>) -> Result<()> {
         self.execute(true, prompt).await
+    }
+
+    async fn run_resume(&self, session_id: Option<&str>, last: bool) -> Result<()> {
+        let mut cmd = Command::new("codex");
+        cmd.arg("resume");
+
+        if let Some(id) = session_id {
+            cmd.arg(id);
+        } else if last {
+            cmd.arg("--last");
+        }
+
+        if let Some(ref root) = self.root {
+            cmd.args(["--cd", root]);
+        }
+
+        cmd.args(["--model", &self.model]);
+
+        for dir in &self.add_dirs {
+            cmd.args(["--add-dir", dir]);
+        }
+
+        if self.skip_permissions {
+            cmd.args([
+                "--dangerously-bypass-approvals-and-sandbox",
+                "--sandbox",
+                "danger-full-access",
+            ]);
+        }
+
+        cmd.stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit());
+
+        let status = cmd.status().await?;
+        if !status.success() {
+            anyhow::bail!("Codex resume failed with status: {}", status);
+        }
+        Ok(())
     }
 
     async fn cleanup(&self) -> Result<()> {

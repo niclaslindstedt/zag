@@ -112,6 +112,9 @@ pub trait Agent {
 
     fn set_output_format(&mut self, format: Option<String>);
 
+    /// Set additional directories for the agent to include.
+    fn set_add_dirs(&mut self, dirs: Vec<String>);
+
     /// Get a mutable reference to the concrete agent type (for downcasting).
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 
@@ -122,6 +125,13 @@ pub trait Agent {
     async fn run(&self, prompt: Option<&str>) -> Result<Option<AgentOutput>>;
 
     async fn run_interactive(&self, prompt: Option<&str>) -> Result<()>;
+
+    /// Resume a previous session.
+    ///
+    /// If `session_id` is provided, resumes that specific session.
+    /// If `last` is true, resumes the most recent session.
+    /// If neither, shows a session picker or resumes the most recent.
+    async fn run_resume(&self, session_id: Option<&str>, last: bool) -> Result<()>;
 
     async fn cleanup(&self) -> Result<()>;
 }

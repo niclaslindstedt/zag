@@ -31,6 +31,7 @@ pub struct Copilot {
     root: Option<String>,
     skip_permissions: bool,
     output_format: Option<String>,
+    add_dirs: Vec<String>,
 }
 
 impl Copilot {
@@ -41,6 +42,7 @@ impl Copilot {
             root: None,
             skip_permissions: false,
             output_format: None,
+            add_dirs: Vec::new(),
         }
     }
 
@@ -85,6 +87,10 @@ impl Copilot {
 
         if !self.model.is_empty() {
             cmd.args(["--model", &self.model]);
+        }
+
+        for dir in &self.add_dirs {
+            cmd.args(["--add-dir", dir]);
         }
 
         match (interactive, prompt) {
@@ -162,6 +168,10 @@ impl Agent for Copilot {
         self.output_format = format;
     }
 
+    fn set_add_dirs(&mut self, dirs: Vec<String>) {
+        self.add_dirs = dirs;
+    }
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
@@ -173,6 +183,38 @@ impl Agent for Copilot {
 
     async fn run_interactive(&self, prompt: Option<&str>) -> Result<()> {
         self.execute(true, prompt).await
+    }
+
+    async fn run_resume(&self, _session_id: Option<&str>, _last: bool) -> Result<()> {
+        let mut cmd = Command::new("copilot");
+
+        if let Some(ref root) = self.root {
+            cmd.current_dir(root);
+        }
+
+        cmd.arg("--resume");
+
+        if self.skip_permissions {
+            cmd.arg("--allow-all-tools");
+        }
+
+        if !self.model.is_empty() {
+            cmd.args(["--model", &self.model]);
+        }
+
+        for dir in &self.add_dirs {
+            cmd.args(["--add-dir", dir]);
+        }
+
+        cmd.stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit());
+
+        let status = cmd.status().await?;
+        if !status.success() {
+            anyhow::bail!("Copilot resume failed with status: {}", status);
+        }
+        Ok(())
     }
 
     async fn cleanup(&self) -> Result<()> {

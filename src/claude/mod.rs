@@ -25,6 +25,7 @@ pub struct Claude {
     skip_permissions: bool,
     output_format: Option<String>,
     input_format: Option<String>,
+    add_dirs: Vec<String>,
 }
 
 impl Claude {
@@ -36,6 +37,7 @@ impl Claude {
             skip_permissions: false,
             output_format: None,
             input_format: None,
+            add_dirs: Vec::new(),
         }
     }
 
@@ -98,6 +100,10 @@ impl Claude {
         }
 
         cmd.args(["--model", &self.model]);
+
+        for dir in &self.add_dirs {
+            cmd.args(["--add-dir", dir]);
+        }
 
         if !self.system_prompt.is_empty() {
             cmd.args(["--append-system-prompt", &self.system_prompt]);
@@ -383,6 +389,10 @@ impl Agent for Claude {
         self.output_format = format;
     }
 
+    fn set_add_dirs(&mut self, dirs: Vec<String>) {
+        self.add_dirs = dirs;
+    }
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
@@ -393,6 +403,40 @@ impl Agent for Claude {
 
     async fn run_interactive(&self, prompt: Option<&str>) -> Result<()> {
         self.execute(true, prompt).await?;
+        Ok(())
+    }
+
+    async fn run_resume(&self, session_id: Option<&str>, _last: bool) -> Result<()> {
+        let mut cmd = Command::new("claude");
+
+        if let Some(ref root) = self.root {
+            cmd.current_dir(root);
+        }
+
+        if let Some(id) = session_id {
+            cmd.args(["--resume", id]);
+        } else {
+            cmd.arg("--continue");
+        }
+
+        if self.skip_permissions {
+            cmd.arg("--dangerously-skip-permissions");
+        }
+
+        cmd.args(["--model", &self.model]);
+
+        for dir in &self.add_dirs {
+            cmd.args(["--add-dir", dir]);
+        }
+
+        cmd.stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit());
+
+        let status = cmd.status().await?;
+        if !status.success() {
+            anyhow::bail!("Claude resume failed with status: {}", status);
+        }
         Ok(())
     }
 

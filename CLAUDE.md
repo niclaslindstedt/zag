@@ -42,12 +42,12 @@ Instead of specifying agent-specific model names, you can use size aliases that 
 
 ```bash
 # Use size aliases
-agent claude --model large   # Uses opus
-agent codex --model large    # Uses gpt-5.1-codex-max
-agent gemini --model small   # Uses gemini-2.5-flash-lite
+agent claude --model large run    # Uses opus
+agent codex --model large run     # Uses gpt-5.1-codex-max
+agent gemini --model small run    # Uses gemini-2.5-flash-lite
 
 # Or use specific model names (passthrough)
-agent claude --model sonnet  # Uses sonnet directly
+agent claude --model sonnet run   # Uses sonnet directly
 ```
 
 ### Size Mappings
@@ -137,7 +137,7 @@ Enable debug logging with the `--debug` (or `-d`) flag:
 
 ```bash
 # Enable debug logging
-agent claude --debug "write a hello world program"
+agent claude --debug run "write a hello world program"
 
 # Debug logging shows:
 # - Configuration loading details
@@ -153,11 +153,10 @@ Disable all logging except agent output with the `--quiet` (or `-q`) flag. This 
 
 ```bash
 # Quiet mode - only shows agent output
-agent claude --quiet "write a hello world program"
-agent claude -q -p "write a hello world program"
+agent claude -q exec "write a hello world program"
 
 # Useful for scripting
-result=$(agent claude -q -p "analyze this code")
+result=$(agent claude -q exec "analyze this code")
 
 # Quiet mode suppresses:
 # - Spinner animations
@@ -169,13 +168,11 @@ result=$(agent claude -q -p "analyze this code")
 # - Cost and usage statistics
 ```
 
-**Note**: Quiet mode is particularly useful with print mode (`-p`) for non-interactive scripts where you only want the structured output without any additional logging.
-
 ### Example Output
 
 ```bash
 # Normal mode
-$ agent claude --model sonnet
+$ agent claude --model sonnet run
 ⠋ Initializing Claude agent
 ✓ Claude initialized with model sonnet
 > Starting interactive session
@@ -183,7 +180,7 @@ $ agent claude --model sonnet
 > Session terminated
 
 # Debug mode
-$ agent claude --model medium --debug
+$ agent claude --model medium --debug run
 [DEBUG] Debug logging enabled
 [DEBUG] Model specified: medium
 [DEBUG] Creating agent: claude
@@ -198,133 +195,140 @@ $ agent claude --model medium --debug
 > Session terminated
 
 # With auto-approve
-$ agent claude --model haiku -a
+$ agent claude --model haiku -a run
 ✓ Claude initialized with model haiku (auto approve)
 > Starting interactive session
 [Agent output...]
 > Session terminated
 
 # Quiet mode (only agent output, no logging)
-$ agent claude --model sonnet -q -p "write a hello world program"
+$ agent claude --model sonnet -q exec "write a hello world program"
 [Agent output only...]
 ```
 
 ## Usage
 
-Run any supported AI coding agent with a unified interface:
+The CLI uses a subcommand structure: `agent <agent> <action> [options]`.
+
+### Subcommands
+
+Each agent supports three actions:
+
+- **`run`** - Start an interactive session
+- **`exec`** - Run non-interactively (print output and exit)
+- **`resume`** - Resume a previous session
+
+Running `agent claude` without a subcommand shows help.
 
 ```bash
-# Interactive mode (default)
-agent claude
-agent claude "write a hello world program"
+# Interactive mode
+agent claude run
+agent claude run "write a hello world program"
 
-# Non-interactive mode (print output and exit)
-# By default, streams beautiful formatted text in real-time (Claude only)
-agent claude --print "write a hello world program"
-agent claude -p "analyze this code"
+# Non-interactive mode (exec)
+agent claude exec "write a hello world program"
+agent claude exec "analyze this code" -o json
 
 # Non-interactive mode with streaming JSON events (NDJSON format)
-agent claude -p -o stream-json "complex task"
+agent claude exec "complex task" -o stream-json
 
-# Non-interactive mode with compact JSON output (full session after completion)
-agent claude -p -o json "write a hello world program"
-agent gemini -p --output json "analyze this code"
-agent codex -p -o json "list all functions"
+# Non-interactive mode with compact JSON output
+agent claude exec "write a hello world program" -o json
+agent gemini exec "analyze this code" --output json
 
-# Non-interactive mode with pretty-printed JSON output (full session)
-agent claude -p -o json-pretty "write a hello world program"
-agent gemini -p --output json-pretty "analyze this code"
+# Non-interactive mode with pretty-printed JSON output
+agent claude exec "write a hello world program" -o json-pretty
 
 # Non-interactive mode with plain text output (no JSON parsing)
-agent claude -p -o text "simple task"
+agent claude exec "simple task" -o text
 
 # Non-interactive mode with native JSON output (Claude's raw JSON format)
-agent claude -p -o native-json "write a hello world program"
-agent claude -p --output native-json "analyze this code"
+agent claude exec "write a hello world program" -o native-json
 
 # Non-interactive mode with stream-json input format (Claude only)
-echo '{"type":"message","content":"hello"}' | agent claude -p -i stream-json
-cat input.ndjson | agent claude -p --input-format stream-json
+echo '{"type":"message","content":"hello"}' | agent claude exec -i stream-json "analyze"
+cat input.ndjson | agent claude exec --input-format stream-json "process"
+
+# Resume a session
+agent claude resume                    # Resume most recent / show picker
+agent claude resume <session-id>       # Resume specific session
+agent claude resume --last             # Resume most recent session
 
 # With specific model
-agent claude --model opus "complex task"
-agent gemini --model small "simple task"
+agent claude --model opus exec "complex task"
+agent gemini --model small exec "simple task"
 
 # With custom system prompt
-agent claude --system-prompt "You are a Rust expert" "help with ownership"
+agent claude --system-prompt "You are a Rust expert" exec "help with ownership"
 
 # With root directory
-agent claude --root /path/to/project "analyze this codebase"
+agent claude --root /path/to/project run
 
 # Auto-approve all actions
-agent claude --auto-approve "write tests"
+agent claude --auto-approve exec "write tests"
+
+# Additional directories
+agent claude --add-dir ../other-repo run
+agent gemini --add-dir /path/to/docs --add-dir /path/to/specs exec "analyze"
 
 # Enable debug logging
-agent claude --debug "analyze this code"
+agent claude --debug exec "analyze this code"
 
 # Enable quiet mode (suppress all logging)
-agent claude --quiet "write tests"
-agent claude -q -p "analyze this code"
+agent claude -q exec "write tests"
 
 # Combine flags
-agent claude --debug --model opus --auto-approve "complex task"
-agent claude -p -o json --model sonnet "get compact JSON response"
-agent claude -p -o json-pretty --model sonnet "get pretty JSON response"
-agent claude -q -p -o json --model haiku "simple task"
+agent claude --debug --model opus -a exec "complex task"
+agent claude -q exec "simple task" -o json
+```
+
+### Review Command
+
+Top-level `agent review` command for code review (uses Codex under the hood):
+
+```bash
+# Review uncommitted changes
+agent review --uncommitted
+
+# Review against a base branch
+agent review --base main
+
+# Review a specific commit
+agent review --commit abc123
+
+# With optional title
+agent review --uncommitted --title "Feature review"
+
+# With shared flags
+agent review --uncommitted --model large --auto-approve
 ```
 
 ### Input Formats (Claude Only)
 
-When using print mode with Claude (`-p` or `--print`), you can specify the input format with the `-i` or `--input-format` flag. This allows for structured streaming input:
+When using `exec` with Claude, you can specify the input format with the `-i` or `--input-format` flag:
 
 - **text** (default): Plain text input from stdin
 - **stream-json**: Streaming JSON input (NDJSON format) for realtime structured input
 
-**Usage:**
-```bash
-# Stream JSON events to Claude
-echo '{"type":"message","content":"analyze this"}' | agent claude -p -i stream-json
-
-# Pipe NDJSON file
-cat events.ndjson | agent claude -p --input-format stream-json
-
-# Default text input (no flag needed)
-cat file.txt | agent claude -p "analyze this"
-```
-
-**Note:** The `--input-format` flag only works with Claude in print mode (`-p`). Other agents (Codex, Gemini, Copilot) accept stdin input but don't support structured input formats.
+**Note:** The `--input-format` flag only works with Claude's `exec` subcommand.
 
 ### Output Formats
 
-When using print mode (`-p` or `--print`), you can specify the output format with the `-o` or `--output` flag:
+When using `exec`, you can specify the output format with the `-o` or `--output` flag:
 
-- **Default (no `-o` flag)**: Streams events and formats them as beautiful text in real-time (Claude only). Shows colorized, human-readable output with status indicators like ✓ and ✗. Other agents use text output.
+- **Default (no `-o` flag)**: Streams events and formats them as beautiful text in real-time (Claude only). Other agents use text output.
 - **text**: Plain text output - bypasses JSON parsing and streams raw agent output
-- **json**: Compact JSON output (single-line, no pretty printing) - captures the full session then outputs unified AgentOutput format
-- **json-pretty**: Pretty-printed JSON output (formatted with indentation) - captures the full session then outputs unified AgentOutput format
-- **stream-json**: Streaming JSON output in NDJSON format - each line is a unified Event as JSON for real-time processing
+- **json**: Compact JSON output (single-line) - captures the full session then outputs unified AgentOutput format
+- **json-pretty**: Pretty-printed JSON output - captures the full session then outputs unified AgentOutput format
+- **stream-json**: Streaming JSON output in NDJSON format - each line is a unified Event as JSON
 - **native-json**: Claude's raw JSON output without conversion to unified format (Claude only)
-
-**Agent-specific behavior:**
-- **Claude**:
-  - Default (no `-o`): Streams events in real-time, converts to unified format, displays as beautiful formatted text with colors and status indicators
-  - `text`: Plain text passthrough without JSON parsing
-  - `json` and `json-pretty`: Capture full session, then output unified AgentOutput format
-  - `stream-json`: Streams unified Event objects as NDJSON (one JSON object per line)
-  - `native-json`: Outputs Claude's raw JSON format without conversion (uses `--verbose --output-format json`)
-  - Under the hood: All streaming modes use `--verbose --output-format stream-json` on the underlying `claude` CLI and convert events to the unified format
-- **Gemini**: Passes the output format directly to the `gemini` CLI using `-o` flag (no unified format conversion)
-- **Codex**: When using `json`, adds the `--json` flag to the `codex exec` command (no unified format conversion)
-- **Copilot**:
-  - Output format not supported - using the `--output` flag with Copilot will result in an error
-  - Automatically adds `--allow-all-tools` flag when running in non-interactive mode (required by Copilot CLI)
 
 ## Model Validation
 
 The CLI validates model names to catch typos and provide helpful error messages. If you specify an invalid model, you'll get a clear error with the available options:
 
 ```bash
-$ agent claude --model gpt-5
+$ agent claude --model gpt-5 run
 Error: Invalid model 'gpt-5' for Claude. Available models: sonnet, opus, haiku
 ```
 
@@ -334,7 +338,7 @@ Size aliases (small, medium, large) are always valid and automatically resolve t
 
 ### Claude
 ```bash
-agent claude [OPTIONS] [PROMPT]
+agent claude <run|exec|resume> [OPTIONS]
 ```
 
 **Available models**: sonnet, opus, haiku
@@ -342,7 +346,7 @@ agent claude [OPTIONS] [PROMPT]
 
 ### Codex
 ```bash
-agent codex [OPTIONS] [PROMPT]
+agent codex <run|exec|resume> [OPTIONS]
 ```
 
 **Available models**: gpt-5.2-codex, gpt-5.1-codex-max, gpt-5.1-codex-mini, gpt-5.2
@@ -350,7 +354,7 @@ agent codex [OPTIONS] [PROMPT]
 
 ### Gemini
 ```bash
-agent gemini [OPTIONS] [PROMPT]
+agent gemini <run|exec|resume> [OPTIONS]
 ```
 
 **Available models**: auto, gemini-3-pro-preview, gemini-3-flash-preview, gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite
@@ -358,7 +362,14 @@ agent gemini [OPTIONS] [PROMPT]
 
 ### Copilot
 ```bash
-agent copilot [OPTIONS] [PROMPT]
+agent copilot <run|exec|resume> [OPTIONS]
 ```
 
 **Models**: claude-sonnet-4.5 (default), claude-opus-4.5, claude-haiku-4.5, gpt-5, gpt-5.1, gpt-5.2, gemini-3-pro-preview
+
+### Review
+```bash
+agent review [--uncommitted] [--base <BRANCH>] [--commit <SHA>] [--title <TITLE>] [OPTIONS]
+```
+
+Uses Codex under the hood for code review.

@@ -24,6 +24,7 @@ impl AgentFactory {
         model: Option<String>,
         root: Option<String>,
         auto_approve: bool,
+        add_dirs: Vec<String>,
     ) -> Result<Box<dyn Agent + Send>> {
         debug!("Creating agent: {}", agent_name);
 
@@ -71,6 +72,11 @@ impl AgentFactory {
         // Configure permissions (CLI overrides config)
         let skip = auto_approve || config.auto_approve();
         agent.set_skip_permissions(skip);
+
+        // Configure additional directories
+        if !add_dirs.is_empty() {
+            agent.set_add_dirs(add_dirs);
+        }
 
         Ok(agent)
     }

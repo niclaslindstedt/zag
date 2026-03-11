@@ -33,127 +33,115 @@ struct Cli {
     command: Commands,
 }
 
+/// Shared flags for all agent subcommands.
+#[derive(Parser, Debug, Clone)]
+struct SharedFlags {
+    /// System prompt to configure agent behavior
+    #[arg(short, long)]
+    system_prompt: Option<String>,
+
+    /// Model to use (agent-specific or size alias: small, medium, large)
+    #[arg(short, long)]
+    model: Option<String>,
+
+    /// Root directory to run the agent in
+    #[arg(short, long)]
+    root: Option<String>,
+
+    /// Auto-approve all actions (skip permission prompts)
+    #[arg(short = 'a', long)]
+    auto_approve: bool,
+
+    /// Additional directories to include
+    #[arg(long = "add-dir")]
+    add_dirs: Vec<String>,
+}
+
 #[derive(Subcommand)]
-enum Commands {
-    /// Run the Codex agent
-    Codex {
-        /// The prompt to send to the agent (optional - starts interactive session if omitted)
+enum AgentAction {
+    /// Start an interactive session
+    Run {
+        /// Initial prompt for the session
         prompt: Option<String>,
-
-        /// System prompt to configure agent behavior
-        #[arg(short, long)]
-        system_prompt: Option<String>,
-
-        /// Model to use (gpt-5.2-codex, gpt-5.1-codex-max, gpt-5.1-codex-mini, gpt-5.2)
-        #[arg(short, long)]
-        model: Option<String>,
-
-        /// Root directory to run the agent in
-        #[arg(short, long)]
-        root: Option<String>,
-
-        /// Auto-approve all actions (skip permission prompts)
-        #[arg(short = 'a', long)]
-        auto_approve: bool,
-
-        /// Run in non-interactive mode (print output and exit)
-        #[arg(short = 'p', long = "print")]
-        print: bool,
-
-        /// Output format for print mode (text, json, json-pretty, stream-json, native-json)
-        #[arg(short = 'o', long)]
-        output: Option<String>,
     },
-    /// Run the Claude agent
-    Claude {
-        /// The prompt to send to the agent (optional - starts interactive session if omitted)
-        prompt: Option<String>,
+    /// Run non-interactively (print output and exit)
+    Exec {
+        /// The prompt to send to the agent
+        prompt: String,
 
-        /// System prompt to configure agent behavior
-        #[arg(short, long)]
-        system_prompt: Option<String>,
-
-        /// Model to use (sonnet, opus, haiku)
-        #[arg(short, long)]
-        model: Option<String>,
-
-        /// Root directory to run the agent in
-        #[arg(short, long)]
-        root: Option<String>,
-
-        /// Auto-approve all actions (skip permission prompts)
-        #[arg(short = 'a', long)]
-        auto_approve: bool,
-
-        /// Run in non-interactive mode (print output and exit)
-        #[arg(short = 'p', long = "print")]
-        print: bool,
-
-        /// Output format for print mode (text, json, json-pretty, stream-json, native-json)
+        /// Output format (text, json, json-pretty, stream-json, native-json)
         #[arg(short = 'o', long)]
         output: Option<String>,
 
-        /// Input format for print mode (text, stream-json)
+        /// Input format (text, stream-json) - Claude only
         #[arg(short = 'i', long)]
         input_format: Option<String>,
     },
+    /// Resume a previous session
+    Resume {
+        /// Session ID to resume
+        session_id: Option<String>,
+
+        /// Resume the most recent session
+        #[arg(long)]
+        last: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Run the Claude agent
+    Claude {
+        #[command(subcommand)]
+        action: AgentAction,
+
+        #[command(flatten)]
+        flags: SharedFlags,
+    },
+    /// Run the Codex agent
+    Codex {
+        #[command(subcommand)]
+        action: AgentAction,
+
+        #[command(flatten)]
+        flags: SharedFlags,
+    },
     /// Run the Gemini agent
     Gemini {
-        /// The prompt to send to the agent (optional - starts interactive session if omitted)
-        prompt: Option<String>,
+        #[command(subcommand)]
+        action: AgentAction,
 
-        /// System prompt to configure agent behavior
-        #[arg(short, long)]
-        system_prompt: Option<String>,
-
-        /// Model to use (auto, gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite)
-        #[arg(short, long)]
-        model: Option<String>,
-
-        /// Root directory to run the agent in
-        #[arg(short, long)]
-        root: Option<String>,
-
-        /// Auto-approve all actions (skip permission prompts)
-        #[arg(short = 'a', long)]
-        auto_approve: bool,
-
-        /// Run in non-interactive mode (print output and exit)
-        #[arg(short = 'p', long = "print")]
-        print: bool,
-
-        /// Output format for print mode (text, json, json-pretty, stream-json, native-json)
-        #[arg(short = 'o', long)]
-        output: Option<String>,
+        #[command(flatten)]
+        flags: SharedFlags,
     },
     /// Run the Copilot agent
     Copilot {
-        /// The prompt to send to the agent (optional in interactive mode, required with -p)
-        prompt: Option<String>,
+        #[command(subcommand)]
+        action: AgentAction,
 
-        /// System prompt to configure agent behavior
-        #[arg(short, long)]
-        system_prompt: Option<String>,
+        #[command(flatten)]
+        flags: SharedFlags,
+    },
+    /// Review code changes (uses Codex under the hood)
+    Review {
+        /// Review staged/unstaged/untracked changes
+        #[arg(long)]
+        uncommitted: bool,
 
-        /// Model to use (gpt-5, gpt-5.1, gpt-5.2, claude-sonnet-4, gemini-3-pro-preview, etc.)
-        #[arg(short, long)]
-        model: Option<String>,
+        /// Review against a base branch
+        #[arg(long)]
+        base: Option<String>,
 
-        /// Root directory to run the agent in
-        #[arg(short, long)]
-        root: Option<String>,
+        /// Review changes from a specific commit
+        #[arg(long)]
+        commit: Option<String>,
 
-        /// Auto-approve all actions (skip permission prompts)
-        #[arg(short = 'a', long)]
-        auto_approve: bool,
+        /// Optional title for the review summary
+        #[arg(long)]
+        title: Option<String>,
 
-        /// Run in non-interactive mode (print output and exit)
-        #[arg(short = 'p', long = "print")]
-        print: bool,
-
-        /// Output format for print mode (text, json, json-pretty, stream-json, native-json)
-        #[arg(short = 'o', long)]
-        output: Option<String>,
+        #[command(flatten)]
+        flags: SharedFlags,
     },
 }
 
@@ -169,142 +157,69 @@ async fn main() -> Result<()> {
     let quiet = cli.quiet;
 
     match cli.command {
-        Commands::Codex {
-            prompt,
-            system_prompt,
-            model,
-            root,
-            auto_approve,
-            print,
-            output,
-        } => {
-            // input_format not supported for Codex
-            run_agent(
-                "Codex",
-                system_prompt,
-                model,
-                root,
-                auto_approve,
-                prompt,
-                print,
-                output,
-                None,
-                show_usage,
-                quiet,
-            )
-            .await?;
+        Commands::Claude { action, flags } => {
+            run_agent_action("Claude", action, flags, show_usage, quiet).await?;
         }
-        Commands::Claude {
-            prompt,
-            system_prompt,
-            model,
-            root,
-            auto_approve,
-            print,
-            output,
-            input_format,
-        } => {
-            run_agent(
-                "Claude",
-                system_prompt,
-                model,
-                root,
-                auto_approve,
-                prompt,
-                print,
-                output,
-                input_format,
-                show_usage,
-                quiet,
-            )
-            .await?;
+        Commands::Codex { action, flags } => {
+            run_agent_action("Codex", action, flags, show_usage, quiet).await?;
         }
-        Commands::Gemini {
-            prompt,
-            system_prompt,
-            model,
-            root,
-            auto_approve,
-            print,
-            output,
-        } => {
-            run_agent(
-                "Gemini",
-                system_prompt,
-                model,
-                root,
-                auto_approve,
-                prompt,
-                print,
-                output,
-                None, // input_format not supported for Gemini
-                show_usage,
-                quiet,
-            )
-            .await?;
+        Commands::Gemini { action, flags } => {
+            run_agent_action("Gemini", action, flags, show_usage, quiet).await?;
         }
-        Commands::Copilot {
-            prompt,
-            system_prompt,
-            model,
-            root,
-            auto_approve,
-            print,
-            output,
+        Commands::Copilot { action, flags } => {
+            run_agent_action("Copilot", action, flags, show_usage, quiet).await?;
+        }
+        Commands::Review {
+            uncommitted,
+            base,
+            commit,
+            title,
+            flags,
         } => {
-            if print && prompt.is_none() {
-                bail!("Print mode requires a prompt");
-            }
-
-            run_agent(
-                "Copilot",
-                system_prompt,
-                model,
-                root,
-                auto_approve,
-                prompt,
-                print,
-                output,
-                None, // input_format not supported for Copilot
-                show_usage,
-                quiet,
-            )
-            .await?;
+            run_review(uncommitted, base, commit, title, flags, quiet).await?;
         }
     }
 
     Ok(())
 }
 
-async fn run_agent(
+async fn run_agent_action(
     agent_name: &str,
-    system_prompt: Option<String>,
-    model: Option<String>,
-    root: Option<String>,
-    auto_approve: bool,
-    prompt: Option<String>,
-    print: bool,
-    output: Option<String>,
-    input_format: Option<String>,
+    action: AgentAction,
+    flags: SharedFlags,
     show_usage: bool,
     quiet: bool,
 ) -> Result<()> {
     let agent_name_lower = agent_name.to_lowercase();
 
     // Log configuration details
-    if let Some(ref m) = model {
+    if let Some(ref m) = flags.model {
         debug!("Model specified: {}", m);
     }
-    if let Some(ref r) = root {
+    if let Some(ref r) = flags.root {
         debug!("Root directory: {}", r);
     }
-    if auto_approve {
+    if flags.auto_approve {
         debug!("Auto-approve enabled");
     }
-    if let Some(ref sp) = system_prompt {
+    if let Some(ref sp) = flags.system_prompt {
         debug!("System prompt: {}", sp);
     }
-    if let Some(ref o) = output {
+    if !flags.add_dirs.is_empty() {
+        debug!("Additional directories: {:?}", flags.add_dirs);
+    }
+
+    // Extract output/input format from exec action
+    let (output_format, input_format) = match &action {
+        AgentAction::Exec {
+            output,
+            input_format,
+            ..
+        } => (output.clone(), input_format.clone()),
+        _ => (None, None),
+    };
+
+    if let Some(ref o) = output_format {
         debug!("Output format: {}", o);
     }
     if let Some(ref i) = input_format {
@@ -315,36 +230,36 @@ async fn run_agent(
     let spinner = logging::spinner(format!("Initializing {} agent", agent_name));
     let mut agent = AgentFactory::create(
         &agent_name_lower,
-        system_prompt,
-        model.clone(),
-        root,
-        auto_approve,
+        flags.system_prompt,
+        flags.model,
+        flags.root,
+        flags.auto_approve,
+        flags.add_dirs,
     )?;
 
     // Set output format if specified
-    let output_format = output.clone();
-    agent.set_output_format(output);
+    let output_fmt_clone = output_format.clone();
+    agent.set_output_format(output_format);
 
     // Set input format if specified (Claude only)
-    if let Some(input_fmt) = input_format {
-        if agent_name_lower == "claude" {
-            // Cast to Claude agent and set input format
-            if let Some(claude_agent) = agent.as_any_mut().downcast_mut::<crate::claude::Claude>() {
-                claude_agent.set_input_format(Some(input_fmt));
-            }
-        }
+    if let Some(input_fmt) = input_format
+        && agent_name_lower == "claude"
+        && let Some(claude_agent) = agent.as_any_mut().downcast_mut::<crate::claude::Claude>()
+    {
+        claude_agent.set_input_format(Some(input_fmt));
     }
 
     logging::finish_spinner_quiet(&spinner);
-
-    // Log agent creation details after spinner clears
     debug!("Agent configuration complete");
 
     // Get the actual model being used (after resolution)
     let model_name = agent.get_model();
-    let auto_approve_suffix = if auto_approve { " (auto approve)" } else { "" };
+    let auto_approve_suffix = if flags.auto_approve {
+        " (auto approve)"
+    } else {
+        ""
+    };
 
-    // Only show initialization message if not in quiet mode
     if !quiet {
         println!(
             "\x1b[32m✓\x1b[0m {} initialized with model {}{}",
@@ -352,53 +267,100 @@ async fn run_agent(
         );
     }
 
-    // Run the agent
-    let mode = if print {
-        "non-interactive"
-    } else {
-        "interactive"
-    };
-    info!("Starting {} session", mode);
+    match action {
+        AgentAction::Run { prompt } => {
+            info!("Starting interactive session");
+            agent.run_interactive(prompt.as_deref()).await?;
+        }
+        AgentAction::Exec { prompt, .. } => {
+            info!("Starting non-interactive session");
+            let agent_output = agent.run(Some(&prompt)).await?;
 
-    if print {
-        let agent_output = agent.run(prompt.as_deref()).await?;
-
-        // Process structured output if available
-        if let Some(agent_out) = agent_output {
-            // If output format is JSON, print the unified JSON format
-            match output_format.as_deref() {
-                Some("json") => {
-                    // Compact JSON (no pretty printing)
-                    let json = serde_json::to_string(&agent_out)?;
-                    println!("{}", json);
-                }
-                Some("json-pretty") => {
-                    // Pretty-printed JSON
-                    let json = serde_json::to_string_pretty(&agent_out)?;
-                    println!("{}", json);
-                }
-                Some("stream-json") => {
-                    // NDJSON format - each event on a separate line
-                    for event in &agent_out.events {
-                        let json = serde_json::to_string(&event)?;
+            if let Some(agent_out) = agent_output {
+                match output_fmt_clone.as_deref() {
+                    Some("json") => {
+                        let json = serde_json::to_string(&agent_out)?;
                         println!("{}", json);
                     }
-                }
-                _ => {
-                    // Otherwise, print the pretty processed output
-                    process_agent_output(&agent_out, show_usage)?;
+                    Some("json-pretty") => {
+                        let json = serde_json::to_string_pretty(&agent_out)?;
+                        println!("{}", json);
+                    }
+                    Some("stream-json") => {
+                        for event in &agent_out.events {
+                            let json = serde_json::to_string(&event)?;
+                            println!("{}", json);
+                        }
+                    }
+                    _ => {
+                        process_agent_output(&agent_out, show_usage)?;
+                    }
                 }
             }
         }
-        // Note: If agent_output is None, the agent already printed to stdout via Stdio::inherit()
-    } else {
-        agent.run_interactive(prompt.as_deref()).await?;
+        AgentAction::Resume { session_id, last } => {
+            info!("Resuming session");
+            agent
+                .run_resume(session_id.as_deref(), last)
+                .await?;
+        }
     }
 
     // Cleanup
     debug!("Cleaning up agent resources");
     agent.cleanup().await?;
     info!("Session terminated");
+
+    Ok(())
+}
+
+async fn run_review(
+    uncommitted: bool,
+    base: Option<String>,
+    commit: Option<String>,
+    title: Option<String>,
+    flags: SharedFlags,
+    quiet: bool,
+) -> Result<()> {
+    if !uncommitted && base.is_none() && commit.is_none() {
+        bail!("Review requires at least one of: --uncommitted, --base <BRANCH>, --commit <SHA>");
+    }
+
+    debug!("Starting code review via Codex");
+
+    let spinner = logging::spinner("Initializing Codex for review".to_string());
+    let mut agent = AgentFactory::create(
+        "codex",
+        flags.system_prompt,
+        flags.model,
+        flags.root,
+        flags.auto_approve,
+        flags.add_dirs,
+    )?;
+    logging::finish_spinner_quiet(&spinner);
+
+    let model_name = agent.get_model().to_string();
+    if !quiet {
+        println!(
+            "\x1b[32m✓\x1b[0m Review initialized with model {}",
+            model_name
+        );
+    }
+
+    // Downcast to Codex to call review
+    let codex = agent
+        .as_any_mut()
+        .downcast_mut::<crate::codex::Codex>()
+        .expect("Failed to get Codex agent for review");
+
+    codex
+        .review(
+            uncommitted,
+            base.as_deref(),
+            commit.as_deref(),
+            title.as_deref(),
+        )
+        .await?;
 
     Ok(())
 }
@@ -461,36 +423,36 @@ fn process_agent_output(output: &crate::output::AgentOutput, show_usage: bool) -
         }
 
         // Display usage statistics if requested
-        if show_usage {
-            if let Some(usage) = &output.usage {
-                info!(
-                    "Token usage - Input: {}, Output: {}",
-                    usage.input_tokens, usage.output_tokens
-                );
+        if show_usage
+            && let Some(usage) = &output.usage
+        {
+            info!(
+                "Token usage - Input: {}, Output: {}",
+                usage.input_tokens, usage.output_tokens
+            );
 
-                if let Some(cache_read) = usage.cache_read_tokens {
-                    if cache_read > 0 {
-                        info!("Cache read: {} tokens", cache_read);
-                    }
-                }
+            if let Some(cache_read) = usage.cache_read_tokens
+                && cache_read > 0
+            {
+                info!("Cache read: {} tokens", cache_read);
+            }
 
-                if let Some(cache_creation) = usage.cache_creation_tokens {
-                    if cache_creation > 0 {
-                        info!("Cache created: {} tokens", cache_creation);
-                    }
-                }
+            if let Some(cache_creation) = usage.cache_creation_tokens
+                && cache_creation > 0
+            {
+                info!("Cache created: {} tokens", cache_creation);
+            }
 
-                if let Some(web_search) = usage.web_search_requests {
-                    if web_search > 0 {
-                        info!("Web search requests: {}", web_search);
-                    }
-                }
+            if let Some(web_search) = usage.web_search_requests
+                && web_search > 0
+            {
+                info!("Web search requests: {}", web_search);
+            }
 
-                if let Some(web_fetch) = usage.web_fetch_requests {
-                    if web_fetch > 0 {
-                        info!("Web fetch requests: {}", web_fetch);
-                    }
-                }
+            if let Some(web_fetch) = usage.web_fetch_requests
+                && web_fetch > 0
+            {
+                info!("Web fetch requests: {}", web_fetch);
             }
         }
     }

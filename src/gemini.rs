@@ -24,6 +24,7 @@ pub struct Gemini {
     root: Option<String>,
     skip_permissions: bool,
     output_format: Option<String>,
+    add_dirs: Vec<String>,
 }
 
 impl Gemini {
@@ -34,6 +35,7 @@ impl Gemini {
             root: None,
             skip_permissions: false,
             output_format: None,
+            add_dirs: Vec::new(),
         }
     }
 
@@ -70,6 +72,10 @@ impl Gemini {
 
         if !self.model.is_empty() && self.model != "auto" {
             cmd.args(["--model", &self.model]);
+        }
+
+        for dir in &self.add_dirs {
+            cmd.args(["--include-directories", dir]);
         }
 
         if !interactive {
@@ -150,6 +156,10 @@ impl Agent for Gemini {
         self.output_format = format;
     }
 
+    fn set_add_dirs(&mut self, dirs: Vec<String>) {
+        self.add_dirs = dirs;
+    }
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
@@ -161,6 +171,42 @@ impl Agent for Gemini {
 
     async fn run_interactive(&self, prompt: Option<&str>) -> Result<()> {
         self.execute(true, prompt).await
+    }
+
+    async fn run_resume(&self, session_id: Option<&str>, _last: bool) -> Result<()> {
+        let mut cmd = Command::new("gemini");
+
+        if let Some(ref root) = self.root {
+            cmd.current_dir(root);
+        }
+
+        if let Some(id) = session_id {
+            cmd.args(["--resume", id]);
+        } else {
+            cmd.args(["--resume", "latest"]);
+        }
+
+        if self.skip_permissions {
+            cmd.args(["--approval-mode", "yolo"]);
+        }
+
+        if !self.model.is_empty() && self.model != "auto" {
+            cmd.args(["--model", &self.model]);
+        }
+
+        for dir in &self.add_dirs {
+            cmd.args(["--include-directories", dir]);
+        }
+
+        cmd.stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit());
+
+        let status = cmd.status().await?;
+        if !status.success() {
+            anyhow::bail!("Gemini resume failed with status: {}", status);
+        }
+        Ok(())
     }
 
     async fn cleanup(&self) -> Result<()> {
