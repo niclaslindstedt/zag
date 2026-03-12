@@ -27,6 +27,7 @@ pub struct Claude {
     input_format: Option<String>,
     add_dirs: Vec<String>,
     worktree: Option<Option<String>>,
+    capture_output: bool,
 }
 
 impl Claude {
@@ -40,6 +41,7 @@ impl Claude {
             input_format: None,
             add_dirs: Vec::new(),
             worktree: None,
+            capture_output: false,
         }
     }
 
@@ -62,11 +64,18 @@ impl Claude {
             cmd.current_dir(root);
         }
 
+        // When capture_output is set (e.g. by auto-selector), use "json" format
+        // so stdout is piped and parsed into AgentOutput
+        let effective_output_format = if self.capture_output && self.output_format.is_none() {
+            Some("json".to_string())
+        } else {
+            self.output_format.clone()
+        };
+
         // Determine if we should capture structured output
         // Default to streaming unified output when no format is specified in print mode
         let capture_json = !interactive
-            && self
-                .output_format
+            && effective_output_format
                 .as_ref()
                 .is_none_or(|f| f == "json" || f == "json-pretty" || f == "stream-json");
 
@@ -75,7 +84,7 @@ impl Claude {
 
             // Add --verbose and --output-format for JSON outputs
             // Default to stream-json when no output format is specified
-            match self.output_format.as_deref() {
+            match effective_output_format.as_deref() {
                 Some("json") | Some("json-pretty") => {
                     // For both json and json-pretty, pass "json" to claude CLI
                     // We handle the pretty printing in the wrapper
@@ -135,7 +144,7 @@ impl Claude {
         }
 
         // Check if we should pass through native JSON without conversion
-        let is_native_json = self.output_format.as_deref() == Some("native-json");
+        let is_native_json = effective_output_format.as_deref() == Some("native-json");
 
         if interactive {
             // Interactive mode - inherit all stdio
@@ -156,7 +165,7 @@ impl Claude {
             crate::process::run_with_captured_stderr(&mut cmd).await?;
             Ok(None)
         } else if capture_json {
-            let output_format = self.output_format.as_deref();
+            let output_format = effective_output_format.as_deref();
             let is_streaming = output_format == Some("stream-json") || output_format.is_none();
 
             if is_streaming {
@@ -417,6 +426,10 @@ impl Agent for Claude {
 
     fn set_output_format(&mut self, format: Option<String>) {
         self.output_format = format;
+    }
+
+    fn set_capture_output(&mut self, capture: bool) {
+        self.capture_output = capture;
     }
 
     fn set_add_dirs(&mut self, dirs: Vec<String>) {
