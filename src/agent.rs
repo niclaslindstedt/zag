@@ -113,6 +113,13 @@ pub trait Agent {
 
     fn set_output_format(&mut self, format: Option<String>);
 
+    /// Enable output capture mode.
+    ///
+    /// When set, non-interactive `run()` pipes stdout, captures the text,
+    /// and returns `Some(AgentOutput)`. Default is `false` (streams to terminal).
+    /// Claude handles capture via output_format, so the default is a no-op.
+    fn set_capture_output(&mut self, _capture: bool) {}
+
     /// Set additional directories for the agent to include.
     fn set_add_dirs(&mut self, dirs: Vec<String>);
 

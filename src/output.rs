@@ -170,6 +170,26 @@ pub struct LogEntry {
 }
 
 impl AgentOutput {
+    /// Create a minimal AgentOutput from captured text.
+    ///
+    /// Used by non-Claude agents when `capture_output` is enabled (e.g., for auto-selection).
+    pub fn from_text(agent: &str, text: &str) -> Self {
+        Self {
+            agent: agent.to_string(),
+            session_id: String::new(),
+            events: vec![Event::Result {
+                success: true,
+                message: Some(text.to_string()),
+                duration_ms: None,
+                num_turns: None,
+            }],
+            result: Some(text.to_string()),
+            is_error: false,
+            total_cost_usd: None,
+            usage: None,
+        }
+    }
+
     /// Extract log entries from the agent output.
     ///
     /// This converts events into a flat list of log entries suitable for

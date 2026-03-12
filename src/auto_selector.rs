@@ -73,8 +73,8 @@ pub async fn resolve(
         vec![],
     )?;
 
-    // Use json output to capture the result programmatically
-    agent.set_output_format(Some("json".to_string()));
+    // Capture stdout so we can parse the response programmatically
+    agent.set_capture_output(true);
 
     let output = agent.run(Some(&selector_prompt)).await?;
 

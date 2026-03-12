@@ -23,6 +23,7 @@ pub struct Codex {
     skip_permissions: bool,
     output_format: Option<String>,
     add_dirs: Vec<String>,
+    capture_output: bool,
 }
 
 impl Codex {
@@ -34,6 +35,7 @@ impl Codex {
             skip_permissions: false,
             output_format: None,
             add_dirs: Vec::new(),
+            capture_output: false,
         }
     }
 
@@ -96,7 +98,11 @@ impl Codex {
         Ok(())
     }
 
-    async fn execute(&self, interactive: bool, prompt: Option<&str>) -> Result<()> {
+    async fn execute(
+        &self,
+        interactive: bool,
+        prompt: Option<&str>,
+    ) -> Result<Option<AgentOutput>> {
         if !self.system_prompt.is_empty() {
             self.write_agents_file().await?;
         }
@@ -134,20 +140,45 @@ impl Codex {
             cmd.arg(p);
         }
 
-        cmd.stdin(Stdio::inherit())
-            .stdout(Stdio::inherit());
-
         if interactive {
-            cmd.stderr(Stdio::inherit());
+            cmd.stdin(Stdio::inherit())
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit());
             let status = cmd.status().await?;
             if !status.success() {
                 anyhow::bail!("Codex command failed with status: {}", status);
             }
-        } else {
-            crate::process::run_with_captured_stderr(&mut cmd).await?;
-        }
+            Ok(None)
+        } else if self.capture_output {
+            cmd.stdin(Stdio::inherit())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped());
 
-        Ok(())
+            let output = cmd.output().await?;
+
+            let stderr_text = String::from_utf8_lossy(&output.stderr);
+            let stderr_text = stderr_text.trim();
+            if !stderr_text.is_empty() {
+                for line in stderr_text.lines() {
+                    crate::logging::log_to_file(&format!("[STDERR] {}", line));
+                }
+            }
+
+            if !output.status.success() {
+                if stderr_text.is_empty() {
+                    anyhow::bail!("Codex command failed with status: {}", output.status);
+                } else {
+                    anyhow::bail!("{}", stderr_text);
+                }
+            }
+            let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            Ok(Some(AgentOutput::from_text("codex", &text)))
+        } else {
+            cmd.stdin(Stdio::inherit())
+                .stdout(Stdio::inherit());
+            crate::process::run_with_captured_stderr(&mut cmd).await?;
+            Ok(None)
+        }
     }
 }
 
@@ -211,17 +242,21 @@ impl Agent for Codex {
         self.add_dirs = dirs;
     }
 
+    fn set_capture_output(&mut self, capture: bool) {
+        self.capture_output = capture;
+    }
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
 
     async fn run(&self, prompt: Option<&str>) -> Result<Option<AgentOutput>> {
-        self.execute(false, prompt).await?;
-        Ok(None)
+        self.execute(false, prompt).await
     }
 
     async fn run_interactive(&self, prompt: Option<&str>) -> Result<()> {
-        self.execute(true, prompt).await
+        self.execute(true, prompt).await?;
+        Ok(())
     }
 
     async fn run_resume(&self, session_id: Option<&str>, last: bool) -> Result<()> {
