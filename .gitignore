@@ -4,3 +4,6 @@
 .agent/
 
 .DS_Store
+
+# Coverage output
+.coverage/

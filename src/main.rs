@@ -600,3 +600,7 @@ fn process_agent_output(output: &crate::output::AgentOutput, show_usage: bool) -
 
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "main_tests.rs"]
+mod tests;

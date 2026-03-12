@@ -114,3 +114,7 @@ impl AgentFactory {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "factory_tests.rs"]
+mod tests;

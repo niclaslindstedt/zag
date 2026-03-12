@@ -560,3 +560,7 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "output_tests.rs"]
+mod tests;
