@@ -105,10 +105,10 @@ impl Codex {
 
         if !interactive {
             cmd.args(["exec", "--skip-git-repo-check"]);
-            if let Some(ref format) = self.output_format {
-                if format == "json" {
-                    cmd.arg("--json");
-                }
+            if let Some(ref format) = self.output_format
+                && format == "json"
+            {
+                cmd.arg("--json");
             }
         }
 

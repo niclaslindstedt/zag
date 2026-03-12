@@ -62,7 +62,7 @@ impl Claude {
             && self
                 .output_format
                 .as_ref()
-                .map_or(true, |f| f == "json" || f == "json-pretty" || f == "stream-json");
+                .is_none_or(|f| f == "json" || f == "json-pretty" || f == "stream-json");
 
         if !interactive {
             cmd.arg("--print");
@@ -110,10 +110,10 @@ impl Claude {
         }
 
         // Add input format if specified (only works with --print)
-        if !interactive {
-            if let Some(ref input_fmt) = self.input_format {
-                cmd.args(["--input-format", input_fmt]);
-            }
+        if !interactive
+            && let Some(ref input_fmt) = self.input_format
+        {
+            cmd.args(["--input-format", input_fmt]);
         }
 
         if let Some(p) = prompt {

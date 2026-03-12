@@ -63,20 +63,19 @@ fn init_log_file() {
         .create(true)
         .append(true)
         .open(&log_path)
+        && let Ok(mut guard) = LOG_FILE.lock()
     {
-        if let Ok(mut guard) = LOG_FILE.lock() {
-            *guard = Some(file);
-        }
+        *guard = Some(file);
     }
 }
 
 /// Write a message to the log file.
 fn write_to_log_file(msg: &str) {
-    if let Ok(mut guard) = LOG_FILE.lock() {
-        if let Some(ref mut file) = *guard {
-            let timestamp = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%.3f");
-            let _ = writeln!(file, "{} {}", timestamp, msg);
-        }
+    if let Ok(mut guard) = LOG_FILE.lock()
+        && let Some(ref mut file) = *guard
+    {
+        let timestamp = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%.3f");
+        let _ = writeln!(file, "{} {}", timestamp, msg);
     }
 }
 
@@ -87,6 +86,7 @@ pub fn log_to_file(msg: &str) {
 }
 
 /// Get the path to the current session's log directory.
+#[allow(dead_code)]
 pub fn logs_dir() -> PathBuf {
     Config::global_logs_dir()
 }

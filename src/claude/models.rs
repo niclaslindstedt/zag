@@ -390,10 +390,10 @@ fn find_tool_name(events: &[UnifiedEvent], tool_use_id: &str) -> Option<String> 
     for event in events.iter().rev() {
         if let UnifiedEvent::AssistantMessage { content, .. } = event {
             for block in content {
-                if let UnifiedContentBlock::ToolUse { id, name, .. } = block {
-                    if id == tool_use_id {
-                        return Some(name.clone());
-                    }
+                if let UnifiedContentBlock::ToolUse { id, name, .. } = block
+                    && id == tool_use_id
+                {
+                    return Some(name.clone());
                 }
             }
         }

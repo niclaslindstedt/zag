@@ -215,6 +215,7 @@ impl Config {
     }
 
     /// Get the .agent directory path.
+    #[allow(dead_code)]
     pub fn agent_dir(root: Option<&str>) -> PathBuf {
         let base = Self::resolve_base_dir(root);
         base.join(".agent")
@@ -227,6 +228,7 @@ impl Config {
     }
 
     /// Ensure the .agent directory exists.
+    #[allow(dead_code)]
     pub fn ensure_agent_dir(root: Option<&str>) -> Result<PathBuf> {
         let dir = Self::agent_dir(root);
         std::fs::create_dir_all(&dir)
@@ -251,6 +253,7 @@ impl Config {
     }
 
     /// Get the global default model (without agent-specific override).
+    #[allow(dead_code)]
     pub fn default_model(&self) -> Option<&str> {
         self.defaults.model.as_deref()
     }
@@ -269,6 +272,7 @@ impl Config {
     pub const VALID_PROVIDERS: &'static [&'static str] = &["claude", "codex", "gemini", "copilot"];
 
     /// Get a config value by dot-notation key.
+    #[allow(dead_code)]
     pub fn get_value(&self, key: &str) -> Option<String> {
         match key {
             "provider" => self.defaults.provider.clone(),

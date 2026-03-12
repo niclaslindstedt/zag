@@ -134,35 +134,35 @@ async fn main() -> Result<()> {
             commit,
             title,
         } => {
-            run_review(
+            run_review(ReviewParams {
                 uncommitted,
                 base,
                 commit,
                 title,
-                cli.system_prompt,
-                cli.model,
-                cli.root,
-                cli.auto_approve,
-                cli.add_dirs,
+                system_prompt: cli.system_prompt,
+                model: cli.model,
+                root: cli.root,
+                auto_approve: cli.auto_approve,
+                add_dirs: cli.add_dirs,
                 quiet,
-            )
+            })
             .await?;
         }
         action => {
             let provider = resolve_provider(cli.provider.as_deref(), cli.root.as_deref())?;
             let display_name = capitalize(&provider);
-            run_agent_action(
-                &display_name,
-                &provider,
+            run_agent_action(AgentActionParams {
+                agent_name: display_name,
+                provider,
                 action,
-                cli.system_prompt,
-                cli.model,
-                cli.root,
-                cli.auto_approve,
-                cli.add_dirs,
+                system_prompt: cli.system_prompt,
+                model: cli.model,
+                root: cli.root,
+                auto_approve: cli.auto_approve,
+                add_dirs: cli.add_dirs,
                 show_usage,
                 quiet,
-            )
+            })
             .await?;
         }
     }
@@ -240,9 +240,9 @@ fn run_config(args: Vec<String>, root: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-async fn run_agent_action(
-    agent_name: &str,
-    provider: &str,
+struct AgentActionParams {
+    agent_name: String,
+    provider: String,
     action: Commands,
     system_prompt: Option<String>,
     model: Option<String>,
@@ -251,7 +251,21 @@ async fn run_agent_action(
     add_dirs: Vec<String>,
     show_usage: bool,
     quiet: bool,
-) -> Result<()> {
+}
+
+async fn run_agent_action(params: AgentActionParams) -> Result<()> {
+    let AgentActionParams {
+        agent_name,
+        provider,
+        action,
+        system_prompt,
+        model,
+        root,
+        auto_approve,
+        add_dirs,
+        show_usage,
+        quiet,
+    } = params;
     // Log configuration details
     if let Some(ref m) = model {
         debug!("Model specified: {}", m);
@@ -289,7 +303,7 @@ async fn run_agent_action(
     // Create agent with spinner
     let spinner = logging::spinner(format!("Initializing {} agent", agent_name));
     let mut agent = AgentFactory::create(
-        provider,
+        &provider,
         system_prompt,
         model,
         root,
@@ -371,7 +385,7 @@ async fn run_agent_action(
     Ok(())
 }
 
-async fn run_review(
+struct ReviewParams {
     uncommitted: bool,
     base: Option<String>,
     commit: Option<String>,
@@ -382,7 +396,21 @@ async fn run_review(
     auto_approve: bool,
     add_dirs: Vec<String>,
     quiet: bool,
-) -> Result<()> {
+}
+
+async fn run_review(params: ReviewParams) -> Result<()> {
+    let ReviewParams {
+        uncommitted,
+        base,
+        commit,
+        title,
+        system_prompt,
+        model,
+        root,
+        auto_approve,
+        add_dirs,
+        quiet,
+    } = params;
     if !uncommitted && base.is_none() && commit.is_none() {
         bail!("Review requires at least one of: --uncommitted, --base <BRANCH>, --commit <SHA>");
     }

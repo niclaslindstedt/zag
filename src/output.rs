@@ -178,10 +178,10 @@ impl AgentOutput {
         let mut entries = Vec::new();
 
         for event in &self.events {
-            if let Some(entry) = event_to_log_entry(event) {
-                if entry.level >= min_level {
-                    entries.push(entry);
-                }
+            if let Some(entry) = event_to_log_entry(event)
+                && entry.level >= min_level
+            {
+                entries.push(entry);
             }
         }
 
@@ -194,11 +194,13 @@ impl AgentOutput {
     }
 
     /// Check if the session completed successfully.
+    #[allow(dead_code)]
     pub fn is_success(&self) -> bool {
         !self.is_error
     }
 
     /// Get all tool executions from the session.
+    #[allow(dead_code)]
     pub fn tool_executions(&self) -> Vec<&Event> {
         self.events
             .iter()
@@ -207,6 +209,7 @@ impl AgentOutput {
     }
 
     /// Get all errors from the session.
+    #[allow(dead_code)]
     pub fn errors(&self) -> Vec<&Event> {
         self.events
             .iter()
@@ -420,21 +423,21 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
                         const BLUE: &str = "\x1b[34m";
 
                         // Special formatting for Bash tool
-                        if name == "Bash" {
-                            if let serde_json::Value::Object(obj) = input {
-                                let description = obj.get("description")
-                                    .and_then(|v| v.as_str())
-                                    .unwrap_or("Run command");
-                                let command = obj.get("command")
-                                    .and_then(|v| v.as_str())
-                                    .unwrap_or("");
+                        if name == "Bash"
+                            && let serde_json::Value::Object(obj) = input
+                        {
+                            let description = obj.get("description")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("Run command");
+                            let command = obj.get("command")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("");
 
-                                return Some(format!(
-                                    "{}{}{} {}{} {}[{}]{}\n{}{}└── {}{}",
-                                    INDENT, BLUE, RECORD_ICON, description, RESET, id_color, id_suffix, RESET,
-                                    INDENT_RESULT, DIM, command, RESET
-                                ));
-                            }
+                            return Some(format!(
+                                "{}{}{} {}{} {}[{}]{}\n{}{}└── {}{}",
+                                INDENT, BLUE, RECORD_ICON, description, RESET, id_color, id_suffix, RESET,
+                                INDENT_RESULT, DIM, command, RESET
+                            ));
                         }
 
                         // Format input parameters for non-Bash tools

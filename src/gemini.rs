@@ -78,10 +78,10 @@ impl Gemini {
             cmd.args(["--include-directories", dir]);
         }
 
-        if !interactive {
-            if let Some(ref format) = self.output_format {
-                cmd.args(["--output-format", format]);
-            }
+        if !interactive
+            && let Some(ref format) = self.output_format
+        {
+            cmd.args(["--output-format", format]);
         }
 
         if let Some(p) = prompt {
