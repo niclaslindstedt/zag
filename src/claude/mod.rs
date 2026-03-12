@@ -26,6 +26,7 @@ pub struct Claude {
     output_format: Option<String>,
     input_format: Option<String>,
     add_dirs: Vec<String>,
+    worktree: Option<Option<String>>,
 }
 
 impl Claude {
@@ -38,11 +39,16 @@ impl Claude {
             output_format: None,
             input_format: None,
             add_dirs: Vec::new(),
+            worktree: None,
         }
     }
 
     pub fn set_input_format(&mut self, format: Option<String>) {
         self.input_format = format;
+    }
+
+    pub fn set_worktree(&mut self, name: Option<String>) {
+        self.worktree = Some(name);
     }
 
     async fn execute(
@@ -114,6 +120,14 @@ impl Claude {
             && let Some(ref input_fmt) = self.input_format
         {
             cmd.args(["--input-format", input_fmt]);
+        }
+
+        // Pass --worktree to claude binary (native support)
+        if let Some(ref wt) = self.worktree {
+            cmd.arg("--worktree");
+            if let Some(name) = wt {
+                cmd.arg(name);
+            }
         }
 
         if let Some(p) = prompt {

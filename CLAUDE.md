@@ -304,6 +304,12 @@ agent --debug exec "analyze this code"
 # Enable quiet mode (suppress all logging)
 agent -q exec "write tests"
 
+# Worktree mode (isolated git worktree per session)
+agent -w run                          # Auto-generated worktree name
+agent --worktree run                  # Same as above
+agent -w my-feature run               # Named worktree
+agent -p codex -w run                 # Works with any provider
+
 # Combine flags
 agent --debug --model opus -a exec "complex task"
 agent -q exec "simple task" -o json
@@ -405,3 +411,47 @@ agent review [--uncommitted] [--base <BRANCH>] [--commit <SHA>] [--title <TITLE>
 ```
 
 Uses Codex under the hood for code review.
+
+## Worktree Mode
+
+The `--worktree` (or `-w`) flag creates an isolated git worktree for the session, keeping changes separate from the main working tree.
+
+```bash
+# Auto-generated worktree name
+agent -w run
+
+# Named worktree
+agent -w my-feature exec "implement feature X"
+
+# Works with any provider
+agent -p codex -w run
+agent -p gemini -w my-task exec "analyze code"
+```
+
+### Behavior per Provider
+
+| Provider | Behavior |
+|----------|----------|
+| Claude | Flag is passed through to `claude` binary (native `--worktree` support) |
+| Codex, Gemini, Copilot | Wrapper creates worktree via `git worktree add --detach`, sets agent root to worktree path |
+
+### Worktree Location
+
+- **Claude**: Managed by the `claude` binary (typically `.claude/worktrees/`)
+- **Other providers**: Created at `<repo>/.git/agent-worktrees/<name>/`
+
+### Restrictions
+
+- Cannot be used with `resume`, `review`, or `config` subcommands
+- Requires a git repository (errors if not in one)
+- No automatic cleanup (matches Claude's behavior)
+
+## How to Implement New Features
+
+Pattern for adding new CLI features:
+
+1. **Add CLI flag** to `Cli` struct in `src/main.rs` (use `global = true` for cross-subcommand flags)
+2. **If cross-cutting**: Handle in `run_agent_action()` before agent creation (e.g., worktree creation for non-Claude providers)
+3. **If agent-specific**: Add to `Agent` trait or use the downcast pattern via `as_any_mut()` (e.g., `input_format` for Claude)
+4. **If native in underlying binary**: Pass through the flag in the agent's `execute()` method (e.g., `--worktree` for Claude)
+5. **If not native**: Implement the behavior in the wrapper before delegating to the agent (e.g., worktree creation for Codex/Gemini/Copilot)

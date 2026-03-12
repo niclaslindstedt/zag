@@ -8,6 +8,7 @@ mod gemini;
 mod logging;
 mod output;
 mod process;
+mod worktree;
 
 use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
@@ -54,6 +55,10 @@ struct Cli {
     /// Additional directories to include
     #[arg(long = "add-dir", global = true)]
     add_dirs: Vec<String>,
+
+    /// Create a git worktree for this session (optionally specify a name)
+    #[arg(short = 'w', long, global = true)]
+    worktree: Option<Option<String>>,
 
     #[command(subcommand)]
     command: Commands,
@@ -124,6 +129,16 @@ async fn main() -> Result<()> {
     let show_usage = cli.show_usage;
     let quiet = cli.quiet;
 
+    // Validate --worktree usage
+    if cli.worktree.is_some() {
+        match &cli.command {
+            Commands::Resume { .. } => bail!("--worktree cannot be used with resume"),
+            Commands::Review { .. } => bail!("--worktree cannot be used with review"),
+            Commands::Config { .. } => bail!("--worktree cannot be used with config"),
+            _ => {}
+        }
+    }
+
     match cli.command {
         Commands::Config { args } => {
             run_config(args, cli.root.as_deref())?;
@@ -162,6 +177,7 @@ async fn main() -> Result<()> {
                 add_dirs: cli.add_dirs,
                 show_usage,
                 quiet,
+                worktree: cli.worktree,
             })
             .await?;
         }
@@ -251,6 +267,7 @@ struct AgentActionParams {
     add_dirs: Vec<String>,
     show_usage: bool,
     quiet: bool,
+    worktree: Option<Option<String>>,
 }
 
 async fn run_agent_action(params: AgentActionParams) -> Result<()> {
@@ -265,6 +282,7 @@ async fn run_agent_action(params: AgentActionParams) -> Result<()> {
         add_dirs,
         show_usage,
         quiet,
+        worktree: worktree_flag,
     } = params;
     // Log configuration details
     if let Some(ref m) = model {
@@ -282,6 +300,32 @@ async fn run_agent_action(params: AgentActionParams) -> Result<()> {
     if !add_dirs.is_empty() {
         debug!("Additional directories: {:?}", add_dirs);
     }
+    if worktree_flag.is_some() {
+        debug!("Worktree mode enabled");
+    }
+
+    // Handle worktree creation for non-Claude providers
+    let effective_root = if let Some(ref wt_name) = worktree_flag {
+        if provider != "claude" {
+            let repo_root = worktree::git_repo_root(root.as_deref())?;
+            let name = wt_name
+                .as_deref()
+                .map(String::from)
+                .unwrap_or_else(worktree::generate_name);
+            let wt_path = worktree::create_worktree(&repo_root, &name)?;
+            if !quiet {
+                println!(
+                    "\x1b[32m✓\x1b[0m Worktree created at {}",
+                    wt_path.display()
+                );
+            }
+            Some(wt_path.to_string_lossy().to_string())
+        } else {
+            root.clone()
+        }
+    } else {
+        root.clone()
+    };
 
     // Extract output/input format from exec action
     let (output_format, input_format) = match &action {
@@ -306,7 +350,7 @@ async fn run_agent_action(params: AgentActionParams) -> Result<()> {
         &provider,
         system_prompt,
         model,
-        root,
+        effective_root,
         auto_approve,
         add_dirs,
     )?;
@@ -321,6 +365,14 @@ async fn run_agent_action(params: AgentActionParams) -> Result<()> {
         && let Some(claude_agent) = agent.as_any_mut().downcast_mut::<crate::claude::Claude>()
     {
         claude_agent.set_input_format(Some(input_fmt));
+    }
+
+    // Set worktree passthrough for Claude (it handles worktrees natively)
+    if let Some(ref wt_name) = worktree_flag
+        && provider == "claude"
+        && let Some(claude_agent) = agent.as_any_mut().downcast_mut::<crate::claude::Claude>()
+    {
+        claude_agent.set_worktree(wt_name.clone());
     }
 
     logging::finish_spinner_quiet(&spinner);
