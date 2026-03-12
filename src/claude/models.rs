@@ -115,6 +115,14 @@ pub enum ContentBlock {
         name: String,
         input: serde_json::Value,
     },
+
+    /// Thinking content (extended thinking)
+    Thinking {
+        #[serde(default)]
+        thinking: String,
+        #[serde(flatten)]
+        extra: HashMap<String, serde_json::Value>,
+    },
 }
 
 /// A tool result block in a user message.
@@ -243,15 +251,18 @@ impl From<ClaudeOutput> for AgentOutput {
                 } => {
                     session_id = sid;
 
-                    // Convert content blocks
+                    // Convert content blocks (skip thinking blocks)
                     let content: Vec<UnifiedContentBlock> = message
                         .content
                         .into_iter()
-                        .map(|block| match block {
-                            ContentBlock::Text { text } => UnifiedContentBlock::Text { text },
-                            ContentBlock::ToolUse { id, name, input } => {
-                                UnifiedContentBlock::ToolUse { id, name, input }
+                        .filter_map(|block| match block {
+                            ContentBlock::Text { text } => {
+                                Some(UnifiedContentBlock::Text { text })
                             }
+                            ContentBlock::ToolUse { id, name, input } => {
+                                Some(UnifiedContentBlock::ToolUse { id, name, input })
+                            }
+                            ContentBlock::Thinking { .. } => None,
                         })
                         .collect();
 

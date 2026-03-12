@@ -281,17 +281,18 @@ fn convert_claude_event_to_unified(event: &models::ClaudeEvent) -> Option<crate:
             let content: Vec<UnifiedContentBlock> = message
                 .content
                 .iter()
-                .map(|block| match block {
-                    models::ContentBlock::Text { text } => UnifiedContentBlock::Text {
+                .filter_map(|block| match block {
+                    models::ContentBlock::Text { text } => Some(UnifiedContentBlock::Text {
                         text: text.clone(),
-                    },
+                    }),
                     models::ContentBlock::ToolUse { id, name, input } => {
-                        UnifiedContentBlock::ToolUse {
+                        Some(UnifiedContentBlock::ToolUse {
                             id: id.clone(),
                             name: name.clone(),
                             input: input.clone(),
-                        }
+                        })
                     }
+                    models::ContentBlock::Thinking { .. } => None,
                 })
                 .collect();
 
