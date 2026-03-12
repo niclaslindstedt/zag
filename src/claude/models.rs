@@ -78,6 +78,10 @@ pub enum ClaudeEvent {
         permission_denials: Vec<PermissionDenial>,
         uuid: String,
     },
+
+    /// Unknown/unhandled event type (e.g., rate_limit_event) — silently ignored
+    #[serde(other)]
+    Other,
 }
 
 /// An assistant message from Claude.
@@ -326,6 +330,10 @@ impl From<ClaudeOutput> for AgentOutput {
                             result: tool_result,
                         });
                     }
+                }
+
+                ClaudeEvent::Other => {
+                    log::debug!("Skipping unknown Claude event type during output conversion");
                 }
 
                 ClaudeEvent::Result {

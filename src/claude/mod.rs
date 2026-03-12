@@ -190,23 +190,31 @@ impl Claude {
                 while let Some(line) = lines.next_line().await? {
                     if format_as_text || format_as_json {
                         // Parse the NDJSON line and convert to unified format
-                        if let Ok(claude_event) = serde_json::from_str::<models::ClaudeEvent>(&line) {
-                            // Convert individual event to unified format
-                            if let Some(unified_event) = convert_claude_event_to_unified(&claude_event) {
-                                if format_as_text {
-                                    // Format as beautiful text
-                                    if let Some(formatted) = crate::output::format_event_as_text(&unified_event) {
-                                        println!("{}", formatted);
-                                    }
-                                } else {
-                                    // Output as unified JSON (stream-json mode)
-                                    if let Ok(json) = serde_json::to_string(&unified_event) {
-                                        println!("{}", json);
+                        match serde_json::from_str::<models::ClaudeEvent>(&line) {
+                            Ok(claude_event) => {
+                                // Convert individual event to unified format
+                                if let Some(unified_event) = convert_claude_event_to_unified(&claude_event) {
+                                    if format_as_text {
+                                        // Format as beautiful text
+                                        if let Some(formatted) = crate::output::format_event_as_text(&unified_event) {
+                                            println!("{}", formatted);
+                                        }
+                                    } else {
+                                        // Output as unified JSON (stream-json mode)
+                                        if let Ok(json) = serde_json::to_string(&unified_event) {
+                                            println!("{}", json);
+                                        }
                                     }
                                 }
                             }
+                            Err(e) => {
+                                log::debug!(
+                                    "Failed to parse streaming Claude event: {}. Line: {}",
+                                    e,
+                                    &line[..line.len().min(200)]
+                                );
+                            }
                         }
-                        // If parsing fails, silently skip (could be a malformed line)
                     }
                 }
 
@@ -241,8 +249,23 @@ impl Claude {
 
                 // Parse JSON output
                 let json_str = String::from_utf8(output.stdout)?;
+                log::debug!(
+                    "Parsing Claude JSON output ({} bytes)",
+                    json_str.len()
+                );
                 let claude_output: models::ClaudeOutput = serde_json::from_str(&json_str)
-                    .map_err(|e| anyhow::anyhow!("Failed to parse Claude JSON output: {}", e))?;
+                    .map_err(|e| {
+                        log::debug!(
+                            "Failed to parse Claude JSON output: {}. First 500 chars: {}",
+                            e,
+                            &json_str[..json_str.len().min(500)]
+                        );
+                        anyhow::anyhow!("Failed to parse Claude JSON output: {}", e)
+                    })?;
+                log::debug!(
+                    "Parsed {} Claude events successfully",
+                    claude_output.len()
+                );
 
                 // Convert to unified AgentOutput
                 let agent_output: AgentOutput = claude_output.into();
@@ -355,6 +378,11 @@ fn convert_claude_event_to_unified(event: &models::ClaudeEvent) -> Option<crate:
             } else {
                 None
             }
+        }
+
+        ClaudeEvent::Other => {
+            log::debug!("Skipping unknown Claude event type during streaming conversion");
+            None
         }
 
         ClaudeEvent::Result {
