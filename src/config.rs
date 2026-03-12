@@ -28,6 +28,15 @@ pub struct Defaults {
     pub provider: Option<String>,
 }
 
+/// Auto-selection configuration.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AutoConfig {
+    /// Provider used for auto-selection (default: "claude")
+    pub provider: Option<String>,
+    /// Model used for auto-selection (default: "haiku")
+    pub model: Option<String>,
+}
+
 /// Root configuration structure.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Config {
@@ -37,6 +46,9 @@ pub struct Config {
     /// Per-agent model defaults
     #[serde(default)]
     pub models: AgentModels,
+    /// Auto-selection settings
+    #[serde(default)]
+    pub auto: AutoConfig,
 }
 
 impl Config {
@@ -268,8 +280,19 @@ impl Config {
         self.defaults.provider.as_deref()
     }
 
-    /// Valid provider names.
-    pub const VALID_PROVIDERS: &'static [&'static str] = &["claude", "codex", "gemini", "copilot"];
+    /// Get the auto-selection provider, if configured.
+    pub fn auto_provider(&self) -> Option<&str> {
+        self.auto.provider.as_deref()
+    }
+
+    /// Get the auto-selection model, if configured.
+    pub fn auto_model(&self) -> Option<&str> {
+        self.auto.model.as_deref()
+    }
+
+    /// Valid provider names (including "auto").
+    pub const VALID_PROVIDERS: &'static [&'static str] =
+        &["claude", "codex", "gemini", "copilot", "auto"];
 
     /// Get a config value by dot-notation key.
     #[allow(dead_code)]
@@ -282,6 +305,8 @@ impl Config {
             "model.codex" => self.models.codex.clone(),
             "model.gemini" => self.models.gemini.clone(),
             "model.copilot" => self.models.copilot.clone(),
+            "auto.provider" => self.auto.provider.clone(),
+            "auto.model" => self.auto.model.clone(),
             _ => None,
         }
     }
@@ -312,8 +337,10 @@ impl Config {
             "model.codex" => self.models.codex = Some(value.to_string()),
             "model.gemini" => self.models.gemini = Some(value.to_string()),
             "model.copilot" => self.models.copilot = Some(value.to_string()),
+            "auto.provider" => self.auto.provider = Some(value.to_string()),
+            "auto.model" => self.auto.model = Some(value.to_string()),
             _ => anyhow::bail!(
-                "Unknown config key '{}'. Available: provider, model, auto_approve, model.claude, model.codex, model.gemini, model.copilot",
+                "Unknown config key '{}'. Available: provider, model, auto_approve, model.claude, model.codex, model.gemini, model.copilot, auto.provider, auto.model",
                 key
             ),
         }
@@ -344,6 +371,11 @@ model = "medium"
 # codex = "gpt-5.2-codex"
 # gemini = "auto"
 # copilot = "claude-sonnet-4.5"
+
+[auto]
+# Settings for auto provider/model selection (-p auto / -m auto)
+# provider = "claude"
+# model = "haiku"
 "#
         .to_string()
     }

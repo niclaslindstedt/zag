@@ -1,4 +1,5 @@
 mod agent;
+mod auto_selector;
 mod claude;
 mod codex;
 mod config;
@@ -32,7 +33,7 @@ struct Cli {
     #[arg(long, global = true)]
     show_usage: bool,
 
-    /// Provider to use (claude, codex, gemini, copilot)
+    /// Provider to use (claude, codex, gemini, copilot, auto)
     #[arg(short = 'p', long, global = true)]
     provider: Option<String>,
 
@@ -40,7 +41,7 @@ struct Cli {
     #[arg(short, long, global = true)]
     system_prompt: Option<String>,
 
-    /// Model to use (agent-specific or size alias: small, medium, large)
+    /// Model to use (agent-specific, size alias: small/medium/large, or auto)
     #[arg(short, long, global = true)]
     model: Option<String>,
 
@@ -135,6 +136,18 @@ async fn main() -> Result<()> {
             Commands::Resume { .. } => bail!("--worktree cannot be used with resume"),
             Commands::Review { .. } => bail!("--worktree cannot be used with review"),
             Commands::Config { .. } => bail!("--worktree cannot be used with config"),
+            _ => {}
+        }
+    }
+
+    // Validate auto provider/model usage
+    let is_auto_provider = cli.provider.as_deref() == Some("auto");
+    let is_auto_model = cli.model.as_deref() == Some("auto");
+    if is_auto_provider || is_auto_model {
+        match &cli.command {
+            Commands::Resume { .. } => bail!("auto cannot be used with resume"),
+            Commands::Review { .. } => bail!("auto cannot be used with review"),
+            Commands::Config { .. } => bail!("auto cannot be used with config"),
             _ => {}
         }
     }
@@ -270,7 +283,64 @@ struct AgentActionParams {
     worktree: Option<Option<String>>,
 }
 
-async fn run_agent_action(params: AgentActionParams) -> Result<()> {
+async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
+    // Handle auto provider/model selection before anything else
+    let is_auto_provider = params.provider == "auto";
+    let is_auto_model = params.model.as_deref() == Some("auto");
+
+    if is_auto_provider || is_auto_model {
+        // Extract the prompt from the action for auto-selection
+        let task_prompt = match &params.action {
+            Commands::Run { prompt } => prompt.as_deref(),
+            Commands::Exec { prompt, .. } => Some(prompt.as_str()),
+            _ => None,
+        };
+
+        let task_prompt = task_prompt
+            .ok_or_else(|| anyhow::anyhow!("auto provider/model requires a prompt to analyze"))?;
+
+        let config = Config::load(params.root.as_deref()).unwrap_or_default();
+        let current_provider = if !is_auto_provider {
+            Some(params.provider.as_str())
+        } else {
+            None
+        };
+
+        let result = auto_selector::resolve(
+            task_prompt,
+            is_auto_provider,
+            is_auto_model,
+            current_provider,
+            &config,
+            params.root.as_deref(),
+        )
+        .await?;
+
+        if let Some(p) = result.provider {
+            params.provider = p;
+        }
+        if let Some(m) = result.model {
+            params.model = Some(m);
+        } else if is_auto_provider {
+            // Provider changed, clear model so the new provider's default is used
+            params.model = None;
+        }
+
+        params.agent_name = capitalize(&params.provider);
+
+        if !params.quiet {
+            let model_info = params
+                .model
+                .as_deref()
+                .map(|m| format!(" with model {}", m))
+                .unwrap_or_default();
+            println!(
+                "\x1b[32m✓\x1b[0m Auto-selected: {}{}",
+                params.agent_name, model_info
+            );
+        }
+    }
+
     let AgentActionParams {
         agent_name,
         provider,

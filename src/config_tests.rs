@@ -62,6 +62,7 @@ fn test_get_model_agent_specific_overrides_default() {
             claude: Some("opus".to_string()),
             ..Default::default()
         },
+        ..Default::default()
     };
     assert_eq!(config.get_model("claude"), Some("opus"));
     assert_eq!(config.get_model("codex"), Some("small"));
@@ -141,6 +142,7 @@ fn test_get_value() {
             claude: Some("opus".to_string()),
             ..Default::default()
         },
+        ..Default::default()
     };
     assert_eq!(config.get_value("provider"), Some("codex".to_string()));
     assert_eq!(config.get_value("model"), Some("large".to_string()));
@@ -281,6 +283,7 @@ fn test_config_serialization_roundtrip() {
             gemini: None,
             copilot: None,
         },
+        ..Default::default()
     };
     let serialized = toml::to_string_pretty(&config).unwrap();
     let deserialized: Config = toml::from_str(&serialized).unwrap();

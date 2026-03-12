@@ -36,6 +36,8 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/gemini.rs` | Gemini agent implementation |
 | `src/copilot.rs` | Copilot agent implementation |
 | `src/process.rs` | Subprocess helpers for stderr capture |
+| `src/auto_selector.rs` | Auto provider/model selection via lightweight LLM call |
+| `prompts/auto-selector-1_0.md` | Versioned prompt template for auto-selection |
 
 ## Model Size Abstraction
 
@@ -60,6 +62,46 @@ Each agent implements `model_for_size()` in its `Agent` trait implementation:
 | `small` / `s` | haiku | gpt-5.1-codex-mini | gemini-2.5-flash-lite | claude-haiku-4.5 |
 | `medium` / `m` | sonnet | gpt-5.2-codex | gemini-2.5-flash | claude-sonnet-4.5 |
 | `large` / `l` / `max` | opus | gpt-5.1-codex-max | gemini-2.5-pro | claude-opus-4.5 |
+
+## Auto Provider/Model Selection
+
+Use `-p auto` and/or `-m auto` to let a lightweight LLM call analyze your prompt and select the best provider/model:
+
+```bash
+# Auto-select provider (model uses provider's default)
+agent exec -p auto "say hello"
+
+# Auto-select model (uses configured/default provider)
+agent exec -m auto "refactor the auth system"
+
+# Auto-select both
+agent exec -p auto -m auto "complex multi-file refactor"
+```
+
+### How it works
+
+1. The CLI runs a quick non-interactive LLM call (default: Claude haiku) with the user's prompt
+2. The selector LLM analyzes task complexity and chooses the best provider/model
+3. The resolved values replace `"auto"` and execution continues normally
+
+### Configuration
+
+The selector LLM is configurable in `.agent/agent.toml`:
+
+```toml
+[auto]
+# Provider used for auto-selection (default: "claude")
+# provider = "claude"
+# Model used for auto-selection (default: "haiku")
+# model = "haiku"
+```
+
+Config keys: `auto.provider`, `auto.model`
+
+### Restrictions
+
+- Requires a prompt to analyze (errors if used with `run` without a prompt)
+- Cannot be used with `resume`, `review`, or `config` subcommands
 
 ## Configuration
 
@@ -102,6 +144,11 @@ model = "medium"
 # codex = "gpt-5.2-codex"
 # gemini = "auto"
 # copilot = "claude-sonnet-4.5"
+
+[auto]
+# Settings for auto provider/model selection (-p auto / -m auto)
+# provider = "claude"
+# model = "haiku"
 ```
 
 ### Config Subcommand
@@ -139,6 +186,8 @@ Settings are applied in this order (later overrides earlier):
 | `model.codex` | Default model for Codex agent (overrides model) |
 | `model.gemini` | Default model for Gemini agent (overrides model) |
 | `model.copilot` | Default model for Copilot agent (overrides model) |
+| `auto.provider` | Provider for auto-selection LLM call (default: "claude") |
+| `auto.model` | Model for auto-selection LLM call (default: "haiku") |
 
 ## Logging
 
