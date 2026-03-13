@@ -383,6 +383,81 @@ fn test_find_tool_name() {
 }
 
 #[test]
+fn test_parse_user_message_with_mixed_content_blocks() {
+    let json = r#"[
+        {
+            "type": "system",
+            "subtype": "init",
+            "session_id": "sess1",
+            "model": "opus",
+            "tools": ["Bash"],
+            "uuid": "u1"
+        },
+        {
+            "type": "assistant",
+            "message": {
+                "model": "opus",
+                "id": "msg1",
+                "type": "message",
+                "role": "assistant",
+                "content": [
+                    {"type": "tool_use", "id": "tool1", "name": "Bash", "input": {"command": "echo hi"}}
+                ],
+                "stop_reason": "tool_use",
+                "stop_sequence": null,
+                "usage": {"input_tokens": 50, "output_tokens": 20}
+            },
+            "parent_tool_use_id": null,
+            "session_id": "sess1",
+            "uuid": "u2"
+        },
+        {
+            "type": "user",
+            "message": {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "some injected text"},
+                    {"type": "tool_result", "tool_use_id": "tool1", "content": "hi", "is_error": false}
+                ]
+            },
+            "parent_tool_use_id": null,
+            "session_id": "sess1",
+            "uuid": "u3",
+            "tool_use_result": null
+        },
+        {
+            "type": "result",
+            "subtype": "success",
+            "is_error": false,
+            "duration_ms": 500,
+            "duration_api_ms": 400,
+            "num_turns": 1,
+            "result": "Done",
+            "session_id": "sess1",
+            "total_cost_usd": 0.001,
+            "usage": {"input_tokens": 100, "output_tokens": 30},
+            "permission_denials": [],
+            "uuid": "u4"
+        }
+    ]"#;
+
+    let claude_output: ClaudeOutput = serde_json::from_str(json).expect("Failed to parse");
+    let agent_output: AgentOutput = claude_output.into();
+
+    // Text blocks in user messages should be skipped; only tool_result produces ToolExecution
+    let tool_execs = agent_output.tool_executions();
+    assert_eq!(tool_execs.len(), 1);
+    if let crate::output::Event::ToolExecution {
+        tool_name, result, ..
+    } = tool_execs[0]
+    {
+        assert_eq!(tool_name, "Bash");
+        assert!(result.success);
+        assert_eq!(result.output.as_deref(), Some("hi"));
+    }
+}
+
+#[test]
 fn test_parse_system_event_with_cwd() {
     let json = r#"[
         {

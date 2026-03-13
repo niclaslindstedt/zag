@@ -402,17 +402,30 @@ fn convert_claude_event_to_unified(event: &models::ClaudeEvent) -> Option<crate:
         } => {
             // For streaming, we can't easily look up tool names from previous events
             // So we'll use "unknown" for the tool name in streaming mode
-            // This is a limitation of streaming individual events
-            if let Some(result_block) = message.content.first() {
+            // Find the first tool_result block (skip text and other blocks)
+            let first_tool_result = message.content.iter().find_map(|b| {
+                if let models::UserContentBlock::ToolResult {
+                    tool_use_id,
+                    content,
+                    is_error,
+                } = b
+                {
+                    Some((tool_use_id, content, is_error))
+                } else {
+                    None
+                }
+            });
+
+            if let Some((tool_use_id, content, is_error)) = first_tool_result {
                 let tool_result = ToolResult {
-                    success: !result_block.is_error,
-                    output: if !result_block.is_error {
-                        Some(result_block.content.clone())
+                    success: !is_error,
+                    output: if !is_error {
+                        Some(content.clone())
                     } else {
                         None
                     },
-                    error: if result_block.is_error {
-                        Some(result_block.content.clone())
+                    error: if *is_error {
+                        Some(content.clone())
                     } else {
                         None
                     },
@@ -421,7 +434,7 @@ fn convert_claude_event_to_unified(event: &models::ClaudeEvent) -> Option<crate:
 
                 Some(UnifiedEvent::ToolExecution {
                     tool_name: "unknown".to_string(),
-                    tool_id: result_block.tool_use_id.clone(),
+                    tool_id: tool_use_id.clone(),
                     input: serde_json::Value::Null,
                     result: tool_result,
                 })

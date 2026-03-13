@@ -99,11 +99,11 @@ pub struct Message {
     pub context_management: Option<serde_json::Value>,
 }
 
-/// A user message containing tool results.
+/// A user message containing tool results and other content.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserMessage {
     pub role: String,
-    pub content: Vec<ToolResultBlock>,
+    pub content: Vec<UserContentBlock>,
 }
 
 /// A content block in an assistant message.
@@ -129,15 +129,24 @@ pub enum ContentBlock {
     },
 }
 
-/// A tool result block in a user message.
+/// A content block in a user message (tool results, text, or other types).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolResultBlock {
-    pub tool_use_id: String,
-    #[serde(rename = "type")]
-    pub block_type: String,
-    pub content: String,
-    #[serde(default)]
-    pub is_error: bool,
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum UserContentBlock {
+    /// Tool result
+    ToolResult {
+        tool_use_id: String,
+        content: String,
+        #[serde(default)]
+        is_error: bool,
+    },
+
+    /// Text content
+    Text { text: String },
+
+    /// Any other content type
+    #[serde(other)]
+    Other,
 }
 
 /// Usage statistics for a message or session.
@@ -300,33 +309,39 @@ impl From<ClaudeOutput> for AgentOutput {
                 } => {
                     session_id = sid;
 
-                    // Convert tool results to tool execution events
-                    for result_block in message.content {
-                        // Try to find the corresponding tool use from previous assistant messages
-                        let tool_name = find_tool_name(&events, &result_block.tool_use_id)
-                            .unwrap_or_else(|| "unknown".to_string());
+                    // Convert tool results to tool execution events (skip non-tool-result blocks)
+                    for block in message.content {
+                        if let UserContentBlock::ToolResult {
+                            tool_use_id,
+                            content,
+                            is_error,
+                        } = block
+                        {
+                            let tool_name = find_tool_name(&events, &tool_use_id)
+                                .unwrap_or_else(|| "unknown".to_string());
 
-                        let tool_result = ToolResult {
-                            success: !result_block.is_error,
-                            output: if !result_block.is_error {
-                                Some(result_block.content.clone())
-                            } else {
-                                None
-                            },
-                            error: if result_block.is_error {
-                                Some(result_block.content.clone())
-                            } else {
-                                None
-                            },
-                            data: tool_use_result.clone(),
-                        };
+                            let tool_result = ToolResult {
+                                success: !is_error,
+                                output: if !is_error {
+                                    Some(content.clone())
+                                } else {
+                                    None
+                                },
+                                error: if is_error {
+                                    Some(content.clone())
+                                } else {
+                                    None
+                                },
+                                data: tool_use_result.clone(),
+                            };
 
-                        events.push(UnifiedEvent::ToolExecution {
-                            tool_name,
-                            tool_id: result_block.tool_use_id,
-                            input: serde_json::Value::Null,
-                            result: tool_result,
-                        });
+                            events.push(UnifiedEvent::ToolExecution {
+                                tool_name,
+                                tool_id: tool_use_id,
+                                input: serde_json::Value::Null,
+                                result: tool_result,
+                            });
+                        }
                     }
                 }
 
