@@ -1,4 +1,5 @@
 use crate::agent::{Agent, ModelSize};
+use crate::debug;
 use crate::output::AgentOutput;
 use anyhow::Result;
 use async_trait::async_trait;
@@ -97,6 +98,70 @@ impl Codex {
         Ok(())
     }
 
+    /// Parse Codex NDJSON output to extract thread_id and agent message text.
+    ///
+    /// Codex's `--json` flag outputs streaming JSON events (NDJSON format).
+    /// The actual agent response is inside `item.completed` events where
+    /// `item.type == "agent_message"`. The thread_id is in the `thread.started` event.
+    fn parse_ndjson_output(raw: &str) -> (Option<String>, Option<String>) {
+        let mut thread_id = None;
+        let mut agent_text = String::new();
+
+        for line in raw.lines() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+
+            if let Ok(event) = serde_json::from_str::<serde_json::Value>(line) {
+                match event.get("type").and_then(|t| t.as_str()) {
+                    Some("thread.started") => {
+                        thread_id = event
+                            .get("thread_id")
+                            .and_then(|t| t.as_str())
+                            .map(String::from);
+                    }
+                    Some("item.completed") => {
+                        if let Some(item) = event.get("item")
+                            && item.get("type").and_then(|t| t.as_str())
+                                == Some("agent_message")
+                            && let Some(text) = item.get("text").and_then(|t| t.as_str())
+                        {
+                            if !agent_text.is_empty() {
+                                agent_text.push('\n');
+                            }
+                            agent_text.push_str(text);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        let text = if agent_text.is_empty() {
+            None
+        } else {
+            Some(agent_text)
+        };
+        (thread_id, text)
+    }
+
+    /// Build an AgentOutput from raw codex output, parsing NDJSON if output_format is "json".
+    fn build_output(&self, raw: &str) -> AgentOutput {
+        if self.output_format.as_deref() == Some("json") {
+            let (thread_id, agent_text) = Self::parse_ndjson_output(raw);
+            let text = agent_text.unwrap_or_else(|| raw.to_string());
+            let mut output = AgentOutput::from_text("codex", &text);
+            if let Some(tid) = thread_id {
+                debug!("Codex thread_id for retries: {}", tid);
+                output.session_id = tid;
+            }
+            output
+        } else {
+            AgentOutput::from_text("codex", raw)
+        }
+    }
+
     async fn execute(
         &self,
         interactive: bool,
@@ -170,8 +235,8 @@ impl Codex {
                     anyhow::bail!("{}", stderr_text);
                 }
             }
-            let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            Ok(Some(AgentOutput::from_text("codex", &text)))
+            let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            Ok(Some(self.build_output(&raw)))
         } else {
             cmd.stdin(Stdio::inherit()).stdout(Stdio::inherit());
             crate::process::run_with_captured_stderr(&mut cmd).await?;
@@ -179,6 +244,10 @@ impl Codex {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "codex_tests.rs"]
+mod tests;
 
 impl Default for Codex {
     fn default() -> Self {
@@ -255,6 +324,69 @@ impl Agent for Codex {
     async fn run_interactive(&self, prompt: Option<&str>) -> Result<()> {
         self.execute(true, prompt).await?;
         Ok(())
+    }
+
+    async fn run_resume_with_prompt(
+        &self,
+        session_id: &str,
+        prompt: &str,
+    ) -> Result<Option<AgentOutput>> {
+        if !self.system_prompt.is_empty() {
+            self.write_agents_file().await?;
+        }
+
+        let mut cmd = Command::new("codex");
+        cmd.args(["exec", "--skip-git-repo-check"]);
+
+        if self.output_format.as_deref() == Some("json") {
+            cmd.arg("--json");
+        }
+
+        if let Some(ref root) = self.root {
+            cmd.args(["--cd", root]);
+        }
+
+        cmd.args(["--model", &self.model]);
+
+        for dir in &self.add_dirs {
+            cmd.args(["--add-dir", dir]);
+        }
+
+        if self.skip_permissions {
+            cmd.args([
+                "--dangerously-bypass-approvals-and-sandbox",
+                "--sandbox",
+                "danger-full-access",
+            ]);
+        }
+
+        cmd.args(["--resume", session_id]);
+        cmd.arg(prompt);
+
+        cmd.stdin(Stdio::inherit())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        let output = cmd.output().await?;
+
+        let stderr_text = String::from_utf8_lossy(&output.stderr);
+        let stderr_text = stderr_text.trim();
+        if !stderr_text.is_empty() {
+            for line in stderr_text.lines() {
+                crate::logging::log_to_file(&format!("[STDERR] {}", line));
+            }
+        }
+
+        if !output.status.success() {
+            if stderr_text.is_empty() {
+                anyhow::bail!("Codex resume failed with status: {}", output.status);
+            } else {
+                anyhow::bail!("{}", stderr_text);
+            }
+        }
+
+        let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        Ok(Some(self.build_output(&raw)))
     }
 
     async fn run_resume(&self, session_id: Option<&str>, last: bool) -> Result<()> {

@@ -613,6 +613,10 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     let user_output_format = output_fmt_clone.clone();
     if json_mode && user_output_format.is_none() {
         agent.set_output_format(Some("json".to_string()));
+        // Non-Claude agents need capture_output explicitly set (Claude handles it via output_format)
+        if provider != "claude" {
+            agent.set_capture_output(true);
+        }
     }
 
     logging::finish_spinner_quiet(&spinner);
