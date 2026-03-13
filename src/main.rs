@@ -202,7 +202,8 @@ async fn main() -> Result<()> {
                 serde_json::from_str::<serde_json::Value>(schema_str)
                     .map_err(|e| anyhow::anyhow!("Invalid JSON schema: {}", e))?
             };
-            // Validate it's a valid JSON schema by checking it has a type field
+            json_validation::validate_schema(&schema_json)
+                .map_err(|e| anyhow::anyhow!("{}", e))?;
             debug!(
                 "JSON schema loaded: {} bytes",
                 serde_json::to_string(&schema_json)
