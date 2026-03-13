@@ -60,7 +60,7 @@ pub async fn resolve(
 
     // Determine which provider/model to use for auto-selection
     let selector_provider = config.auto_provider().unwrap_or("claude").to_string();
-    let selector_model = config.auto_model().unwrap_or("haiku").to_string();
+    let selector_model = config.auto_model().unwrap_or("sonnet").to_string();
 
     debug!(
         "Auto-selector using {} with model {}",

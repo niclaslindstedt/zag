@@ -33,7 +33,7 @@ pub struct Defaults {
 pub struct AutoConfig {
     /// Provider used for auto-selection (default: "claude")
     pub provider: Option<String>,
-    /// Model used for auto-selection (default: "haiku")
+    /// Model used for auto-selection (default: "sonnet")
     pub model: Option<String>,
 }
 

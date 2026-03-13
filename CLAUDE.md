@@ -94,8 +94,8 @@ The selector LLM is configurable in `.agent/agent.toml`:
 [auto]
 # Provider used for auto-selection (default: "claude")
 # provider = "claude"
-# Model used for auto-selection (default: "haiku")
-# model = "haiku"
+# Model used for auto-selection (default: "sonnet")
+# model = "sonnet"
 ```
 
 Config keys: `auto.provider`, `auto.model`
@@ -189,7 +189,7 @@ Settings are applied in this order (later overrides earlier):
 | `model.gemini` | Default model for Gemini agent (overrides model) |
 | `model.copilot` | Default model for Copilot agent (overrides model) |
 | `auto.provider` | Provider for auto-selection LLM call (default: "claude") |
-| `auto.model` | Model for auto-selection LLM call (default: "haiku") |
+| `auto.model` | Model for auto-selection LLM call (default: "sonnet") |
 
 ## Logging
 
