@@ -75,6 +75,10 @@ struct Cli {
     #[arg(long, global = true, value_name = "SCHEMA")]
     json_schema: Option<String>,
 
+    /// Stream JSON events (NDJSON format) — sets output format to stream-json
+    #[arg(long, global = true)]
+    json_stream: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -152,6 +156,25 @@ async fn main() -> Result<()> {
     // --json-schema implies --json
     let json_mode = cli.json || cli.json_schema.is_some();
     let json_schema = cli.json_schema;
+    let json_stream = cli.json_stream;
+
+    // Validate --json-stream is mutually exclusive with --json/--json-schema
+    if json_stream && json_mode {
+        bail!("--json-stream cannot be combined with --json or --json-schema");
+    }
+
+    // Validate --json-stream usage (same restrictions as --json)
+    if json_stream {
+        match &cli.command {
+            Commands::Resume { .. } => bail!("--json-stream cannot be used with resume"),
+            Commands::Review { .. } => bail!("--json-stream cannot be used with review"),
+            Commands::Config { .. } => bail!("--json-stream cannot be used with config"),
+            Commands::Run { prompt } if prompt.is_none() => {
+                bail!("--json-stream requires a prompt (use exec or run with a prompt)")
+            }
+            _ => {}
+        }
+    }
 
     // Validate --json/--json-schema usage
     if json_mode {
@@ -252,6 +275,7 @@ async fn main() -> Result<()> {
                 worktree: cli.worktree,
                 json_mode,
                 json_schema,
+                json_stream,
             })
             .await?;
         }
@@ -345,6 +369,7 @@ struct AgentActionParams {
     worktree: Option<Option<String>>,
     json_mode: bool,
     json_schema: Option<String>,
+    json_stream: bool,
 }
 
 async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
@@ -422,6 +447,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         worktree: worktree_flag,
         json_mode,
         json_schema,
+        json_stream,
     } = params;
     let is_exec = matches!(action, Commands::Exec { .. });
     let show_wrapper = !quiet && (!is_exec || verbose);
@@ -617,6 +643,11 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         if provider != "claude" {
             agent.set_capture_output(true);
         }
+    }
+
+    // --json-stream: set output format to stream-json (unless user already specified -o)
+    if json_stream && user_output_format.is_none() {
+        agent.set_output_format(Some("stream-json".to_string()));
     }
 
     logging::finish_spinner_quiet(&spinner);

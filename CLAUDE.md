@@ -395,6 +395,7 @@ agent -p codex -w run                 # Works with any provider
 agent exec --json "list 3 colors"                                        # Request JSON output
 agent exec --json-schema '{"type":"object"}' "list 3 colors"             # With schema validation
 agent exec --json-schema schema.json "list 3 colors"                     # Schema from file
+agent exec --json-stream "list 3 colors"                                 # Stream JSON events (NDJSON)
 
 # Combine flags
 agent --debug --model opus -a exec "complex task"
@@ -462,6 +463,9 @@ agent exec --json-schema '{"type":"object","properties":{"colors":{"type":"array
 # Validate against schema file
 agent exec --json-schema schema.json "list 3 colors"
 
+# Stream JSON events (NDJSON) — convenience for -o stream-json
+agent exec --json-stream "list 3 colors"
+
 # Also works with run (when a prompt is provided)
 agent run --json "list 3 colors"
 ```
@@ -469,6 +473,7 @@ agent run --json "list 3 colors"
 ### Behavior
 
 - `--json-schema` implies `--json`
+- `--json-stream` is mutually exclusive with `--json`/`--json-schema`
 - Cannot be used with `resume`, `review`, or `config`
 - Requires a prompt (doesn't work with interactive `run` without a prompt)
 - **Claude**: Uses native `--json-schema` support when a schema is provided
