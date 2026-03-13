@@ -9,7 +9,7 @@ use anyhow::{Result, bail};
 use log::debug;
 use serde::Deserialize;
 
-const PROMPT_TEMPLATE: &str = include_str!("../prompts/auto-selector-3_0.md");
+const PROMPT_TEMPLATE: &str = include_str!("../prompts/auto-selector-3_1.md");
 
 /// Result of auto-selection.
 #[derive(Debug)]
@@ -26,6 +26,8 @@ struct AutoSelectorResponse {
     provider: Option<String>,
     model: Option<String>,
     reason: Option<String>,
+    /// If true, the selector declined to route the task.
+    declined: Option<bool>,
 }
 
 /// Resolve provider and/or model automatically by analyzing the task prompt.
@@ -99,25 +101,34 @@ fn build_mode_and_format(
     auto_model: bool,
     current_provider: Option<&str>,
 ) -> (String, String) {
+    let declined_format =
+        r#"If you decline the task, respond with: {"declined": true, "reason": "..."}"#;
+
     if auto_provider && auto_model {
         let mode = "provider and model".to_string();
-        let response_format = r#"Respond with ONLY a JSON object on a single line, nothing else:
-{"provider": "<provider>", "model": "<size>", "reason": "..."}"#
-            .to_string();
+        let response_format = format!(
+            "Respond with ONLY a JSON object on a single line, nothing else:\n\
+             {{\"provider\": \"<provider>\", \"model\": \"<size>\", \"reason\": \"...\"}}\n\n\
+             {declined_format}"
+        );
         (mode, response_format)
     } else if auto_provider {
         let mode = "provider".to_string();
-        let response_format = r#"Respond with ONLY a JSON object on a single line, nothing else:
-{"provider": "<provider>", "reason": "..."}"#
-            .to_string();
+        let response_format = format!(
+            "Respond with ONLY a JSON object on a single line, nothing else:\n\
+             {{\"provider\": \"<provider>\", \"reason\": \"...\"}}\n\n\
+             {declined_format}"
+        );
         (mode, response_format)
     } else {
         // auto_model only
         let provider = current_provider.unwrap_or("claude");
         let mode = format!("model for {}", provider);
-        let response_format = r#"Respond with ONLY a JSON object on a single line, nothing else:
-{"model": "<model>", "reason": "..."}"#
-            .to_string();
+        let response_format = format!(
+            "Respond with ONLY a JSON object on a single line, nothing else:\n\
+             {{\"model\": \"<model>\", \"reason\": \"...\"}}\n\n\
+             {declined_format}"
+        );
         (mode, response_format)
     }
 }
@@ -148,6 +159,29 @@ fn strip_markdown_fences(text: &str) -> &str {
     }
 }
 
+/// Check if a response looks like an LLM refusal rather than a valid selection.
+fn is_refusal(response: &str) -> bool {
+    let lower = response.to_lowercase();
+    let refusal_patterns = [
+        "i'm sorry",
+        "i'm not able",
+        "i cannot",
+        "i can't",
+        "i'm unable",
+        "i apologize",
+        "i must decline",
+        "not appropriate",
+        "i'm not going to",
+        "i don't think i should",
+        "i won't",
+        "as an ai",
+        "as a language model",
+        "content policy",
+        "against my guidelines",
+    ];
+    refusal_patterns.iter().any(|p| lower.contains(p))
+}
+
 /// Parse the response into an AutoResult.
 ///
 /// Tries JSON parsing first, then falls back to text-based parsing for robustness.
@@ -157,12 +191,31 @@ fn parse_response(
     auto_model: bool,
     current_provider: Option<&str>,
 ) -> Result<AutoResult> {
+    // Check for LLM refusal before attempting to parse
+    if is_refusal(response) {
+        bail!(
+            "Auto-selector declined to process the prompt. The task may have been \
+             filtered by the model's content policy. Try running with an explicit \
+             provider and model instead of auto."
+        );
+    }
+
     // Try JSON parsing first
     let cleaned = strip_markdown_fences(response);
     if let Ok(parsed) = serde_json::from_str::<AutoSelectorResponse>(cleaned) {
         debug!("Auto-selector parsed JSON response successfully");
         if let Some(ref reason) = parsed.reason {
             debug!("Auto-selector reason: {}", reason);
+        }
+
+        // Check for structured decline
+        if parsed.declined == Some(true) {
+            let reason = parsed.reason.as_deref().unwrap_or("no reason given");
+            bail!(
+                "Auto-selector declined the task: {}. \
+                 Try running with an explicit provider and model instead of auto.",
+                reason
+            );
         }
 
         return build_result_from_json(parsed, auto_provider, auto_model, current_provider);

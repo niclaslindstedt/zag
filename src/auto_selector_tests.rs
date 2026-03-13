@@ -207,6 +207,96 @@ fn test_build_mode_and_format_both() {
     assert!(response_format.contains("model"));
 }
 
+// === Refusal detection tests ===
+
+#[test]
+fn test_is_refusal_detects_common_patterns() {
+    assert!(is_refusal("I'm sorry, I can't help with that request."));
+    assert!(is_refusal("I cannot assist with this type of content."));
+    assert!(is_refusal("I apologize, but I'm not able to process this."));
+    assert!(is_refusal("As an AI, I must decline this request."));
+    assert!(is_refusal("This is against my guidelines."));
+    assert!(is_refusal("I'm unable to help with that."));
+    assert!(is_refusal("I won't be able to assist with that."));
+}
+
+#[test]
+fn test_is_refusal_allows_valid_responses() {
+    assert!(!is_refusal(r#"{"provider": "claude", "model": "opus"}"#));
+    assert!(!is_refusal("claude opus"));
+    assert!(!is_refusal("gemini"));
+    assert!(!is_refusal(r#"{"provider": "codex", "reason": "fast code gen"}"#));
+}
+
+#[test]
+fn test_parse_response_refusal_returns_error() {
+    let result = parse_response(
+        "I'm sorry, but I can't assist with that kind of request.",
+        true,
+        true,
+        None,
+    );
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("declined to process"));
+    assert!(err.contains("content policy"));
+}
+
+#[test]
+fn test_parse_response_structured_decline() {
+    let result = parse_response(
+        r#"{"declined": true, "reason": "not a software engineering task"}"#,
+        true,
+        true,
+        None,
+    );
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("declined the task"));
+    assert!(err.contains("not a software engineering task"));
+}
+
+#[test]
+fn test_parse_response_structured_decline_without_reason() {
+    let result = parse_response(
+        r#"{"declined": true}"#,
+        true,
+        false,
+        None,
+    );
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("declined the task"));
+    assert!(err.contains("no reason given"));
+}
+
+#[test]
+fn test_parse_response_declined_false_is_not_decline() {
+    // declined: false should not trigger decline handling
+    let result = parse_response(
+        r#"{"declined": false, "provider": "claude", "model": "opus", "reason": "test"}"#,
+        true,
+        true,
+        None,
+    );
+    assert!(result.is_ok());
+    let r = result.unwrap();
+    assert_eq!(r.provider, Some("claude".to_string()));
+    assert_eq!(r.model, Some("opus".to_string()));
+}
+
+#[test]
+fn test_parse_response_refusal_with_provider_only() {
+    let result = parse_response(
+        "I cannot help with this task as it goes against my guidelines.",
+        true,
+        false,
+        None,
+    );
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("declined"));
+}
+
 #[test]
 fn test_prompt_template_loads() {
     // Verify the prompt template is embedded and contains expected placeholders
