@@ -372,6 +372,17 @@ struct AgentActionParams {
     json_stream: bool,
 }
 
+/// Wrap a user prompt with explicit JSON instructions for non-Claude agents.
+fn wrap_prompt_for_json(prompt: &str) -> String {
+    format!(
+        "IMPORTANT: You must respond with ONLY raw JSON. No explanations, no markdown fences, \
+         no text before or after the JSON. Your entire response must be parseable as a single JSON value.\n\n\
+         {}\n\n\
+         Remember: respond with ONLY valid JSON. Nothing else.",
+        prompt
+    )
+}
+
 async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     // Handle auto provider/model selection before anything else
     let is_auto_provider = params.provider == "auto";
@@ -692,7 +703,13 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
             if json_mode && prompt.is_some() {
                 // JSON mode with prompt — run non-interactively for output capture
                 info!("Starting non-interactive session (JSON mode)");
-                let agent_output = agent.run(prompt.as_deref()).await?;
+                let wrapped = if provider != "claude" {
+                    prompt.as_deref().map(|p| wrap_prompt_for_json(p))
+                } else {
+                    None
+                };
+                let run_prompt = wrapped.as_deref().or(prompt.as_deref());
+                let agent_output = agent.run(run_prompt).await?;
                 handle_json_output(agent_output, &*agent, &resolved_schema, show_usage, verbose)
                     .await?;
             } else {
@@ -702,7 +719,12 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         }
         Commands::Exec { prompt, .. } => {
             info!("Starting non-interactive session");
-            let agent_output = agent.run(Some(&prompt)).await?;
+            let run_prompt = if json_mode && provider != "claude" {
+                wrap_prompt_for_json(&prompt)
+            } else {
+                prompt.clone()
+            };
+            let agent_output = agent.run(Some(&run_prompt)).await?;
 
             if json_mode {
                 // JSON validation and retry loop
