@@ -219,9 +219,27 @@ agent --debug run "write a hello world program"
 # - Agent lifecycle events
 ```
 
+### Exec Output Behavior
+
+In `exec` mode, only the raw agent text output is shown by default — no spinners, status messages, icons, or colored formatting. This makes exec output clean for scripting and piping.
+
+Use `--verbose` (or `-v`) to opt into the full styled output with icons, tool execution details, and status messages.
+
+### Verbose Mode
+
+Enable detailed formatted output with the `--verbose` (or `-v`) flag. In `exec` mode, this restores the styled output with icons (⏺, ←, ✓), colors, tool execution details, and wrapper status messages:
+
+```bash
+# Verbose exec - shows styled output with icons and status
+agent exec -v "write a hello world program"
+
+# Also works with interactive mode (no behavioral change since run always shows full output)
+agent -v run
+```
+
 ### Quiet Mode
 
-Disable all logging except agent output with the `--quiet` (or `-q`) flag. This is useful for scripting and piping agent output:
+Disable all logging except agent output with the `--quiet` (or `-q`) flag. This applies to all modes including `run`:
 
 ```bash
 # Quiet mode - only shows agent output
@@ -243,7 +261,16 @@ result=$(agent -q exec "analyze this code")
 ### Example Output
 
 ```bash
-# Normal mode
+# Exec mode (default: clean output)
+$ agent exec "say hello"
+Hello!
+
+# Exec mode with verbose
+$ agent exec -v "say hello"
+✓ Claude initialized with model opus
+    ⏺ Hello!
+
+# Interactive mode
 $ agent --model sonnet run
 ⠋ Initializing Claude agent
 ✓ Claude initialized with model sonnet
@@ -353,6 +380,9 @@ agent --debug exec "analyze this code"
 # Enable quiet mode (suppress all logging)
 agent -q exec "write tests"
 
+# Enable verbose mode (show styled output with icons in exec)
+agent -v exec "write tests"
+
 # Worktree mode (isolated git worktree per session)
 agent -w run                          # Auto-generated worktree name
 agent --worktree run                  # Same as above
@@ -362,6 +392,7 @@ agent -p codex -w run                 # Works with any provider
 # Combine flags
 agent --debug --model opus -a exec "complex task"
 agent -q exec "simple task" -o json
+agent -v exec "complex task"          # Verbose exec with icons
 
 # Configuration
 agent config                       # Print full config

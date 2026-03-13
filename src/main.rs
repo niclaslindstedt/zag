@@ -29,6 +29,10 @@ struct Cli {
     #[arg(short, long, global = true)]
     quiet: bool,
 
+    /// Verbose mode - show detailed formatted output with icons and status messages
+    #[arg(short = 'v', long, global = true)]
+    verbose: bool,
+
     /// Show token usage statistics (only applies to JSON output mode)
     #[arg(long, global = true)]
     show_usage: bool,
@@ -123,12 +127,17 @@ enum Commands {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
+    // In exec mode without --verbose, suppress info-level logging (treat as quiet for the logger)
+    let is_exec = matches!(cli.command, Commands::Exec { .. });
+    let effective_quiet = cli.quiet || (is_exec && !cli.verbose);
+
     // Initialize logging
-    logging::init(cli.debug, cli.quiet);
+    logging::init(cli.debug, effective_quiet);
     debug!("Debug logging enabled");
 
     let show_usage = cli.show_usage;
     let quiet = cli.quiet;
+    let verbose = cli.verbose;
 
     // Validate --worktree usage
     if cli.worktree.is_some() {
@@ -190,6 +199,7 @@ async fn main() -> Result<()> {
                 add_dirs: cli.add_dirs,
                 show_usage,
                 quiet,
+                verbose,
                 worktree: cli.worktree,
             })
             .await?;
@@ -280,6 +290,7 @@ struct AgentActionParams {
     add_dirs: Vec<String>,
     show_usage: bool,
     quiet: bool,
+    verbose: bool,
     worktree: Option<Option<String>>,
 }
 
@@ -328,7 +339,9 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
 
         params.agent_name = capitalize(&params.provider);
 
-        if !params.quiet {
+        let is_exec_action = matches!(params.action, Commands::Exec { .. });
+        let show_wrapper = !params.quiet && (!is_exec_action || params.verbose);
+        if show_wrapper {
             let model_info = params
                 .model
                 .as_deref()
@@ -352,8 +365,11 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         add_dirs,
         show_usage,
         quiet,
+        verbose,
         worktree: worktree_flag,
     } = params;
+    let is_exec = matches!(action, Commands::Exec { .. });
+    let show_wrapper = !quiet && (!is_exec || verbose);
     // Log configuration details
     if let Some(ref m) = model {
         debug!("Model specified: {}", m);
@@ -383,7 +399,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
                 .map(String::from)
                 .unwrap_or_else(worktree::generate_name);
             let wt_path = worktree::create_worktree(&repo_root, &name)?;
-            if !quiet {
+            if show_wrapper {
                 println!(
                     "\x1b[32m✓\x1b[0m Worktree created at {}",
                     wt_path.display()
@@ -414,8 +430,14 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         debug!("Input format: {}", i);
     }
 
-    // Create agent with spinner
-    let spinner = logging::spinner(format!("Initializing {} agent", agent_name));
+    // Create agent with spinner (skip in exec mode unless verbose)
+    let spinner = if show_wrapper {
+        logging::spinner(format!("Initializing {} agent", agent_name))
+    } else {
+        let pb = indicatif::ProgressBar::new_spinner();
+        pb.set_draw_target(indicatif::ProgressDrawTarget::hidden());
+        pb
+    };
     let mut agent = AgentFactory::create(
         &provider,
         system_prompt,
@@ -429,12 +451,14 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     let output_fmt_clone = output_format.clone();
     agent.set_output_format(output_format);
 
-    // Set input format if specified (Claude only)
-    if let Some(input_fmt) = input_format
-        && provider == "claude"
+    // Set verbose and input format for Claude
+    if provider == "claude"
         && let Some(claude_agent) = agent.as_any_mut().downcast_mut::<crate::claude::Claude>()
     {
-        claude_agent.set_input_format(Some(input_fmt));
+        claude_agent.set_verbose(verbose);
+        if let Some(input_fmt) = input_format {
+            claude_agent.set_input_format(Some(input_fmt));
+        }
     }
 
     // Set worktree passthrough for Claude (it handles worktrees natively)
@@ -452,7 +476,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     let model_name = agent.get_model();
     let auto_approve_suffix = if auto_approve { " (auto approve)" } else { "" };
 
-    if !quiet {
+    if show_wrapper {
         println!(
             "\x1b[32m✓\x1b[0m {} initialized with model {}{}",
             agent_name, model_name, auto_approve_suffix
@@ -485,7 +509,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
                         }
                     }
                     _ => {
-                        process_agent_output(&agent_out, show_usage)?;
+                        process_agent_output(&agent_out, show_usage, verbose)?;
                     }
                 }
             }
@@ -577,18 +601,19 @@ async fn run_review(params: ReviewParams) -> Result<()> {
 }
 
 /// Process and display structured agent output
-fn process_agent_output(output: &crate::output::AgentOutput, show_usage: bool) -> Result<()> {
+fn process_agent_output(
+    output: &crate::output::AgentOutput,
+    show_usage: bool,
+    verbose: bool,
+) -> Result<()> {
     use crate::output::{Event, LogLevel};
 
-    // Check if quiet mode is enabled
-    let quiet = logging::is_quiet();
+    // Show decorations only when verbose is enabled (or not in quiet mode for non-exec paths)
+    let show_decorations = verbose && !logging::is_quiet();
 
-    if !quiet {
-        // Determine minimum log level based on debug flag
-        // For now, we'll use Info level; this can be made configurable via CLI flags
+    if show_decorations {
         let min_level = LogLevel::Info;
 
-        // Extract and display log entries
         let log_entries = output.to_log_entries(min_level);
         for entry in log_entries {
             match entry.level {
@@ -599,7 +624,6 @@ fn process_agent_output(output: &crate::output::AgentOutput, show_usage: bool) -
             }
         }
 
-        // Always display tool executions
         for event in &output.events {
             if let Event::ToolExecution {
                 tool_name, result, ..
@@ -618,22 +642,20 @@ fn process_agent_output(output: &crate::output::AgentOutput, show_usage: bool) -
         }
     }
 
-    // Display final result if available (always shown, even in quiet mode)
+    // Display final result if available (always shown)
     if let Some(result) = output.final_result() {
-        if quiet {
-            println!("{}", result);
-        } else {
+        if show_decorations {
             println!("\n{}", result);
+        } else {
+            println!("{}", result);
         }
     }
 
-    if !quiet {
-        // Display cost if available
+    if show_decorations {
         if let Some(cost) = output.total_cost_usd {
             info!("Total cost: ${:.4}", cost);
         }
 
-        // Display usage statistics if requested
         if show_usage
             && let Some(usage) = &output.usage
         {

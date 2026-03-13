@@ -28,6 +28,7 @@ pub struct Claude {
     add_dirs: Vec<String>,
     worktree: Option<Option<String>>,
     capture_output: bool,
+    verbose: bool,
 }
 
 impl Claude {
@@ -42,6 +43,7 @@ impl Claude {
             add_dirs: Vec::new(),
             worktree: None,
             capture_output: false,
+            verbose: false,
         }
     }
 
@@ -51,6 +53,10 @@ impl Claude {
 
     pub fn set_worktree(&mut self, name: Option<String>) {
         self.worktree = Some(name);
+    }
+
+    pub fn set_verbose(&mut self, verbose: bool) {
+        self.verbose = verbose;
     }
 
     async fn execute(
@@ -195,9 +201,20 @@ impl Claude {
                                 // Convert individual event to unified format
                                 if let Some(unified_event) = convert_claude_event_to_unified(&claude_event) {
                                     if format_as_text {
-                                        // Format as beautiful text
-                                        if let Some(formatted) = crate::output::format_event_as_text(&unified_event) {
-                                            println!("{}", formatted);
+                                        if self.verbose {
+                                            // Verbose: format as beautiful text with icons
+                                            if let Some(formatted) = crate::output::format_event_as_text(&unified_event) {
+                                                println!("{}", formatted);
+                                            }
+                                        } else {
+                                            // Default exec: plain text only from assistant messages
+                                            if let crate::output::Event::AssistantMessage { ref content, .. } = unified_event {
+                                                for block in content {
+                                                    if let crate::output::ContentBlock::Text { text } = block {
+                                                        print!("{}", text);
+                                                    }
+                                                }
+                                            }
                                         }
                                     } else {
                                         // Output as unified JSON (stream-json mode)
@@ -216,6 +233,13 @@ impl Claude {
                             }
                         }
                     }
+                }
+
+                // Flush stdout and add trailing newline for plain text mode
+                if format_as_text && !self.verbose {
+                    use std::io::Write;
+                    println!();
+                    let _ = std::io::stdout().flush();
                 }
 
                 crate::process::wait_with_stderr(child).await?;
