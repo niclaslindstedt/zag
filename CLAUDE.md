@@ -37,6 +37,7 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/copilot.rs` | Copilot agent implementation |
 | `src/process.rs` | Subprocess helpers for stderr capture |
 | `src/auto_selector.rs` | Auto provider/model selection via lightweight LLM call |
+| `src/session.rs` | Session-worktree mapping store (`sessions.json`) |
 | `src/json_validation.rs` | JSON and JSON Schema validation utilities |
 | `prompts/auto-selector-2_0.md` | Versioned prompt template for auto-selection (JSON response format) |
 
@@ -555,11 +556,34 @@ agent -p gemini -w my-task exec "analyze code"
 - **Claude**: Managed by the `claude` binary (typically `.claude/worktrees/`)
 - **Other providers**: Created at `<repo>/.git/agent-worktrees/<name>/`
 
+### Session Tracking & Resume
+
+Worktree sessions are tracked in `.agent/sessions.json`. Each session records the session ID, provider, worktree path, and creation timestamp.
+
+- A UUID session ID is generated for each worktree session
+- For Claude, the session ID is passed via `--session-id` to the Claude binary
+- `agent resume <session-id>` automatically resumes inside the correct worktree
+- If the worktree no longer exists, the stale mapping is removed and resume proceeds without it
+
+### Cleanup Prompt
+
+After interactive (`run`) worktree sessions, the CLI prompts:
+
+```
+> Worktree at /path/to/worktree
+> Keep workspace? [Y/n]
+```
+
+- **Y (default)**: Keeps the worktree and prints the resume command
+- **n**: Removes the worktree via `git worktree remove` and deletes the session mapping
+- `exec` sessions skip the prompt (always keep)
+- The same prompt appears after resuming a session that has a worktree
+
 ### Restrictions
 
-- Cannot be used with `resume`, `review`, or `config` subcommands
+- Cannot be used with `review` or `config` subcommands
+- `--worktree` flag is ignored with `resume` (worktree comes from session mapping)
 - Requires a git repository (errors if not in one)
-- No automatic cleanup (matches Claude's behavior)
 
 ## How to Implement New Features
 

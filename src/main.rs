@@ -10,6 +10,7 @@ mod json_validation;
 mod logging;
 mod output;
 mod process;
+mod session;
 mod worktree;
 
 use anyhow::{Result, bail};
@@ -188,10 +189,9 @@ async fn main() -> Result<()> {
         }
     }
 
-    // Validate --worktree usage
+    // Validate --worktree usage (ignored with resume — worktree comes from session mapping)
     if cli.worktree.is_some() {
         match &cli.command {
-            Commands::Resume { .. } => bail!("--worktree cannot be used with resume"),
             Commands::Review { .. } => bail!("--worktree cannot be used with review"),
             Commands::Config { .. } => bail!("--worktree cannot be used with config"),
             _ => {}
@@ -482,15 +482,31 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         system_prompt
     };
 
+    // Generate session ID and worktree name for worktree sessions
+    let is_worktree_session = worktree_flag.is_some() && !matches!(action, Commands::Resume { .. });
+    let session_id = if is_worktree_session {
+        Some(uuid::Uuid::new_v4().to_string())
+    } else {
+        None
+    };
+    let worktree_name = if is_worktree_session {
+        let name = worktree_flag
+            .as_ref()
+            .unwrap()
+            .as_deref()
+            .map(String::from)
+            .unwrap_or_else(worktree::generate_name);
+        Some(name)
+    } else {
+        None
+    };
+
     // Handle worktree creation for non-Claude providers
-    let effective_root = if let Some(ref wt_name) = worktree_flag {
+    let effective_root = if is_worktree_session {
         if provider != "claude" {
             let repo_root = worktree::git_repo_root(root.as_deref())?;
-            let name = wt_name
-                .as_deref()
-                .map(String::from)
-                .unwrap_or_else(worktree::generate_name);
-            let wt_path = worktree::create_worktree(&repo_root, &name)?;
+            let name = worktree_name.as_deref().unwrap();
+            let wt_path = worktree::create_worktree(&repo_root, name)?;
             if show_wrapper {
                 println!("\x1b[32m✓\x1b[0m Worktree created at {}", wt_path.display());
             }
@@ -500,6 +516,28 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         }
     } else {
         root.clone()
+    };
+
+    // Compute worktree path for session mapping
+    let worktree_path: Option<String> = if is_worktree_session {
+        if provider == "claude" {
+            // Claude creates worktrees at <repo-root>/.claude/worktrees/<name>
+            let repo_root = worktree::git_repo_root(root.as_deref())?;
+            let name = worktree_name.as_deref().unwrap();
+            Some(
+                repo_root
+                    .join(".claude")
+                    .join("worktrees")
+                    .join(name)
+                    .to_string_lossy()
+                    .to_string(),
+            )
+        } else {
+            // Non-Claude worktrees are at effective_root (already created above)
+            effective_root.clone()
+        }
+    } else {
+        None
     };
 
     // Extract output/input format from exec action
@@ -550,12 +588,15 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         }
     }
 
-    // Set worktree passthrough for Claude (it handles worktrees natively)
-    if let Some(ref wt_name) = worktree_flag
+    // Set worktree passthrough and session ID for Claude (it handles worktrees natively)
+    if is_worktree_session
         && provider == "claude"
         && let Some(claude_agent) = agent.as_any_mut().downcast_mut::<crate::claude::Claude>()
     {
-        claude_agent.set_worktree(wt_name.clone());
+        claude_agent.set_worktree(worktree_name.clone());
+        if let Some(ref sid) = session_id {
+            claude_agent.set_session_id(sid.clone());
+        }
     }
 
     // Set JSON schema on Claude agent (native --json-schema support)
@@ -587,6 +628,29 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
             agent_name, model_name, auto_approve_suffix
         );
     }
+
+    // Save session-worktree mapping before execution (so it survives Ctrl+C)
+    if let (Some(sid), Some(wt_path), Some(wt_name)) = (&session_id, &worktree_path, &worktree_name)
+    {
+        let mut store = session::SessionStore::load(root.as_deref()).unwrap_or_default();
+        store.add(session::SessionEntry {
+            session_id: sid.clone(),
+            provider: provider.clone(),
+            worktree_path: wt_path.clone(),
+            worktree_name: wt_name.clone(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+        });
+        if let Err(e) = store.save(root.as_deref()) {
+            log::warn!("Failed to save session mapping: {}", e);
+        }
+        debug!("Saved session mapping: {} -> {}", sid, wt_path);
+    }
+
+    // Track whether this was an interactive worktree session (for cleanup prompt)
+    let is_interactive_worktree = is_worktree_session && matches!(action, Commands::Run { .. });
+
+    // Track resume worktree path for cleanup prompt after resume
+    let mut resume_worktree_info: Option<(String, String)> = None; // (session_id, worktree_path)
 
     match action {
         Commands::Run { prompt } => {
@@ -631,9 +695,34 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
                 }
             }
         }
-        Commands::Resume { session_id, last } => {
+        Commands::Resume {
+            session_id: resume_id,
+            last,
+        } => {
+            // Look up worktree from session mapping
+            if let Some(ref sid) = resume_id {
+                let store = session::SessionStore::load(root.as_deref()).unwrap_or_default();
+                if let Some(entry) = store.find_by_session_id(sid) {
+                    let wt_path = std::path::Path::new(&entry.worktree_path);
+                    if wt_path.exists() {
+                        debug!("Resuming in worktree: {}", entry.worktree_path);
+                        agent.set_root(entry.worktree_path.clone());
+                        resume_worktree_info = Some((sid.clone(), entry.worktree_path.clone()));
+                    } else {
+                        log::warn!(
+                            "Worktree no longer exists at {}, resuming without it",
+                            entry.worktree_path
+                        );
+                        // Remove stale entry
+                        let mut store = store;
+                        store.remove(sid);
+                        let _ = store.save(root.as_deref());
+                    }
+                }
+            }
+
             info!("Resuming session");
-            agent.run_resume(session_id.as_deref(), last).await?;
+            agent.run_resume(resume_id.as_deref(), last).await?;
         }
         _ => unreachable!(),
     }
@@ -642,6 +731,64 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     debug!("Cleaning up agent resources");
     agent.cleanup().await?;
     info!("Session terminated");
+
+    // Cleanup prompt for interactive worktree sessions
+    let cleanup_info = if is_interactive_worktree {
+        session_id
+            .as_ref()
+            .zip(worktree_path.as_ref())
+            .map(|(sid, wtp)| (sid.clone(), wtp.clone()))
+    } else {
+        resume_worktree_info
+    };
+
+    if let Some((sid, wtp)) = cleanup_info {
+        prompt_worktree_cleanup(&sid, &wtp, root.as_deref())?;
+    }
+
+    Ok(())
+}
+
+/// Prompt the user whether to keep or delete a worktree after an interactive session.
+fn prompt_worktree_cleanup(
+    session_id: &str,
+    worktree_path: &str,
+    root: Option<&str>,
+) -> Result<()> {
+    use std::io::{self, BufRead, Write};
+
+    println!("\n\x1b[33m>\x1b[0m Worktree at {}", worktree_path);
+    print!("\x1b[33m>\x1b[0m Keep workspace? [Y/n] ");
+    io::stdout().flush()?;
+
+    let stdin = io::stdin();
+    let mut line = String::new();
+    stdin.lock().read_line(&mut line)?;
+    let answer = line.trim().to_lowercase();
+
+    if answer == "n" || answer == "no" {
+        let wt_path = std::path::Path::new(worktree_path);
+        if wt_path.exists() {
+            match worktree::remove_worktree(wt_path) {
+                Ok(()) => {
+                    println!("\x1b[32m✓\x1b[0m Worktree removed");
+                }
+                Err(e) => {
+                    log::warn!("Failed to remove worktree: {}", e);
+                    println!("\x1b[31m✗\x1b[0m Failed to remove worktree: {}", e);
+                }
+            }
+        }
+        // Remove session mapping
+        let mut store = session::SessionStore::load(root).unwrap_or_default();
+        store.remove(session_id);
+        let _ = store.save(root);
+    } else {
+        println!(
+            "\x1b[32m✓\x1b[0m Workspace kept. Resume with: agent resume {}",
+            session_id
+        );
+    }
 
     Ok(())
 }

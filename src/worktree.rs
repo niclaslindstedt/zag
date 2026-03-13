@@ -60,3 +60,21 @@ pub fn create_worktree(repo_root: &Path, name: &str) -> Result<PathBuf> {
     debug!("Worktree created at {}", worktree_path.display());
     Ok(worktree_path)
 }
+
+/// Remove a git worktree at the given path.
+pub fn remove_worktree(path: &Path) -> Result<()> {
+    debug!("Removing worktree at {}", path.display());
+
+    let output = std::process::Command::new("git")
+        .args(["worktree", "remove", path.to_str().unwrap(), "--force"])
+        .output()
+        .context("Failed to run git worktree remove")?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("Failed to remove worktree: {}", stderr.trim());
+    }
+
+    debug!("Worktree removed at {}", path.display());
+    Ok(())
+}

@@ -30,6 +30,7 @@ pub struct Claude {
     capture_output: bool,
     verbose: bool,
     json_schema: Option<String>,
+    session_id: Option<String>,
 }
 
 impl Claude {
@@ -46,6 +47,7 @@ impl Claude {
             capture_output: false,
             verbose: false,
             json_schema: None,
+            session_id: None,
         }
     }
 
@@ -63,6 +65,10 @@ impl Claude {
 
     pub fn set_json_schema(&mut self, schema: Option<String>) {
         self.json_schema = schema;
+    }
+
+    pub fn set_session_id(&mut self, id: String) {
+        self.session_id = Some(id);
     }
 
     async fn execute(
@@ -147,6 +153,11 @@ impl Claude {
             if let Some(name) = wt {
                 cmd.arg(name);
             }
+        }
+
+        // Pass --session-id to claude binary
+        if let Some(ref sid) = self.session_id {
+            cmd.args(["--session-id", sid]);
         }
 
         // Pass --json-schema to claude binary (native support)
