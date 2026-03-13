@@ -141,6 +141,18 @@ pub trait Agent {
     /// If neither, shows a session picker or resumes the most recent.
     async fn run_resume(&self, session_id: Option<&str>, last: bool) -> Result<()>;
 
+    /// Resume a previous session with a new prompt (for retry/correction).
+    ///
+    /// Returns `Some(AgentOutput)` if the agent supports structured output.
+    /// Default implementation returns an error indicating unsupported operation.
+    async fn run_resume_with_prompt(
+        &self,
+        _session_id: &str,
+        _prompt: &str,
+    ) -> Result<Option<AgentOutput>> {
+        anyhow::bail!("Resume with prompt is not supported by this agent")
+    }
+
     async fn cleanup(&self) -> Result<()>;
 }
 

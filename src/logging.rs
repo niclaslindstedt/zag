@@ -5,8 +5,8 @@ use log::LevelFilter;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Global flag to track if quiet mode is enabled
 static QUIET_MODE: AtomicBool = AtomicBool::new(false);
@@ -59,10 +59,7 @@ fn init_log_file() {
     let timestamp = chrono::Local::now().format("%Y-%m-%dT%H-%M-%S");
     let log_path = logs_dir.join(format!("agent-{}.log", timestamp));
 
-    if let Ok(file) = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&log_path)
+    if let Ok(file) = OpenOptions::new().create(true).append(true).open(&log_path)
         && let Ok(mut guard) = LOG_FILE.lock()
     {
         *guard = Some(file);

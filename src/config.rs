@@ -116,7 +116,7 @@ impl Config {
     /// Only applies when the config is stored in a git repository.
     fn ensure_gitignore(root: Option<&str>) -> Result<()> {
         let base = Self::resolve_base_dir(root);
-        
+
         // Only add to .gitignore if we're in a git repository
         // (i.e., not using global config directory)
         if let Some(r) = root {
@@ -131,7 +131,7 @@ impl Config {
                 return Ok(());
             }
         }
-        
+
         let gitignore_path = base.join(".gitignore");
 
         let content = if gitignore_path.exists() {
@@ -210,7 +210,7 @@ impl Config {
         }
 
         let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        
+
         // Try to find git root
         if let Some(git_root) = Self::find_git_root(&current_dir) {
             return git_root;
@@ -331,7 +331,10 @@ impl Config {
             "auto_approve" => match value.to_lowercase().as_str() {
                 "true" | "1" | "yes" => self.defaults.auto_approve = Some(true),
                 "false" | "0" | "no" => self.defaults.auto_approve = Some(false),
-                _ => anyhow::bail!("Invalid value '{}' for auto_approve. Use true or false.", value),
+                _ => anyhow::bail!(
+                    "Invalid value '{}' for auto_approve. Use true or false.",
+                    value
+                ),
             },
             "model.claude" => self.models.claude = Some(value.to_string()),
             "model.codex" => self.models.codex = Some(value.to_string()),

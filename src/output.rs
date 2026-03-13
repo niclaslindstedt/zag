@@ -446,17 +446,26 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
                         if name == "Bash"
                             && let serde_json::Value::Object(obj) = input
                         {
-                            let description = obj.get("description")
+                            let description = obj
+                                .get("description")
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("Run command");
-                            let command = obj.get("command")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("");
+                            let command = obj.get("command").and_then(|v| v.as_str()).unwrap_or("");
 
                             return Some(format!(
                                 "{}{}{} {}{} {}[{}]{}\n{}{}└── {}{}",
-                                INDENT, BLUE, RECORD_ICON, description, RESET, id_color, id_suffix, RESET,
-                                INDENT_RESULT, DIM, command, RESET
+                                INDENT,
+                                BLUE,
+                                RECORD_ICON,
+                                description,
+                                RESET,
+                                id_color,
+                                id_suffix,
+                                RESET,
+                                INDENT_RESULT,
+                                DIM,
+                                command,
+                                RESET
                             ));
                         }
 
@@ -466,7 +475,8 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
                                 String::new()
                             } else {
                                 // Format the parameters as key=value pairs
-                                let params: Vec<String> = obj.iter()
+                                let params: Vec<String> = obj
+                                    .iter()
                                     .map(|(key, value)| {
                                         let value_str = match value {
                                             serde_json::Value::String(s) => {
@@ -476,7 +486,7 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
                                                 } else {
                                                     format!("\"{}\"", s)
                                                 }
-                                            },
+                                            }
                                             serde_json::Value::Number(n) => n.to_string(),
                                             serde_json::Value::Bool(b) => b.to_string(),
                                             serde_json::Value::Null => "null".to_string(),
@@ -508,9 +518,7 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
         }
 
         Event::ToolExecution {
-            tool_id,
-            result,
-            ..
+            tool_id, result, ..
         } => {
             let id_suffix = &tool_id[tool_id.len().saturating_sub(4)..];
             let id_color = get_tool_id_color(id_suffix);
@@ -538,13 +546,7 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
             // First line: arrow icon with tool ID
             formatted_lines.push(format!(
                 "{}{}{}{} {}[{}]{}",
-                INDENT,
-                icon_color,
-                ARROW_ICON,
-                RESET,
-                id_color,
-                id_suffix,
-                RESET
+                INDENT, icon_color, ARROW_ICON, RESET, id_color, id_suffix, RESET
             ));
 
             // All result lines indented at 6 spaces

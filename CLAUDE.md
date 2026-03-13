@@ -37,7 +37,8 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/copilot.rs` | Copilot agent implementation |
 | `src/process.rs` | Subprocess helpers for stderr capture |
 | `src/auto_selector.rs` | Auto provider/model selection via lightweight LLM call |
-| `prompts/auto-selector-1_0.md` | Versioned prompt template for auto-selection |
+| `src/json_validation.rs` | JSON and JSON Schema validation utilities |
+| `prompts/auto-selector-2_0.md` | Versioned prompt template for auto-selection (JSON response format) |
 
 ## Model Size Abstraction
 
@@ -389,6 +390,11 @@ agent --worktree run                  # Same as above
 agent -w my-feature run               # Named worktree
 agent -p codex -w run                 # Works with any provider
 
+# JSON output mode
+agent exec --json "list 3 colors"                                        # Request JSON output
+agent exec --json-schema '{"type":"object"}' "list 3 colors"             # With schema validation
+agent exec --json-schema schema.json "list 3 colors"                     # Schema from file
+
 # Combine flags
 agent --debug --model opus -a exec "complex task"
 agent -q exec "simple task" -o json
@@ -440,6 +446,35 @@ When using `exec`, you can specify the output format with the `-o` or `--output`
 - **json-pretty**: Pretty-printed JSON output - captures the full session then outputs unified AgentOutput format
 - **stream-json**: Streaming JSON output in NDJSON format - each line is a unified Event as JSON
 - **native-json**: Claude's raw JSON output without conversion to unified format (Claude only)
+
+## JSON Output Mode
+
+Use `--json` to request structured JSON output from the agent. Use `--json-schema` to additionally validate the output against a JSON schema.
+
+```bash
+# Request JSON output
+agent exec --json "list 3 colors"
+
+# Validate against inline schema
+agent exec --json-schema '{"type":"object","properties":{"colors":{"type":"array"}}}' "list 3 colors"
+
+# Validate against schema file
+agent exec --json-schema schema.json "list 3 colors"
+
+# Also works with run (when a prompt is provided)
+agent run --json "list 3 colors"
+```
+
+### Behavior
+
+- `--json-schema` implies `--json`
+- Cannot be used with `resume`, `review`, or `config`
+- Requires a prompt (doesn't work with interactive `run` without a prompt)
+- **Claude**: Uses native `--json-schema` support when a schema is provided
+- **Other agents**: Augments the system prompt with JSON instructions and schema
+- **Validation**: Output is validated as JSON (and against schema if provided)
+- **Retry**: On validation failure, retries up to 3 times via session resume with a correction prompt
+- **Output**: The final output is the raw JSON from the agent (not wrapped in AgentOutput)
 
 ## Model Validation
 

@@ -29,6 +29,7 @@ pub struct Claude {
     worktree: Option<Option<String>>,
     capture_output: bool,
     verbose: bool,
+    json_schema: Option<String>,
 }
 
 impl Claude {
@@ -44,6 +45,7 @@ impl Claude {
             worktree: None,
             capture_output: false,
             verbose: false,
+            json_schema: None,
         }
     }
 
@@ -57,6 +59,10 @@ impl Claude {
 
     pub fn set_verbose(&mut self, verbose: bool) {
         self.verbose = verbose;
+    }
+
+    pub fn set_json_schema(&mut self, schema: Option<String>) {
+        self.json_schema = schema;
     }
 
     async fn execute(
@@ -131,9 +137,7 @@ impl Claude {
         }
 
         // Add input format if specified (only works with --print)
-        if !interactive
-            && let Some(ref input_fmt) = self.input_format
-        {
+        if !interactive && let Some(ref input_fmt) = self.input_format {
             cmd.args(["--input-format", input_fmt]);
         }
 
@@ -143,6 +147,11 @@ impl Claude {
             if let Some(name) = wt {
                 cmd.arg(name);
             }
+        }
+
+        // Pass --json-schema to claude binary (native support)
+        if let Some(ref schema) = self.json_schema {
+            cmd.args(["--json-schema", schema]);
         }
 
         if let Some(p) = prompt {
@@ -165,8 +174,7 @@ impl Claude {
             Ok(None)
         } else if is_native_json {
             // Native JSON mode - pass through Claude's raw JSON output, capture stderr
-            cmd.stdin(Stdio::inherit())
-                .stdout(Stdio::inherit());
+            cmd.stdin(Stdio::inherit()).stdout(Stdio::inherit());
 
             crate::process::run_with_captured_stderr(&mut cmd).await?;
             Ok(None)
@@ -199,18 +207,29 @@ impl Claude {
                         match serde_json::from_str::<models::ClaudeEvent>(&line) {
                             Ok(claude_event) => {
                                 // Convert individual event to unified format
-                                if let Some(unified_event) = convert_claude_event_to_unified(&claude_event) {
+                                if let Some(unified_event) =
+                                    convert_claude_event_to_unified(&claude_event)
+                                {
                                     if format_as_text {
                                         if self.verbose {
                                             // Verbose: format as beautiful text with icons
-                                            if let Some(formatted) = crate::output::format_event_as_text(&unified_event) {
+                                            if let Some(formatted) =
+                                                crate::output::format_event_as_text(&unified_event)
+                                            {
                                                 println!("{}", formatted);
                                             }
                                         } else {
                                             // Default exec: plain text only from assistant messages
-                                            if let crate::output::Event::AssistantMessage { ref content, .. } = unified_event {
+                                            if let crate::output::Event::AssistantMessage {
+                                                ref content,
+                                                ..
+                                            } = unified_event
+                                            {
                                                 for block in content {
-                                                    if let crate::output::ContentBlock::Text { text } = block {
+                                                    if let crate::output::ContentBlock::Text {
+                                                        text,
+                                                    } = block
+                                                    {
                                                         print!("{}", text);
                                                     }
                                                 }
@@ -249,8 +268,7 @@ impl Claude {
             } else {
                 // For json/json-pretty, capture all output then parse
                 cmd.stdin(Stdio::inherit());
-                cmd.stdout(Stdio::piped())
-                    .stderr(Stdio::piped());
+                cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
                 let output = cmd.output().await?;
 
@@ -273,12 +291,9 @@ impl Claude {
 
                 // Parse JSON output
                 let json_str = String::from_utf8(output.stdout)?;
-                log::debug!(
-                    "Parsing Claude JSON output ({} bytes)",
-                    json_str.len()
-                );
-                let claude_output: models::ClaudeOutput = serde_json::from_str(&json_str)
-                    .map_err(|e| {
+                log::debug!("Parsing Claude JSON output ({} bytes)", json_str.len());
+                let claude_output: models::ClaudeOutput =
+                    serde_json::from_str(&json_str).map_err(|e| {
                         log::debug!(
                             "Failed to parse Claude JSON output: {}. First 500 chars: {}",
                             e,
@@ -286,10 +301,7 @@ impl Claude {
                         );
                         anyhow::anyhow!("Failed to parse Claude JSON output: {}", e)
                     })?;
-                log::debug!(
-                    "Parsed {} Claude events successfully",
-                    claude_output.len()
-                );
+                log::debug!("Parsed {} Claude events successfully", claude_output.len());
 
                 // Convert to unified AgentOutput
                 let agent_output: AgentOutput = claude_output.into();
@@ -297,8 +309,7 @@ impl Claude {
             }
         } else {
             // Explicit text mode - inherit stdout, capture stderr
-            cmd.stdin(Stdio::inherit())
-                .stdout(Stdio::inherit());
+            cmd.stdin(Stdio::inherit()).stdout(Stdio::inherit());
 
             crate::process::run_with_captured_stderr(&mut cmd).await?;
             Ok(None)
@@ -309,15 +320,15 @@ impl Claude {
 /// Convert a single Claude event to a unified event format.
 /// Returns None if the event doesn't map to a user-visible unified event.
 fn convert_claude_event_to_unified(event: &models::ClaudeEvent) -> Option<crate::output::Event> {
-    use crate::output::{ContentBlock as UnifiedContentBlock, Event as UnifiedEvent, ToolResult, Usage as UnifiedUsage};
+    use crate::output::{
+        ContentBlock as UnifiedContentBlock, Event as UnifiedEvent, ToolResult,
+        Usage as UnifiedUsage,
+    };
     use models::ClaudeEvent;
 
     match event {
         ClaudeEvent::System {
-            model,
-            tools,
-            cwd,
-            ..
+            model, tools, cwd, ..
         } => {
             let mut metadata = std::collections::HashMap::new();
             if let Some(cwd_val) = cwd {
@@ -338,9 +349,9 @@ fn convert_claude_event_to_unified(event: &models::ClaudeEvent) -> Option<crate:
                 .content
                 .iter()
                 .filter_map(|block| match block {
-                    models::ContentBlock::Text { text } => Some(UnifiedContentBlock::Text {
-                        text: text.clone(),
-                    }),
+                    models::ContentBlock::Text { text } => {
+                        Some(UnifiedContentBlock::Text { text: text.clone() })
+                    }
                     models::ContentBlock::ToolUse { id, name, input } => {
                         Some(UnifiedContentBlock::ToolUse {
                             id: id.clone(),
@@ -373,7 +384,11 @@ fn convert_claude_event_to_unified(event: &models::ClaudeEvent) -> Option<crate:
             Some(UnifiedEvent::AssistantMessage { content, usage })
         }
 
-        ClaudeEvent::User { message, tool_use_result, .. } => {
+        ClaudeEvent::User {
+            message,
+            tool_use_result,
+            ..
+        } => {
             // For streaming, we can't easily look up tool names from previous events
             // So we'll use "unknown" for the tool name in streaming mode
             // This is a limitation of streaming individual events
@@ -533,6 +548,72 @@ impl Agent for Claude {
             anyhow::bail!("Claude resume failed with status: {}", status);
         }
         Ok(())
+    }
+
+    async fn run_resume_with_prompt(
+        &self,
+        session_id: &str,
+        prompt: &str,
+    ) -> Result<Option<AgentOutput>> {
+        let mut cmd = Command::new("claude");
+
+        if let Some(ref root) = self.root {
+            cmd.current_dir(root);
+        }
+
+        cmd.arg("--print");
+        cmd.args(["--resume", session_id]);
+        cmd.args(["--verbose", "--output-format", "json"]);
+
+        if self.skip_permissions {
+            cmd.arg("--dangerously-skip-permissions");
+        }
+
+        cmd.args(["--model", &self.model]);
+
+        for dir in &self.add_dirs {
+            cmd.args(["--add-dir", dir]);
+        }
+
+        if let Some(ref schema) = self.json_schema {
+            cmd.args(["--json-schema", schema]);
+        }
+
+        cmd.arg(prompt);
+
+        cmd.stdin(Stdio::inherit());
+        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+
+        let output = cmd.output().await?;
+
+        // Handle stderr
+        let stderr_text = String::from_utf8_lossy(&output.stderr);
+        let stderr_text = stderr_text.trim();
+        if !stderr_text.is_empty() {
+            for line in stderr_text.lines() {
+                crate::logging::log_to_file(&format!("[STDERR] {}", line));
+            }
+        }
+
+        if !output.status.success() {
+            if stderr_text.is_empty() {
+                anyhow::bail!("Claude resume failed with status: {}", output.status);
+            } else {
+                anyhow::bail!("{}", stderr_text);
+            }
+        }
+
+        // Parse JSON output
+        let json_str = String::from_utf8(output.stdout)?;
+        log::debug!(
+            "Parsing Claude resume JSON output ({} bytes)",
+            json_str.len()
+        );
+        let claude_output: models::ClaudeOutput = serde_json::from_str(&json_str)
+            .map_err(|e| anyhow::anyhow!("Failed to parse Claude resume JSON output: {}", e))?;
+
+        let agent_output: AgentOutput = claude_output.into();
+        Ok(Some(agent_output))
     }
 
     async fn cleanup(&self) -> Result<()> {

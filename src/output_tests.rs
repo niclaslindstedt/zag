@@ -34,30 +34,53 @@ fn test_is_success() {
 fn test_tool_executions() {
     let events = vec![
         Event::AssistantMessage {
-            content: vec![ContentBlock::Text { text: "hi".to_string() }],
+            content: vec![ContentBlock::Text {
+                text: "hi".to_string(),
+            }],
             usage: None,
         },
         Event::ToolExecution {
             tool_name: "Bash".to_string(),
             tool_id: "t1".to_string(),
             input: serde_json::json!({}),
-            result: ToolResult { success: true, output: Some("ok".to_string()), error: None, data: None },
+            result: ToolResult {
+                success: true,
+                output: Some("ok".to_string()),
+                error: None,
+                data: None,
+            },
         },
         Event::ToolExecution {
             tool_name: "Read".to_string(),
             tool_id: "t2".to_string(),
             input: serde_json::json!({}),
-            result: ToolResult { success: false, output: None, error: Some("err".to_string()), data: None },
+            result: ToolResult {
+                success: false,
+                output: None,
+                error: Some("err".to_string()),
+                data: None,
+            },
         },
     ];
-    assert_eq!(make_agent_output(events, None, false).tool_executions().len(), 2);
+    assert_eq!(
+        make_agent_output(events, None, false)
+            .tool_executions()
+            .len(),
+        2
+    );
 }
 
 #[test]
 fn test_errors() {
     let events = vec![
-        Event::Error { message: "boom".to_string(), details: None },
-        Event::AssistantMessage { content: vec![], usage: None },
+        Event::Error {
+            message: "boom".to_string(),
+            details: None,
+        },
+        Event::AssistantMessage {
+            content: vec![],
+            usage: None,
+        },
     ];
     assert_eq!(make_agent_output(events, None, true).errors().len(), 1);
 }
@@ -74,7 +97,9 @@ fn test_to_log_entries_filters_by_level() {
             metadata: HashMap::new(),
         },
         Event::AssistantMessage {
-            content: vec![ContentBlock::Text { text: "hello".to_string() }],
+            content: vec![ContentBlock::Text {
+                text: "hello".to_string(),
+            }],
             usage: None,
         },
     ];
@@ -103,7 +128,9 @@ fn test_event_to_log_entry_init() {
 #[test]
 fn test_event_to_log_entry_assistant_text() {
     let event = Event::AssistantMessage {
-        content: vec![ContentBlock::Text { text: "hello".to_string() }],
+        content: vec![ContentBlock::Text {
+            text: "hello".to_string(),
+        }],
         usage: None,
     };
     let entry = event_to_log_entry(&event).unwrap();
@@ -139,7 +166,12 @@ fn test_event_to_log_entry_tool_execution_success() {
         tool_name: "Bash".to_string(),
         tool_id: "id1".to_string(),
         input: serde_json::json!({}),
-        result: ToolResult { success: true, output: Some("ok".to_string()), error: None, data: None },
+        result: ToolResult {
+            success: true,
+            output: Some("ok".to_string()),
+            error: None,
+            data: None,
+        },
     };
     let entry = event_to_log_entry(&event).unwrap();
     assert_eq!(entry.level, LogLevel::Debug);
@@ -152,7 +184,12 @@ fn test_event_to_log_entry_tool_execution_failure() {
         tool_name: "Bash".to_string(),
         tool_id: "id1".to_string(),
         input: serde_json::json!({}),
-        result: ToolResult { success: false, output: None, error: Some("not found".to_string()), data: None },
+        result: ToolResult {
+            success: false,
+            output: None,
+            error: Some("not found".to_string()),
+            data: None,
+        },
     };
     let entry = event_to_log_entry(&event).unwrap();
     assert_eq!(entry.level, LogLevel::Warn);
@@ -247,7 +284,12 @@ fn test_log_entry_display_all_levels() {
         (LogLevel::Warn, "[WARN]"),
         (LogLevel::Error, "[ERROR]"),
     ] {
-        let entry = LogEntry { level, message: "x".to_string(), data: None, timestamp: None };
+        let entry = LogEntry {
+            level,
+            message: "x".to_string(),
+            data: None,
+            timestamp: None,
+        };
         assert!(format!("{}", entry).starts_with(prefix));
     }
 }
@@ -290,7 +332,9 @@ fn test_format_event_init() {
 #[test]
 fn test_format_event_assistant_text() {
     let event = Event::AssistantMessage {
-        content: vec![ContentBlock::Text { text: "hello".to_string() }],
+        content: vec![ContentBlock::Text {
+            text: "hello".to_string(),
+        }],
         usage: None,
     };
     let text = format_event_as_text(&event).unwrap();
@@ -300,7 +344,9 @@ fn test_format_event_assistant_text() {
 #[test]
 fn test_format_event_assistant_multiline() {
     let event = Event::AssistantMessage {
-        content: vec![ContentBlock::Text { text: "line1\nline2\nline3".to_string() }],
+        content: vec![ContentBlock::Text {
+            text: "line1\nline2\nline3".to_string(),
+        }],
         usage: None,
     };
     let text = format_event_as_text(&event).unwrap();
@@ -311,7 +357,10 @@ fn test_format_event_assistant_multiline() {
 
 #[test]
 fn test_format_event_assistant_empty() {
-    let event = Event::AssistantMessage { content: vec![], usage: None };
+    let event = Event::AssistantMessage {
+        content: vec![],
+        usage: None,
+    };
     assert!(format_event_as_text(&event).is_none());
 }
 
@@ -399,7 +448,12 @@ fn test_format_event_tool_execution_success() {
         tool_name: "Bash".to_string(),
         tool_id: "tool_abcd".to_string(),
         input: serde_json::json!({}),
-        result: ToolResult { success: true, output: Some("file1\nfile2".to_string()), error: None, data: None },
+        result: ToolResult {
+            success: true,
+            output: Some("file1\nfile2".to_string()),
+            error: None,
+            data: None,
+        },
     };
     let text = format_event_as_text(&event).unwrap();
     assert!(text.contains("file1"));
@@ -412,7 +466,12 @@ fn test_format_event_tool_execution_failure() {
         tool_name: "Bash".to_string(),
         tool_id: "tool_abcd".to_string(),
         input: serde_json::json!({}),
-        result: ToolResult { success: false, output: None, error: Some("not found".to_string()), data: None },
+        result: ToolResult {
+            success: false,
+            output: None,
+            error: Some("not found".to_string()),
+            data: None,
+        },
     };
     let text = format_event_as_text(&event).unwrap();
     assert!(text.contains("not found"));
@@ -424,7 +483,12 @@ fn test_format_event_tool_execution_empty_output() {
         tool_name: "Bash".to_string(),
         tool_id: "tool_abcd".to_string(),
         input: serde_json::json!({}),
-        result: ToolResult { success: true, output: None, error: None, data: None },
+        result: ToolResult {
+            success: true,
+            output: None,
+            error: None,
+            data: None,
+        },
     };
     let text = format_event_as_text(&event).unwrap();
     assert!(text.contains("success"));
@@ -432,23 +496,39 @@ fn test_format_event_tool_execution_empty_output() {
 
 #[test]
 fn test_format_event_result_returns_none() {
-    let event = Event::Result { success: true, message: Some("done".to_string()), duration_ms: Some(100), num_turns: Some(1) };
+    let event = Event::Result {
+        success: true,
+        message: Some("done".to_string()),
+        duration_ms: Some(100),
+        num_turns: Some(1),
+    };
     assert!(format_event_as_text(&event).is_none());
 }
 
 #[test]
 fn test_format_event_error() {
-    let event = Event::Error { message: "failed".to_string(), details: None };
+    let event = Event::Error {
+        message: "failed".to_string(),
+        details: None,
+    };
     let text = format_event_as_text(&event).unwrap();
     assert!(text.contains("failed"));
 }
 
 #[test]
 fn test_format_event_permission() {
-    let granted = Event::PermissionRequest { tool_name: "Bash".to_string(), description: "x".to_string(), granted: true };
+    let granted = Event::PermissionRequest {
+        tool_name: "Bash".to_string(),
+        description: "x".to_string(),
+        granted: true,
+    };
     assert!(format_event_as_text(&granted).unwrap().contains("granted"));
 
-    let denied = Event::PermissionRequest { tool_name: "Bash".to_string(), description: "x".to_string(), granted: false };
+    let denied = Event::PermissionRequest {
+        tool_name: "Bash".to_string(),
+        description: "x".to_string(),
+        granted: false,
+    };
     assert!(format_event_as_text(&denied).unwrap().contains("denied"));
 }
 

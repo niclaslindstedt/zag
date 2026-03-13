@@ -186,7 +186,10 @@ fn test_parse_error_response() {
     let agent_output: AgentOutput = claude_output.into();
 
     assert!(agent_output.is_error);
-    assert_eq!(agent_output.result, Some("Something went wrong".to_string()));
+    assert_eq!(
+        agent_output.result,
+        Some("Something went wrong".to_string())
+    );
 }
 
 #[test]
@@ -222,9 +225,16 @@ fn test_parse_with_permission_denials() {
     let agent_output: AgentOutput = claude_output.into();
 
     // Should have Init, PermissionRequest, Result
-    let perm_events: Vec<_> = agent_output.events.iter().filter(|e| matches!(e, crate::output::Event::PermissionRequest { .. })).collect();
+    let perm_events: Vec<_> = agent_output
+        .events
+        .iter()
+        .filter(|e| matches!(e, crate::output::Event::PermissionRequest { .. }))
+        .collect();
     assert_eq!(perm_events.len(), 1);
-    if let crate::output::Event::PermissionRequest { tool_name, granted, .. } = perm_events[0] {
+    if let crate::output::Event::PermissionRequest {
+        tool_name, granted, ..
+    } = perm_events[0]
+    {
         assert_eq!(tool_name, "Bash");
         assert!(!granted);
     }
@@ -351,23 +361,21 @@ fn test_parse_with_usage_details() {
 fn test_find_tool_name() {
     use crate::output::{ContentBlock as UB, Event as UE};
 
-    let events = vec![
-        UE::AssistantMessage {
-            content: vec![
-                UB::ToolUse {
-                    id: "t1".to_string(),
-                    name: "Bash".to_string(),
-                    input: serde_json::json!({}),
-                },
-                UB::ToolUse {
-                    id: "t2".to_string(),
-                    name: "Read".to_string(),
-                    input: serde_json::json!({}),
-                },
-            ],
-            usage: None,
-        },
-    ];
+    let events = vec![UE::AssistantMessage {
+        content: vec![
+            UB::ToolUse {
+                id: "t1".to_string(),
+                name: "Bash".to_string(),
+                input: serde_json::json!({}),
+            },
+            UB::ToolUse {
+                id: "t2".to_string(),
+                name: "Read".to_string(),
+                input: serde_json::json!({}),
+            },
+        ],
+        usage: None,
+    }];
 
     assert_eq!(find_tool_name(&events, "t1"), Some("Bash".to_string()));
     assert_eq!(find_tool_name(&events, "t2"), Some("Read".to_string()));
@@ -406,7 +414,13 @@ fn test_parse_system_event_with_cwd() {
     let claude_output: ClaudeOutput = serde_json::from_str(json).expect("Failed to parse");
     let agent_output: AgentOutput = claude_output.into();
 
-    if let crate::output::Event::Init { working_directory, tools, model, .. } = &agent_output.events[0] {
+    if let crate::output::Event::Init {
+        working_directory,
+        tools,
+        model,
+        ..
+    } = &agent_output.events[0]
+    {
         assert_eq!(working_directory.as_deref(), Some("/home/user/project"));
         assert_eq!(tools.len(), 3);
         assert_eq!(model, "opus");

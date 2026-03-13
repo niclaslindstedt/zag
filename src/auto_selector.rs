@@ -7,8 +7,9 @@ use crate::config::Config;
 use crate::factory::AgentFactory;
 use anyhow::{Result, bail};
 use log::debug;
+use serde::Deserialize;
 
-const PROMPT_TEMPLATE: &str = include_str!("../prompts/auto-selector-1_0.md");
+const PROMPT_TEMPLATE: &str = include_str!("../prompts/auto-selector-2_0.md");
 
 /// Result of auto-selection.
 #[derive(Debug)]
@@ -17,6 +18,14 @@ pub struct AutoResult {
     pub provider: Option<String>,
     /// The selected model (e.g., "opus", "haiku", "sonnet").
     pub model: Option<String>,
+}
+
+/// JSON response structure from the auto-selector LLM.
+#[derive(Debug, Deserialize)]
+struct AutoSelectorResponse {
+    provider: Option<String>,
+    model: Option<String>,
+    reason: Option<String>,
 }
 
 /// Resolve provider and/or model automatically by analyzing the task prompt.
@@ -35,26 +44,22 @@ pub async fn resolve(
     config: &Config,
     root: Option<&str>,
 ) -> Result<AutoResult> {
-    // Build the mode description and options
-    let (mode, options) = build_mode_and_options(auto_provider, auto_model, current_provider);
+    // Build the mode description, options, and response format
+    let (mode, options, response_format) =
+        build_mode_and_options(auto_provider, auto_model, current_provider);
 
     // Build the selector prompt
     let selector_prompt = PROMPT_TEMPLATE
         .replace("{MODE}", &mode)
         .replace("{OPTIONS}", &options)
+        .replace("{RESPONSE_FORMAT}", &response_format)
         .replace("{TASK}", prompt);
 
     debug!("Auto-selector prompt:\n{}", selector_prompt);
 
     // Determine which provider/model to use for auto-selection
-    let selector_provider = config
-        .auto_provider()
-        .unwrap_or("claude")
-        .to_string();
-    let selector_model = config
-        .auto_model()
-        .unwrap_or("haiku")
-        .to_string();
+    let selector_provider = config.auto_provider().unwrap_or("claude").to_string();
+    let selector_model = config.auto_model().unwrap_or("haiku").to_string();
 
     debug!(
         "Auto-selector using {} with model {}",
@@ -66,7 +71,7 @@ pub async fn resolve(
 
     let mut agent = AgentFactory::create(
         &selector_provider,
-        Some("Respond with ONLY the selection, nothing else. No explanations.".to_string()),
+        Some("Respond with ONLY the JSON object, nothing else. No explanations.".to_string()),
         Some(selector_model),
         root.map(String::from),
         true, // auto-approve (selector doesn't need tools)
@@ -87,35 +92,37 @@ pub async fn resolve(
     parse_response(&response, auto_provider, auto_model, current_provider)
 }
 
-/// Build the mode description and options list for the prompt template.
+/// Build the mode description, options list, and response format for the prompt template.
+///
+/// Returns (mode, options, response_format).
 fn build_mode_and_options(
     auto_provider: bool,
     auto_model: bool,
     current_provider: Option<&str>,
-) -> (String, String) {
+) -> (String, String, String) {
     if auto_provider && auto_model {
         let mode = "provider and model".to_string();
-        let options = format!(
-            "Respond with `<provider> <model>` (e.g., `claude opus` or `gemini gemini-2.5-flash`).\n\n{}",
-            all_provider_model_options()
-        );
-        (mode, options)
+        let options = all_provider_model_options();
+        let response_format = r#"Respond with ONLY a JSON object on a single line, nothing else:
+{"provider": "<provider>", "model": "<size>", "reason": "..."}"#
+            .to_string();
+        (mode, options, response_format)
     } else if auto_provider {
         let mode = "provider".to_string();
-        let options = format!(
-            "Respond with the provider name only (e.g., `claude` or `gemini`).\n\n{}",
-            provider_options()
-        );
-        (mode, options)
+        let options = provider_options();
+        let response_format = r#"Respond with ONLY a JSON object on a single line, nothing else:
+{"provider": "<provider>", "reason": "..."}"#
+            .to_string();
+        (mode, options, response_format)
     } else {
         // auto_model only
         let provider = current_provider.unwrap_or("claude");
         let mode = "model".to_string();
-        let options = format!(
-            "Respond with the model name only (e.g., `opus` or `sonnet`).\n\n{}",
-            model_options_for_provider(provider)
-        );
-        (mode, options)
+        let options = model_options_for_provider(provider);
+        let response_format = r#"Respond with ONLY a JSON object on a single line, nothing else:
+{"model": "<model>", "reason": "..."}"#
+            .to_string();
+        (mode, options, response_format)
     }
 }
 
@@ -152,7 +159,10 @@ fn model_options_for_provider(provider: &str) -> String {
                       - **claude-sonnet-4.5**: Medium, balanced — for most tasks\n\
                       - **claude-opus-4.5**: Large, most capable — for complex tasks"
             .to_string(),
-        _ => format!("### Models\nUse appropriate model names for provider '{}'.", provider),
+        _ => format!(
+            "### Models\nUse appropriate model names for provider '{}'.",
+            provider
+        ),
     }
 }
 
@@ -170,11 +180,87 @@ fn extract_response(output: Option<crate::output::AgentOutput>) -> Result<String
         bail!("Auto-selector returned no result");
     }
 
-    bail!("Auto-selector produced no parseable output. Ensure the selector agent is configured correctly.")
+    bail!(
+        "Auto-selector produced no parseable output. Ensure the selector agent is configured correctly."
+    )
 }
 
-/// Parse the single-line response into an AutoResult.
+/// Strip markdown fences from a response string.
+fn strip_markdown_fences(text: &str) -> &str {
+    let trimmed = text.trim();
+    if let Some(rest) = trimmed.strip_prefix("```json") {
+        rest.strip_suffix("```").unwrap_or(rest).trim()
+    } else if let Some(rest) = trimmed.strip_prefix("```") {
+        rest.strip_suffix("```").unwrap_or(rest).trim()
+    } else {
+        trimmed
+    }
+}
+
+/// Parse the response into an AutoResult.
+///
+/// Tries JSON parsing first, then falls back to text-based parsing for robustness.
 fn parse_response(
+    response: &str,
+    auto_provider: bool,
+    auto_model: bool,
+    current_provider: Option<&str>,
+) -> Result<AutoResult> {
+    // Try JSON parsing first
+    let cleaned = strip_markdown_fences(response);
+    if let Ok(parsed) = serde_json::from_str::<AutoSelectorResponse>(cleaned) {
+        debug!("Auto-selector parsed JSON response successfully");
+        if let Some(ref reason) = parsed.reason {
+            debug!("Auto-selector reason: {}", reason);
+        }
+
+        return build_result_from_json(parsed, auto_provider, auto_model, current_provider);
+    }
+
+    // Fall back to text-based parsing
+    debug!("Auto-selector falling back to text parsing");
+    parse_response_text(response, auto_provider, auto_model, current_provider)
+}
+
+/// Build an AutoResult from a parsed JSON response.
+fn build_result_from_json(
+    parsed: AutoSelectorResponse,
+    auto_provider: bool,
+    auto_model: bool,
+    current_provider: Option<&str>,
+) -> Result<AutoResult> {
+    if auto_provider && auto_model {
+        let provider = parsed
+            .provider
+            .ok_or_else(|| anyhow::anyhow!("Auto-selector JSON missing 'provider' field"))?;
+        let provider = validate_provider(&provider)?;
+        Ok(AutoResult {
+            provider: Some(provider),
+            model: parsed.model,
+        })
+    } else if auto_provider {
+        let provider = parsed
+            .provider
+            .ok_or_else(|| anyhow::anyhow!("Auto-selector JSON missing 'provider' field"))?;
+        let provider = validate_provider(&provider)?;
+        Ok(AutoResult {
+            provider: Some(provider),
+            model: None,
+        })
+    } else {
+        // auto_model only
+        let model = parsed
+            .model
+            .ok_or_else(|| anyhow::anyhow!("Auto-selector JSON missing 'model' field"))?;
+        Ok(AutoResult {
+            provider: current_provider.map(String::from),
+            model: Some(model.to_lowercase()),
+        })
+    }
+}
+
+/// Parse a text-based response (fallback when JSON parsing fails).
+fn parse_response_text(
     response: &str,
     auto_provider: bool,
     auto_model: bool,
@@ -213,7 +299,10 @@ fn parse_response(
                 model: None,
             })
         } else {
-            bail!("Auto-selector returned unparseable response: '{}'", response);
+            bail!(
+                "Auto-selector returned unparseable response: '{}'",
+                response
+            );
         }
     } else if auto_provider {
         // Expect "<provider>"

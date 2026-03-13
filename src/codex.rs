@@ -91,8 +91,7 @@ impl Codex {
             ]);
         }
 
-        cmd.stdin(Stdio::inherit())
-            .stdout(Stdio::inherit());
+        cmd.stdin(Stdio::inherit()).stdout(Stdio::inherit());
 
         crate::process::run_with_captured_stderr(&mut cmd).await?;
         Ok(())
@@ -174,8 +173,7 @@ impl Codex {
             let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
             Ok(Some(AgentOutput::from_text("codex", &text)))
         } else {
-            cmd.stdin(Stdio::inherit())
-                .stdout(Stdio::inherit());
+            cmd.stdin(Stdio::inherit()).stdout(Stdio::inherit());
             crate::process::run_with_captured_stderr(&mut cmd).await?;
             Ok(None)
         }

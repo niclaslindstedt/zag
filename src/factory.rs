@@ -25,7 +25,7 @@ impl AgentFactory {
         root: Option<String>,
         auto_approve: bool,
         add_dirs: Vec<String>,
-    ) -> Result<Box<dyn Agent + Send>> {
+    ) -> Result<Box<dyn Agent + Send + Sync>> {
         debug!("Creating agent: {}", agent_name);
 
         // Initialize .agent directory and config on first run
@@ -82,7 +82,7 @@ impl AgentFactory {
     }
 
     /// Create the appropriate agent implementation based on name.
-    fn create_agent(agent_name: &str) -> Result<Box<dyn Agent + Send>> {
+    fn create_agent(agent_name: &str) -> Result<Box<dyn Agent + Send + Sync>> {
         match agent_name.to_lowercase().as_str() {
             "codex" => Ok(Box::new(Codex::new())),
             "claude" => Ok(Box::new(Claude::new())),

@@ -225,7 +225,12 @@ fn test_set_value_unknown_key() {
     let mut config = Config::default();
     let result = config.set_value("unknown_key", "value");
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Unknown config key"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("Unknown config key")
+    );
 }
 
 #[test]
@@ -294,7 +299,10 @@ fn test_config_serialization_roundtrip() {
 #[test]
 fn test_config_path_with_root() {
     let path = Config::config_path(Some("/tmp/test"));
-    assert_eq!(path, std::path::PathBuf::from("/tmp/test/.agent/agent.toml"));
+    assert_eq!(
+        path,
+        std::path::PathBuf::from("/tmp/test/.agent/agent.toml")
+    );
 }
 
 #[test]

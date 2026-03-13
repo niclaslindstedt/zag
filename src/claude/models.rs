@@ -260,9 +260,7 @@ impl From<ClaudeOutput> for AgentOutput {
                         .content
                         .into_iter()
                         .filter_map(|block| match block {
-                            ContentBlock::Text { text } => {
-                                Some(UnifiedContentBlock::Text { text })
-                            }
+                            ContentBlock::Text { text } => Some(UnifiedContentBlock::Text { text }),
                             ContentBlock::ToolUse { id, name, input } => {
                                 Some(UnifiedContentBlock::ToolUse { id, name, input })
                             }

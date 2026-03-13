@@ -44,9 +44,18 @@ fn test_create_agent_unknown() {
 #[test]
 fn test_resolve_model_size_alias() {
     assert_eq!(AgentFactory::resolve_model("claude", "small"), "haiku");
-    assert_eq!(AgentFactory::resolve_model("codex", "large"), "gpt-5.1-codex-max");
-    assert_eq!(AgentFactory::resolve_model("gemini", "medium"), "gemini-2.5-flash");
-    assert_eq!(AgentFactory::resolve_model("copilot", "small"), "claude-haiku-4.5");
+    assert_eq!(
+        AgentFactory::resolve_model("codex", "large"),
+        "gpt-5.1-codex-max"
+    );
+    assert_eq!(
+        AgentFactory::resolve_model("gemini", "medium"),
+        "gemini-2.5-flash"
+    );
+    assert_eq!(
+        AgentFactory::resolve_model("copilot", "small"),
+        "claude-haiku-4.5"
+    );
 }
 
 #[test]
@@ -57,7 +66,10 @@ fn test_resolve_model_passthrough() {
 
 #[test]
 fn test_resolve_model_unknown_agent_passthrough() {
-    assert_eq!(AgentFactory::resolve_model("unknown", "whatever"), "whatever");
+    assert_eq!(
+        AgentFactory::resolve_model("unknown", "whatever"),
+        "whatever"
+    );
 }
 
 // --- validate_model ---
@@ -86,25 +98,56 @@ fn test_validate_model_unknown_agent_skips() {
 
 #[test]
 fn test_create_with_model_resolution() {
-    let agent = AgentFactory::create("claude", None, Some("small".to_string()), None, false, vec![]).unwrap();
+    let agent = AgentFactory::create(
+        "claude",
+        None,
+        Some("small".to_string()),
+        None,
+        false,
+        vec![],
+    )
+    .unwrap();
     assert_eq!(agent.get_model(), "haiku");
 }
 
 #[test]
 fn test_create_with_specific_model() {
-    let agent = AgentFactory::create("claude", None, Some("sonnet".to_string()), None, false, vec![]).unwrap();
+    let agent = AgentFactory::create(
+        "claude",
+        None,
+        Some("sonnet".to_string()),
+        None,
+        false,
+        vec![],
+    )
+    .unwrap();
     assert_eq!(agent.get_model(), "sonnet");
 }
 
 #[test]
 fn test_create_with_invalid_model() {
-    let result = AgentFactory::create("claude", None, Some("gpt-5".to_string()), None, false, vec![]);
+    let result = AgentFactory::create(
+        "claude",
+        None,
+        Some("gpt-5".to_string()),
+        None,
+        false,
+        vec![],
+    );
     assert!(result.is_err());
 }
 
 #[test]
 fn test_create_with_system_prompt() {
-    let agent = AgentFactory::create("claude", Some("test prompt".to_string()), None, None, false, vec![]).unwrap();
+    let agent = AgentFactory::create(
+        "claude",
+        Some("test prompt".to_string()),
+        None,
+        None,
+        false,
+        vec![],
+    )
+    .unwrap();
     assert_eq!(agent.system_prompt(), "test prompt");
 }
 

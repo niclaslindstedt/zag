@@ -6,6 +6,7 @@ mod config;
 mod copilot;
 mod factory;
 mod gemini;
+mod json_validation;
 mod logging;
 mod output;
 mod process;
@@ -64,6 +65,14 @@ struct Cli {
     /// Create a git worktree for this session (optionally specify a name)
     #[arg(short = 'w', long, global = true)]
     worktree: Option<Option<String>>,
+
+    /// Request JSON output from the agent
+    #[arg(long, global = true)]
+    json: bool,
+
+    /// JSON schema for structured output (file path or inline JSON string)
+    #[arg(long, global = true, value_name = "SCHEMA")]
+    json_schema: Option<String>,
 
     #[command(subcommand)]
     command: Commands,
@@ -139,6 +148,46 @@ async fn main() -> Result<()> {
     let quiet = cli.quiet;
     let verbose = cli.verbose;
 
+    // --json-schema implies --json
+    let json_mode = cli.json || cli.json_schema.is_some();
+    let json_schema = cli.json_schema;
+
+    // Validate --json/--json-schema usage
+    if json_mode {
+        match &cli.command {
+            Commands::Resume { .. } => bail!("--json/--json-schema cannot be used with resume"),
+            Commands::Review { .. } => bail!("--json/--json-schema cannot be used with review"),
+            Commands::Config { .. } => bail!("--json/--json-schema cannot be used with config"),
+            Commands::Run { prompt } if prompt.is_none() => {
+                bail!("--json/--json-schema requires a prompt (use exec or run with a prompt)")
+            }
+            _ => {}
+        }
+
+        // Validate schema is valid JSON if provided
+        if let Some(ref schema_str) = json_schema {
+            // Try to load as file first, then as inline JSON
+            let schema_json = if std::path::Path::new(schema_str).exists() {
+                let content = std::fs::read_to_string(schema_str).map_err(|e| {
+                    anyhow::anyhow!("Failed to read JSON schema file '{}': {}", schema_str, e)
+                })?;
+                serde_json::from_str::<serde_json::Value>(&content).map_err(|e| {
+                    anyhow::anyhow!("Invalid JSON in schema file '{}': {}", schema_str, e)
+                })?
+            } else {
+                serde_json::from_str::<serde_json::Value>(schema_str)
+                    .map_err(|e| anyhow::anyhow!("Invalid JSON schema: {}", e))?
+            };
+            // Validate it's a valid JSON schema by checking it has a type field
+            debug!(
+                "JSON schema loaded: {} bytes",
+                serde_json::to_string(&schema_json)
+                    .unwrap_or_default()
+                    .len()
+            );
+        }
+    }
+
     // Validate --worktree usage
     if cli.worktree.is_some() {
         match &cli.command {
@@ -201,6 +250,8 @@ async fn main() -> Result<()> {
                 quiet,
                 verbose,
                 worktree: cli.worktree,
+                json_mode,
+                json_schema,
             })
             .await?;
         }
@@ -292,6 +343,8 @@ struct AgentActionParams {
     quiet: bool,
     verbose: bool,
     worktree: Option<Option<String>>,
+    json_mode: bool,
+    json_schema: Option<String>,
 }
 
 async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
@@ -367,6 +420,8 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         quiet,
         verbose,
         worktree: worktree_flag,
+        json_mode,
+        json_schema,
     } = params;
     let is_exec = matches!(action, Commands::Exec { .. });
     let show_wrapper = !quiet && (!is_exec || verbose);
@@ -389,6 +444,43 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     if worktree_flag.is_some() {
         debug!("Worktree mode enabled");
     }
+    if json_mode {
+        debug!("JSON output mode enabled");
+    }
+
+    // Load and resolve JSON schema if provided
+    let resolved_schema: Option<serde_json::Value> = if let Some(ref schema_str) = json_schema {
+        let json = if std::path::Path::new(schema_str).exists() {
+            let content = std::fs::read_to_string(schema_str)?;
+            serde_json::from_str(&content)?
+        } else {
+            serde_json::from_str(schema_str)?
+        };
+        Some(json)
+    } else {
+        None
+    };
+
+    // Augment system prompt for JSON mode (non-Claude agents need this;
+    // Claude gets --json-schema natively but also benefits from prompt guidance)
+    let system_prompt = if json_mode && provider != "claude" {
+        let mut prompt = system_prompt.unwrap_or_default();
+        if let Some(ref schema) = resolved_schema {
+            let schema_str = serde_json::to_string_pretty(schema).unwrap_or_default();
+            prompt.push_str(&format!(
+                "\n\nYou MUST respond with valid JSON only. No markdown fences, no explanations. \
+                 Your response must conform to this JSON schema:\n{}",
+                schema_str
+            ));
+        } else {
+            prompt.push_str(
+                "\n\nYou MUST respond with valid JSON only. No markdown fences, no explanations.",
+            );
+        }
+        Some(prompt)
+    } else {
+        system_prompt
+    };
 
     // Handle worktree creation for non-Claude providers
     let effective_root = if let Some(ref wt_name) = worktree_flag {
@@ -400,10 +492,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
                 .unwrap_or_else(worktree::generate_name);
             let wt_path = worktree::create_worktree(&repo_root, &name)?;
             if show_wrapper {
-                println!(
-                    "\x1b[32m✓\x1b[0m Worktree created at {}",
-                    wt_path.display()
-                );
+                println!("\x1b[32m✓\x1b[0m Worktree created at {}", wt_path.display());
             }
             Some(wt_path.to_string_lossy().to_string())
         } else {
@@ -469,6 +558,22 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         claude_agent.set_worktree(wt_name.clone());
     }
 
+    // Set JSON schema on Claude agent (native --json-schema support)
+    if json_mode
+        && provider == "claude"
+        && let Some(claude_agent) = agent.as_any_mut().downcast_mut::<crate::claude::Claude>()
+        && let Some(ref schema) = resolved_schema
+    {
+        let schema_str = serde_json::to_string(schema).unwrap_or_default();
+        claude_agent.set_json_schema(Some(schema_str));
+    }
+
+    // Force output capture when JSON mode is active so we get AgentOutput back for validation
+    let user_output_format = output_fmt_clone.clone();
+    if json_mode && user_output_format.is_none() {
+        agent.set_output_format(Some("json".to_string()));
+    }
+
     logging::finish_spinner_quiet(&spinner);
     debug!("Agent configuration complete");
 
@@ -485,14 +590,26 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
 
     match action {
         Commands::Run { prompt } => {
-            info!("Starting interactive session");
-            agent.run_interactive(prompt.as_deref()).await?;
+            if json_mode && prompt.is_some() {
+                // JSON mode with prompt — run non-interactively for output capture
+                info!("Starting non-interactive session (JSON mode)");
+                let agent_output = agent.run(prompt.as_deref()).await?;
+                handle_json_output(agent_output, &*agent, &resolved_schema, show_usage, verbose)
+                    .await?;
+            } else {
+                info!("Starting interactive session");
+                agent.run_interactive(prompt.as_deref()).await?;
+            }
         }
         Commands::Exec { prompt, .. } => {
             info!("Starting non-interactive session");
             let agent_output = agent.run(Some(&prompt)).await?;
 
-            if let Some(agent_out) = agent_output {
+            if json_mode {
+                // JSON validation and retry loop
+                handle_json_output(agent_output, &*agent, &resolved_schema, show_usage, verbose)
+                    .await?;
+            } else if let Some(agent_out) = agent_output {
                 match output_fmt_clone.as_deref() {
                     Some("json") => {
                         let json = serde_json::to_string(&agent_out)?;
@@ -516,9 +633,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         }
         Commands::Resume { session_id, last } => {
             info!("Resuming session");
-            agent
-                .run_resume(session_id.as_deref(), last)
-                .await?;
+            agent.run_resume(session_id.as_deref(), last).await?;
         }
         _ => unreachable!(),
     }
@@ -564,14 +679,8 @@ async fn run_review(params: ReviewParams) -> Result<()> {
     debug!("Starting code review via Codex");
 
     let spinner = logging::spinner("Initializing Codex for review".to_string());
-    let mut agent = AgentFactory::create(
-        "codex",
-        system_prompt,
-        model,
-        root,
-        auto_approve,
-        add_dirs,
-    )?;
+    let mut agent =
+        AgentFactory::create("codex", system_prompt, model, root, auto_approve, add_dirs)?;
     logging::finish_spinner_quiet(&spinner);
 
     let model_name = agent.get_model().to_string();
@@ -598,6 +707,104 @@ async fn run_review(params: ReviewParams) -> Result<()> {
         .await?;
 
     Ok(())
+}
+
+const MAX_JSON_RETRIES: usize = 3;
+
+/// Handle JSON output mode: validate agent output and retry via session resume if invalid.
+async fn handle_json_output(
+    agent_output: Option<crate::output::AgentOutput>,
+    agent: &(dyn crate::agent::Agent + Sync),
+    schema: &Option<serde_json::Value>,
+    _show_usage: bool,
+    _verbose: bool,
+) -> Result<()> {
+    let Some(agent_out) = agent_output else {
+        bail!("Agent produced no output for JSON validation");
+    };
+
+    let result_text = agent_out
+        .final_result()
+        .ok_or_else(|| anyhow::anyhow!("Agent output has no result text for JSON validation"))?
+        .to_string();
+
+    let session_id = if !agent_out.session_id.is_empty() && agent_out.session_id != "unknown" {
+        Some(agent_out.session_id.clone())
+    } else {
+        None
+    };
+
+    // Try validation
+    if validate_json_output(&result_text, schema).is_ok() {
+        println!("{}", result_text);
+        return Ok(());
+    }
+
+    // Validation failed — collect errors for retry/reporting
+    let initial_errors = validate_json_output(&result_text, schema).unwrap_err();
+    debug!("JSON validation failed: {:?}", initial_errors);
+
+    let Some(sid) = session_id else {
+        bail!("JSON validation failed:\n- {}", initial_errors.join("\n- "));
+    };
+
+    // Try to retry via session resume
+    let mut last_errors = initial_errors;
+    for attempt in 1..=MAX_JSON_RETRIES {
+        debug!("JSON retry attempt {}/{}", attempt, MAX_JSON_RETRIES);
+
+        let correction_prompt = build_correction_prompt(&last_errors);
+
+        match agent.run_resume_with_prompt(&sid, &correction_prompt).await {
+            Ok(Some(retry_output)) => {
+                if let Some(retry_text) = retry_output.final_result() {
+                    if validate_json_output(retry_text, schema).is_ok() {
+                        println!("{}", retry_text);
+                        return Ok(());
+                    }
+                    last_errors = validate_json_output(retry_text, schema).unwrap_err();
+                } else {
+                    last_errors = vec!["Agent returned no result text".to_string()];
+                }
+            }
+            Ok(None) => {
+                last_errors = vec!["Agent produced no output on retry".to_string()];
+            }
+            Err(e) => {
+                debug!("Resume with prompt failed: {}", e);
+                break;
+            }
+        }
+    }
+
+    bail!(
+        "JSON validation failed after {} retries. Last errors:\n- {}",
+        MAX_JSON_RETRIES,
+        last_errors.join("\n- ")
+    )
+}
+
+/// Validate JSON output, optionally against a schema.
+fn validate_json_output(text: &str, schema: &Option<serde_json::Value>) -> Result<(), Vec<String>> {
+    if let Some(schema) = schema {
+        json_validation::validate_json_schema(text, schema)?;
+    } else {
+        json_validation::validate_json(text).map_err(|e| vec![e])?;
+    }
+    Ok(())
+}
+
+/// Build a correction prompt for retrying invalid JSON.
+fn build_correction_prompt(errors: &[String]) -> String {
+    let error_list: String = errors
+        .iter()
+        .map(|e| format!("- {}", e))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!(
+        "Your previous response was not valid JSON. Errors:\n{}\n\nPlease respond with ONLY valid JSON. No markdown fences, no explanations.",
+        error_list
+    )
 }
 
 /// Process and display structured agent output
@@ -656,9 +863,7 @@ fn process_agent_output(
             info!("Total cost: ${:.4}", cost);
         }
 
-        if show_usage
-            && let Some(usage) = &output.usage
-        {
+        if show_usage && let Some(usage) = &output.usage {
             info!(
                 "Token usage - Input: {}, Output: {}",
                 usage.input_tokens, usage.output_tokens
