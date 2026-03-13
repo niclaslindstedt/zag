@@ -372,15 +372,11 @@ struct AgentActionParams {
     json_stream: bool,
 }
 
+const JSON_WRAP_TEMPLATE: &str = include_str!("../prompts/json-wrap-1_0.md");
+
 /// Wrap a user prompt with explicit JSON instructions for non-Claude agents.
 fn wrap_prompt_for_json(prompt: &str) -> String {
-    format!(
-        "IMPORTANT: You must respond with ONLY raw JSON. No explanations, no markdown fences, \
-         no text before or after the JSON. Your entire response must be parseable as a single JSON value.\n\n\
-         {}\n\n\
-         Remember: respond with ONLY valid JSON. Nothing else.",
-        prompt
-    )
+    JSON_WRAP_TEMPLATE.replace("{PROMPT}", prompt)
 }
 
 async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
