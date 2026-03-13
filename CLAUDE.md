@@ -39,7 +39,7 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/auto_selector.rs` | Auto provider/model selection via lightweight LLM call |
 | `src/session.rs` | Session-worktree mapping store (`sessions.json`) |
 | `src/json_validation.rs` | JSON and JSON Schema validation utilities |
-| `prompts/auto-selector-2_0.md` | Versioned prompt template for auto-selection (JSON response format) |
+| `prompts/auto-selector-3_0.md` | Versioned prompt template for auto-selection with rich routing intelligence |
 
 ## Model Size Abstraction
 

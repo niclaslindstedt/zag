@@ -9,7 +9,7 @@ use anyhow::{Result, bail};
 use log::debug;
 use serde::Deserialize;
 
-const PROMPT_TEMPLATE: &str = include_str!("../prompts/auto-selector-2_0.md");
+const PROMPT_TEMPLATE: &str = include_str!("../prompts/auto-selector-3_0.md");
 
 /// Result of auto-selection.
 #[derive(Debug)]
@@ -44,14 +44,13 @@ pub async fn resolve(
     config: &Config,
     root: Option<&str>,
 ) -> Result<AutoResult> {
-    // Build the mode description, options, and response format
-    let (mode, options, response_format) =
-        build_mode_and_options(auto_provider, auto_model, current_provider);
+    // Build the mode description and response format
+    let (mode, response_format) =
+        build_mode_and_format(auto_provider, auto_model, current_provider);
 
     // Build the selector prompt
     let selector_prompt = PROMPT_TEMPLATE
         .replace("{MODE}", &mode)
-        .replace("{OPTIONS}", &options)
         .replace("{RESPONSE_FORMAT}", &response_format)
         .replace("{TASK}", prompt);
 
@@ -92,83 +91,35 @@ pub async fn resolve(
     parse_response(&response, auto_provider, auto_model, current_provider)
 }
 
-/// Build the mode description, options list, and response format for the prompt template.
+/// Build the mode description and response format for the prompt template.
 ///
-/// Returns (mode, options, response_format).
-fn build_mode_and_options(
+/// Returns (mode, response_format).
+fn build_mode_and_format(
     auto_provider: bool,
     auto_model: bool,
     current_provider: Option<&str>,
-) -> (String, String, String) {
+) -> (String, String) {
     if auto_provider && auto_model {
         let mode = "provider and model".to_string();
-        let options = all_provider_model_options();
         let response_format = r#"Respond with ONLY a JSON object on a single line, nothing else:
 {"provider": "<provider>", "model": "<size>", "reason": "..."}"#
             .to_string();
-        (mode, options, response_format)
+        (mode, response_format)
     } else if auto_provider {
         let mode = "provider".to_string();
-        let options = provider_options();
         let response_format = r#"Respond with ONLY a JSON object on a single line, nothing else:
 {"provider": "<provider>", "reason": "..."}"#
             .to_string();
-        (mode, options, response_format)
+        (mode, response_format)
     } else {
         // auto_model only
         let provider = current_provider.unwrap_or("claude");
-        let mode = "model".to_string();
-        let options = model_options_for_provider(provider);
+        let mode = format!("model for {}", provider);
         let response_format = r#"Respond with ONLY a JSON object on a single line, nothing else:
 {"model": "<model>", "reason": "..."}"#
             .to_string();
-        (mode, options, response_format)
+        (mode, response_format)
     }
-}
-
-/// Get descriptions of all providers.
-fn provider_options() -> String {
-    "### Providers\n\
-     - **claude**: Best for code, reasoning, analysis, and complex tasks. Models: haiku (small/fast), sonnet (medium), opus (large/powerful)\n\
-     - **codex**: OpenAI's code-focused agent. Models: gpt-5.1-codex-mini (small), gpt-5.2-codex (medium), gpt-5.1-codex-max (large)\n\
-     - **gemini**: Google's model, great for large context and search. Models: gemini-2.5-flash-lite (small), gemini-2.5-flash (medium), gemini-2.5-pro (large)\n\
-     - **copilot**: GitHub Copilot. Models: claude-haiku-4.5 (small), claude-sonnet-4.5 (medium), claude-opus-4.5 (large)"
-        .to_string()
-}
-
-/// Get model options for a specific provider.
-fn model_options_for_provider(provider: &str) -> String {
-    match provider {
-        "claude" => "### Models for Claude\n\
-                     - **haiku**: Small, fast, cheap — for simple tasks\n\
-                     - **sonnet**: Medium, balanced — for most tasks\n\
-                     - **opus**: Large, most capable — for complex tasks"
-            .to_string(),
-        "codex" => "### Models for Codex\n\
-                    - **gpt-5.1-codex-mini**: Small, fast — for simple tasks\n\
-                    - **gpt-5.2-codex**: Medium, balanced — for most tasks\n\
-                    - **gpt-5.1-codex-max**: Large, most capable — for complex tasks"
-            .to_string(),
-        "gemini" => "### Models for Gemini\n\
-                     - **gemini-2.5-flash-lite**: Small, fast — for simple tasks\n\
-                     - **gemini-2.5-flash**: Medium, balanced — for most tasks\n\
-                     - **gemini-2.5-pro**: Large, most capable — for complex tasks"
-            .to_string(),
-        "copilot" => "### Models for Copilot\n\
-                      - **claude-haiku-4.5**: Small, fast — for simple tasks\n\
-                      - **claude-sonnet-4.5**: Medium, balanced — for most tasks\n\
-                      - **claude-opus-4.5**: Large, most capable — for complex tasks"
-            .to_string(),
-        _ => format!(
-            "### Models\nUse appropriate model names for provider '{}'.",
-            provider
-        ),
-    }
-}
-
-/// Get all provider and model options combined.
-fn all_provider_model_options() -> String {
-    provider_options()
 }
 
 /// Extract the text response from the agent output.

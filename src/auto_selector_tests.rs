@@ -186,26 +186,23 @@ fn test_validate_provider_invalid() {
 }
 
 #[test]
-fn test_build_mode_and_options_provider_only() {
-    let (mode, options, response_format) = build_mode_and_options(true, false, None);
+fn test_build_mode_and_format_provider_only() {
+    let (mode, response_format) = build_mode_and_format(true, false, None);
     assert_eq!(mode, "provider");
-    assert!(options.contains("Providers"));
     assert!(response_format.contains("provider"));
 }
 
 #[test]
-fn test_build_mode_and_options_model_only() {
-    let (mode, options, response_format) = build_mode_and_options(false, true, Some("claude"));
-    assert_eq!(mode, "model");
-    assert!(options.contains("Claude"));
+fn test_build_mode_and_format_model_only() {
+    let (mode, response_format) = build_mode_and_format(false, true, Some("claude"));
+    assert_eq!(mode, "model for claude");
     assert!(response_format.contains("model"));
 }
 
 #[test]
-fn test_build_mode_and_options_both() {
-    let (mode, options, response_format) = build_mode_and_options(true, true, None);
+fn test_build_mode_and_format_both() {
+    let (mode, response_format) = build_mode_and_format(true, true, None);
     assert_eq!(mode, "provider and model");
-    assert!(options.contains("Providers"));
     assert!(response_format.contains("provider"));
     assert!(response_format.contains("model"));
 }
@@ -214,7 +211,6 @@ fn test_build_mode_and_options_both() {
 fn test_prompt_template_loads() {
     // Verify the prompt template is embedded and contains expected placeholders
     assert!(PROMPT_TEMPLATE.contains("{MODE}"));
-    assert!(PROMPT_TEMPLATE.contains("{OPTIONS}"));
     assert!(PROMPT_TEMPLATE.contains("{RESPONSE_FORMAT}"));
     assert!(PROMPT_TEMPLATE.contains("{TASK}"));
 }
