@@ -939,7 +939,12 @@ async fn handle_json_output(
 
     // Try validation
     if validate_json_output(&result_text, schema).is_ok() {
-        println!("{}", result_text);
+        // Minify JSON output
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&result_text) {
+            println!("{}", serde_json::to_string(&parsed)?);
+        } else {
+            println!("{}", result_text);
+        }
         return Ok(());
     }
 
@@ -963,7 +968,12 @@ async fn handle_json_output(
                 if let Some(raw_retry_text) = retry_output.final_result() {
                     let retry_text = json_validation::strip_markdown_fences(raw_retry_text);
                     if validate_json_output(retry_text, schema).is_ok() {
-                        println!("{}", retry_text);
+                        // Minify JSON output
+                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(retry_text) {
+                            println!("{}", serde_json::to_string(&parsed)?);
+                        } else {
+                            println!("{}", retry_text);
+                        }
                         return Ok(());
                     }
                     last_errors = validate_json_output(retry_text, schema).unwrap_err();
