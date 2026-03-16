@@ -924,10 +924,12 @@ async fn handle_json_output(
         bail!("Agent produced no output for JSON validation");
     };
 
-    let result_text = agent_out
-        .final_result()
-        .ok_or_else(|| anyhow::anyhow!("Agent output has no result text for JSON validation"))?
-        .to_string();
+    let result_text = json_validation::strip_markdown_fences(
+        agent_out
+            .final_result()
+            .ok_or_else(|| anyhow::anyhow!("Agent output has no result text for JSON validation"))?,
+    )
+    .to_string();
 
     let session_id = if !agent_out.session_id.is_empty() && agent_out.session_id != "unknown" {
         Some(agent_out.session_id.clone())
@@ -958,7 +960,8 @@ async fn handle_json_output(
 
         match agent.run_resume_with_prompt(&sid, &correction_prompt).await {
             Ok(Some(retry_output)) => {
-                if let Some(retry_text) = retry_output.final_result() {
+                if let Some(raw_retry_text) = retry_output.final_result() {
+                    let retry_text = json_validation::strip_markdown_fences(raw_retry_text);
                     if validate_json_output(retry_text, schema).is_ok() {
                         println!("{}", retry_text);
                         return Ok(());

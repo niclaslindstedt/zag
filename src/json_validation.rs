@@ -1,7 +1,7 @@
 //! JSON validation utilities for `--json` and `--json-schema` output modes.
 
 /// Strip markdown JSON fences if present (e.g., ```json ... ```).
-fn strip_markdown_fences(text: &str) -> &str {
+pub fn strip_markdown_fences(text: &str) -> &str {
     let trimmed = text.trim();
     if let Some(rest) = trimmed.strip_prefix("```json") {
         rest.strip_suffix("```").unwrap_or(rest).trim()
