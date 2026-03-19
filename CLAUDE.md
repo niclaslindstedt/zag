@@ -42,6 +42,7 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/session.rs` | Session-worktree mapping store (`sessions.json`) |
 | `src/worktree.rs` | Git worktree creation, removal, and name generation |
 | `src/json_validation.rs` | JSON and JSON Schema validation utilities |
+| `man/*.md` | Embedded manpages for the `agent man` command |
 | `prompts/auto-selector-3_1.md` | Versioned prompt template for auto-selection with task decline support |
 | `prompts/json-wrap-1_0.md` | Versioned prompt template for wrapping user prompts with JSON instructions |
 
@@ -324,6 +325,7 @@ The provider is specified via the `--provider` (or `-p`) flag. If omitted, it de
 - **`resume`** - Resume a previous session
 - **`review`** - Review code changes (uses Codex)
 - **`config`** - View or set configuration values
+- **`man`** - Show manual pages for commands
 
 ```bash
 # Interactive mode (uses default provider, typically claude)
@@ -621,4 +623,5 @@ Follow these steps when making changes to the codebase:
 6. **Format** — `make fmt`
 7. **Update README.md** — if the change affects user-facing behavior, CLI flags, supported models, or usage examples
 8. **Update CLAUDE.md** — if the change affects architecture, key files, configuration, or development patterns
-9. **Commit** — use `/commit` to commit with conventional commit messages
+9. **Update manpages** — if the change adds/removes/modifies commands, flags, or behavior documented in `man/*.md`
+10. **Commit** — use `/commit` to commit with conventional commit messages

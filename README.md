@@ -70,6 +70,7 @@ Instead of remembering provider-specific model names, use size aliases:
 | `resume [id]` | Resume a previous session |
 | `review` | Code review (uses Codex) |
 | `config [key] [value]` | View or set configuration |
+| `man [command]` | Show manual pages (`agent man exec`, etc.) |
 
 ## Global Flags
 

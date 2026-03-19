@@ -361,7 +361,10 @@ fn test_get_value_auto_fields() {
         },
         ..Default::default()
     };
-    assert_eq!(config.get_value("auto.provider"), Some("claude".to_string()));
+    assert_eq!(
+        config.get_value("auto.provider"),
+        Some("claude".to_string())
+    );
     assert_eq!(config.get_value("auto.model"), Some("sonnet".to_string()));
 }
 

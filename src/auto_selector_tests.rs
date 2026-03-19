@@ -28,7 +28,12 @@ fn test_extract_response_trims_whitespace() {
 fn test_extract_response_none_output() {
     let result = extract_response(None);
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("no parseable output"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("no parseable output")
+    );
 }
 
 #[test]

@@ -3,7 +3,11 @@ use super::*;
 #[test]
 fn test_generate_name_has_prefix() {
     let name = generate_name();
-    assert!(name.starts_with("agent-"), "name should start with 'agent-': {}", name);
+    assert!(
+        name.starts_with("agent-"),
+        "name should start with 'agent-': {}",
+        name
+    );
 }
 
 #[test]

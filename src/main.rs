@@ -135,6 +135,11 @@ enum Commands {
         /// Config key and value (e.g., "provider claude" or "provider=claude")
         args: Vec<String>,
     },
+    /// Show manual pages for commands
+    Man {
+        /// Command to show help for (run, exec, resume, review, config, man)
+        command: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -237,6 +242,9 @@ async fn main() -> Result<()> {
     }
 
     match cli.command {
+        Commands::Man { command } => {
+            print_manpage(command.as_deref())?;
+        }
         Commands::Config { args } => {
             run_config(args, cli.root.as_deref())?;
         }
@@ -376,6 +384,34 @@ struct AgentActionParams {
 }
 
 const JSON_WRAP_TEMPLATE: &str = include_str!("../prompts/json-wrap-1_0.md");
+
+/// Embedded manpages.
+const MAN_AGENT: &str = include_str!("../man/agent.md");
+const MAN_RUN: &str = include_str!("../man/run.md");
+const MAN_EXEC: &str = include_str!("../man/exec.md");
+const MAN_RESUME: &str = include_str!("../man/resume.md");
+const MAN_REVIEW: &str = include_str!("../man/review.md");
+const MAN_CONFIG: &str = include_str!("../man/config.md");
+const MAN_MAN: &str = include_str!("../man/man.md");
+
+/// Print a manpage to stdout.
+fn print_manpage(command: Option<&str>) -> Result<()> {
+    let content = match command {
+        None | Some("agent") => MAN_AGENT,
+        Some("run") => MAN_RUN,
+        Some("exec") => MAN_EXEC,
+        Some("resume") => MAN_RESUME,
+        Some("review") => MAN_REVIEW,
+        Some("config") => MAN_CONFIG,
+        Some("man") => MAN_MAN,
+        Some(other) => bail!(
+            "No manual entry for '{}'. Available: run, exec, resume, review, config, man",
+            other
+        ),
+    };
+    print!("{}", content);
+    Ok(())
+}
 
 /// Wrap a user prompt with explicit JSON instructions for non-Claude agents.
 fn wrap_prompt_for_json(prompt: &str) -> String {

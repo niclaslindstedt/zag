@@ -1,5 +1,49 @@
 use super::*;
 
+// --- print_manpage ---
+
+#[test]
+fn test_print_manpage_default() {
+    assert!(print_manpage(None).is_ok());
+}
+
+#[test]
+fn test_print_manpage_agent() {
+    assert!(print_manpage(Some("agent")).is_ok());
+}
+
+#[test]
+fn test_print_manpage_all_commands() {
+    for cmd in &["run", "exec", "resume", "review", "config", "man"] {
+        assert!(
+            print_manpage(Some(cmd)).is_ok(),
+            "manpage for '{}' failed",
+            cmd
+        );
+    }
+}
+
+#[test]
+fn test_print_manpage_unknown_command() {
+    let result = print_manpage(Some("nonexistent"));
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("No manual entry"));
+    assert!(err.contains("nonexistent"));
+}
+
+#[test]
+fn test_manpage_content_has_headers() {
+    // Verify embedded manpages aren't empty and have expected structure
+    assert!(MAN_AGENT.contains("# agent"));
+    assert!(MAN_RUN.contains("# agent run"));
+    assert!(MAN_EXEC.contains("# agent exec"));
+    assert!(MAN_RESUME.contains("# agent resume"));
+    assert!(MAN_REVIEW.contains("# agent review"));
+    assert!(MAN_CONFIG.contains("# agent config"));
+    assert!(MAN_MAN.contains("# agent man"));
+}
+
 // --- wrap_prompt_for_json ---
 
 #[test]
@@ -18,7 +62,8 @@ fn test_wrap_prompt_for_json_includes_json_instruction() {
 
 #[test]
 fn test_augment_system_prompt_not_json_mode() {
-    let result = augment_system_prompt_for_json(Some("original".to_string()), false, "codex", &None);
+    let result =
+        augment_system_prompt_for_json(Some("original".to_string()), false, "codex", &None);
     assert_eq!(result, Some("original".to_string()));
 }
 
@@ -47,12 +92,8 @@ fn test_augment_system_prompt_non_claude_with_schema() {
 
 #[test]
 fn test_augment_system_prompt_appends_to_existing() {
-    let result = augment_system_prompt_for_json(
-        Some("You are helpful.".to_string()),
-        true,
-        "codex",
-        &None,
-    );
+    let result =
+        augment_system_prompt_for_json(Some("You are helpful.".to_string()), true, "codex", &None);
     let prompt = result.unwrap();
     assert!(prompt.starts_with("You are helpful."));
     assert!(prompt.contains("valid JSON only"));

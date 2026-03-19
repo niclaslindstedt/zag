@@ -59,7 +59,12 @@ fn test_handle_output_with_stderr_on_failure() {
         .unwrap();
     let result = handle_output(&output, "Test");
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("bad thing happened"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("bad thing happened")
+    );
 }
 
 #[test]
