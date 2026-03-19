@@ -7,3 +7,5 @@
 
 # Coverage output
 .coverage/
+
+.claude/
