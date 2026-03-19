@@ -164,7 +164,7 @@ async fn main() -> Result<()> {
 
     // In exec mode without --verbose, suppress info-level logging (treat as quiet for the logger)
     let is_exec = matches!(cli.command, Commands::Exec { .. });
-    let effective_quiet = cli.quiet || (is_exec && !cli.verbose);
+    let effective_quiet = cli.quiet || (is_exec && !cli.verbose && !cli.debug);
 
     // Initialize logging
     logging::init(cli.debug, effective_quiet);
