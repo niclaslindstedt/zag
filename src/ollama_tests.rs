@@ -21,6 +21,7 @@ fn test_build_run_args_interactive() {
     assert_eq!(args[0], "run");
     assert!(args.contains(&"qwen3.5:9b".to_string()));
     assert!(!args.contains(&"--nowordwrap".to_string()));
+    assert!(args.contains(&"--hidethinking".to_string()));
 }
 
 #[test]
@@ -28,17 +29,31 @@ fn test_build_run_args_non_interactive() {
     let ollama = Ollama::new();
     let args = ollama.build_run_args(false, Some("hello"));
     assert!(args.contains(&"--nowordwrap".to_string()));
+    assert!(args.contains(&"--hidethinking".to_string()));
     assert!(args.contains(&"qwen3.5:9b".to_string()));
     assert!(args.contains(&"hello".to_string()));
 }
 
 #[test]
-fn test_build_run_args_with_system_prompt() {
+fn test_build_run_args_with_system_prompt_no_user_prompt() {
     let mut ollama = Ollama::new();
     ollama.system_prompt = "You are helpful".to_string();
     let args = ollama.build_run_args(true, None);
-    assert!(args.contains(&"--system".to_string()));
+    // --system is not a valid ollama run flag; system prompt is prepended to user prompt
+    assert!(!args.contains(&"--system".to_string()));
     assert!(args.contains(&"You are helpful".to_string()));
+}
+
+#[test]
+fn test_build_run_args_with_system_prompt_and_user_prompt() {
+    let mut ollama = Ollama::new();
+    ollama.system_prompt = "Be concise".to_string();
+    let args = ollama.build_run_args(false, Some("say hello"));
+    assert!(!args.contains(&"--system".to_string()));
+    // system prompt and user prompt merged
+    let last = args.last().unwrap();
+    assert!(last.contains("Be concise"));
+    assert!(last.contains("say hello"));
 }
 
 #[test]

@@ -56,10 +56,6 @@ impl Ollama {
     fn build_run_args(&self, interactive: bool, prompt: Option<&str>) -> Vec<String> {
         let mut args = vec!["run".to_string()];
 
-        if !self.system_prompt.is_empty() {
-            args.extend(["--system".to_string(), self.system_prompt.clone()]);
-        }
-
         if let Some(ref format) = self.output_format
             && format == "json"
         {
@@ -71,10 +67,19 @@ impl Ollama {
             args.push("--nowordwrap".to_string());
         }
 
+        args.push("--hidethinking".to_string());
+
         args.push(self.model_tag());
 
-        if let Some(p) = prompt {
-            args.push(p.to_string());
+        // ollama run has no --system flag; prepend system prompt to user prompt
+        let effective_prompt = match (self.system_prompt.is_empty(), prompt) {
+            (false, Some(p)) => Some(format!("{}\n\n{}", self.system_prompt, p)),
+            (false, None) => Some(self.system_prompt.clone()),
+            (true, p) => p.map(String::from),
+        };
+
+        if let Some(p) = effective_prompt {
+            args.push(p);
         }
 
         args
