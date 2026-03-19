@@ -23,6 +23,7 @@ These flags can be used with any subcommand.
     -a, --auto-approve          Skip permission prompts (auto-approve all actions)
         --add-dir <PATH>        Additional directories to include (repeatable)
     -w, --worktree [NAME]       Run in an isolated git worktree (optional name)
+        --sandbox [NAME]        Run inside a Docker sandbox (optional name)
     -d, --debug                 Enable debug logging
     -q, --quiet                 Suppress all logging except agent output
     -v, --verbose               Show styled output with icons and status messages
@@ -70,6 +71,7 @@ Settings priority: CLI flags > config file > agent defaults.
     agent --model large run                   Use the largest model
     agent -p auto -m auto exec "refactor"     Auto-select provider and model
     agent -w run                              Run in isolated worktree
+    agent --sandbox run                       Run in Docker sandbox
     agent exec --json "list 3 colors"         Get structured JSON output
 
 ## See Also

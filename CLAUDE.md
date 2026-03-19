@@ -39,7 +39,8 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/process.rs` | Subprocess helpers: stderr capture, exit status checking, output handling |
 | `src/output.rs` | Unified AgentOutput format and event formatting |
 | `src/auto_selector.rs` | Auto provider/model selection via lightweight LLM call |
-| `src/session.rs` | Session-worktree mapping store (`sessions.json`) |
+| `src/sandbox.rs` | Docker sandbox configuration, command building, and removal |
+| `src/session.rs` | Session-worktree/sandbox mapping store (`sessions.json`) |
 | `src/worktree.rs` | Git worktree creation, removal, and name generation |
 | `src/json_validation.rs` | JSON and JSON Schema validation utilities |
 | `man/*.md` | Embedded manpages for the `agent man` command |
@@ -397,6 +398,12 @@ agent --worktree run                  # Same as above
 agent -w my-feature run               # Named worktree
 agent -p codex -w run                 # Works with any provider
 
+# Sandbox mode (Docker sandbox microVM isolation)
+agent --sandbox run                          # Auto-generated sandbox name
+agent --sandbox my-sandbox run               # Named sandbox
+agent --sandbox exec "write tests"           # Non-interactive in sandbox
+agent -p codex --sandbox run                 # Works with any provider
+
 # JSON output mode
 agent exec --json "list 3 colors"                                        # Request JSON output
 agent exec --json-schema '{"type":"object"}' "list 3 colors"             # With schema validation
@@ -596,6 +603,92 @@ After interactive (`run`) worktree sessions, the CLI prompts:
 - `--worktree` flag is ignored with `resume` (worktree comes from session mapping)
 - Requires a git repository (errors if not in one)
 
+## Sandbox Mode
+
+The `--sandbox` flag runs agents inside Docker sandbox microVMs for stronger isolation than git worktrees.
+
+```bash
+# Auto-generated sandbox name
+agent --sandbox run
+
+# Named sandbox
+agent --sandbox my-sandbox exec "implement feature X"
+
+# Works with any provider
+agent -p codex --sandbox run
+agent -p gemini --sandbox my-task exec "analyze code"
+```
+
+### How It Works
+
+Each agent's `execute()` method checks for a `SandboxConfig`. When present, instead of running the agent binary directly, the command is wrapped in `docker sandbox run`:
+
+```
+# Without sandbox:
+claude --print --model opus "hello"
+
+# With sandbox:
+docker sandbox run --name sandbox-a1b2c3d4 docker/sandbox-templates:claude-code /workspace -- --print --model opus "hello"
+```
+
+### Sandbox Templates
+
+Each provider maps to a Docker sandbox template:
+
+| Provider | Template |
+|----------|----------|
+| Claude | `docker/sandbox-templates:claude-code` |
+| Codex | `docker/sandbox-templates:codex` |
+| Gemini | `docker/sandbox-templates:gemini` |
+| Copilot | `docker/sandbox-templates:copilot` |
+
+### Agent-Specific Behavior in Sandbox
+
+- **Claude**: `--dangerously-skip-permissions` is skipped (sandbox provides isolation by default). `current_dir()` is not set on the docker command.
+- **Codex**: `--cd` flag is skipped (workspace handles the root directory).
+- **Gemini**: `current_dir()` is not set on the docker command.
+- **Copilot**: `current_dir()` is not set on the docker command.
+
+### Session Tracking & Resume
+
+Sandbox sessions are tracked in `.agent/sessions.json` with a `sandbox_name` field. Each session records the session ID, provider, workspace path, sandbox name, and creation timestamp.
+
+- `agent resume <session-id>` looks up the sandbox name and re-configures the agent with `SandboxConfig`
+- The sandbox is idempotent — `docker sandbox run` with the same name reuses the existing VM
+
+### Cleanup Prompt
+
+After interactive (`run`) sandbox sessions:
+
+```
+> Sandbox: sandbox-a1b2c3d4
+> Keep sandbox? [Y/n]
+```
+
+- **Y (default)**: Keeps the sandbox and prints the resume command
+- **n**: Removes the sandbox via `docker sandbox rm` and deletes the session mapping
+- `exec` sessions skip the prompt (always keep)
+
+### Restrictions
+
+- `--sandbox` and `--worktree` are mutually exclusive
+- Cannot be used with `review`, `config`, or `man` subcommands
+- `--sandbox` flag is ignored with `resume` (sandbox comes from session mapping)
+
+### Interaction Matrix
+
+| Feature | Behavior with `--sandbox` |
+|---------|--------------------------|
+| `--worktree` | Mutually exclusive (error) |
+| `--auto-approve` | Redundant for Claude (sandbox default), still passed for others |
+| `--root` | Used as workspace path |
+| `--json` / `--json-schema` | Works (flags passed through to agent inside sandbox) |
+| `--system-prompt` | Works (files written to workspace, synced into sandbox) |
+| `resume` | Works via session store `sandbox_name` lookup |
+| `exec` | Works, no cleanup prompt |
+| `run` | Works, cleanup prompt shown |
+| `review` / `config` / `man` | Not supported (error) |
+
 ## How to Implement New Features
 
 Pattern for adding new CLI features:
@@ -605,6 +698,7 @@ Pattern for adding new CLI features:
    - `resolve_auto_selection()` — auto provider/model selection
    - `augment_system_prompt_for_json()` — system prompt modifications
    - `setup_worktree()` — worktree creation and session ID generation
+   - `setup_sandbox()` — sandbox creation and session ID generation
    - `create_and_configure_agent()` — agent factory call and option setting
    - `execute_action()` — the run/exec/resume dispatch
 3. **If agent-specific**: Add to `Agent` trait or use the downcast pattern via `as_any_mut()` (e.g., `input_format` for Claude). Claude-specific options are consolidated in a single downcast block inside `create_and_configure_agent()`.

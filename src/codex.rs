@@ -1,6 +1,7 @@
 use crate::agent::{Agent, ModelSize};
 use crate::debug;
 use crate::output::AgentOutput;
+use crate::sandbox::SandboxConfig;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::path::Path;
@@ -25,6 +26,7 @@ pub struct Codex {
     output_format: Option<String>,
     add_dirs: Vec<String>,
     capture_output: bool,
+    sandbox: Option<SandboxConfig>,
 }
 
 impl Codex {
@@ -37,6 +39,7 @@ impl Codex {
             output_format: None,
             add_dirs: Vec::new(),
             capture_output: false,
+            sandbox: None,
         }
     }
 
@@ -161,6 +164,61 @@ impl Codex {
         }
     }
 
+    /// Build the argument list for a run/exec invocation.
+    fn build_run_args(&self, interactive: bool, prompt: Option<&str>) -> Vec<String> {
+        let mut args = Vec::new();
+        let in_sandbox = self.sandbox.is_some();
+
+        if !interactive {
+            args.extend(["exec", "--skip-git-repo-check"].map(String::from));
+            if let Some(ref format) = self.output_format
+                && format == "json"
+            {
+                args.push("--json".to_string());
+            }
+        }
+
+        // Skip --cd in sandbox (workspace handles root)
+        if !in_sandbox && let Some(ref root) = self.root {
+            args.extend(["--cd".to_string(), root.clone()]);
+        }
+
+        args.extend(["--model".to_string(), self.model.clone()]);
+
+        for dir in &self.add_dirs {
+            args.extend(["--add-dir".to_string(), dir.clone()]);
+        }
+
+        if self.skip_permissions {
+            args.extend(
+                [
+                    "--dangerously-bypass-approvals-and-sandbox",
+                    "--sandbox",
+                    "danger-full-access",
+                ]
+                .map(String::from),
+            );
+        }
+
+        if let Some(p) = prompt {
+            args.push(p.to_string());
+        }
+
+        args
+    }
+
+    /// Create a `Command` either directly or wrapped in sandbox.
+    fn make_command(&self, agent_args: Vec<String>) -> Command {
+        if let Some(ref sb) = self.sandbox {
+            let std_cmd = crate::sandbox::build_sandbox_command(sb, agent_args);
+            Command::from(std_cmd)
+        } else {
+            let mut cmd = Command::new("codex");
+            cmd.args(&agent_args);
+            cmd
+        }
+    }
+
     async fn execute(
         &self,
         interactive: bool,
@@ -170,38 +228,8 @@ impl Codex {
             self.write_agents_file().await?;
         }
 
-        let mut cmd = Command::new("codex");
-
-        if !interactive {
-            cmd.args(["exec", "--skip-git-repo-check"]);
-            if let Some(ref format) = self.output_format
-                && format == "json"
-            {
-                cmd.arg("--json");
-            }
-        }
-
-        if let Some(ref root) = self.root {
-            cmd.args(["--cd", root]);
-        }
-
-        cmd.args(["--model", &self.model]);
-
-        for dir in &self.add_dirs {
-            cmd.args(["--add-dir", dir]);
-        }
-
-        if self.skip_permissions {
-            cmd.args([
-                "--dangerously-bypass-approvals-and-sandbox",
-                "--sandbox",
-                "danger-full-access",
-            ]);
-        }
-
-        if let Some(p) = prompt {
-            cmd.arg(p);
-        }
+        let agent_args = self.build_run_args(interactive, prompt);
+        let mut cmd = self.make_command(agent_args);
 
         if interactive {
             cmd.stdin(Stdio::inherit())
@@ -291,6 +319,10 @@ impl Agent for Codex {
         self.capture_output = capture;
     }
 
+    fn set_sandbox(&mut self, config: SandboxConfig) {
+        self.sandbox = Some(config);
+    }
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
@@ -313,65 +345,74 @@ impl Agent for Codex {
             self.write_agents_file().await?;
         }
 
-        let mut cmd = Command::new("codex");
-        cmd.args(["exec", "--skip-git-repo-check"]);
+        let in_sandbox = self.sandbox.is_some();
+        let mut args = vec!["exec".to_string(), "--skip-git-repo-check".to_string()];
 
         if self.output_format.as_deref() == Some("json") {
-            cmd.arg("--json");
+            args.push("--json".to_string());
         }
 
-        if let Some(ref root) = self.root {
-            cmd.args(["--cd", root]);
+        if !in_sandbox && let Some(ref root) = self.root {
+            args.extend(["--cd".to_string(), root.clone()]);
         }
 
-        cmd.args(["--model", &self.model]);
+        args.extend(["--model".to_string(), self.model.clone()]);
 
         for dir in &self.add_dirs {
-            cmd.args(["--add-dir", dir]);
+            args.extend(["--add-dir".to_string(), dir.clone()]);
         }
 
         if self.skip_permissions {
-            cmd.args([
-                "--dangerously-bypass-approvals-and-sandbox",
-                "--sandbox",
-                "danger-full-access",
-            ]);
+            args.extend(
+                [
+                    "--dangerously-bypass-approvals-and-sandbox",
+                    "--sandbox",
+                    "danger-full-access",
+                ]
+                .map(String::from),
+            );
         }
 
-        cmd.args(["--resume", session_id]);
-        cmd.arg(prompt);
+        args.extend(["--resume".to_string(), session_id.to_string()]);
+        args.push(prompt.to_string());
 
+        let mut cmd = self.make_command(args);
         let raw = crate::process::run_captured(&mut cmd, "Codex").await?;
         Ok(Some(self.build_output(&raw)))
     }
 
     async fn run_resume(&self, session_id: Option<&str>, last: bool) -> Result<()> {
-        let mut cmd = Command::new("codex");
-        cmd.arg("resume");
+        let in_sandbox = self.sandbox.is_some();
+        let mut args = vec!["resume".to_string()];
 
         if let Some(id) = session_id {
-            cmd.arg(id);
+            args.push(id.to_string());
         } else if last {
-            cmd.arg("--last");
+            args.push("--last".to_string());
         }
 
-        if let Some(ref root) = self.root {
-            cmd.args(["--cd", root]);
+        if !in_sandbox && let Some(ref root) = self.root {
+            args.extend(["--cd".to_string(), root.clone()]);
         }
 
-        cmd.args(["--model", &self.model]);
+        args.extend(["--model".to_string(), self.model.clone()]);
 
         for dir in &self.add_dirs {
-            cmd.args(["--add-dir", dir]);
+            args.extend(["--add-dir".to_string(), dir.clone()]);
         }
 
         if self.skip_permissions {
-            cmd.args([
-                "--dangerously-bypass-approvals-and-sandbox",
-                "--sandbox",
-                "danger-full-access",
-            ]);
+            args.extend(
+                [
+                    "--dangerously-bypass-approvals-and-sandbox",
+                    "--sandbox",
+                    "danger-full-access",
+                ]
+                .map(String::from),
+            );
         }
+
+        let mut cmd = self.make_command(args);
 
         cmd.stdin(Stdio::inherit())
             .stdout(Stdio::inherit())

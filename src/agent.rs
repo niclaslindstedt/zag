@@ -1,4 +1,5 @@
 use crate::output::AgentOutput;
+use crate::sandbox::SandboxConfig;
 use anyhow::Result;
 use async_trait::async_trait;
 
@@ -118,6 +119,9 @@ pub trait Agent {
     /// and returns `Some(AgentOutput)`. Default is `false` (streams to terminal).
     /// Claude handles capture via output_format, so the default is a no-op.
     fn set_capture_output(&mut self, _capture: bool) {}
+
+    /// Set sandbox configuration for running inside a Docker sandbox.
+    fn set_sandbox(&mut self, _config: SandboxConfig) {}
 
     /// Set additional directories for the agent to include.
     fn set_add_dirs(&mut self, dirs: Vec<String>);

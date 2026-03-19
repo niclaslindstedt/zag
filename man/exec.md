@@ -77,6 +77,15 @@ The difference between `-o json` and `--json`:
 - `-o json` outputs the full AgentOutput envelope (session ID, events, usage, etc.)
 - `--json` outputs only the agent's response as raw JSON (intended for structured data extraction)
 
+## Sandbox Mode
+
+The `--sandbox` flag runs the agent inside a Docker sandbox microVM for stronger isolation. See `agent man run` for full details.
+
+    agent --sandbox exec "say hello"           Run in auto-named sandbox
+    agent --sandbox my-name exec "say hello"   Run in named sandbox
+
+In exec mode, the sandbox is kept after execution (no cleanup prompt). Resume with `agent resume <session-id>`.
+
 ## Examples
 
     agent exec "say hello"                              Simple prompt
@@ -87,6 +96,7 @@ The difference between `-o json` and `--json`:
     agent exec -o text "simple question"                Raw text, no parsing
     agent -q exec "write tests" | less                  Pipe clean output
     agent -v exec "analyze code"                        Verbose with icons
+    agent --sandbox exec "write tests"                  Run in Docker sandbox
 
     echo '{"data":"input"}' | agent exec -i stream-json "process"   Structured input
 

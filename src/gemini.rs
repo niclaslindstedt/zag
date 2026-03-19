@@ -1,5 +1,6 @@
 use crate::agent::{Agent, ModelSize};
 use crate::output::AgentOutput;
+use crate::sandbox::SandboxConfig;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::path::Path;
@@ -26,6 +27,7 @@ pub struct Gemini {
     output_format: Option<String>,
     add_dirs: Vec<String>,
     capture_output: bool,
+    sandbox: Option<SandboxConfig>,
 }
 
 impl Gemini {
@@ -38,6 +40,7 @@ impl Gemini {
             output_format: None,
             add_dirs: Vec::new(),
             capture_output: false,
+            sandbox: None,
         }
     }
 
@@ -53,6 +56,48 @@ impl Gemini {
         Ok(())
     }
 
+    /// Build the argument list for a run/exec invocation.
+    fn build_run_args(&self, interactive: bool, prompt: Option<&str>) -> Vec<String> {
+        let mut args = Vec::new();
+
+        if self.skip_permissions {
+            args.extend(["--approval-mode", "yolo"].map(String::from));
+        }
+
+        if !self.model.is_empty() && self.model != "auto" {
+            args.extend(["--model".to_string(), self.model.clone()]);
+        }
+
+        for dir in &self.add_dirs {
+            args.extend(["--include-directories".to_string(), dir.clone()]);
+        }
+
+        if !interactive && let Some(ref format) = self.output_format {
+            args.extend(["--output-format".to_string(), format.clone()]);
+        }
+
+        if let Some(p) = prompt {
+            args.push(p.to_string());
+        }
+
+        args
+    }
+
+    /// Create a `Command` either directly or wrapped in sandbox.
+    fn make_command(&self, agent_args: Vec<String>) -> Command {
+        if let Some(ref sb) = self.sandbox {
+            let std_cmd = crate::sandbox::build_sandbox_command(sb, agent_args);
+            Command::from(std_cmd)
+        } else {
+            let mut cmd = Command::new("gemini");
+            if let Some(ref root) = self.root {
+                cmd.current_dir(root);
+            }
+            cmd.args(&agent_args);
+            cmd
+        }
+    }
+
     async fn execute(
         &self,
         interactive: bool,
@@ -62,34 +107,11 @@ impl Gemini {
             self.write_system_file().await?;
         }
 
-        let mut cmd = Command::new("gemini");
-
-        if let Some(ref root) = self.root {
-            cmd.current_dir(root);
-        }
+        let agent_args = self.build_run_args(interactive, prompt);
+        let mut cmd = self.make_command(agent_args);
 
         if !self.system_prompt.is_empty() {
             cmd.env("GEMINI_SYSTEM_MD", "true");
-        }
-
-        if self.skip_permissions {
-            cmd.args(["--approval-mode", "yolo"]);
-        }
-
-        if !self.model.is_empty() && self.model != "auto" {
-            cmd.args(["--model", &self.model]);
-        }
-
-        for dir in &self.add_dirs {
-            cmd.args(["--include-directories", dir]);
-        }
-
-        if !interactive && let Some(ref format) = self.output_format {
-            cmd.args(["--output-format", format]);
-        }
-
-        if let Some(p) = prompt {
-            cmd.arg(p);
         }
 
         if interactive {
@@ -111,6 +133,10 @@ impl Gemini {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "gemini_tests.rs"]
+mod tests;
 
 impl Default for Gemini {
     fn default() -> Self {
@@ -176,6 +202,10 @@ impl Agent for Gemini {
         self.capture_output = capture;
     }
 
+    fn set_sandbox(&mut self, config: SandboxConfig) {
+        self.sandbox = Some(config);
+    }
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
@@ -190,29 +220,27 @@ impl Agent for Gemini {
     }
 
     async fn run_resume(&self, session_id: Option<&str>, _last: bool) -> Result<()> {
-        let mut cmd = Command::new("gemini");
-
-        if let Some(ref root) = self.root {
-            cmd.current_dir(root);
-        }
+        let mut args = Vec::new();
 
         if let Some(id) = session_id {
-            cmd.args(["--resume", id]);
+            args.extend(["--resume".to_string(), id.to_string()]);
         } else {
-            cmd.args(["--resume", "latest"]);
+            args.extend(["--resume".to_string(), "latest".to_string()]);
         }
 
         if self.skip_permissions {
-            cmd.args(["--approval-mode", "yolo"]);
+            args.extend(["--approval-mode", "yolo"].map(String::from));
         }
 
         if !self.model.is_empty() && self.model != "auto" {
-            cmd.args(["--model", &self.model]);
+            args.extend(["--model".to_string(), self.model.clone()]);
         }
 
         for dir in &self.add_dirs {
-            cmd.args(["--include-directories", dir]);
+            args.extend(["--include-directories".to_string(), dir.clone()]);
         }
+
+        let mut cmd = self.make_command(args);
 
         cmd.stdin(Stdio::inherit())
             .stdout(Stdio::inherit())

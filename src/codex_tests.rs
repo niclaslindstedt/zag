@@ -1,4 +1,5 @@
 use super::Codex;
+use crate::sandbox::SandboxConfig;
 
 #[test]
 fn test_parse_ndjson_extracts_thread_id() {
@@ -106,4 +107,74 @@ fn test_build_output_json_mode_parses_ndjson() {
         Some("{\"colors\":[\"red\",\"blue\"]}")
     );
     assert_eq!(output.session_id, "tid-123");
+}
+
+#[test]
+fn test_build_run_args_non_interactive() {
+    let mut codex = Codex::new();
+    codex.model = "gpt-5.2-codex".to_string();
+    codex.root = Some("/project".to_string());
+
+    let args = codex.build_run_args(false, Some("hello"));
+    assert!(args.contains(&"exec".to_string()));
+    assert!(args.contains(&"--skip-git-repo-check".to_string()));
+    assert!(args.contains(&"--cd".to_string()));
+    assert!(args.contains(&"/project".to_string()));
+    assert!(args.contains(&"--model".to_string()));
+    assert!(args.contains(&"gpt-5.2-codex".to_string()));
+    assert!(args.contains(&"hello".to_string()));
+}
+
+#[test]
+fn test_build_run_args_interactive() {
+    let codex = Codex::new();
+    let args = codex.build_run_args(true, Some("hello"));
+    assert!(!args.contains(&"exec".to_string()));
+    assert!(!args.contains(&"--skip-git-repo-check".to_string()));
+    assert!(args.contains(&"hello".to_string()));
+}
+
+#[test]
+fn test_build_run_args_sandbox_skips_cd() {
+    let mut codex = Codex::new();
+    codex.root = Some("/project".to_string());
+    codex.sandbox = Some(SandboxConfig {
+        name: "test".to_string(),
+        template: "docker/sandbox-templates:codex".to_string(),
+        workspace: "/workspace".to_string(),
+    });
+
+    let args = codex.build_run_args(false, Some("hello"));
+    assert!(!args.contains(&"--cd".to_string()));
+    assert!(!args.contains(&"/project".to_string()));
+}
+
+#[test]
+fn test_make_command_without_sandbox() {
+    let codex = Codex::new();
+    let cmd = codex.make_command(vec!["exec".to_string(), "hello".to_string()]);
+    assert_eq!(cmd.as_std().get_program().to_str().unwrap(), "codex");
+}
+
+#[test]
+fn test_make_command_with_sandbox() {
+    let mut codex = Codex::new();
+    codex.sandbox = Some(SandboxConfig {
+        name: "sandbox-test".to_string(),
+        template: "docker/sandbox-templates:codex".to_string(),
+        workspace: "/workspace".to_string(),
+    });
+
+    let cmd = codex.make_command(vec!["exec".to_string(), "hello".to_string()]);
+    assert_eq!(cmd.as_std().get_program().to_str().unwrap(), "docker");
+    let args: Vec<&str> = cmd
+        .as_std()
+        .get_args()
+        .map(|a| a.to_str().unwrap())
+        .collect();
+    assert!(args.contains(&"sandbox"));
+    assert!(args.contains(&"run"));
+    assert!(args.contains(&"sandbox-test"));
+    assert!(args.contains(&"exec"));
+    assert!(args.contains(&"hello"));
 }

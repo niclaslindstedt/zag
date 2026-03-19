@@ -83,6 +83,7 @@ Instead of remembering provider-specific model names, use size aliases:
 | `--auto-approve` | `-a` | Skip permission prompts |
 | `--add-dir <path>` | | Additional directories to include |
 | `--worktree [name]` | `-w` | Run in an isolated git worktree |
+| `--sandbox [name]` | | Run inside a Docker sandbox |
 | `--debug` | `-d` | Enable debug logging |
 | `--quiet` | `-q` | Suppress all logging except agent output |
 | `--verbose` | `-v` | Show styled output with icons in exec mode |
@@ -131,6 +132,18 @@ agent -w my-feature exec "..."  # Named worktree
 ```
 
 After interactive sessions, you're prompted to keep or remove the worktree. `agent resume <id>` automatically restores the correct worktree.
+
+### Sandbox Mode
+
+Run agents inside Docker sandbox microVMs for stronger isolation with bidirectional file sync, network policies, and credential injection:
+
+```bash
+agent --sandbox run                    # Auto-named sandbox
+agent --sandbox my-name exec "..."     # Named sandbox
+agent -p codex --sandbox run           # Works with any provider
+```
+
+After interactive sessions, you're prompted to keep or remove the sandbox. `agent resume <id>` resumes inside the same sandbox. `--sandbox` and `--worktree` are mutually exclusive.
 
 ### JSON Output
 

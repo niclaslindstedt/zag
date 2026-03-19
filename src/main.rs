@@ -10,6 +10,7 @@ mod json_validation;
 mod logging;
 mod output;
 mod process;
+mod sandbox;
 mod session;
 mod worktree;
 
@@ -66,6 +67,10 @@ struct Cli {
     /// Create a git worktree for this session (optionally specify a name)
     #[arg(short = 'w', long, global = true)]
     worktree: Option<Option<String>>,
+
+    /// Run inside a Docker sandbox (optionally specify a name)
+    #[arg(long, global = true)]
+    sandbox: Option<Option<String>>,
 
     /// Request JSON output from the agent
     #[arg(long, global = true)]
@@ -229,6 +234,19 @@ async fn main() -> Result<()> {
         }
     }
 
+    // Validate --sandbox usage
+    if cli.sandbox.is_some() {
+        match &cli.command {
+            Commands::Review { .. } => bail!("--sandbox cannot be used with review"),
+            Commands::Config { .. } => bail!("--sandbox cannot be used with config"),
+            Commands::Man { .. } => bail!("--sandbox cannot be used with man"),
+            _ => {}
+        }
+        if cli.worktree.is_some() {
+            bail!("--sandbox and --worktree are mutually exclusive");
+        }
+    }
+
     // Validate auto provider/model usage
     let is_auto_provider = cli.provider.as_deref() == Some("auto");
     let is_auto_model = cli.model.as_deref() == Some("auto");
@@ -284,6 +302,7 @@ async fn main() -> Result<()> {
                 quiet,
                 verbose,
                 worktree: cli.worktree,
+                sandbox: cli.sandbox,
                 json_mode,
                 json_schema,
                 json_stream,
@@ -378,6 +397,7 @@ struct AgentActionParams {
     quiet: bool,
     verbose: bool,
     worktree: Option<Option<String>>,
+    sandbox: Option<Option<String>>,
     json_mode: bool,
     json_schema: Option<serde_json::Value>,
     json_stream: bool,
@@ -577,6 +597,61 @@ fn setup_worktree(
     })
 }
 
+/// Sandbox setup state computed before agent creation.
+struct SandboxSetup {
+    is_sandbox_session: bool,
+    sandbox_name: Option<String>,
+    session_id: Option<String>,
+    workspace: Option<String>,
+}
+
+/// Set up sandbox session state: generate name, session ID, determine workspace.
+fn setup_sandbox(
+    sandbox_flag: &Option<Option<String>>,
+    action: &Commands,
+    root: &Option<String>,
+) -> Result<SandboxSetup> {
+    let is_sandbox_session = sandbox_flag.is_some() && !matches!(action, Commands::Resume { .. });
+
+    if !is_sandbox_session {
+        return Ok(SandboxSetup {
+            is_sandbox_session: false,
+            sandbox_name: None,
+            session_id: None,
+            workspace: None,
+        });
+    }
+
+    let session_id = Some(uuid::Uuid::new_v4().to_string());
+    let sandbox_name = Some(
+        sandbox_flag
+            .as_ref()
+            .unwrap()
+            .as_deref()
+            .map(String::from)
+            .unwrap_or_else(sandbox::generate_name),
+    );
+
+    // Determine workspace: root flag > git repo root > current dir
+    let workspace = if let Some(r) = root {
+        r.clone()
+    } else if let Ok(repo_root) = worktree::git_repo_root(None) {
+        repo_root.to_string_lossy().to_string()
+    } else {
+        std::env::current_dir()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string()
+    };
+
+    Ok(SandboxSetup {
+        is_sandbox_session: true,
+        sandbox_name,
+        session_id,
+        workspace: Some(workspace),
+    })
+}
+
 /// Parameters for creating and configuring an agent.
 struct AgentSetupParams {
     provider: String,
@@ -662,8 +737,9 @@ fn create_and_configure_agent(
     Ok((agent, output_fmt_clone))
 }
 
-/// Save the session-worktree mapping to disk.
-fn save_session_mapping(wt: &WorktreeSetup, provider: &str, root: Option<&str>) {
+/// Save the session-worktree/sandbox mapping to disk.
+fn save_session_mapping(wt: &WorktreeSetup, sb: &SandboxSetup, provider: &str, root: Option<&str>) {
+    // Save worktree session mapping
     if let (Some(sid), Some(wt_path), Some(wt_name)) =
         (&wt.session_id, &wt.worktree_path, &wt.worktree_name)
     {
@@ -674,11 +750,30 @@ fn save_session_mapping(wt: &WorktreeSetup, provider: &str, root: Option<&str>) 
             worktree_path: wt_path.clone(),
             worktree_name: wt_name.clone(),
             created_at: chrono::Utc::now().to_rfc3339(),
+            sandbox_name: None,
         });
         if let Err(e) = store.save(root) {
             log::warn!("Failed to save session mapping: {}", e);
         }
         debug!("Saved session mapping: {} -> {}", sid, wt_path);
+    }
+
+    // Save sandbox session mapping
+    if let (Some(sid), Some(sandbox_name)) = (&sb.session_id, &sb.sandbox_name) {
+        let workspace = sb.workspace.clone().unwrap_or_default();
+        let mut store = session::SessionStore::load(root).unwrap_or_default();
+        store.add(session::SessionEntry {
+            session_id: sid.clone(),
+            provider: provider.to_string(),
+            worktree_path: workspace.clone(),
+            worktree_name: sandbox_name.clone(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+            sandbox_name: Some(sandbox_name.clone()),
+        });
+        if let Err(e) = store.save(root) {
+            log::warn!("Failed to save sandbox session mapping: {}", e);
+        }
+        debug!("Saved sandbox session mapping: {} -> {}", sid, sandbox_name);
     }
 }
 
@@ -695,13 +790,14 @@ struct ExecutionContext<'a> {
 
 /// Execute the requested action (run, exec, or resume).
 ///
-/// Returns an optional `(session_id, worktree_path)` for resume worktree cleanup.
+/// Returns optional `(session_id, worktree_path)` and optional `(session_id, sandbox_name)` for cleanup.
 async fn execute_action(
     action: Commands,
     agent: &mut (dyn crate::agent::Agent + Send + Sync),
     ctx: &ExecutionContext<'_>,
-) -> Result<Option<(String, String)>> {
+) -> Result<(Option<(String, String)>, Option<(String, String)>)> {
     let mut resume_worktree_info = None;
+    let mut resume_sandbox_info = None;
 
     match action {
         Commands::Run { prompt } => {
@@ -756,19 +852,40 @@ async fn execute_action(
             if let Some(ref sid) = resume_id {
                 let store = session::SessionStore::load(ctx.root).unwrap_or_default();
                 if let Some(entry) = store.find_by_session_id(sid) {
-                    let wt_path = std::path::Path::new(&entry.worktree_path);
-                    if wt_path.exists() {
-                        debug!("Resuming in worktree: {}", entry.worktree_path);
-                        agent.set_root(entry.worktree_path.clone());
-                        resume_worktree_info = Some((sid.clone(), entry.worktree_path.clone()));
+                    // Handle sandbox resume
+                    if let Some(ref sandbox_name) = entry.sandbox_name {
+                        debug!("Resuming in sandbox: {}", sandbox_name);
+                        let workspace = if !entry.worktree_path.is_empty() {
+                            entry.worktree_path.clone()
+                        } else {
+                            std::env::current_dir()
+                                .unwrap_or_default()
+                                .to_string_lossy()
+                                .to_string()
+                        };
+                        let config = sandbox::SandboxConfig {
+                            name: sandbox_name.clone(),
+                            template: sandbox::template_for_provider(&entry.provider).to_string(),
+                            workspace,
+                        };
+                        agent.set_sandbox(config);
+                        resume_sandbox_info = Some((sid.clone(), sandbox_name.clone()));
                     } else {
-                        log::warn!(
-                            "Worktree no longer exists at {}, resuming without it",
-                            entry.worktree_path
-                        );
-                        let mut store = store;
-                        store.remove(sid);
-                        let _ = store.save(ctx.root);
+                        // Handle worktree resume
+                        let wt_path = std::path::Path::new(&entry.worktree_path);
+                        if wt_path.exists() {
+                            debug!("Resuming in worktree: {}", entry.worktree_path);
+                            agent.set_root(entry.worktree_path.clone());
+                            resume_worktree_info = Some((sid.clone(), entry.worktree_path.clone()));
+                        } else {
+                            log::warn!(
+                                "Worktree no longer exists at {}, resuming without it",
+                                entry.worktree_path
+                            );
+                            let mut store = store;
+                            store.remove(sid);
+                            let _ = store.save(ctx.root);
+                        }
                     }
                 }
             }
@@ -779,7 +896,7 @@ async fn execute_action(
         _ => unreachable!(),
     }
 
-    Ok(resume_worktree_info)
+    Ok((resume_worktree_info, resume_sandbox_info))
 }
 
 /// Print agent output in the requested format.
@@ -831,6 +948,9 @@ fn log_config_details(params: &AgentActionParams) {
     if params.worktree.is_some() {
         debug!("Worktree mode enabled");
     }
+    if params.sandbox.is_some() {
+        debug!("Sandbox mode enabled");
+    }
     if params.json_mode {
         debug!("JSON output mode enabled");
     }
@@ -853,6 +973,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         quiet,
         verbose,
         worktree: worktree_flag,
+        sandbox: sandbox_flag,
         json_mode,
         json_schema,
         json_stream,
@@ -865,6 +986,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         augment_system_prompt_for_json(system_prompt, json_mode, &provider, &json_schema);
 
     let wt = setup_worktree(&worktree_flag, &action, &provider, &root, show_wrapper)?;
+    let sb = setup_sandbox(&sandbox_flag, &action, &root)?;
 
     // Extract output/input format from exec action
     let (output_format, input_format) = match &action {
@@ -903,6 +1025,21 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         show_wrapper,
     )?;
 
+    // Configure sandbox if active
+    if sb.is_sandbox_session
+        && let (Some(name), Some(workspace)) = (&sb.sandbox_name, &sb.workspace)
+    {
+        let config = sandbox::SandboxConfig {
+            name: name.clone(),
+            template: sandbox::template_for_provider(&provider).to_string(),
+            workspace: workspace.clone(),
+        };
+        agent.set_sandbox(config);
+        if show_wrapper {
+            println!("\x1b[32m✓\x1b[0m Sandbox configured: {}", name);
+        }
+    }
+
     // Display initialization message
     let model_name = agent.get_model();
     let auto_approve_suffix = if auto_approve { " (auto approve)" } else { "" };
@@ -914,9 +1051,10 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     }
 
     // Save session-worktree mapping before execution (so it survives Ctrl+C)
-    save_session_mapping(&wt, &provider, root.as_deref());
+    save_session_mapping(&wt, &sb, &provider, root.as_deref());
 
     let is_interactive_worktree = wt.is_worktree_session && matches!(action, Commands::Run { .. });
+    let is_interactive_sandbox = sb.is_sandbox_session && matches!(action, Commands::Run { .. });
 
     let exec_ctx = ExecutionContext {
         provider: &provider,
@@ -927,12 +1065,26 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         verbose,
         root: root.as_deref(),
     };
-    let resume_worktree_info = execute_action(action, &mut *agent, &exec_ctx).await?;
+    let (resume_worktree_info, resume_sandbox_info) =
+        execute_action(action, &mut *agent, &exec_ctx).await?;
 
     // Cleanup
     debug!("Cleaning up agent resources");
     agent.cleanup().await?;
     info!("Session terminated");
+
+    // Sandbox cleanup prompt
+    if is_interactive_sandbox {
+        if let Some(ref name) = sb.sandbox_name {
+            prompt_sandbox_cleanup(
+                sb.session_id.as_deref().unwrap_or(""),
+                name,
+                root.as_deref(),
+            )?;
+        }
+    } else if let Some((ref sid, ref sandbox_name)) = resume_sandbox_info {
+        prompt_sandbox_cleanup(sid, sandbox_name, root.as_deref())?;
+    }
 
     // Worktree cleanup prompt
     let cleanup_info = if is_interactive_worktree {
@@ -946,6 +1098,43 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
 
     if let Some((sid, wtp)) = cleanup_info {
         prompt_worktree_cleanup(&sid, &wtp, root.as_deref())?;
+    }
+
+    Ok(())
+}
+
+/// Prompt the user whether to keep or remove a sandbox after an interactive session.
+fn prompt_sandbox_cleanup(session_id: &str, sandbox_name: &str, root: Option<&str>) -> Result<()> {
+    use std::io::{self, BufRead, Write};
+
+    println!("\n\x1b[33m>\x1b[0m Sandbox: {}", sandbox_name);
+    print!("\x1b[33m>\x1b[0m Keep sandbox? [Y/n] ");
+    io::stdout().flush()?;
+
+    let stdin = io::stdin();
+    let mut line = String::new();
+    stdin.lock().read_line(&mut line)?;
+    let answer = line.trim().to_lowercase();
+
+    if answer == "n" || answer == "no" {
+        match sandbox::remove_sandbox(sandbox_name) {
+            Ok(()) => {
+                println!("\x1b[32m✓\x1b[0m Sandbox removed");
+            }
+            Err(e) => {
+                log::warn!("Failed to remove sandbox: {}", e);
+                println!("\x1b[31m✗\x1b[0m Failed to remove sandbox: {}", e);
+            }
+        }
+        // Remove session mapping
+        let mut store = session::SessionStore::load(root).unwrap_or_default();
+        store.remove(session_id);
+        let _ = store.save(root);
+    } else {
+        println!(
+            "\x1b[32m✓\x1b[0m Sandbox kept. Resume with: agent resume {}",
+            session_id
+        );
     }
 
     Ok(())

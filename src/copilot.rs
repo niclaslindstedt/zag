@@ -1,5 +1,6 @@
 use crate::agent::{Agent, ModelSize};
 use crate::output::AgentOutput;
+use crate::sandbox::SandboxConfig;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::path::Path;
@@ -33,6 +34,7 @@ pub struct Copilot {
     output_format: Option<String>,
     add_dirs: Vec<String>,
     capture_output: bool,
+    sandbox: Option<SandboxConfig>,
 }
 
 impl Copilot {
@@ -45,6 +47,7 @@ impl Copilot {
             output_format: None,
             add_dirs: Vec::new(),
             capture_output: false,
+            sandbox: None,
         }
     }
 
@@ -64,6 +67,47 @@ impl Copilot {
         Ok(())
     }
 
+    /// Build the argument list for a run/exec invocation.
+    fn build_run_args(&self, interactive: bool, prompt: Option<&str>) -> Vec<String> {
+        let mut args = Vec::new();
+
+        // In non-interactive mode, --allow-all-tools is required
+        if !interactive || self.skip_permissions {
+            args.push("--allow-all-tools".to_string());
+        }
+
+        if !self.model.is_empty() {
+            args.extend(["--model".to_string(), self.model.clone()]);
+        }
+
+        for dir in &self.add_dirs {
+            args.extend(["--add-dir".to_string(), dir.clone()]);
+        }
+
+        match (interactive, prompt) {
+            (true, Some(p)) => args.extend(["-i".to_string(), p.to_string()]),
+            (false, Some(p)) => args.extend(["-p".to_string(), p.to_string()]),
+            _ => {}
+        }
+
+        args
+    }
+
+    /// Create a `Command` either directly or wrapped in sandbox.
+    fn make_command(&self, agent_args: Vec<String>) -> Command {
+        if let Some(ref sb) = self.sandbox {
+            let std_cmd = crate::sandbox::build_sandbox_command(sb, agent_args);
+            Command::from(std_cmd)
+        } else {
+            let mut cmd = Command::new("copilot");
+            if let Some(ref root) = self.root {
+                cmd.current_dir(root);
+            }
+            cmd.args(&agent_args);
+            cmd
+        }
+    }
+
     async fn execute(
         &self,
         interactive: bool,
@@ -80,31 +124,8 @@ impl Copilot {
             self.write_instructions_file().await?;
         }
 
-        let mut cmd = Command::new("copilot");
-
-        if let Some(ref root) = self.root {
-            cmd.current_dir(root);
-        }
-
-        // In non-interactive mode, --allow-all-tools is required
-        if !interactive || self.skip_permissions {
-            cmd.arg("--allow-all-tools");
-        }
-
-        if !self.model.is_empty() {
-            cmd.args(["--model", &self.model]);
-        }
-
-        for dir in &self.add_dirs {
-            cmd.args(["--add-dir", dir]);
-        }
-
-        match (interactive, prompt) {
-            (true, Some(p)) => cmd.args(["-i", p]),
-            (true, None) => &mut cmd, // Interactive is default for copilot CLI
-            (false, Some(p)) => cmd.args(["-p", p]),
-            (false, None) => &mut cmd, // No prompt in non-interactive mode
-        };
+        let agent_args = self.build_run_args(interactive, prompt);
+        let mut cmd = self.make_command(agent_args);
 
         if interactive {
             cmd.stdin(Stdio::inherit())
@@ -125,6 +146,10 @@ impl Copilot {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "copilot_tests.rs"]
+mod tests;
 
 impl Default for Copilot {
     fn default() -> Self {
@@ -190,6 +215,10 @@ impl Agent for Copilot {
         self.capture_output = capture;
     }
 
+    fn set_sandbox(&mut self, config: SandboxConfig) {
+        self.sandbox = Some(config);
+    }
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
@@ -204,25 +233,21 @@ impl Agent for Copilot {
     }
 
     async fn run_resume(&self, _session_id: Option<&str>, _last: bool) -> Result<()> {
-        let mut cmd = Command::new("copilot");
-
-        if let Some(ref root) = self.root {
-            cmd.current_dir(root);
-        }
-
-        cmd.arg("--resume");
+        let mut args = vec!["--resume".to_string()];
 
         if self.skip_permissions {
-            cmd.arg("--allow-all-tools");
+            args.push("--allow-all-tools".to_string());
         }
 
         if !self.model.is_empty() {
-            cmd.args(["--model", &self.model]);
+            args.extend(["--model".to_string(), self.model.clone()]);
         }
 
         for dir in &self.add_dirs {
-            cmd.args(["--add-dir", dir]);
+            args.extend(["--add-dir".to_string(), dir.clone()]);
         }
+
+        let mut cmd = self.make_command(args);
 
         cmd.stdin(Stdio::inherit())
             .stdout(Stdio::inherit())

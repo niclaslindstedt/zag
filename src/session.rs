@@ -15,6 +15,8 @@ pub struct SessionEntry {
     pub worktree_path: String,
     pub worktree_name: String,
     pub created_at: String,
+    #[serde(default)]
+    pub sandbox_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

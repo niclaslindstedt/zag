@@ -8,6 +8,7 @@ pub mod models;
 
 use crate::agent::{Agent, ModelSize};
 use crate::output::AgentOutput;
+use crate::sandbox::SandboxConfig;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::process::Stdio;
@@ -31,6 +32,7 @@ pub struct Claude {
     verbose: bool,
     json_schema: Option<String>,
     session_id: Option<String>,
+    sandbox: Option<SandboxConfig>,
 }
 
 impl Claude {
@@ -48,6 +50,7 @@ impl Claude {
             verbose: false,
             json_schema: None,
             session_id: None,
+            sandbox: None,
         }
     }
 
@@ -71,17 +74,122 @@ impl Claude {
         self.session_id = Some(id);
     }
 
+    /// Build the argument list for a run/exec invocation.
+    fn build_run_args(
+        &self,
+        interactive: bool,
+        prompt: Option<&str>,
+        effective_output_format: &Option<String>,
+    ) -> Vec<String> {
+        let mut args = Vec::new();
+        let in_sandbox = self.sandbox.is_some();
+
+        if !interactive {
+            args.push("--print".to_string());
+
+            match effective_output_format.as_deref() {
+                Some("json") | Some("json-pretty") => {
+                    args.extend(["--verbose", "--output-format", "json"].map(String::from));
+                }
+                Some("stream-json") | None => {
+                    args.extend(["--verbose", "--output-format", "stream-json"].map(String::from));
+                }
+                Some("native-json") => {
+                    args.extend(["--verbose", "--output-format", "json"].map(String::from));
+                }
+                Some("text") => {}
+                _ => {}
+            }
+        }
+
+        // Skip --dangerously-skip-permissions in sandbox (permissions are sandbox-default)
+        if self.skip_permissions && !in_sandbox {
+            args.push("--dangerously-skip-permissions".to_string());
+        }
+
+        args.extend(["--model".to_string(), self.model.clone()]);
+
+        for dir in &self.add_dirs {
+            args.extend(["--add-dir".to_string(), dir.clone()]);
+        }
+
+        if !self.system_prompt.is_empty() {
+            args.extend([
+                "--append-system-prompt".to_string(),
+                self.system_prompt.clone(),
+            ]);
+        }
+
+        if !interactive && let Some(ref input_fmt) = self.input_format {
+            args.extend(["--input-format".to_string(), input_fmt.clone()]);
+        }
+
+        if let Some(ref wt) = self.worktree {
+            args.push("--worktree".to_string());
+            if let Some(name) = wt {
+                args.push(name.clone());
+            }
+        }
+
+        if let Some(ref sid) = self.session_id {
+            args.extend(["--session-id".to_string(), sid.clone()]);
+        }
+
+        if let Some(ref schema) = self.json_schema {
+            args.extend(["--json-schema".to_string(), schema.clone()]);
+        }
+
+        if let Some(p) = prompt {
+            args.push(p.to_string());
+        }
+
+        args
+    }
+
+    /// Build the argument list for a resume invocation.
+    fn build_resume_args(&self, session_id: Option<&str>) -> Vec<String> {
+        let mut args = Vec::new();
+        let in_sandbox = self.sandbox.is_some();
+
+        if let Some(id) = session_id {
+            args.extend(["--resume".to_string(), id.to_string()]);
+        } else {
+            args.push("--continue".to_string());
+        }
+
+        if self.skip_permissions && !in_sandbox {
+            args.push("--dangerously-skip-permissions".to_string());
+        }
+
+        args.extend(["--model".to_string(), self.model.clone()]);
+
+        for dir in &self.add_dirs {
+            args.extend(["--add-dir".to_string(), dir.clone()]);
+        }
+
+        args
+    }
+
+    /// Create a `Command` either directly or wrapped in sandbox.
+    fn make_command(&self, agent_args: Vec<String>) -> Command {
+        if let Some(ref sb) = self.sandbox {
+            let std_cmd = crate::sandbox::build_sandbox_command(sb, agent_args);
+            Command::from(std_cmd)
+        } else {
+            let mut cmd = Command::new("claude");
+            if let Some(ref root) = self.root {
+                cmd.current_dir(root);
+            }
+            cmd.args(&agent_args);
+            cmd
+        }
+    }
+
     async fn execute(
         &self,
         interactive: bool,
         prompt: Option<&str>,
     ) -> Result<Option<AgentOutput>> {
-        let mut cmd = Command::new("claude");
-
-        if let Some(ref root) = self.root {
-            cmd.current_dir(root);
-        }
-
         // When capture_output is set (e.g. by auto-selector), use "json" format
         // so stdout is piped and parsed into AgentOutput
         let effective_output_format = if self.capture_output && self.output_format.is_none() {
@@ -97,77 +205,8 @@ impl Claude {
                 .as_ref()
                 .is_none_or(|f| f == "json" || f == "json-pretty" || f == "stream-json");
 
-        if !interactive {
-            cmd.arg("--print");
-
-            // Add --verbose and --output-format for JSON outputs
-            // Default to stream-json when no output format is specified
-            match effective_output_format.as_deref() {
-                Some("json") | Some("json-pretty") => {
-                    // For both json and json-pretty, pass "json" to claude CLI
-                    // We handle the pretty printing in the wrapper
-                    cmd.args(["--verbose", "--output-format", "json"]);
-                }
-                Some("stream-json") | None => {
-                    // Use stream-json for explicit stream-json or default (no output format)
-                    // Note: Not using --include-partial-messages because it adds stream_event types
-                    // that would require additional parsing. The NDJSON format without it is sufficient
-                    // for most use cases.
-                    cmd.args(["--verbose", "--output-format", "stream-json"]);
-                }
-                Some("native-json") => {
-                    // Native JSON mode - output Claude's raw JSON without conversion
-                    cmd.args(["--verbose", "--output-format", "json"]);
-                }
-                Some("text") => {
-                    // Explicit text mode - don't add output format flags
-                }
-                _ => {
-                    // Unknown format - ignore
-                }
-            }
-        }
-
-        if self.skip_permissions {
-            cmd.arg("--dangerously-skip-permissions");
-        }
-
-        cmd.args(["--model", &self.model]);
-
-        for dir in &self.add_dirs {
-            cmd.args(["--add-dir", dir]);
-        }
-
-        if !self.system_prompt.is_empty() {
-            cmd.args(["--append-system-prompt", &self.system_prompt]);
-        }
-
-        // Add input format if specified (only works with --print)
-        if !interactive && let Some(ref input_fmt) = self.input_format {
-            cmd.args(["--input-format", input_fmt]);
-        }
-
-        // Pass --worktree to claude binary (native support)
-        if let Some(ref wt) = self.worktree {
-            cmd.arg("--worktree");
-            if let Some(name) = wt {
-                cmd.arg(name);
-            }
-        }
-
-        // Pass --session-id to claude binary
-        if let Some(ref sid) = self.session_id {
-            cmd.args(["--session-id", sid]);
-        }
-
-        // Pass --json-schema to claude binary (native support)
-        if let Some(ref schema) = self.json_schema {
-            cmd.args(["--json-schema", schema]);
-        }
-
-        if let Some(p) = prompt {
-            cmd.arg(p);
-        }
+        let agent_args = self.build_run_args(interactive, prompt, &effective_output_format);
+        let mut cmd = self.make_command(agent_args);
 
         // Check if we should pass through native JSON without conversion
         let is_native_json = effective_output_format.as_deref() == Some("native-json");
@@ -448,6 +487,10 @@ fn convert_claude_event_to_unified(event: &models::ClaudeEvent) -> Option<crate:
     }
 }
 
+#[cfg(test)]
+#[path = "claude_tests.rs"]
+mod tests;
+
 impl Default for Claude {
     fn default() -> Self {
         Self::new()
@@ -508,6 +551,10 @@ impl Agent for Claude {
         self.capture_output = capture;
     }
 
+    fn set_sandbox(&mut self, config: SandboxConfig) {
+        self.sandbox = Some(config);
+    }
+
     fn set_add_dirs(&mut self, dirs: Vec<String>) {
         self.add_dirs = dirs;
     }
@@ -526,27 +573,8 @@ impl Agent for Claude {
     }
 
     async fn run_resume(&self, session_id: Option<&str>, _last: bool) -> Result<()> {
-        let mut cmd = Command::new("claude");
-
-        if let Some(ref root) = self.root {
-            cmd.current_dir(root);
-        }
-
-        if let Some(id) = session_id {
-            cmd.args(["--resume", id]);
-        } else {
-            cmd.arg("--continue");
-        }
-
-        if self.skip_permissions {
-            cmd.arg("--dangerously-skip-permissions");
-        }
-
-        cmd.args(["--model", &self.model]);
-
-        for dir in &self.add_dirs {
-            cmd.args(["--add-dir", dir]);
-        }
+        let agent_args = self.build_resume_args(session_id);
+        let mut cmd = self.make_command(agent_args);
 
         cmd.stdin(Stdio::inherit())
             .stdout(Stdio::inherit())
@@ -564,31 +592,28 @@ impl Agent for Claude {
         session_id: &str,
         prompt: &str,
     ) -> Result<Option<AgentOutput>> {
-        let mut cmd = Command::new("claude");
+        let in_sandbox = self.sandbox.is_some();
+        let mut args = vec!["--print".to_string()];
+        args.extend(["--resume".to_string(), session_id.to_string()]);
+        args.extend(["--verbose", "--output-format", "json"].map(String::from));
 
-        if let Some(ref root) = self.root {
-            cmd.current_dir(root);
+        if self.skip_permissions && !in_sandbox {
+            args.push("--dangerously-skip-permissions".to_string());
         }
 
-        cmd.arg("--print");
-        cmd.args(["--resume", session_id]);
-        cmd.args(["--verbose", "--output-format", "json"]);
-
-        if self.skip_permissions {
-            cmd.arg("--dangerously-skip-permissions");
-        }
-
-        cmd.args(["--model", &self.model]);
+        args.extend(["--model".to_string(), self.model.clone()]);
 
         for dir in &self.add_dirs {
-            cmd.args(["--add-dir", dir]);
+            args.extend(["--add-dir".to_string(), dir.clone()]);
         }
 
         if let Some(ref schema) = self.json_schema {
-            cmd.args(["--json-schema", schema]);
+            args.extend(["--json-schema".to_string(), schema.clone()]);
         }
 
-        cmd.arg(prompt);
+        args.push(prompt.to_string());
+
+        let mut cmd = self.make_command(args);
 
         cmd.stdin(Stdio::inherit());
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());

@@ -25,6 +25,7 @@ fn sample_entry(id: &str) -> SessionEntry {
         worktree_path: "/tmp/test-wt".to_string(),
         worktree_name: "test-wt".to_string(),
         created_at: "2026-03-13T00:00:00Z".to_string(),
+        sandbox_name: None,
     }
 }
 
