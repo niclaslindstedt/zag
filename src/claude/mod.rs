@@ -206,6 +206,19 @@ impl Claude {
                 .is_none_or(|f| f == "json" || f == "json-pretty" || f == "stream-json");
 
         let agent_args = self.build_run_args(interactive, prompt, &effective_output_format);
+        log::debug!("Claude command: claude {}", agent_args.join(" "));
+        if !self.system_prompt.is_empty() {
+            log::debug!("Claude system prompt: {}", self.system_prompt);
+        }
+        if let Some(p) = prompt {
+            log::debug!("Claude user prompt: {}", p);
+        }
+        log::debug!(
+            "Claude mode: interactive={}, capture_json={}, output_format={:?}",
+            interactive,
+            capture_json,
+            effective_output_format
+        );
         let mut cmd = self.make_command(agent_args);
 
         // Check if we should pass through native JSON without conversion
@@ -592,6 +605,11 @@ impl Agent for Claude {
         session_id: &str,
         prompt: &str,
     ) -> Result<Option<AgentOutput>> {
+        log::debug!(
+            "Claude resume with prompt: session={}, prompt={}",
+            session_id,
+            prompt
+        );
         let in_sandbox = self.sandbox.is_some();
         let mut args = vec!["--print".to_string()];
         args.extend(["--resume".to_string(), session_id.to_string()]);

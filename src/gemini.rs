@@ -104,10 +104,18 @@ impl Gemini {
         prompt: Option<&str>,
     ) -> Result<Option<AgentOutput>> {
         if !self.system_prompt.is_empty() {
+            log::debug!(
+                "Gemini system prompt (written to system.md): {}",
+                self.system_prompt
+            );
             self.write_system_file().await?;
         }
 
         let agent_args = self.build_run_args(interactive, prompt);
+        log::debug!("Gemini command: gemini {}", agent_args.join(" "));
+        if let Some(p) = prompt {
+            log::debug!("Gemini user prompt: {}", p);
+        }
         let mut cmd = self.make_command(agent_args);
 
         if !self.system_prompt.is_empty() {
@@ -125,6 +133,7 @@ impl Gemini {
             Ok(None)
         } else if self.capture_output {
             let text = crate::process::run_captured(&mut cmd, "Gemini").await?;
+            log::debug!("Gemini raw response ({} bytes): {}", text.len(), text);
             Ok(Some(AgentOutput::from_text("gemini", &text)))
         } else {
             cmd.stdin(Stdio::inherit()).stdout(Stdio::inherit());

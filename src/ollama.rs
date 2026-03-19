@@ -134,6 +134,13 @@ impl Ollama {
         prompt: Option<&str>,
     ) -> Result<Option<AgentOutput>> {
         let agent_args = self.build_run_args(interactive, prompt);
+        log::debug!("Ollama command: ollama {}", agent_args.join(" "));
+        if !self.system_prompt.is_empty() {
+            log::debug!("Ollama system prompt: {}", self.system_prompt);
+        }
+        if let Some(p) = prompt {
+            log::debug!("Ollama user prompt: {}", p);
+        }
         let mut cmd = self.make_command(agent_args);
 
         if interactive {
@@ -147,6 +154,7 @@ impl Ollama {
             Ok(None)
         } else if self.capture_output {
             let text = crate::process::run_captured(&mut cmd, "Ollama").await?;
+            log::debug!("Ollama raw response ({} bytes): {}", text.len(), text);
             Ok(Some(AgentOutput::from_text("ollama", &text)))
         } else {
             cmd.stdin(Stdio::inherit()).stdout(Stdio::inherit());

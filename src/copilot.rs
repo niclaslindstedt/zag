@@ -121,10 +121,18 @@ impl Copilot {
         }
 
         if !self.system_prompt.is_empty() {
+            log::debug!(
+                "Copilot system prompt (written to instructions): {}",
+                self.system_prompt
+            );
             self.write_instructions_file().await?;
         }
 
         let agent_args = self.build_run_args(interactive, prompt);
+        log::debug!("Copilot command: copilot {}", agent_args.join(" "));
+        if let Some(p) = prompt {
+            log::debug!("Copilot user prompt: {}", p);
+        }
         let mut cmd = self.make_command(agent_args);
 
         if interactive {
@@ -138,6 +146,7 @@ impl Copilot {
             Ok(None)
         } else if self.capture_output {
             let text = crate::process::run_captured(&mut cmd, "Copilot").await?;
+            log::debug!("Copilot raw response ({} bytes): {}", text.len(), text);
             Ok(Some(AgentOutput::from_text("copilot", &text)))
         } else {
             cmd.stdin(Stdio::inherit()).stdout(Stdio::inherit());

@@ -820,8 +820,13 @@ async fn execute_action(
             if ctx.json_mode && prompt.is_some() {
                 info!("Starting non-interactive session (JSON mode)");
                 let wrapped = if ctx.provider != "claude" {
-                    prompt.as_deref().map(wrap_prompt_for_json)
+                    let w = prompt.as_deref().map(wrap_prompt_for_json);
+                    if let Some(ref wp) = w {
+                        debug!("JSON-wrapped run prompt: {}", wp);
+                    }
+                    w
                 } else {
+                    debug!("Run prompt (JSON mode, Claude): {:?}", prompt);
                     None
                 };
                 let run_prompt = wrapped.as_deref().or(prompt.as_deref());
@@ -842,8 +847,11 @@ async fn execute_action(
         Commands::Exec { prompt, .. } => {
             info!("Starting non-interactive session");
             let run_prompt = if ctx.json_mode && ctx.provider != "claude" {
-                wrap_prompt_for_json(&prompt)
+                let wrapped = wrap_prompt_for_json(&prompt);
+                debug!("JSON-wrapped prompt: {}", wrapped);
+                wrapped
             } else {
+                debug!("Exec prompt: {}", prompt);
                 prompt.clone()
             };
             let agent_output = agent.run(Some(&run_prompt)).await?;
@@ -1001,6 +1009,9 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
 
     let system_prompt =
         augment_system_prompt_for_json(system_prompt, json_mode, &provider, &json_schema);
+    if let Some(ref sp) = system_prompt {
+        debug!("Effective system prompt: {}", sp);
+    }
 
     let wt = setup_worktree(&worktree_flag, &action, &provider, &root, show_wrapper)?;
     let sb = setup_sandbox(&sandbox_flag, &action, &root)?;
@@ -1317,11 +1328,21 @@ async fn handle_json_output(
         bail!("Agent produced no output for JSON validation");
     };
 
-    let result_text =
-        json_validation::strip_markdown_fences(agent_out.final_result().ok_or_else(|| {
-            anyhow::anyhow!("Agent output has no result text for JSON validation")
-        })?)
-        .to_string();
+    let raw_result = agent_out
+        .final_result()
+        .ok_or_else(|| anyhow::anyhow!("Agent output has no result text for JSON validation"))?;
+    debug!(
+        "JSON mode: raw agent result ({} bytes): {}",
+        raw_result.len(),
+        raw_result
+    );
+
+    let result_text = json_validation::strip_markdown_fences(raw_result).to_string();
+    debug!(
+        "JSON mode: after fence stripping ({} bytes): {}",
+        result_text.len(),
+        result_text
+    );
 
     let session_id = if !agent_out.session_id.is_empty() && agent_out.session_id != "unknown" {
         Some(agent_out.session_id.clone())
@@ -1354,6 +1375,7 @@ async fn handle_json_output(
         debug!("JSON retry attempt {}/{}", attempt, MAX_JSON_RETRIES);
 
         let correction_prompt = build_correction_prompt(&last_errors);
+        debug!("JSON retry correction prompt: {}", correction_prompt);
 
         match agent.run_resume_with_prompt(&sid, &correction_prompt).await {
             Ok(Some(retry_output)) => {

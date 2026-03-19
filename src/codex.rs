@@ -225,10 +225,18 @@ impl Codex {
         prompt: Option<&str>,
     ) -> Result<Option<AgentOutput>> {
         if !self.system_prompt.is_empty() {
+            log::debug!(
+                "Codex system prompt (written to AGENTS.md): {}",
+                self.system_prompt
+            );
             self.write_agents_file().await?;
         }
 
         let agent_args = self.build_run_args(interactive, prompt);
+        log::debug!("Codex command: codex {}", agent_args.join(" "));
+        if let Some(p) = prompt {
+            log::debug!("Codex user prompt: {}", p);
+        }
         let mut cmd = self.make_command(agent_args);
 
         if interactive {
@@ -242,6 +250,7 @@ impl Codex {
             Ok(None)
         } else if self.capture_output {
             let raw = crate::process::run_captured(&mut cmd, "Codex").await?;
+            log::debug!("Codex raw response ({} bytes): {}", raw.len(), raw);
             Ok(Some(self.build_output(&raw)))
         } else {
             cmd.stdin(Stdio::inherit()).stdout(Stdio::inherit());
@@ -341,6 +350,11 @@ impl Agent for Codex {
         session_id: &str,
         prompt: &str,
     ) -> Result<Option<AgentOutput>> {
+        log::debug!(
+            "Codex resume with prompt: session={}, prompt={}",
+            session_id,
+            prompt
+        );
         if !self.system_prompt.is_empty() {
             self.write_agents_file().await?;
         }
