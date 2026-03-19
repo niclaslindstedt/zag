@@ -16,7 +16,7 @@ The CLI handles model resolution (size aliases like `small`/`medium`/`large`), c
 
 These flags can be used with any subcommand.
 
-    -p, --provider <NAME>       Provider: claude, codex, gemini, copilot, auto
+    -p, --provider <NAME>       Provider: claude, codex, gemini, copilot, ollama, auto
     -m, --model <NAME>          Model name, size alias (small/medium/large), or auto
     -s, --system-prompt <TEXT>   Custom system prompt appended to the agent's default
     -r, --root <PATH>           Root directory to run the agent in
@@ -24,6 +24,7 @@ These flags can be used with any subcommand.
         --add-dir <PATH>        Additional directories to include (repeatable)
     -w, --worktree [NAME]       Run in an isolated git worktree (optional name)
         --sandbox [NAME]        Run inside a Docker sandbox (optional name)
+        --size <SIZE>           Model parameter size for Ollama (e.g., 2b, 9b, 35b)
     -d, --debug                 Enable debug logging
     -q, --quiet                 Suppress all logging except agent output
     -v, --verbose               Show styled output with icons and status messages
@@ -49,6 +50,7 @@ Run `agent man <command>` for detailed help on each command.
     codex     Models: gpt-5.1-codex-mini, gpt-5.2-codex, gpt-5.1-codex-max, gpt-5.2
     gemini    Models: gemini-2.5-flash-lite, gemini-2.5-flash, gemini-2.5-pro, auto
     copilot   Models: claude-haiku-4.5, claude-sonnet-4.5, claude-opus-4.5, and more
+    ollama    Local models via Ollama. Default: qwen3.5:9b. Use --size for parameter size
 
 ## Model Size Aliases
 
@@ -72,6 +74,7 @@ Settings priority: CLI flags > config file > agent defaults.
     agent -p auto -m auto exec "refactor"     Auto-select provider and model
     agent -w run                              Run in isolated worktree
     agent --sandbox run                       Run in Docker sandbox
+    agent -p ollama --size 35b exec "hello"   Ollama with large model size
     agent exec --json "list 3 colors"         Get structured JSON output
 
 ## See Also

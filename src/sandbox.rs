@@ -17,6 +17,7 @@ pub fn template_for_provider(provider: &str) -> &str {
         "codex" => "docker/sandbox-templates:codex",
         "gemini" => "docker/sandbox-templates:gemini",
         "copilot" => "docker/sandbox-templates:copilot",
+        "ollama" => "shell",
         _ => "docker/sandbox-templates:claude-code",
     }
 }

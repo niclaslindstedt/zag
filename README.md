@@ -50,6 +50,7 @@ agent config model.codex=gpt-5.1-codex-max
 | `codex` | `codex` | gpt-5.2-codex | gpt-5.2-codex, gpt-5.1-codex-max, gpt-5.1-codex-mini, gpt-5.2 |
 | `gemini` | `gemini` | auto | auto, gemini-3-pro-preview, gemini-3-flash-preview, gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite |
 | `copilot` | `copilot` | claude-sonnet-4.5 | claude-sonnet-4.5, claude-opus-4.5, claude-haiku-4.5, gpt-5, gpt-5.1, gpt-5.2, gemini-3-pro-preview |
+| `ollama` | `ollama` | qwen3.5:9b | Any model from ollama.com (use `--size` for parameter size) |
 
 ### Model Size Aliases
 
@@ -60,6 +61,8 @@ Instead of remembering provider-specific model names, use size aliases:
 | `small` / `s` | haiku | gpt-5.1-codex-mini | gemini-2.5-flash-lite | claude-haiku-4.5 |
 | `medium` / `m` | sonnet | gpt-5.2-codex | gemini-2.5-flash | claude-sonnet-4.5 |
 | `large` / `l` / `max` | opus | gpt-5.1-codex-max | gemini-2.5-pro | claude-opus-4.5 |
+
+For Ollama, size aliases map to parameter sizes (not model names): `small`=2b, `medium`=9b, `large`=35b. These are configurable via `ollama.size_small`, `ollama.size_medium`, `ollama.size_large`.
 
 ## Commands
 
@@ -84,6 +87,7 @@ Instead of remembering provider-specific model names, use size aliases:
 | `--add-dir <path>` | | Additional directories to include |
 | `--worktree [name]` | `-w` | Run in an isolated git worktree |
 | `--sandbox [name]` | | Run inside a Docker sandbox |
+| `--size <size>` | | Model parameter size for Ollama (e.g., 2b, 9b, 35b) |
 | `--debug` | `-d` | Enable debug logging |
 | `--quiet` | `-q` | Suppress all logging except agent output |
 | `--verbose` | `-v` | Show styled output with icons in exec mode |

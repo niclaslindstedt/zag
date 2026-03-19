@@ -15,6 +15,22 @@ pub struct AgentModels {
     pub codex: Option<String>,
     pub gemini: Option<String>,
     pub copilot: Option<String>,
+    pub ollama: Option<String>,
+}
+
+/// Ollama-specific configuration.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct OllamaConfig {
+    /// Default model name (default: "qwen3.5")
+    pub model: Option<String>,
+    /// Default parameter size (default: "9b")
+    pub size: Option<String>,
+    /// Parameter size for small alias
+    pub size_small: Option<String>,
+    /// Parameter size for medium alias
+    pub size_medium: Option<String>,
+    /// Parameter size for large alias
+    pub size_large: Option<String>,
 }
 
 /// Default settings applied when not overridden by CLI flags.
@@ -49,6 +65,9 @@ pub struct Config {
     /// Auto-selection settings
     #[serde(default)]
     pub auto: AutoConfig,
+    /// Ollama-specific settings
+    #[serde(default)]
+    pub ollama: OllamaConfig,
 }
 
 impl Config {
@@ -257,6 +276,7 @@ impl Config {
             "codex" => self.models.codex.as_deref(),
             "gemini" => self.models.gemini.as_deref(),
             "copilot" => self.models.copilot.as_deref(),
+            "ollama" => self.models.ollama.as_deref(),
             _ => None,
         };
 
@@ -268,6 +288,26 @@ impl Config {
     #[allow(dead_code)]
     pub fn default_model(&self) -> Option<&str> {
         self.defaults.model.as_deref()
+    }
+
+    /// Get the ollama model name (default: "qwen3.5").
+    pub fn ollama_model(&self) -> &str {
+        self.ollama.model.as_deref().unwrap_or("qwen3.5")
+    }
+
+    /// Get the ollama default size (default: "9b").
+    pub fn ollama_size(&self) -> &str {
+        self.ollama.size.as_deref().unwrap_or("9b")
+    }
+
+    /// Get the ollama size for a model size alias, with config override.
+    pub fn ollama_size_for<'a>(&'a self, size: &'a str) -> &'a str {
+        match size {
+            "small" | "s" => self.ollama.size_small.as_deref().unwrap_or("2b"),
+            "medium" | "m" | "default" => self.ollama.size_medium.as_deref().unwrap_or("9b"),
+            "large" | "l" | "max" => self.ollama.size_large.as_deref().unwrap_or("35b"),
+            _ => size, // passthrough for explicit sizes like "27b"
+        }
     }
 
     /// Check if auto-approve is enabled by default.
@@ -292,7 +332,7 @@ impl Config {
 
     /// Valid provider names (including "auto").
     pub const VALID_PROVIDERS: &'static [&'static str] =
-        &["claude", "codex", "gemini", "copilot", "auto"];
+        &["claude", "codex", "gemini", "copilot", "ollama", "auto"];
 
     /// Get a config value by dot-notation key.
     #[allow(dead_code)]
@@ -305,8 +345,14 @@ impl Config {
             "model.codex" => self.models.codex.clone(),
             "model.gemini" => self.models.gemini.clone(),
             "model.copilot" => self.models.copilot.clone(),
+            "model.ollama" => self.models.ollama.clone(),
             "auto.provider" => self.auto.provider.clone(),
             "auto.model" => self.auto.model.clone(),
+            "ollama.model" => self.ollama.model.clone(),
+            "ollama.size" => self.ollama.size.clone(),
+            "ollama.size_small" => self.ollama.size_small.clone(),
+            "ollama.size_medium" => self.ollama.size_medium.clone(),
+            "ollama.size_large" => self.ollama.size_large.clone(),
             _ => None,
         }
     }
@@ -340,10 +386,16 @@ impl Config {
             "model.codex" => self.models.codex = Some(value.to_string()),
             "model.gemini" => self.models.gemini = Some(value.to_string()),
             "model.copilot" => self.models.copilot = Some(value.to_string()),
+            "model.ollama" => self.models.ollama = Some(value.to_string()),
             "auto.provider" => self.auto.provider = Some(value.to_string()),
             "auto.model" => self.auto.model = Some(value.to_string()),
+            "ollama.model" => self.ollama.model = Some(value.to_string()),
+            "ollama.size" => self.ollama.size = Some(value.to_string()),
+            "ollama.size_small" => self.ollama.size_small = Some(value.to_string()),
+            "ollama.size_medium" => self.ollama.size_medium = Some(value.to_string()),
+            "ollama.size_large" => self.ollama.size_large = Some(value.to_string()),
             _ => anyhow::bail!(
-                "Unknown config key '{}'. Available: provider, model, auto_approve, model.claude, model.codex, model.gemini, model.copilot, auto.provider, auto.model",
+                "Unknown config key '{}'. Available: provider, model, auto_approve, model.claude, model.codex, model.gemini, model.copilot, model.ollama, auto.provider, auto.model, ollama.model, ollama.size, ollama.size_small, ollama.size_medium, ollama.size_large",
                 key
             ),
         }
@@ -379,6 +431,14 @@ model = "medium"
 # Settings for auto provider/model selection (-p auto / -m auto)
 # provider = "claude"
 # model = "haiku"
+
+[ollama]
+# Ollama-specific settings
+# model = "qwen3.5"
+# size = "9b"
+# size_small = "2b"
+# size_medium = "9b"
+# size_large = "35b"
 "#
         .to_string()
     }

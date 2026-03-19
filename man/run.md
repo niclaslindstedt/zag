@@ -50,6 +50,8 @@ After an interactive sandbox session, you are prompted whether to keep or remove
     agent --sandbox run                       Run in a Docker sandbox
     agent --sandbox my-sandbox run            Named sandbox session
     agent --model small run                   Use lightweight model for quick tasks
+    agent -p ollama run                       Interactive Ollama session (qwen3.5:9b)
+    agent -p ollama --size 35b run            Ollama with large model size
 
 ## See Also
 

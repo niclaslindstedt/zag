@@ -18,6 +18,7 @@ fn test_template_for_provider() {
         template_for_provider("copilot"),
         "docker/sandbox-templates:copilot"
     );
+    assert_eq!(template_for_provider("ollama"), "shell");
     // Unknown provider falls back to claude-code
     assert_eq!(
         template_for_provider("unknown"),

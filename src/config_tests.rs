@@ -287,6 +287,7 @@ fn test_config_serialization_roundtrip() {
             codex: None,
             gemini: None,
             copilot: None,
+            ollama: None,
         },
         ..Default::default()
     };

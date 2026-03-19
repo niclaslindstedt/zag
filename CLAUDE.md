@@ -36,6 +36,7 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/codex.rs` | Codex agent implementation |
 | `src/gemini.rs` | Gemini agent implementation |
 | `src/copilot.rs` | Copilot agent implementation |
+| `src/ollama.rs` | Ollama agent implementation (local models) |
 | `src/process.rs` | Subprocess helpers: stderr capture, exit status checking, output handling |
 | `src/output.rs` | Unified AgentOutput format and event formatting |
 | `src/auto_selector.rs` | Auto provider/model selection via lightweight LLM call |
@@ -65,11 +66,13 @@ agent --model sonnet run             # Uses sonnet directly
 
 Each agent implements `model_for_size()` in its `Agent` trait implementation:
 
-| Size | Claude | Codex | Gemini | Copilot |
-|------|--------|-------|--------|---------|
-| `small` / `s` | haiku | gpt-5.1-codex-mini | gemini-2.5-flash-lite | claude-haiku-4.5 |
-| `medium` / `m` | sonnet | gpt-5.2-codex | gemini-2.5-flash | claude-sonnet-4.5 |
-| `large` / `l` / `max` | opus | gpt-5.1-codex-max | gemini-2.5-pro | claude-opus-4.5 |
+| Size | Claude | Codex | Gemini | Copilot | Ollama (size) |
+|------|--------|-------|--------|---------|---------------|
+| `small` / `s` | haiku | gpt-5.1-codex-mini | gemini-2.5-flash-lite | claude-haiku-4.5 | 2b |
+| `medium` / `m` | sonnet | gpt-5.2-codex | gemini-2.5-flash | claude-sonnet-4.5 | 9b |
+| `large` / `l` / `max` | opus | gpt-5.1-codex-max | gemini-2.5-pro | claude-opus-4.5 | 35b |
+
+For Ollama, size aliases map to parameter sizes (not model names). The model is always `ollama.model` config (default: qwen3.5). Sizes are configurable via `ollama.size_small`, `ollama.size_medium`, `ollama.size_large`.
 
 ## Auto Provider/Model Selection
 
@@ -157,6 +160,14 @@ model = "medium"
 # Settings for auto provider/model selection (-p auto / -m auto)
 # provider = "claude"
 # model = "haiku"
+
+[ollama]
+# Ollama-specific settings
+# model = "qwen3.5"
+# size = "9b"
+# size_small = "2b"
+# size_medium = "9b"
+# size_large = "35b"
 ```
 
 ### Config Subcommand
@@ -196,6 +207,11 @@ Settings are applied in this order (later overrides earlier):
 | `model.copilot` | Default model for Copilot agent (overrides model) |
 | `auto.provider` | Provider for auto-selection LLM call (default: "claude") |
 | `auto.model` | Model for auto-selection LLM call (default: "sonnet") |
+| `ollama.model` | Default Ollama model name (default: "qwen3.5") |
+| `ollama.size` | Default Ollama parameter size (default: "9b") |
+| `ollama.size_small` | Size for small alias (default: "2b") |
+| `ollama.size_medium` | Size for medium alias (default: "9b") |
+| `ollama.size_large` | Size for large alias (default: "35b") |
 
 ## Logging
 
@@ -538,6 +554,24 @@ agent -p copilot <run|exec|resume> [OPTIONS]
 ```
 
 **Models**: claude-sonnet-4.5 (default), claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.2, gpt-5.1, gpt-5, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1, gemini-3-pro-preview
+
+### Ollama
+```bash
+agent -p ollama <run|exec> [OPTIONS]
+```
+
+**Default model**: qwen3.5:9b
+**Available sizes**: 0.8b, 2b, 4b, 9b, 27b, 35b, 122b
+**Accepts any model** from ollama.com — use `--model <name>` for the model and `--size <size>` for parameter size.
+
+```bash
+agent -p ollama run                          # qwen3.5:9b (defaults)
+agent -p ollama --size 35b exec "hello"      # qwen3.5:35b
+agent -p ollama --model llama3 run           # llama3:9b (default size)
+agent -p ollama --model small run            # qwen3.5:2b (size alias)
+```
+
+Does not support `resume`.
 
 ### Review
 ```bash

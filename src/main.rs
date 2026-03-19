@@ -8,6 +8,7 @@ mod factory;
 mod gemini;
 mod json_validation;
 mod logging;
+mod ollama;
 mod output;
 mod process;
 mod sandbox;
@@ -71,6 +72,10 @@ struct Cli {
     /// Run inside a Docker sandbox (optionally specify a name)
     #[arg(long, global = true)]
     sandbox: Option<Option<String>>,
+
+    /// Model parameter size for Ollama (e.g., 0.8b, 2b, 4b, 9b, 27b, 35b, 122b)
+    #[arg(long, global = true)]
+    size: Option<String>,
 
     /// Request JSON output from the agent
     #[arg(long, global = true)]
@@ -303,6 +308,7 @@ async fn main() -> Result<()> {
                 verbose,
                 worktree: cli.worktree,
                 sandbox: cli.sandbox,
+                size: cli.size,
                 json_mode,
                 json_schema,
                 json_stream,
@@ -398,6 +404,7 @@ struct AgentActionParams {
     verbose: bool,
     worktree: Option<Option<String>>,
     sandbox: Option<Option<String>>,
+    size: Option<String>,
     json_mode: bool,
     json_schema: Option<serde_json::Value>,
     json_stream: bool,
@@ -974,6 +981,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         verbose,
         worktree: worktree_flag,
         sandbox: sandbox_flag,
+        size,
         json_mode,
         json_schema,
         json_stream,
@@ -1040,13 +1048,52 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         }
     }
 
+    // Configure Ollama-specific options (model + size from config, --size flag)
+    if provider == "ollama" {
+        let config = Config::load(root.as_deref()).unwrap_or_default();
+
+        // If --model was a size alias (small/medium/large), the factory resolved it
+        // to a size string (e.g., "2b") via model_for_size — treat that as a --size instead.
+        let current_model = agent.get_model().to_string();
+        let is_size_value = crate::ollama::AVAILABLE_SIZES.contains(&current_model.as_str());
+        if is_size_value {
+            // --model was a size alias — revert model to config default, use resolved value as size
+            agent.set_model(config.ollama_model().to_string());
+        } else if current_model == crate::ollama::DEFAULT_MODEL {
+            // No --model flag (or it matched default) — use config model
+            agent.set_model(config.ollama_model().to_string());
+        }
+        // else: --model was an explicit model name — keep it
+
+        if let Some(ollama_agent) = agent.as_any_mut().downcast_mut::<crate::ollama::Ollama>() {
+            // Resolve size: --size flag > size-from-alias > ollama.size config > default
+            if let Some(ref s) = size {
+                let resolved = config.ollama_size_for(s).to_string();
+                ollama_agent.set_size(resolved);
+            } else if is_size_value {
+                ollama_agent.set_size(current_model);
+            } else {
+                ollama_agent.set_size(config.ollama_size().to_string());
+            }
+        }
+    }
+
     // Display initialization message
-    let model_name = agent.get_model();
+    let model_display = if provider == "ollama" {
+        // Show full model:size tag for ollama
+        if let Some(ollama_agent) = agent.as_any_mut().downcast_mut::<crate::ollama::Ollama>() {
+            ollama_agent.display_model()
+        } else {
+            agent.get_model().to_string()
+        }
+    } else {
+        agent.get_model().to_string()
+    };
     let auto_approve_suffix = if auto_approve { " (auto approve)" } else { "" };
     if show_wrapper {
         println!(
             "\x1b[32m✓\x1b[0m {} initialized with model {}{}",
-            agent_name, model_name, auto_approve_suffix
+            agent_name, model_display, auto_approve_suffix
         );
     }
 

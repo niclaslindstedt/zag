@@ -4,6 +4,7 @@ use crate::codex::Codex;
 use crate::config::Config;
 use crate::copilot::Copilot;
 use crate::gemini::Gemini;
+use crate::ollama::Ollama;
 use anyhow::{Result, bail};
 use log::debug;
 
@@ -88,6 +89,7 @@ impl AgentFactory {
             "claude" => Ok(Box::new(Claude::new())),
             "gemini" => Ok(Box::new(Gemini::new())),
             "copilot" => Ok(Box::new(Copilot::new())),
+            "ollama" => Ok(Box::new(Ollama::new())),
             _ => bail!("Unknown agent: {}", agent_name),
         }
     }
@@ -99,6 +101,7 @@ impl AgentFactory {
             "codex" => Codex::resolve_model(model_input),
             "gemini" => Gemini::resolve_model(model_input),
             "copilot" => Copilot::resolve_model(model_input),
+            "ollama" => Ollama::resolve_model(model_input),
             _ => model_input.to_string(), // Unknown agent, pass through
         }
     }
@@ -110,6 +113,7 @@ impl AgentFactory {
             "codex" => Codex::validate_model(model, "Codex"),
             "gemini" => Gemini::validate_model(model, "Gemini"),
             "copilot" => Copilot::validate_model(model, "Copilot"),
+            "ollama" => Ollama::validate_model(model, "Ollama"),
             _ => Ok(()), // Unknown agent, skip validation
         }
     }
