@@ -155,7 +155,6 @@ async fn main() -> Result<()> {
 
     // --json-schema implies --json
     let json_mode = cli.json || cli.json_schema.is_some();
-    let json_schema = cli.json_schema;
     let json_stream = cli.json_stream;
 
     // Validate --json-stream is mutually exclusive with --json/--json-schema
@@ -176,8 +175,8 @@ async fn main() -> Result<()> {
         }
     }
 
-    // Validate --json/--json-schema usage
-    if json_mode {
+    // Validate --json/--json-schema usage and parse schema once
+    let json_schema: Option<serde_json::Value> = if json_mode {
         match &cli.command {
             Commands::Resume { .. } => bail!("--json/--json-schema cannot be used with resume"),
             Commands::Review { .. } => bail!("--json/--json-schema cannot be used with review"),
@@ -188,9 +187,8 @@ async fn main() -> Result<()> {
             _ => {}
         }
 
-        // Validate schema is valid JSON if provided
-        if let Some(ref schema_str) = json_schema {
-            // Try to load as file first, then as inline JSON
+        // Parse and validate schema if provided
+        if let Some(ref schema_str) = cli.json_schema {
             let schema_json = if std::path::Path::new(schema_str).exists() {
                 let content = std::fs::read_to_string(schema_str).map_err(|e| {
                     anyhow::anyhow!("Failed to read JSON schema file '{}': {}", schema_str, e)
@@ -202,16 +200,20 @@ async fn main() -> Result<()> {
                 serde_json::from_str::<serde_json::Value>(schema_str)
                     .map_err(|e| anyhow::anyhow!("Invalid JSON schema: {}", e))?
             };
-            json_validation::validate_schema(&schema_json)
-                .map_err(|e| anyhow::anyhow!("{}", e))?;
+            json_validation::validate_schema(&schema_json).map_err(|e| anyhow::anyhow!("{}", e))?;
             debug!(
                 "JSON schema loaded: {} bytes",
                 serde_json::to_string(&schema_json)
                     .unwrap_or_default()
                     .len()
             );
+            Some(schema_json)
+        } else {
+            None
         }
-    }
+    } else {
+        None
+    };
 
     // Validate --worktree usage (ignored with resume — worktree comes from session mapping)
     if cli.worktree.is_some() {
@@ -369,7 +371,7 @@ struct AgentActionParams {
     verbose: bool,
     worktree: Option<Option<String>>,
     json_mode: bool,
-    json_schema: Option<String>,
+    json_schema: Option<serde_json::Value>,
     json_stream: bool,
 }
 
@@ -380,65 +382,427 @@ fn wrap_prompt_for_json(prompt: &str) -> String {
     JSON_WRAP_TEMPLATE.replace("{PROMPT}", prompt)
 }
 
-async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
-    // Handle auto provider/model selection before anything else
+/// Handle auto provider/model selection, mutating params in place.
+async fn resolve_auto_selection(params: &mut AgentActionParams) -> Result<()> {
     let is_auto_provider = params.provider == "auto";
     let is_auto_model = params.model.as_deref() == Some("auto");
 
-    if is_auto_provider || is_auto_model {
-        // Extract the prompt from the action for auto-selection
-        let task_prompt = match &params.action {
-            Commands::Run { prompt } => prompt.as_deref(),
-            Commands::Exec { prompt, .. } => Some(prompt.as_str()),
-            _ => None,
-        };
+    if !is_auto_provider && !is_auto_model {
+        return Ok(());
+    }
 
-        let task_prompt = task_prompt
-            .ok_or_else(|| anyhow::anyhow!("auto provider/model requires a prompt to analyze"))?;
+    let task_prompt = match &params.action {
+        Commands::Run { prompt } => prompt.as_deref(),
+        Commands::Exec { prompt, .. } => Some(prompt.as_str()),
+        _ => None,
+    };
 
-        let config = Config::load(params.root.as_deref()).unwrap_or_default();
-        let current_provider = if !is_auto_provider {
-            Some(params.provider.as_str())
-        } else {
-            None
-        };
+    let task_prompt = task_prompt
+        .ok_or_else(|| anyhow::anyhow!("auto provider/model requires a prompt to analyze"))?;
 
-        let result = auto_selector::resolve(
-            task_prompt,
-            is_auto_provider,
-            is_auto_model,
-            current_provider,
-            &config,
-            params.root.as_deref(),
-        )
-        .await?;
+    let config = Config::load(params.root.as_deref()).unwrap_or_default();
+    let current_provider = if !is_auto_provider {
+        Some(params.provider.as_str())
+    } else {
+        None
+    };
 
-        if let Some(p) = result.provider {
-            params.provider = p;
-        }
-        if let Some(m) = result.model {
-            params.model = Some(m);
-        } else if is_auto_provider {
-            // Provider changed, clear model so the new provider's default is used
-            params.model = None;
-        }
+    let result = auto_selector::resolve(
+        task_prompt,
+        is_auto_provider,
+        is_auto_model,
+        current_provider,
+        &config,
+        params.root.as_deref(),
+    )
+    .await?;
 
-        params.agent_name = capitalize(&params.provider);
+    if let Some(p) = result.provider {
+        params.provider = p;
+    }
+    if let Some(m) = result.model {
+        params.model = Some(m);
+    } else if is_auto_provider {
+        params.model = None;
+    }
 
-        let is_exec_action = matches!(params.action, Commands::Exec { .. });
-        let show_wrapper = !params.quiet && (!is_exec_action || params.verbose);
+    params.agent_name = capitalize(&params.provider);
+
+    let is_exec_action = matches!(params.action, Commands::Exec { .. });
+    let show_wrapper = !params.quiet && (!is_exec_action || params.verbose);
+    if show_wrapper {
+        let model_info = params
+            .model
+            .as_deref()
+            .map(|m| format!(" with model {}", m))
+            .unwrap_or_default();
+        println!(
+            "\x1b[32m✓\x1b[0m Auto-selected: {}{}",
+            params.agent_name, model_info
+        );
+    }
+
+    Ok(())
+}
+
+/// Augment the system prompt with JSON instructions for non-Claude agents.
+fn augment_system_prompt_for_json(
+    system_prompt: Option<String>,
+    json_mode: bool,
+    provider: &str,
+    json_schema: &Option<serde_json::Value>,
+) -> Option<String> {
+    if !json_mode || provider == "claude" {
+        return system_prompt;
+    }
+
+    let mut prompt = system_prompt.unwrap_or_default();
+    if let Some(schema) = json_schema {
+        let schema_str = serde_json::to_string_pretty(schema).unwrap_or_default();
+        prompt.push_str(&format!(
+            "\n\nYou MUST respond with valid JSON only. No markdown fences, no explanations. \
+             Your response must conform to this JSON schema:\n{}",
+            schema_str
+        ));
+    } else {
+        prompt.push_str(
+            "\n\nYou MUST respond with valid JSON only. No markdown fences, no explanations.",
+        );
+    }
+    Some(prompt)
+}
+
+/// Worktree setup state computed before agent creation.
+struct WorktreeSetup {
+    is_worktree_session: bool,
+    session_id: Option<String>,
+    worktree_name: Option<String>,
+    effective_root: Option<String>,
+    worktree_path: Option<String>,
+}
+
+/// Set up worktree session state: generate IDs, create worktree for non-Claude providers.
+fn setup_worktree(
+    worktree_flag: &Option<Option<String>>,
+    action: &Commands,
+    provider: &str,
+    root: &Option<String>,
+    show_wrapper: bool,
+) -> Result<WorktreeSetup> {
+    let is_worktree_session = worktree_flag.is_some() && !matches!(action, Commands::Resume { .. });
+
+    if !is_worktree_session {
+        return Ok(WorktreeSetup {
+            is_worktree_session: false,
+            session_id: None,
+            worktree_name: None,
+            effective_root: root.clone(),
+            worktree_path: None,
+        });
+    }
+
+    let session_id = Some(uuid::Uuid::new_v4().to_string());
+    let worktree_name = Some(
+        worktree_flag
+            .as_ref()
+            .unwrap()
+            .as_deref()
+            .map(String::from)
+            .unwrap_or_else(worktree::generate_name),
+    );
+
+    let (effective_root, worktree_path) = if provider != "claude" {
+        let repo_root = worktree::git_repo_root(root.as_deref())?;
+        let name = worktree_name.as_deref().unwrap();
+        let wt_path = worktree::create_worktree(&repo_root, name)?;
         if show_wrapper {
-            let model_info = params
-                .model
-                .as_deref()
-                .map(|m| format!(" with model {}", m))
-                .unwrap_or_default();
-            println!(
-                "\x1b[32m✓\x1b[0m Auto-selected: {}{}",
-                params.agent_name, model_info
-            );
+            println!("\x1b[32m✓\x1b[0m Worktree created at {}", wt_path.display());
+        }
+        let path_str = wt_path.to_string_lossy().to_string();
+        (Some(path_str.clone()), Some(path_str))
+    } else {
+        let repo_root = worktree::git_repo_root(root.as_deref())?;
+        let name = worktree_name.as_deref().unwrap();
+        let wt_path = repo_root
+            .join(".claude")
+            .join("worktrees")
+            .join(name)
+            .to_string_lossy()
+            .to_string();
+        (root.clone(), Some(wt_path))
+    };
+
+    Ok(WorktreeSetup {
+        is_worktree_session: true,
+        session_id,
+        worktree_name,
+        effective_root,
+        worktree_path,
+    })
+}
+
+/// Parameters for creating and configuring an agent.
+struct AgentSetupParams {
+    provider: String,
+    agent_name: String,
+    system_prompt: Option<String>,
+    model: Option<String>,
+    effective_root: Option<String>,
+    auto_approve: bool,
+    add_dirs: Vec<String>,
+    output_format: Option<String>,
+    input_format: Option<String>,
+    verbose: bool,
+    json_mode: bool,
+    json_stream: bool,
+}
+
+/// Create and configure the agent with all settings.
+fn create_and_configure_agent(
+    p: AgentSetupParams,
+    json_schema: &Option<serde_json::Value>,
+    wt: &WorktreeSetup,
+    show_wrapper: bool,
+) -> Result<(Box<dyn crate::agent::Agent + Send + Sync>, Option<String>)> {
+    let spinner = if show_wrapper {
+        logging::spinner(format!("Initializing {} agent", p.agent_name))
+    } else {
+        let pb = indicatif::ProgressBar::new_spinner();
+        pb.set_draw_target(indicatif::ProgressDrawTarget::hidden());
+        pb
+    };
+
+    let mut agent = AgentFactory::create(
+        &p.provider,
+        p.system_prompt,
+        p.model,
+        p.effective_root,
+        p.auto_approve,
+        p.add_dirs,
+    )?;
+
+    let output_fmt_clone = p.output_format.clone();
+    agent.set_output_format(p.output_format);
+
+    // Configure Claude-specific options in a single downcast
+    if p.provider == "claude"
+        && let Some(claude_agent) = agent.as_any_mut().downcast_mut::<crate::claude::Claude>()
+    {
+        claude_agent.set_verbose(p.verbose);
+        if let Some(input_fmt) = p.input_format {
+            claude_agent.set_input_format(Some(input_fmt));
+        }
+        if wt.is_worktree_session {
+            claude_agent.set_worktree(wt.worktree_name.clone());
+            if let Some(sid) = &wt.session_id {
+                claude_agent.set_session_id(sid.clone());
+            }
+        }
+        if p.json_mode
+            && let Some(schema) = json_schema
+        {
+            let schema_str = serde_json::to_string(schema).unwrap_or_default();
+            claude_agent.set_json_schema(Some(schema_str));
         }
     }
+
+    // Force output capture when JSON mode is active
+    let user_output_format = output_fmt_clone.clone();
+    if p.json_mode && user_output_format.is_none() {
+        agent.set_output_format(Some("json".to_string()));
+        if p.provider != "claude" {
+            agent.set_capture_output(true);
+        }
+    }
+
+    // --json-stream: set output format to stream-json (unless user already specified -o)
+    if p.json_stream && user_output_format.is_none() {
+        agent.set_output_format(Some("stream-json".to_string()));
+    }
+
+    logging::finish_spinner_quiet(&spinner);
+    debug!("Agent configuration complete");
+
+    Ok((agent, output_fmt_clone))
+}
+
+/// Save the session-worktree mapping to disk.
+fn save_session_mapping(wt: &WorktreeSetup, provider: &str, root: Option<&str>) {
+    if let (Some(sid), Some(wt_path), Some(wt_name)) =
+        (&wt.session_id, &wt.worktree_path, &wt.worktree_name)
+    {
+        let mut store = session::SessionStore::load(root).unwrap_or_default();
+        store.add(session::SessionEntry {
+            session_id: sid.clone(),
+            provider: provider.to_string(),
+            worktree_path: wt_path.clone(),
+            worktree_name: wt_name.clone(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+        });
+        if let Err(e) = store.save(root) {
+            log::warn!("Failed to save session mapping: {}", e);
+        }
+        debug!("Saved session mapping: {} -> {}", sid, wt_path);
+    }
+}
+
+/// Context for executing an action.
+struct ExecutionContext<'a> {
+    provider: &'a str,
+    json_mode: bool,
+    json_schema: &'a Option<serde_json::Value>,
+    output_fmt: Option<&'a str>,
+    show_usage: bool,
+    verbose: bool,
+    root: Option<&'a str>,
+}
+
+/// Execute the requested action (run, exec, or resume).
+///
+/// Returns an optional `(session_id, worktree_path)` for resume worktree cleanup.
+async fn execute_action(
+    action: Commands,
+    agent: &mut (dyn crate::agent::Agent + Send + Sync),
+    ctx: &ExecutionContext<'_>,
+) -> Result<Option<(String, String)>> {
+    let mut resume_worktree_info = None;
+
+    match action {
+        Commands::Run { prompt } => {
+            if ctx.json_mode && prompt.is_some() {
+                info!("Starting non-interactive session (JSON mode)");
+                let wrapped = if ctx.provider != "claude" {
+                    prompt.as_deref().map(wrap_prompt_for_json)
+                } else {
+                    None
+                };
+                let run_prompt = wrapped.as_deref().or(prompt.as_deref());
+                let agent_output = agent.run(run_prompt).await?;
+                handle_json_output(
+                    agent_output,
+                    agent,
+                    ctx.json_schema,
+                    ctx.show_usage,
+                    ctx.verbose,
+                )
+                .await?;
+            } else {
+                info!("Starting interactive session");
+                agent.run_interactive(prompt.as_deref()).await?;
+            }
+        }
+        Commands::Exec { prompt, .. } => {
+            info!("Starting non-interactive session");
+            let run_prompt = if ctx.json_mode && ctx.provider != "claude" {
+                wrap_prompt_for_json(&prompt)
+            } else {
+                prompt.clone()
+            };
+            let agent_output = agent.run(Some(&run_prompt)).await?;
+
+            if ctx.json_mode {
+                handle_json_output(
+                    agent_output,
+                    agent,
+                    ctx.json_schema,
+                    ctx.show_usage,
+                    ctx.verbose,
+                )
+                .await?;
+            } else if let Some(agent_out) = agent_output {
+                print_agent_output(&agent_out, ctx.output_fmt, ctx.show_usage, ctx.verbose)?;
+            }
+        }
+        Commands::Resume {
+            session_id: resume_id,
+            last,
+        } => {
+            if let Some(ref sid) = resume_id {
+                let store = session::SessionStore::load(ctx.root).unwrap_or_default();
+                if let Some(entry) = store.find_by_session_id(sid) {
+                    let wt_path = std::path::Path::new(&entry.worktree_path);
+                    if wt_path.exists() {
+                        debug!("Resuming in worktree: {}", entry.worktree_path);
+                        agent.set_root(entry.worktree_path.clone());
+                        resume_worktree_info = Some((sid.clone(), entry.worktree_path.clone()));
+                    } else {
+                        log::warn!(
+                            "Worktree no longer exists at {}, resuming without it",
+                            entry.worktree_path
+                        );
+                        let mut store = store;
+                        store.remove(sid);
+                        let _ = store.save(ctx.root);
+                    }
+                }
+            }
+
+            info!("Resuming session");
+            agent.run_resume(resume_id.as_deref(), last).await?;
+        }
+        _ => unreachable!(),
+    }
+
+    Ok(resume_worktree_info)
+}
+
+/// Print agent output in the requested format.
+fn print_agent_output(
+    agent_out: &crate::output::AgentOutput,
+    output_fmt: Option<&str>,
+    show_usage: bool,
+    verbose: bool,
+) -> Result<()> {
+    match output_fmt {
+        Some("json") => {
+            let json = serde_json::to_string(agent_out)?;
+            println!("{}", json);
+        }
+        Some("json-pretty") => {
+            let json = serde_json::to_string_pretty(agent_out)?;
+            println!("{}", json);
+        }
+        Some("stream-json") => {
+            for event in &agent_out.events {
+                let json = serde_json::to_string(event)?;
+                println!("{}", json);
+            }
+        }
+        _ => {
+            process_agent_output(agent_out, show_usage, verbose)?;
+        }
+    }
+    Ok(())
+}
+
+/// Log configuration details at debug level.
+fn log_config_details(params: &AgentActionParams) {
+    if let Some(ref m) = params.model {
+        debug!("Model specified: {}", m);
+    }
+    if let Some(ref r) = params.root {
+        debug!("Root directory: {}", r);
+    }
+    if params.auto_approve {
+        debug!("Auto-approve enabled");
+    }
+    if let Some(ref sp) = params.system_prompt {
+        debug!("System prompt: {}", sp);
+    }
+    if !params.add_dirs.is_empty() {
+        debug!("Additional directories: {:?}", params.add_dirs);
+    }
+    if params.worktree.is_some() {
+        debug!("Worktree mode enabled");
+    }
+    if params.json_mode {
+        debug!("JSON output mode enabled");
+    }
+}
+
+async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
+    resolve_auto_selection(&mut params).await?;
+    log_config_details(&params);
 
     let AgentActionParams {
         agent_name,
@@ -457,122 +821,14 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         json_schema,
         json_stream,
     } = params;
+
     let is_exec = matches!(action, Commands::Exec { .. });
     let show_wrapper = !quiet && (!is_exec || verbose);
-    // Log configuration details
-    if let Some(ref m) = model {
-        debug!("Model specified: {}", m);
-    }
-    if let Some(ref r) = root {
-        debug!("Root directory: {}", r);
-    }
-    if auto_approve {
-        debug!("Auto-approve enabled");
-    }
-    if let Some(ref sp) = system_prompt {
-        debug!("System prompt: {}", sp);
-    }
-    if !add_dirs.is_empty() {
-        debug!("Additional directories: {:?}", add_dirs);
-    }
-    if worktree_flag.is_some() {
-        debug!("Worktree mode enabled");
-    }
-    if json_mode {
-        debug!("JSON output mode enabled");
-    }
 
-    // Load and resolve JSON schema if provided
-    let resolved_schema: Option<serde_json::Value> = if let Some(ref schema_str) = json_schema {
-        let json = if std::path::Path::new(schema_str).exists() {
-            let content = std::fs::read_to_string(schema_str)?;
-            serde_json::from_str(&content)?
-        } else {
-            serde_json::from_str(schema_str)?
-        };
-        Some(json)
-    } else {
-        None
-    };
+    let system_prompt =
+        augment_system_prompt_for_json(system_prompt, json_mode, &provider, &json_schema);
 
-    // Augment system prompt for JSON mode (non-Claude agents need this;
-    // Claude gets --json-schema natively but also benefits from prompt guidance)
-    let system_prompt = if json_mode && provider != "claude" {
-        let mut prompt = system_prompt.unwrap_or_default();
-        if let Some(ref schema) = resolved_schema {
-            let schema_str = serde_json::to_string_pretty(schema).unwrap_or_default();
-            prompt.push_str(&format!(
-                "\n\nYou MUST respond with valid JSON only. No markdown fences, no explanations. \
-                 Your response must conform to this JSON schema:\n{}",
-                schema_str
-            ));
-        } else {
-            prompt.push_str(
-                "\n\nYou MUST respond with valid JSON only. No markdown fences, no explanations.",
-            );
-        }
-        Some(prompt)
-    } else {
-        system_prompt
-    };
-
-    // Generate session ID and worktree name for worktree sessions
-    let is_worktree_session = worktree_flag.is_some() && !matches!(action, Commands::Resume { .. });
-    let session_id = if is_worktree_session {
-        Some(uuid::Uuid::new_v4().to_string())
-    } else {
-        None
-    };
-    let worktree_name = if is_worktree_session {
-        let name = worktree_flag
-            .as_ref()
-            .unwrap()
-            .as_deref()
-            .map(String::from)
-            .unwrap_or_else(worktree::generate_name);
-        Some(name)
-    } else {
-        None
-    };
-
-    // Handle worktree creation for non-Claude providers
-    let effective_root = if is_worktree_session {
-        if provider != "claude" {
-            let repo_root = worktree::git_repo_root(root.as_deref())?;
-            let name = worktree_name.as_deref().unwrap();
-            let wt_path = worktree::create_worktree(&repo_root, name)?;
-            if show_wrapper {
-                println!("\x1b[32m✓\x1b[0m Worktree created at {}", wt_path.display());
-            }
-            Some(wt_path.to_string_lossy().to_string())
-        } else {
-            root.clone()
-        }
-    } else {
-        root.clone()
-    };
-
-    // Compute worktree path for session mapping
-    let worktree_path: Option<String> = if is_worktree_session {
-        if provider == "claude" {
-            // Claude creates worktrees at <repo-root>/.claude/worktrees/<name>
-            let repo_root = worktree::git_repo_root(root.as_deref())?;
-            let name = worktree_name.as_deref().unwrap();
-            Some(
-                repo_root
-                    .join(".claude")
-                    .join("worktrees")
-                    .join(name)
-                    .to_string_lossy()
-                    .to_string(),
-            )
-        } else {
-            // Non-Claude worktrees are at effective_root (already created above)
-            effective_root.clone()
-        }
-    } else {
-        None
-    };
+    let wt = setup_worktree(&worktree_flag, &action, &provider, &root, show_wrapper)?;
 
     // Extract output/input format from exec action
     let (output_format, input_format) = match &action {
@@ -591,80 +847,29 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         debug!("Input format: {}", i);
     }
 
-    // Create agent with spinner (skip in exec mode unless verbose)
-    let spinner = if show_wrapper {
-        logging::spinner(format!("Initializing {} agent", agent_name))
-    } else {
-        let pb = indicatif::ProgressBar::new_spinner();
-        pb.set_draw_target(indicatif::ProgressDrawTarget::hidden());
-        pb
-    };
-    let mut agent = AgentFactory::create(
-        &provider,
-        system_prompt,
-        model,
-        effective_root,
-        auto_approve,
-        add_dirs,
+    let (mut agent, output_fmt_clone) = create_and_configure_agent(
+        AgentSetupParams {
+            provider: provider.clone(),
+            agent_name: agent_name.clone(),
+            system_prompt,
+            model,
+            effective_root: wt.effective_root.clone(),
+            auto_approve,
+            add_dirs,
+            output_format,
+            input_format,
+            verbose,
+            json_mode,
+            json_stream,
+        },
+        &json_schema,
+        &wt,
+        show_wrapper,
     )?;
 
-    // Set output format if specified
-    let output_fmt_clone = output_format.clone();
-    agent.set_output_format(output_format);
-
-    // Set verbose and input format for Claude
-    if provider == "claude"
-        && let Some(claude_agent) = agent.as_any_mut().downcast_mut::<crate::claude::Claude>()
-    {
-        claude_agent.set_verbose(verbose);
-        if let Some(input_fmt) = input_format {
-            claude_agent.set_input_format(Some(input_fmt));
-        }
-    }
-
-    // Set worktree passthrough and session ID for Claude (it handles worktrees natively)
-    if is_worktree_session
-        && provider == "claude"
-        && let Some(claude_agent) = agent.as_any_mut().downcast_mut::<crate::claude::Claude>()
-    {
-        claude_agent.set_worktree(worktree_name.clone());
-        if let Some(ref sid) = session_id {
-            claude_agent.set_session_id(sid.clone());
-        }
-    }
-
-    // Set JSON schema on Claude agent (native --json-schema support)
-    if json_mode
-        && provider == "claude"
-        && let Some(claude_agent) = agent.as_any_mut().downcast_mut::<crate::claude::Claude>()
-        && let Some(ref schema) = resolved_schema
-    {
-        let schema_str = serde_json::to_string(schema).unwrap_or_default();
-        claude_agent.set_json_schema(Some(schema_str));
-    }
-
-    // Force output capture when JSON mode is active so we get AgentOutput back for validation
-    let user_output_format = output_fmt_clone.clone();
-    if json_mode && user_output_format.is_none() {
-        agent.set_output_format(Some("json".to_string()));
-        // Non-Claude agents need capture_output explicitly set (Claude handles it via output_format)
-        if provider != "claude" {
-            agent.set_capture_output(true);
-        }
-    }
-
-    // --json-stream: set output format to stream-json (unless user already specified -o)
-    if json_stream && user_output_format.is_none() {
-        agent.set_output_format(Some("stream-json".to_string()));
-    }
-
-    logging::finish_spinner_quiet(&spinner);
-    debug!("Agent configuration complete");
-
-    // Get the actual model being used (after resolution)
+    // Display initialization message
     let model_name = agent.get_model();
     let auto_approve_suffix = if auto_approve { " (auto approve)" } else { "" };
-
     if show_wrapper {
         println!(
             "\x1b[32m✓\x1b[0m {} initialized with model {}{}",
@@ -673,124 +878,31 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     }
 
     // Save session-worktree mapping before execution (so it survives Ctrl+C)
-    if let (Some(sid), Some(wt_path), Some(wt_name)) = (&session_id, &worktree_path, &worktree_name)
-    {
-        let mut store = session::SessionStore::load(root.as_deref()).unwrap_or_default();
-        store.add(session::SessionEntry {
-            session_id: sid.clone(),
-            provider: provider.clone(),
-            worktree_path: wt_path.clone(),
-            worktree_name: wt_name.clone(),
-            created_at: chrono::Utc::now().to_rfc3339(),
-        });
-        if let Err(e) = store.save(root.as_deref()) {
-            log::warn!("Failed to save session mapping: {}", e);
-        }
-        debug!("Saved session mapping: {} -> {}", sid, wt_path);
-    }
+    save_session_mapping(&wt, &provider, root.as_deref());
 
-    // Track whether this was an interactive worktree session (for cleanup prompt)
-    let is_interactive_worktree = is_worktree_session && matches!(action, Commands::Run { .. });
+    let is_interactive_worktree = wt.is_worktree_session && matches!(action, Commands::Run { .. });
 
-    // Track resume worktree path for cleanup prompt after resume
-    let mut resume_worktree_info: Option<(String, String)> = None; // (session_id, worktree_path)
-
-    match action {
-        Commands::Run { prompt } => {
-            if json_mode && prompt.is_some() {
-                // JSON mode with prompt — run non-interactively for output capture
-                info!("Starting non-interactive session (JSON mode)");
-                let wrapped = if provider != "claude" {
-                    prompt.as_deref().map(|p| wrap_prompt_for_json(p))
-                } else {
-                    None
-                };
-                let run_prompt = wrapped.as_deref().or(prompt.as_deref());
-                let agent_output = agent.run(run_prompt).await?;
-                handle_json_output(agent_output, &*agent, &resolved_schema, show_usage, verbose)
-                    .await?;
-            } else {
-                info!("Starting interactive session");
-                agent.run_interactive(prompt.as_deref()).await?;
-            }
-        }
-        Commands::Exec { prompt, .. } => {
-            info!("Starting non-interactive session");
-            let run_prompt = if json_mode && provider != "claude" {
-                wrap_prompt_for_json(&prompt)
-            } else {
-                prompt.clone()
-            };
-            let agent_output = agent.run(Some(&run_prompt)).await?;
-
-            if json_mode {
-                // JSON validation and retry loop
-                handle_json_output(agent_output, &*agent, &resolved_schema, show_usage, verbose)
-                    .await?;
-            } else if let Some(agent_out) = agent_output {
-                match output_fmt_clone.as_deref() {
-                    Some("json") => {
-                        let json = serde_json::to_string(&agent_out)?;
-                        println!("{}", json);
-                    }
-                    Some("json-pretty") => {
-                        let json = serde_json::to_string_pretty(&agent_out)?;
-                        println!("{}", json);
-                    }
-                    Some("stream-json") => {
-                        for event in &agent_out.events {
-                            let json = serde_json::to_string(&event)?;
-                            println!("{}", json);
-                        }
-                    }
-                    _ => {
-                        process_agent_output(&agent_out, show_usage, verbose)?;
-                    }
-                }
-            }
-        }
-        Commands::Resume {
-            session_id: resume_id,
-            last,
-        } => {
-            // Look up worktree from session mapping
-            if let Some(ref sid) = resume_id {
-                let store = session::SessionStore::load(root.as_deref()).unwrap_or_default();
-                if let Some(entry) = store.find_by_session_id(sid) {
-                    let wt_path = std::path::Path::new(&entry.worktree_path);
-                    if wt_path.exists() {
-                        debug!("Resuming in worktree: {}", entry.worktree_path);
-                        agent.set_root(entry.worktree_path.clone());
-                        resume_worktree_info = Some((sid.clone(), entry.worktree_path.clone()));
-                    } else {
-                        log::warn!(
-                            "Worktree no longer exists at {}, resuming without it",
-                            entry.worktree_path
-                        );
-                        // Remove stale entry
-                        let mut store = store;
-                        store.remove(sid);
-                        let _ = store.save(root.as_deref());
-                    }
-                }
-            }
-
-            info!("Resuming session");
-            agent.run_resume(resume_id.as_deref(), last).await?;
-        }
-        _ => unreachable!(),
-    }
+    let exec_ctx = ExecutionContext {
+        provider: &provider,
+        json_mode,
+        json_schema: &json_schema,
+        output_fmt: output_fmt_clone.as_deref(),
+        show_usage,
+        verbose,
+        root: root.as_deref(),
+    };
+    let resume_worktree_info = execute_action(action, &mut *agent, &exec_ctx).await?;
 
     // Cleanup
     debug!("Cleaning up agent resources");
     agent.cleanup().await?;
     info!("Session terminated");
 
-    // Cleanup prompt for interactive worktree sessions
+    // Worktree cleanup prompt
     let cleanup_info = if is_interactive_worktree {
-        session_id
+        wt.session_id
             .as_ref()
-            .zip(worktree_path.as_ref())
+            .zip(wt.worktree_path.as_ref())
             .map(|(sid, wtp)| (sid.clone(), wtp.clone()))
     } else {
         resume_worktree_info
@@ -924,12 +1036,11 @@ async fn handle_json_output(
         bail!("Agent produced no output for JSON validation");
     };
 
-    let result_text = json_validation::strip_markdown_fences(
-        agent_out
-            .final_result()
-            .ok_or_else(|| anyhow::anyhow!("Agent output has no result text for JSON validation"))?,
-    )
-    .to_string();
+    let result_text =
+        json_validation::strip_markdown_fences(agent_out.final_result().ok_or_else(|| {
+            anyhow::anyhow!("Agent output has no result text for JSON validation")
+        })?)
+        .to_string();
 
     let session_id = if !agent_out.session_id.is_empty() && agent_out.session_id != "unknown" {
         Some(agent_out.session_id.clone())

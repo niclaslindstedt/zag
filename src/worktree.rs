@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "worktree_tests.rs"]
+mod tests;
+
 use anyhow::{Context, Result, bail};
 use log::debug;
 use std::path::{Path, PathBuf};

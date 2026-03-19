@@ -147,18 +147,6 @@ fn extract_response(output: Option<crate::output::AgentOutput>) -> Result<String
     )
 }
 
-/// Strip markdown fences from a response string.
-fn strip_markdown_fences(text: &str) -> &str {
-    let trimmed = text.trim();
-    if let Some(rest) = trimmed.strip_prefix("```json") {
-        rest.strip_suffix("```").unwrap_or(rest).trim()
-    } else if let Some(rest) = trimmed.strip_prefix("```") {
-        rest.strip_suffix("```").unwrap_or(rest).trim()
-    } else {
-        trimmed
-    }
-}
-
 /// Check if a response looks like an LLM refusal rather than a valid selection.
 fn is_refusal(response: &str) -> bool {
     let lower = response.to_lowercase();
@@ -201,7 +189,7 @@ fn parse_response(
     }
 
     // Try JSON parsing first
-    let cleaned = strip_markdown_fences(response);
+    let cleaned = crate::json_validation::strip_markdown_fences(response);
     if let Ok(parsed) = serde_json::from_str::<AutoSelectorResponse>(cleaned) {
         debug!("Auto-selector parsed JSON response successfully");
         if let Some(ref reason) = parsed.reason {

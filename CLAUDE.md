@@ -31,13 +31,16 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/main.rs` | CLI entry point with clap |
 | `src/config.rs` | Configuration management with get/set support |
 | `src/logging.rs` | Logging infrastructure and progress indicators |
-| `src/claude.rs` | Claude agent implementation |
+| `src/claude/mod.rs` | Claude agent implementation |
+| `src/claude/models.rs` | Claude JSON output models and conversion to unified format |
 | `src/codex.rs` | Codex agent implementation |
 | `src/gemini.rs` | Gemini agent implementation |
 | `src/copilot.rs` | Copilot agent implementation |
-| `src/process.rs` | Subprocess helpers for stderr capture |
+| `src/process.rs` | Subprocess helpers: stderr capture, exit status checking, output handling |
+| `src/output.rs` | Unified AgentOutput format and event formatting |
 | `src/auto_selector.rs` | Auto provider/model selection via lightweight LLM call |
 | `src/session.rs` | Session-worktree mapping store (`sessions.json`) |
+| `src/worktree.rs` | Git worktree creation, removal, and name generation |
 | `src/json_validation.rs` | JSON and JSON Schema validation utilities |
 | `prompts/auto-selector-3_1.md` | Versioned prompt template for auto-selection with task decline support |
 | `prompts/json-wrap-1_0.md` | Versioned prompt template for wrapping user prompts with JSON instructions |
@@ -83,7 +86,7 @@ agent exec -p auto -m auto "complex multi-file refactor"
 
 ### How it works
 
-1. The CLI runs a quick non-interactive LLM call (default: Claude haiku) with the user's prompt
+1. The CLI runs a quick non-interactive LLM call (default: Claude sonnet) with the user's prompt
 2. The selector LLM analyzes task complexity and chooses the best provider/model
 3. The resolved values replace `"auto"` and execution continues normally
 
@@ -525,7 +528,7 @@ agent -p gemini <run|exec|resume> [OPTIONS]
 agent -p copilot <run|exec|resume> [OPTIONS]
 ```
 
-**Models**: claude-sonnet-4.5 (default), claude-opus-4.5, claude-haiku-4.5, gpt-5, gpt-5.1, gpt-5.2, gemini-3-pro-preview
+**Models**: claude-sonnet-4.5 (default), claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.2, gpt-5.1, gpt-5, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1, gemini-3-pro-preview
 
 ### Review
 ```bash
@@ -596,7 +599,26 @@ After interactive (`run`) worktree sessions, the CLI prompts:
 Pattern for adding new CLI features:
 
 1. **Add CLI flag** to `Cli` struct in `src/main.rs` (use `global = true` for cross-subcommand flags)
-2. **If cross-cutting**: Handle in `run_agent_action()` before agent creation (e.g., worktree creation for non-Claude providers)
-3. **If agent-specific**: Add to `Agent` trait or use the downcast pattern via `as_any_mut()` (e.g., `input_format` for Claude)
+2. **If cross-cutting**: Handle in the appropriate sub-function of `run_agent_action()`:
+   - `resolve_auto_selection()` — auto provider/model selection
+   - `augment_system_prompt_for_json()` — system prompt modifications
+   - `setup_worktree()` — worktree creation and session ID generation
+   - `create_and_configure_agent()` — agent factory call and option setting
+   - `execute_action()` — the run/exec/resume dispatch
+3. **If agent-specific**: Add to `Agent` trait or use the downcast pattern via `as_any_mut()` (e.g., `input_format` for Claude). Claude-specific options are consolidated in a single downcast block inside `create_and_configure_agent()`.
 4. **If native in underlying binary**: Pass through the flag in the agent's `execute()` method (e.g., `--worktree` for Claude)
 5. **If not native**: Implement the behavior in the wrapper before delegating to the agent (e.g., worktree creation for Codex/Gemini/Copilot)
+
+## Development Process
+
+Follow these steps when making changes to the codebase:
+
+1. **Make changes** — implement the feature, fix, or refactor
+2. **Write tests** — add unit tests in the corresponding `*_tests.rs` file (tests live in separate files, not inline)
+3. **Build** — `make build` (must compile cleanly)
+4. **Run tests** — `make test` (all tests must pass)
+5. **Lint** — `make clippy` (zero warnings)
+6. **Format** — `make fmt`
+7. **Update README.md** — if the change affects user-facing behavior, CLI flags, supported models, or usage examples
+8. **Update CLAUDE.md** — if the change affects architecture, key files, configuration, or development patterns
+9. **Commit** — use `/commit` to commit with conventional commit messages

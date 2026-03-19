@@ -123,8 +123,7 @@ impl Codex {
                     }
                     Some("item.completed") => {
                         if let Some(item) = event.get("item")
-                            && item.get("type").and_then(|t| t.as_str())
-                                == Some("agent_message")
+                            && item.get("type").and_then(|t| t.as_str()) == Some("agent_message")
                             && let Some(text) = item.get("text").and_then(|t| t.as_str())
                         {
                             if !agent_text.is_empty() {
@@ -214,28 +213,7 @@ impl Codex {
             }
             Ok(None)
         } else if self.capture_output {
-            cmd.stdin(Stdio::inherit())
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped());
-
-            let output = cmd.output().await?;
-
-            let stderr_text = String::from_utf8_lossy(&output.stderr);
-            let stderr_text = stderr_text.trim();
-            if !stderr_text.is_empty() {
-                for line in stderr_text.lines() {
-                    crate::logging::log_to_file(&format!("[STDERR] {}", line));
-                }
-            }
-
-            if !output.status.success() {
-                if stderr_text.is_empty() {
-                    anyhow::bail!("Codex command failed with status: {}", output.status);
-                } else {
-                    anyhow::bail!("{}", stderr_text);
-                }
-            }
-            let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            let raw = crate::process::run_captured(&mut cmd, "Codex").await?;
             Ok(Some(self.build_output(&raw)))
         } else {
             cmd.stdin(Stdio::inherit()).stdout(Stdio::inherit());
@@ -363,29 +341,7 @@ impl Agent for Codex {
         cmd.args(["--resume", session_id]);
         cmd.arg(prompt);
 
-        cmd.stdin(Stdio::inherit())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-
-        let output = cmd.output().await?;
-
-        let stderr_text = String::from_utf8_lossy(&output.stderr);
-        let stderr_text = stderr_text.trim();
-        if !stderr_text.is_empty() {
-            for line in stderr_text.lines() {
-                crate::logging::log_to_file(&format!("[STDERR] {}", line));
-            }
-        }
-
-        if !output.status.success() {
-            if stderr_text.is_empty() {
-                anyhow::bail!("Codex resume failed with status: {}", output.status);
-            } else {
-                anyhow::bail!("{}", stderr_text);
-            }
-        }
-
-        let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let raw = crate::process::run_captured(&mut cmd, "Codex").await?;
         Ok(Some(self.build_output(&raw)))
     }
 

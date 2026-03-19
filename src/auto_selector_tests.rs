@@ -1,5 +1,52 @@
 use super::*;
 
+// === extract_response tests ===
+
+#[test]
+fn test_extract_response_from_agent_output() {
+    let output = crate::output::AgentOutput {
+        agent: "claude".to_string(),
+        session_id: "s1".to_string(),
+        events: vec![],
+        result: Some(r#"{"provider": "claude"}"#.to_string()),
+        is_error: false,
+        total_cost_usd: None,
+        usage: None,
+    };
+    let response = extract_response(Some(output)).unwrap();
+    assert_eq!(response, r#"{"provider": "claude"}"#);
+}
+
+#[test]
+fn test_extract_response_trims_whitespace() {
+    let output = crate::output::AgentOutput::from_text("test", "  claude  \n");
+    let response = extract_response(Some(output)).unwrap();
+    assert_eq!(response, "claude");
+}
+
+#[test]
+fn test_extract_response_none_output() {
+    let result = extract_response(None);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("no parseable output"));
+}
+
+#[test]
+fn test_extract_response_no_result() {
+    let output = crate::output::AgentOutput {
+        agent: "test".to_string(),
+        session_id: String::new(),
+        events: vec![],
+        result: None,
+        is_error: false,
+        total_cost_usd: None,
+        usage: None,
+    };
+    let result = extract_response(Some(output));
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("no result"));
+}
+
 // === JSON parsing tests ===
 
 #[test]
@@ -225,7 +272,9 @@ fn test_is_refusal_allows_valid_responses() {
     assert!(!is_refusal(r#"{"provider": "claude", "model": "opus"}"#));
     assert!(!is_refusal("claude opus"));
     assert!(!is_refusal("gemini"));
-    assert!(!is_refusal(r#"{"provider": "codex", "reason": "fast code gen"}"#));
+    assert!(!is_refusal(
+        r#"{"provider": "codex", "reason": "fast code gen"}"#
+    ));
 }
 
 #[test]
@@ -258,12 +307,7 @@ fn test_parse_response_structured_decline() {
 
 #[test]
 fn test_parse_response_structured_decline_without_reason() {
-    let result = parse_response(
-        r#"{"declined": true}"#,
-        true,
-        false,
-        None,
-    );
+    let result = parse_response(r#"{"declined": true}"#, true, false, None);
     assert!(result.is_err());
     let err = result.unwrap_err().to_string();
     assert!(err.contains("declined the task"));

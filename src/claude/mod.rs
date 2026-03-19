@@ -283,22 +283,7 @@ impl Claude {
 
                 let output = cmd.output().await?;
 
-                // Handle stderr
-                let stderr_text = String::from_utf8_lossy(&output.stderr);
-                let stderr_text = stderr_text.trim();
-                if !stderr_text.is_empty() {
-                    for line in stderr_text.lines() {
-                        crate::logging::log_to_file(&format!("[STDERR] {}", line));
-                    }
-                }
-
-                if !output.status.success() {
-                    if stderr_text.is_empty() {
-                        anyhow::bail!("Claude command failed with status: {}", output.status);
-                    } else {
-                        anyhow::bail!("{}", stderr_text);
-                    }
-                }
+                crate::process::handle_output(&output, "Claude")?;
 
                 // Parse JSON output
                 let json_str = String::from_utf8(output.stdout)?;
@@ -610,22 +595,7 @@ impl Agent for Claude {
 
         let output = cmd.output().await?;
 
-        // Handle stderr
-        let stderr_text = String::from_utf8_lossy(&output.stderr);
-        let stderr_text = stderr_text.trim();
-        if !stderr_text.is_empty() {
-            for line in stderr_text.lines() {
-                crate::logging::log_to_file(&format!("[STDERR] {}", line));
-            }
-        }
-
-        if !output.status.success() {
-            if stderr_text.is_empty() {
-                anyhow::bail!("Claude resume failed with status: {}", output.status);
-            } else {
-                anyhow::bail!("{}", stderr_text);
-            }
-        }
+        crate::process::handle_output(&output, "Claude")?;
 
         // Parse JSON output
         let json_str = String::from_utf8(output.stdout)?;

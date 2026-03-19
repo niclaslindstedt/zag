@@ -13,6 +13,41 @@ fn make_agent_output(events: Vec<Event>, result: Option<String>, is_error: bool)
     }
 }
 
+// --- AgentOutput::from_text ---
+
+#[test]
+fn test_from_text_basic() {
+    let output = AgentOutput::from_text("codex", "hello world");
+    assert_eq!(output.agent, "codex");
+    assert_eq!(output.result, Some("hello world".to_string()));
+    assert_eq!(output.final_result(), Some("hello world"));
+    assert!(!output.is_error);
+    assert!(output.session_id.is_empty());
+    assert!(output.total_cost_usd.is_none());
+    assert!(output.usage.is_none());
+}
+
+#[test]
+fn test_from_text_creates_result_event() {
+    let output = AgentOutput::from_text("gemini", "test");
+    assert_eq!(output.events.len(), 1);
+    if let Event::Result {
+        success, message, ..
+    } = &output.events[0]
+    {
+        assert!(success);
+        assert_eq!(message.as_deref(), Some("test"));
+    } else {
+        panic!("Expected Result event");
+    }
+}
+
+#[test]
+fn test_from_text_empty_string() {
+    let output = AgentOutput::from_text("test", "");
+    assert_eq!(output.result, Some("".to_string()));
+}
+
 // --- AgentOutput methods ---
 
 #[test]

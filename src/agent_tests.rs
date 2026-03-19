@@ -6,18 +6,18 @@ use crate::gemini::Gemini;
 
 #[test]
 fn test_model_size_from_str() {
-    assert_eq!(ModelSize::from_str("small"), Some(ModelSize::Small));
-    assert_eq!(ModelSize::from_str("s"), Some(ModelSize::Small));
-    assert_eq!(ModelSize::from_str("SMALL"), Some(ModelSize::Small));
-    assert_eq!(ModelSize::from_str("medium"), Some(ModelSize::Medium));
-    assert_eq!(ModelSize::from_str("m"), Some(ModelSize::Medium));
-    assert_eq!(ModelSize::from_str("default"), Some(ModelSize::Medium));
-    assert_eq!(ModelSize::from_str("large"), Some(ModelSize::Large));
-    assert_eq!(ModelSize::from_str("l"), Some(ModelSize::Large));
-    assert_eq!(ModelSize::from_str("max"), Some(ModelSize::Large));
-    assert_eq!(ModelSize::from_str("opus"), None);
-    assert_eq!(ModelSize::from_str("gpt-5"), None);
-    assert_eq!(ModelSize::from_str(""), None);
+    assert_eq!("small".parse::<ModelSize>(), Ok(ModelSize::Small));
+    assert_eq!("s".parse::<ModelSize>(), Ok(ModelSize::Small));
+    assert_eq!("SMALL".parse::<ModelSize>(), Ok(ModelSize::Small));
+    assert_eq!("medium".parse::<ModelSize>(), Ok(ModelSize::Medium));
+    assert_eq!("m".parse::<ModelSize>(), Ok(ModelSize::Medium));
+    assert_eq!("default".parse::<ModelSize>(), Ok(ModelSize::Medium));
+    assert_eq!("large".parse::<ModelSize>(), Ok(ModelSize::Large));
+    assert_eq!("l".parse::<ModelSize>(), Ok(ModelSize::Large));
+    assert_eq!("max".parse::<ModelSize>(), Ok(ModelSize::Large));
+    assert_eq!("opus".parse::<ModelSize>(), Err(()));
+    assert_eq!("gpt-5".parse::<ModelSize>(), Err(()));
+    assert_eq!("".parse::<ModelSize>(), Err(()));
 }
 
 #[test]

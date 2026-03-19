@@ -305,6 +305,140 @@ fn test_config_path_with_root() {
     );
 }
 
+// --- Auto config ---
+
+#[test]
+fn test_auto_provider_getter() {
+    let config = Config {
+        auto: AutoConfig {
+            provider: Some("gemini".to_string()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(config.auto_provider(), Some("gemini"));
+}
+
+#[test]
+fn test_auto_model_getter() {
+    let config = Config {
+        auto: AutoConfig {
+            model: Some("haiku".to_string()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(config.auto_model(), Some("haiku"));
+}
+
+#[test]
+fn test_auto_config_defaults_none() {
+    let config = Config::default();
+    assert_eq!(config.auto_provider(), None);
+    assert_eq!(config.auto_model(), None);
+}
+
+#[test]
+fn test_set_value_auto_provider() {
+    let mut config = Config::default();
+    config.set_value("auto.provider", "codex").unwrap();
+    assert_eq!(config.auto.provider, Some("codex".to_string()));
+}
+
+#[test]
+fn test_set_value_auto_model() {
+    let mut config = Config::default();
+    config.set_value("auto.model", "haiku").unwrap();
+    assert_eq!(config.auto.model, Some("haiku".to_string()));
+}
+
+#[test]
+fn test_get_value_auto_fields() {
+    let config = Config {
+        auto: AutoConfig {
+            provider: Some("claude".to_string()),
+            model: Some("sonnet".to_string()),
+        },
+        ..Default::default()
+    };
+    assert_eq!(config.get_value("auto.provider"), Some("claude".to_string()));
+    assert_eq!(config.get_value("auto.model"), Some("sonnet".to_string()));
+}
+
+#[test]
+fn test_parse_auto_config() {
+    let toml = r#"
+[auto]
+provider = "gemini"
+model = "haiku"
+"#;
+    let config: Config = toml::from_str(toml).unwrap();
+    assert_eq!(config.auto_provider(), Some("gemini"));
+    assert_eq!(config.auto_model(), Some("haiku"));
+}
+
+// --- Init and file I/O ---
+
+fn temp_root(suffix: &str) -> (String, impl Drop) {
+    let dir = std::env::temp_dir().join(format!(
+        "agent-config-test-{}-{}",
+        std::process::id(),
+        suffix
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let root = dir.to_str().unwrap().to_string();
+    struct Cleanup(std::path::PathBuf);
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    (root, Cleanup(dir))
+}
+
+#[test]
+fn test_save_and_load_roundtrip() {
+    let (root, _guard) = temp_root("roundtrip");
+    let mut config = Config::default();
+    config.defaults.provider = Some("codex".to_string());
+    config.defaults.model = Some("large".to_string());
+    config.models.claude = Some("opus".to_string());
+    config.auto.provider = Some("gemini".to_string());
+    config.save(Some(&root)).unwrap();
+
+    let loaded = Config::load(Some(&root)).unwrap();
+    assert_eq!(loaded.defaults.provider, Some("codex".to_string()));
+    assert_eq!(loaded.defaults.model, Some("large".to_string()));
+    assert_eq!(loaded.models.claude, Some("opus".to_string()));
+    assert_eq!(loaded.auto.provider, Some("gemini".to_string()));
+}
+
+#[test]
+fn test_load_missing_file_returns_default() {
+    let (root, _guard) = temp_root("missing");
+    let config = Config::load(Some(&root)).unwrap();
+    assert!(config.defaults.provider.is_none());
+}
+
+#[test]
+fn test_init_creates_config() {
+    let (root, _guard) = temp_root("init");
+    let created = Config::init(Some(&root)).unwrap();
+    assert!(created);
+    assert!(Config::config_path(Some(&root)).exists());
+
+    // Calling init again should return false (already exists)
+    let created_again = Config::init(Some(&root)).unwrap();
+    assert!(!created_again);
+}
+
+#[test]
+fn test_global_logs_dir_not_empty() {
+    let dir = Config::global_logs_dir();
+    assert!(dir.to_str().unwrap().contains("logs"));
+}
+
 #[test]
 fn test_agent_dir_with_root() {
     let dir = Config::agent_dir(Some("/tmp/test"));

@@ -102,28 +102,7 @@ impl Gemini {
             }
             Ok(None)
         } else if self.capture_output {
-            cmd.stdin(Stdio::inherit())
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped());
-
-            let output = cmd.output().await?;
-
-            let stderr_text = String::from_utf8_lossy(&output.stderr);
-            let stderr_text = stderr_text.trim();
-            if !stderr_text.is_empty() {
-                for line in stderr_text.lines() {
-                    crate::logging::log_to_file(&format!("[STDERR] {}", line));
-                }
-            }
-
-            if !output.status.success() {
-                if stderr_text.is_empty() {
-                    anyhow::bail!("Gemini command failed with status: {}", output.status);
-                } else {
-                    anyhow::bail!("{}", stderr_text);
-                }
-            }
-            let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            let text = crate::process::run_captured(&mut cmd, "Gemini").await?;
             Ok(Some(AgentOutput::from_text("gemini", &text)))
         } else {
             cmd.stdin(Stdio::inherit()).stdout(Stdio::inherit());

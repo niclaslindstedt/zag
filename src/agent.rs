@@ -13,16 +13,15 @@ pub enum ModelSize {
     Large,
 }
 
-impl ModelSize {
-    /// Parse a size string into ModelSize.
-    ///
-    /// Returns None if the string is not a recognized size alias.
-    pub fn from_str(s: &str) -> Option<Self> {
+impl std::str::FromStr for ModelSize {
+    type Err = ();
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "small" | "s" => Some(ModelSize::Small),
-            "medium" | "m" | "default" => Some(ModelSize::Medium),
-            "large" | "l" | "max" => Some(ModelSize::Large),
-            _ => None,
+            "small" | "s" => Ok(ModelSize::Small),
+            "medium" | "m" | "default" => Ok(ModelSize::Medium),
+            "large" | "l" | "max" => Ok(ModelSize::Large),
+            _ => Err(()),
         }
     }
 }
@@ -49,7 +48,7 @@ pub trait Agent {
     where
         Self: Sized,
     {
-        if let Some(size) = ModelSize::from_str(model_input) {
+        if let Ok(size) = model_input.parse::<ModelSize>() {
             Self::model_for_size(size).to_string()
         } else {
             model_input.to_string()
