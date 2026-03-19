@@ -625,3 +625,7 @@ Follow these steps when making changes to the codebase:
 8. **Update CLAUDE.md** — if the change affects architecture, key files, configuration, or development patterns
 9. **Update manpages** — if the change adds/removes/modifies commands, flags, or behavior documented in `man/*.md`
 10. **Commit** — use `/commit` to commit with conventional commit messages
+
+## Context Window Guidelines
+
+When using a 1M context model (e.g., Opus 4.6 1M), do NOT use exploration agents (subagent_type=Explore). The large context window can hold sufficient codebase context directly — use Glob, Grep, and Read tools instead of delegating to subagents.
