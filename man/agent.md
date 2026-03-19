@@ -32,6 +32,7 @@ These flags can be used with any subcommand.
         --json                  Request structured JSON output from the agent
         --json-schema <SCHEMA>  Validate JSON output against a schema (file or inline)
         --json-stream           Stream JSON events in NDJSON format
+        --help-agent            Print AI-oriented reference for using this CLI
 
 ## Commands
 
@@ -76,6 +77,7 @@ Settings priority: CLI flags > config file > agent defaults.
     agent --sandbox run                       Run in Docker sandbox
     agent -p ollama --size 35b exec "hello"   Ollama with large model size
     agent exec --json "list 3 colors"         Get structured JSON output
+    agent --help-agent                        Print AI-oriented CLI reference
 
 ## See Also
 

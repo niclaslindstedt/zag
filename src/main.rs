@@ -154,6 +154,12 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Handle --help-agent before clap parsing so it works without a subcommand.
+    if std::env::args().any(|a| a == "--help-agent") {
+        print!("{}", HELP_AGENT);
+        return Ok(());
+    }
+
     let cli = Cli::parse();
 
     // In exec mode without --verbose, suppress info-level logging (treat as quiet for the logger)
@@ -420,6 +426,9 @@ const MAN_RESUME: &str = include_str!("../man/resume.md");
 const MAN_REVIEW: &str = include_str!("../man/review.md");
 const MAN_CONFIG: &str = include_str!("../man/config.md");
 const MAN_MAN: &str = include_str!("../man/man.md");
+
+/// AI-oriented reference document for `--help-agent`.
+const HELP_AGENT: &str = include_str!("../man/help-agent.md");
 
 /// Print a manpage to stdout.
 fn print_manpage(command: Option<&str>) -> Result<()> {
