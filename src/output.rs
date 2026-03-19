@@ -4,6 +4,7 @@
 /// AI coding agents (Claude, Codex, Gemini, Copilot). By normalizing outputs into
 /// a unified format, we can provide consistent logging, debugging, and observability
 /// across all agents.
+use log::debug;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -174,6 +175,11 @@ impl AgentOutput {
     ///
     /// Used by non-Claude agents when `capture_output` is enabled (e.g., for auto-selection).
     pub fn from_text(agent: &str, text: &str) -> Self {
+        debug!(
+            "Creating AgentOutput from text: agent={}, len={}",
+            agent,
+            text.len()
+        );
         Self {
             agent: agent.to_string(),
             session_id: String::new(),
@@ -195,6 +201,11 @@ impl AgentOutput {
     /// This converts events into a flat list of log entries suitable for
     /// display or filtering.
     pub fn to_log_entries(&self, min_level: LogLevel) -> Vec<LogEntry> {
+        debug!(
+            "Extracting log entries from {} events (min_level={:?})",
+            self.events.len(),
+            min_level
+        );
         let mut entries = Vec::new();
 
         for event in &self.events {

@@ -440,6 +440,7 @@ impl Agent for Codex {
     }
 
     async fn cleanup(&self) -> Result<()> {
+        log::debug!("Cleaning up Codex agent resources");
         let base = self.get_base_path();
         let codex_dir = base.join(".codex");
         let agents_file = codex_dir.join("AGENTS.md");

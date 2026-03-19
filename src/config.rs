@@ -4,6 +4,7 @@
 //! (or `--root` directory if specified).
 
 use anyhow::{Context, Result};
+use log::debug;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -79,7 +80,9 @@ impl Config {
     /// Returns default config if file doesn't exist.
     pub fn load(root: Option<&str>) -> Result<Self> {
         let path = Self::config_path(root);
+        debug!("Loading config from {}", path.display());
         if !path.exists() {
+            debug!("Config file not found, using defaults");
             return Ok(Self::default());
         }
 
@@ -87,6 +90,7 @@ impl Config {
             .with_context(|| format!("Failed to read config: {}", path.display()))?;
         let config: Config = toml::from_str(&content)
             .with_context(|| format!("Failed to parse config: {}", path.display()))?;
+        debug!("Config loaded successfully from {}", path.display());
         Ok(config)
     }
 
@@ -95,6 +99,7 @@ impl Config {
     /// Creates the `.agent` directory if it doesn't exist.
     pub fn save(&self, root: Option<&str>) -> Result<()> {
         let path = Self::config_path(root);
+        debug!("Saving config to {}", path.display());
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
@@ -103,6 +108,7 @@ impl Config {
         let content = toml::to_string_pretty(self).context("Failed to serialize config")?;
         std::fs::write(&path, content)
             .with_context(|| format!("Failed to write config: {}", path.display()))?;
+        debug!("Config saved to {}", path.display());
         Ok(())
     }
 
@@ -113,9 +119,11 @@ impl Config {
     pub fn init(root: Option<&str>) -> Result<bool> {
         let path = Self::config_path(root);
         if path.exists() {
+            debug!("Config already exists at {}", path.display());
             return Ok(false);
         }
 
+        debug!("Initializing new config at {}", path.display());
         let config = Self::default_with_comments();
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)
@@ -225,6 +233,7 @@ impl Config {
     /// 3. Global config directory (~/.config/agent)
     fn resolve_base_dir(root: Option<&str>) -> PathBuf {
         if let Some(r) = root {
+            debug!("Config base dir from explicit root: {}", r);
             return PathBuf::from(r);
         }
 
@@ -232,11 +241,14 @@ impl Config {
 
         // Try to find git root
         if let Some(git_root) = Self::find_git_root(&current_dir) {
+            debug!("Config base dir from git root: {}", git_root.display());
             return git_root;
         }
 
         // Fall back to global config directory
-        Self::global_config_dir()
+        let global = Self::global_config_dir();
+        debug!("Config base dir from global config: {}", global.display());
+        global
     }
 
     /// Get the path to the config file.
@@ -359,6 +371,7 @@ impl Config {
 
     /// Set a config value by dot-notation key. Validates inputs.
     pub fn set_value(&mut self, key: &str, value: &str) -> Result<()> {
+        debug!("Setting config: {} = {}", key, value);
         match key {
             "provider" => {
                 let v = value.to_lowercase();

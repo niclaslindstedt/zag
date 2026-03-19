@@ -45,8 +45,8 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/worktree.rs` | Git worktree creation, removal, and name generation |
 | `src/json_validation.rs` | JSON and JSON Schema validation utilities |
 | `man/*.md` | Embedded manpages for the `agent man` command |
-| `prompts/auto-selector-3_1.md` | Versioned prompt template for auto-selection with task decline support |
-| `prompts/json-wrap-1_0.md` | Versioned prompt template for wrapping user prompts with JSON instructions |
+| `prompts/auto-selector/*.md` | Versioned prompt templates for auto-selection (latest: 3_1) |
+| `prompts/json-wrap/*.md` | Versioned prompt templates for wrapping user prompts with JSON instructions (latest: 1_0) |
 
 ## Model Size Abstraction
 

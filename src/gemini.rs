@@ -50,6 +50,7 @@ impl Gemini {
 
     async fn write_system_file(&self) -> Result<()> {
         let base = self.get_base_path();
+        log::debug!("Writing Gemini system file to {}", base.display());
         let gemini_dir = base.join(".gemini");
         fs::create_dir_all(&gemini_dir).await?;
         fs::write(gemini_dir.join("system.md"), &self.system_prompt).await?;
@@ -263,6 +264,7 @@ impl Agent for Gemini {
     }
 
     async fn cleanup(&self) -> Result<()> {
+        log::debug!("Cleaning up Gemini agent resources");
         let base = self.get_base_path();
         let gemini_dir = base.join(".gemini");
         let system_file = gemini_dir.join("system.md");

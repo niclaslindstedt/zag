@@ -272,9 +272,11 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Commands::Man { command } => {
+            debug!("Showing manpage for: {:?}", command);
             print_manpage(command.as_deref())?;
         }
         Commands::Config { args } => {
+            debug!("Running config subcommand with args: {:?}", args);
             run_config(args, cli.root.as_deref())?;
         }
         Commands::Review {
@@ -299,6 +301,7 @@ async fn main() -> Result<()> {
         }
         action => {
             let provider = resolve_provider(cli.provider.as_deref(), cli.root.as_deref())?;
+            debug!("Resolved provider: {}", provider);
             let display_name = capitalize(&provider);
             run_agent_action(AgentActionParams {
                 agent_name: display_name,
@@ -416,7 +419,7 @@ struct AgentActionParams {
     json_stream: bool,
 }
 
-const JSON_WRAP_TEMPLATE: &str = include_str!("../prompts/json-wrap-1_0.md");
+const JSON_WRAP_TEMPLATE: &str = include_str!("../prompts/json-wrap/1_0.md");
 
 /// Embedded manpages.
 const MAN_AGENT: &str = include_str!("../man/agent.md");
@@ -873,6 +876,7 @@ async fn execute_action(
             session_id: resume_id,
             last,
         } => {
+            debug!("Resume action: session_id={:?}, last={}", resume_id, last);
             if let Some(ref sid) = resume_id {
                 let store = session::SessionStore::load(ctx.root).unwrap_or_default();
                 if let Some(entry) = store.find_by_session_id(sid) {
@@ -1174,6 +1178,10 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
 fn prompt_sandbox_cleanup(session_id: &str, sandbox_name: &str, root: Option<&str>) -> Result<()> {
     use std::io::{self, BufRead, Write};
 
+    debug!(
+        "Prompting sandbox cleanup: session={}, sandbox={}",
+        session_id, sandbox_name
+    );
     println!("\n\x1b[33m>\x1b[0m Sandbox: {}", sandbox_name);
     print!("\x1b[33m>\x1b[0m Keep sandbox? [Y/n] ");
     io::stdout().flush()?;
@@ -1215,6 +1223,10 @@ fn prompt_worktree_cleanup(
 ) -> Result<()> {
     use std::io::{self, BufRead, Write};
 
+    debug!(
+        "Prompting worktree cleanup: session={}, path={}",
+        session_id, worktree_path
+    );
     println!("\n\x1b[33m>\x1b[0m Worktree at {}", worktree_path);
     print!("\x1b[33m>\x1b[0m Keep workspace? [Y/n] ");
     io::stdout().flush()?;
@@ -1281,7 +1293,10 @@ async fn run_review(params: ReviewParams) -> Result<()> {
         bail!("Review requires at least one of: --uncommitted, --base <BRANCH>, --commit <SHA>");
     }
 
-    debug!("Starting code review via Codex");
+    debug!(
+        "Starting code review via Codex (uncommitted={}, base={:?}, commit={:?})",
+        uncommitted, base, commit
+    );
 
     let spinner = logging::spinner("Initializing Codex for review".to_string());
     let mut agent =

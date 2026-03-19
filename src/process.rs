@@ -1,5 +1,6 @@
 use crate::logging;
 use anyhow::Result;
+use log::debug;
 use std::process::Stdio;
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
@@ -38,6 +39,7 @@ pub fn check_exit_status(
     stderr: &str,
     agent_name: &str,
 ) -> Result<()> {
+    debug!("{} process exited with status: {}", agent_name, status);
     if status.success() {
         return Ok(());
     }
@@ -62,11 +64,18 @@ pub fn handle_output(output: &std::process::Output, agent_name: &str) -> Result<
 ///
 /// Stdin is inherited. On failure, stderr is included in the error message.
 pub async fn run_captured(cmd: &mut Command, agent_name: &str) -> Result<String> {
+    debug!("{}: running with captured stdout/stderr", agent_name);
     cmd.stdin(Stdio::inherit())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
     let output = cmd.output().await?;
+    debug!(
+        "{}: captured {} bytes stdout, {} bytes stderr",
+        agent_name,
+        output.stdout.len(),
+        output.stderr.len()
+    );
     handle_output(&output, agent_name)?;
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
@@ -79,6 +88,7 @@ pub async fn run_captured(cmd: &mut Command, agent_name: &str) -> Result<String>
 /// Stdout and stdin should be configured by the caller before calling this function.
 /// This function only sets stderr to piped.
 pub async fn run_with_captured_stderr(cmd: &mut Command) -> Result<()> {
+    debug!("Running command with captured stderr");
     cmd.stderr(Stdio::piped());
 
     let mut child = cmd.spawn()?;
@@ -95,6 +105,7 @@ pub async fn run_with_captured_stderr(cmd: &mut Command) -> Result<()> {
 /// Returns the child process. The caller is responsible for reading stdout
 /// and calling `wait_with_stderr()` when done.
 pub async fn spawn_with_captured_stderr(cmd: &mut Command) -> Result<tokio::process::Child> {
+    debug!("Spawning command with captured stderr");
     cmd.stderr(Stdio::piped());
     let child = cmd.spawn()?;
     Ok(child)

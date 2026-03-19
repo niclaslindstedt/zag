@@ -1,5 +1,7 @@
 //! JSON validation utilities for `--json` and `--json-schema` output modes.
 
+use log::debug;
+
 /// Strip markdown JSON fences if present (e.g., ```json ... ```).
 pub fn strip_markdown_fences(text: &str) -> &str {
     let trimmed = text.trim();
@@ -17,15 +19,25 @@ pub fn strip_markdown_fences(text: &str) -> &str {
 /// Returns the parsed JSON value, or an error string describing the parse failure.
 pub fn validate_json(text: &str) -> Result<serde_json::Value, String> {
     let cleaned = strip_markdown_fences(text);
-    serde_json::from_str(cleaned).map_err(|e| format!("Invalid JSON: {}", e))
+    debug!("Validating JSON ({} bytes)", cleaned.len());
+    let result = serde_json::from_str(cleaned).map_err(|e| format!("Invalid JSON: {}", e));
+    if result.is_ok() {
+        debug!("JSON validation passed");
+    } else {
+        debug!("JSON validation failed");
+    }
+    result
 }
 
 /// Validate that a JSON value is a valid JSON Schema.
 ///
 /// Returns `Ok(())` if the schema is valid, or an error string describing why it is not.
 pub fn validate_schema(schema: &serde_json::Value) -> Result<(), String> {
+    debug!("Validating JSON schema");
     jsonschema::validator_for(schema)
-        .map(|_| ())
+        .map(|_| {
+            debug!("JSON schema is valid");
+        })
         .map_err(|e| format!("Invalid JSON schema: {}", e))
 }
 
@@ -37,6 +49,7 @@ pub fn validate_json_schema(
     schema: &serde_json::Value,
 ) -> Result<serde_json::Value, Vec<String>> {
     let cleaned = strip_markdown_fences(text);
+    debug!("Validating JSON ({} bytes) against schema", cleaned.len());
     let value: serde_json::Value =
         serde_json::from_str(cleaned).map_err(|e| vec![format!("Invalid JSON: {}", e)])?;
 
@@ -56,8 +69,10 @@ pub fn validate_json_schema(
         .collect();
 
     if errors.is_empty() {
+        debug!("JSON schema validation passed");
         Ok(value)
     } else {
+        debug!("JSON schema validation failed with {} errors", errors.len());
         Err(errors)
     }
 }

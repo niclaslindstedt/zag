@@ -57,6 +57,7 @@ impl Copilot {
 
     async fn write_instructions_file(&self) -> Result<()> {
         let base = self.get_base_path();
+        log::debug!("Writing Copilot instructions file to {}", base.display());
         let instructions_dir = base.join(".github/instructions/agent");
         fs::create_dir_all(&instructions_dir).await?;
         fs::write(
@@ -270,6 +271,7 @@ impl Agent for Copilot {
     }
 
     async fn cleanup(&self) -> Result<()> {
+        log::debug!("Cleaning up Copilot agent resources");
         let base = self.get_base_path();
         let instructions_file = base.join(".github/instructions/agent/agent.instructions.md");
 
