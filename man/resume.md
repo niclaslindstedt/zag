@@ -12,7 +12,7 @@ Continues a previous session where it left off. The agent reloads conversation h
 
 If a session ID is provided, that specific session is resumed. If `--last` is used, the most recent session is resumed. If neither is given, the agent shows a session picker or resumes the most recent (behavior depends on the provider).
 
-When resuming a worktree session, the CLI automatically restores the correct worktree directory from the session mapping in `.agent/sessions.json`. If the worktree no longer exists, the stale mapping is removed and the session resumes without it.
+When resuming a worktree session, the CLI automatically restores the correct worktree directory from the session mapping in `~/.agent/projects/<sanitized-path>/sessions.json`. If the worktree no longer exists, the stale mapping is removed and the session resumes without it.
 
 ## Arguments
 

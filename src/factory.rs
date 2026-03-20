@@ -14,7 +14,7 @@ impl AgentFactory {
     /// Create and configure an agent based on the provided parameters.
     ///
     /// This handles:
-    /// - Loading config from .agent/agent.toml
+    /// - Loading config from ~/.agent/projects/<id>/agent.toml
     /// - Creating the appropriate agent implementation
     /// - Resolving model size aliases (small/medium/large)
     /// - Merging CLI flags with config file settings

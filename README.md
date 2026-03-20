@@ -97,7 +97,7 @@ For Ollama, size aliases map to parameter sizes (not model names): `small`=2b, `
 
 ## Configuration
 
-Stored in `.agent/agent.toml` at the git repo root (or `~/.config/agent/.agent/agent.toml` globally).
+Stored in `~/.agent/projects/<sanitized-path>/agent.toml` (or `~/.agent/agent.toml` globally when not in a git repo).
 
 ```toml
 [defaults]

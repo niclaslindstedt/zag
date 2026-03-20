@@ -63,7 +63,7 @@ Size aliases resolve to the appropriate model for the active provider:
 
 ## Configuration
 
-Settings are stored in `.agent/agent.toml` at the git repo root. Use `agent config` to view or modify. See `agent man config` for details.
+Settings are stored in `~/.agent/projects/<sanitized-path>/agent.toml`. Use `agent config` to view or modify. See `agent man config` for details.
 
 Settings priority: CLI flags > config file > agent defaults.
 

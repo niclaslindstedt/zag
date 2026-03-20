@@ -153,7 +153,7 @@ agent --sandbox my-sb run
 agent resume <session-id>
 ```
 
-`--worktree` and `--sandbox` are mutually exclusive. Both create resumable sessions tracked in `.agent/sessions.json`.
+`--worktree` and `--sandbox` are mutually exclusive. Both create resumable sessions tracked in `~/.agent/projects/<sanitized-path>/sessions.json`.
 
 ## Ollama (Local Models)
 
@@ -179,7 +179,7 @@ agent --system-prompt "You are a Rust expert" exec "help with lifetimes"
 
 ## Configuration
 
-Settings live in `.agent/agent.toml` at the git repo root (or `~/.config/agent/.agent/agent.toml` globally).
+Settings live in `~/.agent/projects/<sanitized-path>/agent.toml` (or `~/.agent/agent.toml` globally).
 
 ```sh
 agent config                           Print current config

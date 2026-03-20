@@ -7,7 +7,7 @@ fn temp_root(suffix: &str) -> (String, impl Drop) {
         suffix
     ));
     let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(dir.join(".agent")).unwrap();
+    std::fs::create_dir_all(&dir).unwrap();
     let root = dir.to_str().unwrap().to_string();
     struct Cleanup(std::path::PathBuf);
     impl Drop for Cleanup {

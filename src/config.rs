@@ -1,7 +1,7 @@
 //! Configuration management for the agent CLI.
 //!
-//! Configuration is stored in `.agent/agent.toml` in the project root
-//! (or `--root` directory if specified).
+//! Configuration is stored in `~/.agent/projects/<sanitized-path>/agent.toml`,
+//! where the sanitized path is derived from the git repository root or explicit `--root`.
 
 use anyhow::{Context, Result};
 use log::debug;
@@ -72,11 +72,9 @@ pub struct Config {
 }
 
 impl Config {
-    /// Load configuration from the `.agent/agent.toml` file.
+    /// Load configuration from `~/.agent/projects/<id>/agent.toml`.
     ///
-    /// If `root` is provided, looks in `<root>/.agent/agent.toml`.
-    /// Otherwise uses current working directory.
-    ///
+    /// The project ID is derived from the git repo root or explicit `--root`.
     /// Returns default config if file doesn't exist.
     pub fn load(root: Option<&str>) -> Result<Self> {
         let path = Self::config_path(root);
@@ -94,9 +92,9 @@ impl Config {
         Ok(config)
     }
 
-    /// Save configuration to the `.agent/agent.toml` file.
+    /// Save configuration to `~/.agent/projects/<id>/agent.toml`.
     ///
-    /// Creates the `.agent` directory if it doesn't exist.
+    /// Creates the directory if it doesn't exist.
     pub fn save(&self, root: Option<&str>) -> Result<()> {
         let path = Self::config_path(root);
         debug!("Saving config to {}", path.display());
@@ -115,7 +113,6 @@ impl Config {
     /// Initialize config file with defaults if it doesn't exist.
     ///
     /// Returns true if a new config was created, false if it already existed.
-    /// Also ensures `.agent/` is added to `.gitignore` if it isn't already.
     pub fn init(root: Option<&str>) -> Result<bool> {
         let path = Self::config_path(root);
         if path.exists() {
@@ -133,66 +130,7 @@ impl Config {
         std::fs::write(&path, config)
             .with_context(|| format!("Failed to write config: {}", path.display()))?;
 
-        // Ensure .agent/ is in .gitignore
-        Self::ensure_gitignore(root)?;
-
         Ok(true)
-    }
-
-    /// Ensure `.agent/` is added to `.gitignore` if it isn't already.
-    /// Only applies when the config is stored in a git repository.
-    fn ensure_gitignore(root: Option<&str>) -> Result<()> {
-        let base = Self::resolve_base_dir(root);
-
-        // Only add to .gitignore if we're in a git repository
-        // (i.e., not using global config directory)
-        if let Some(r) = root {
-            // Explicit root was provided - check if it's a git repo
-            if Self::find_git_root(&PathBuf::from(r)).is_none() {
-                return Ok(());
-            }
-        } else {
-            let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-            if Self::find_git_root(&current_dir).is_none() {
-                // Not in a git repo, using global config - no .gitignore needed
-                return Ok(());
-            }
-        }
-
-        let gitignore_path = base.join(".gitignore");
-
-        let content = if gitignore_path.exists() {
-            std::fs::read_to_string(&gitignore_path).with_context(|| {
-                format!("Failed to read .gitignore: {}", gitignore_path.display())
-            })?
-        } else {
-            String::new()
-        };
-
-        // Check if .agent/ is already in .gitignore
-        let has_agent_entry = content.lines().any(|line| {
-            let trimmed = line.trim();
-            trimmed == ".agent"
-                || trimmed == ".agent/"
-                || trimmed == "/.agent"
-                || trimmed == "/.agent/"
-        });
-
-        if !has_agent_entry {
-            let new_content = if content.is_empty() {
-                "# Agent CLI state directory\n.agent/\n".to_string()
-            } else if content.ends_with('\n') {
-                format!("{}\n# Agent CLI state directory\n.agent/\n", content)
-            } else {
-                format!("{}\n\n# Agent CLI state directory\n.agent/\n", content)
-            };
-
-            std::fs::write(&gitignore_path, new_content).with_context(|| {
-                format!("Failed to write .gitignore: {}", gitignore_path.display())
-            })?;
-        }
-
-        Ok(())
     }
 
     /// Detect git repository root from a given directory.
@@ -213,69 +151,77 @@ impl Config {
         }
     }
 
-    /// Get the global config directory (~/.config/agent on Unix, ~/AppData/Roaming/agent on Windows).
-    fn global_config_dir() -> PathBuf {
-        if cfg!(target_os = "windows") {
-            dirs::data_dir()
-                .unwrap_or_else(|| PathBuf::from("."))
-                .join("agent")
-        } else {
-            dirs::config_dir()
-                .unwrap_or_else(|| PathBuf::from("."))
-                .join("agent")
-        }
+    /// Get the global agent base directory (~/.agent).
+    fn global_base_dir() -> PathBuf {
+        dirs::home_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join(".agent")
     }
 
-    /// Resolve the base directory for config storage.
-    /// Priority:
-    /// 1. Explicit root parameter if provided
-    /// 2. Git repository root if current directory is in a repo
-    /// 3. Global config directory (~/.config/agent)
-    fn resolve_base_dir(root: Option<&str>) -> PathBuf {
+    /// Sanitize an absolute path into a directory name.
+    /// Strips leading `/` and replaces `/` with `-`.
+    pub(crate) fn sanitize_path(path: &str) -> String {
+        path.trim_start_matches('/').replace('/', "-")
+    }
+
+    /// Resolve the project directory for config/session storage.
+    ///
+    /// All state is stored under `~/.agent/`:
+    /// - Per-project: `~/.agent/projects/<sanitized-path>/`
+    /// - Global (no repo): `~/.agent/`
+    fn resolve_project_dir(root: Option<&str>) -> PathBuf {
+        let base = Self::global_base_dir();
+
         if let Some(r) = root {
-            debug!("Config base dir from explicit root: {}", r);
-            return PathBuf::from(r);
+            let sanitized = Self::sanitize_path(r);
+            debug!(
+                "Project dir from explicit root: {}/projects/{}",
+                base.display(),
+                sanitized
+            );
+            return base.join("projects").join(sanitized);
         }
 
         let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
         // Try to find git root
         if let Some(git_root) = Self::find_git_root(&current_dir) {
-            debug!("Config base dir from git root: {}", git_root.display());
-            return git_root;
+            let sanitized = Self::sanitize_path(&git_root.to_string_lossy());
+            debug!(
+                "Project dir from git root: {}/projects/{}",
+                base.display(),
+                sanitized
+            );
+            return base.join("projects").join(sanitized);
         }
 
-        // Fall back to global config directory
-        let global = Self::global_config_dir();
-        debug!("Config base dir from global config: {}", global.display());
-        global
+        // Fall back to global base directory (no project subdir)
+        debug!("Project dir from global base: {}", base.display());
+        base
     }
 
     /// Get the path to the config file.
     pub fn config_path(root: Option<&str>) -> PathBuf {
-        let base = Self::resolve_base_dir(root);
-        base.join(".agent").join("agent.toml")
+        Self::resolve_project_dir(root).join("agent.toml")
     }
 
-    /// Get the .agent directory path.
+    /// Get the project directory path (for sessions, etc.).
     #[allow(dead_code)]
     pub fn agent_dir(root: Option<&str>) -> PathBuf {
-        let base = Self::resolve_base_dir(root);
-        base.join(".agent")
+        Self::resolve_project_dir(root)
     }
 
     /// Get the global logs directory path.
-    /// Always uses the global config dir so logs are centralized.
     pub fn global_logs_dir() -> PathBuf {
-        Self::global_config_dir().join(".agent").join("logs")
+        Self::global_base_dir().join("logs")
     }
 
-    /// Ensure the .agent directory exists.
+    /// Ensure the project directory exists.
     #[allow(dead_code)]
     pub fn ensure_agent_dir(root: Option<&str>) -> Result<PathBuf> {
         let dir = Self::agent_dir(root);
         std::fs::create_dir_all(&dir)
-            .with_context(|| format!("Failed to create .agent directory: {}", dir.display()))?;
+            .with_context(|| format!("Failed to create project directory: {}", dir.display()))?;
         Ok(dir)
     }
 

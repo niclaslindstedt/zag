@@ -300,10 +300,21 @@ fn test_config_serialization_roundtrip() {
 #[test]
 fn test_config_path_with_root() {
     let path = Config::config_path(Some("/tmp/test"));
+    let home = dirs::home_dir().unwrap();
+    assert_eq!(path, home.join(".agent/projects/tmp-test/agent.toml"));
+}
+
+#[test]
+fn test_sanitize_path() {
     assert_eq!(
-        path,
-        std::path::PathBuf::from("/tmp/test/.agent/agent.toml")
+        Config::sanitize_path("/Users/foo/Source/agent"),
+        "Users-foo-Source-agent"
     );
+    assert_eq!(
+        Config::sanitize_path("/home/user/projects/my-app"),
+        "home-user-projects-my-app"
+    );
+    assert_eq!(Config::sanitize_path("relative/path"), "relative-path");
 }
 
 // --- Auto config ---
@@ -446,5 +457,6 @@ fn test_global_logs_dir_not_empty() {
 #[test]
 fn test_agent_dir_with_root() {
     let dir = Config::agent_dir(Some("/tmp/test"));
-    assert_eq!(dir, std::path::PathBuf::from("/tmp/test/.agent"));
+    let home = dirs::home_dir().unwrap();
+    assert_eq!(dir, home.join(".agent/projects/tmp-test"));
 }

@@ -9,15 +9,17 @@ View or set configuration values.
 
 ## Description
 
-Manages the `.agent/agent.toml` configuration file. When called with no arguments, prints the full config file. When called with a key and value, sets that configuration option.
+Manages the `agent.toml` configuration file. When called with no arguments, prints the full config file. When called with a key and value, sets that configuration option.
 
-The config file location is determined automatically:
+All configuration is stored under `~/.agent/`:
 
-1. If `--root` is specified: `<root>/.agent/agent.toml`
-2. If inside a git repo: `<repo-root>/.agent/agent.toml`
-3. Otherwise: `~/.config/agent/.agent/agent.toml` (global)
+1. If `--root` is specified: `~/.agent/projects/<sanitized-root>/agent.toml`
+2. If inside a git repo: `~/.agent/projects/<sanitized-repo-path>/agent.toml`
+3. Otherwise: `~/.agent/agent.toml` (global)
 
-On first use, the config file and `.agent/` directory are created automatically. If inside a git repo, `.agent/` is added to `.gitignore`.
+The sanitized path is the absolute path with leading `/` stripped and `/` replaced with `-` (e.g., `/Users/me/Source/app` → `Users-me-Source-app`).
+
+On first use, the config file and directory are created automatically.
 
 ## Arguments
 

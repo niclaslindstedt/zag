@@ -97,7 +97,7 @@ agent exec -p auto -m auto "complex multi-file refactor"
 
 ### Configuration
 
-The selector LLM is configurable in `.agent/agent.toml`:
+The selector LLM is configurable in `agent.toml`:
 
 ```toml
 [auto]
@@ -116,21 +116,22 @@ Config keys: `auto.provider`, `auto.model`
 
 ## Configuration
 
-Configuration is stored in `.agent/agent.toml`, with smart location detection:
+All configuration and state is stored under `~/.agent/`, never in the repository.
 
 ### Config File Location
 
 The config location is automatically determined using this priority:
 
-1. **Explicit `--root` flag**: If provided, uses `<root>/.agent/agent.toml`
-2. **Git repository root**: If current directory is in a git repo, uses `<repo-root>/.agent/agent.toml`
-3. **Global config**: If not in a repo, uses `~/.config/agent/.agent/agent.toml` (Linux/macOS) or `~/AppData/Roaming/agent/.agent/agent.toml` (Windows)
+1. **Explicit `--root` flag**: `~/.agent/projects/<sanitized-root>/agent.toml`
+2. **Git repository root**: `~/.agent/projects/<sanitized-repo-path>/agent.toml`
+3. **Global config**: `~/.agent/agent.toml` (when not in a git repo)
+
+The sanitized path strips the leading `/` and replaces `/` with `-` (e.g., `/Users/me/Source/app` → `Users-me-Source-app`).
 
 This means:
-- Each git repository has its own config
-- No scattered `.agent` folders in subdirectories
+- Each git repository has its own config under `~/.agent/projects/`
+- No `.agent` folders in repository roots
 - Global fallback for non-repository usage
-- `.gitignore` entry is automatically added for repository configs
 
 ### Config File Format
 
@@ -191,7 +192,7 @@ agent config auto_approve true
 Settings are applied in this order (later overrides earlier):
 
 1. **Agent defaults**: Built-in defaults for each agent
-2. **Config file**: Settings from `.agent/agent.toml` (defaults.model, then models.<agent>)
+2. **Config file**: Settings from `agent.toml` (defaults.model, then models.<agent>)
 3. **CLI flags**: Command-line arguments (highest priority)
 
 ### Available Settings
@@ -224,7 +225,7 @@ The CLI includes professional logging and progress indicators to provide clear f
 - **Progress indicators**: Animated spinner for long-running operations that clears on completion
 - **Success indicators**: Green checkmark (✓) for successful operations
 - **Model display**: Shows the actual model name being used
-- **File-based logging**: All log messages are written to session log files in `~/.config/agent/.agent/logs/` (always at debug level)
+- **File-based logging**: All log messages are written to session log files in `~/.agent/logs/` (always at debug level)
 - **Stderr capture**: In non-interactive (exec) mode, agent subprocess stderr is captured and logged to file. On failure, stderr is included in the error message. Interactive sessions pass stderr through unchanged.
 
 ### Debug Mode
@@ -610,7 +611,7 @@ agent -p gemini -w my-task exec "analyze code"
 
 ### Session Tracking & Resume
 
-Worktree sessions are tracked in `.agent/sessions.json`. Each session records the session ID, provider, worktree path, and creation timestamp.
+Worktree sessions are tracked in `~/.agent/projects/<sanitized-path>/sessions.json`. Each session records the session ID, provider, worktree path, and creation timestamp.
 
 - A UUID session ID is generated for each worktree session
 - For Claude, the session ID is passed via `--session-id` to the Claude binary
@@ -685,7 +686,7 @@ Each provider maps to a Docker sandbox template:
 
 ### Session Tracking & Resume
 
-Sandbox sessions are tracked in `.agent/sessions.json` with a `sandbox_name` field. Each session records the session ID, provider, workspace path, sandbox name, and creation timestamp.
+Sandbox sessions are tracked in `~/.agent/projects/<sanitized-path>/sessions.json` with a `sandbox_name` field. Each session records the session ID, provider, workspace path, sandbox name, and creation timestamp.
 
 - `agent resume <session-id>` looks up the sandbox name and re-configures the agent with `SandboxConfig`
 - The sandbox is idempotent — `docker sandbox run` with the same name reuses the existing VM

@@ -1,6 +1,6 @@
 //! Session-to-worktree mapping store.
 //!
-//! Persists session-worktree mappings in `.agent/sessions.json`
+//! Persists session-worktree mappings in `~/.agent/projects/<id>/sessions.json`
 //! so that `agent resume <id>` can resume inside the correct worktree.
 
 use crate::config::Config;
