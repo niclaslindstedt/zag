@@ -37,7 +37,7 @@ All global flags apply (see `agent man agent`), with these notes:
 
 ## Post-Session
 
-After an interactive resume of a worktree session, you are prompted whether to keep or remove the worktree — same as after `agent run` with `--worktree`.
+After an interactive resume of a worktree session, if the worktree has no uncommitted changes it is automatically removed. If there are changes, you are prompted whether to keep or remove it.
 
 ## Examples
 

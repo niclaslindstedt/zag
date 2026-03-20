@@ -597,40 +597,25 @@ agent -p codex -w run
 agent -p gemini -w my-task exec "analyze code"
 ```
 
-### Behavior per Provider
-
-| Provider | Behavior |
-|----------|----------|
-| Claude | Flag is passed through to `claude` binary (native `--worktree` support) |
-| Codex, Gemini, Copilot | Wrapper creates worktree via `git worktree add --detach`, sets agent root to worktree path |
-
 ### Worktree Location
 
-- **Claude**: Managed by the `claude` binary (typically `.claude/worktrees/`)
-- **Other providers**: Created at `<repo>/.git/agent-worktrees/<name>/`
+All providers use the same worktree path: `<repo>/.git/agent-worktrees/<name>/`. The wrapper creates the worktree via `git worktree add --detach` and sets the agent's root directory to the worktree path.
 
 ### Session Tracking & Resume
 
 Worktree sessions are tracked in `~/.agent/projects/<sanitized-path>/sessions.json`. Each session records the session ID, provider, worktree path, and creation timestamp.
 
 - A UUID session ID is generated for each worktree session
-- For Claude, the session ID is passed via `--session-id` to the Claude binary
 - `agent resume <session-id>` automatically resumes inside the correct worktree
 - If the worktree no longer exists, the stale mapping is removed and resume proceeds without it
 
-### Cleanup Prompt
+### Cleanup Behavior
 
-After interactive (`run`) worktree sessions, the CLI prompts:
+After a worktree session ends, the CLI checks for uncommitted changes (staged, unstaged, or untracked):
 
-```
-> Worktree at /path/to/worktree
-> Keep workspace? [Y/n]
-```
-
-- **Y (default)**: Keeps the worktree and prints the resume command
-- **n**: Removes the worktree via `git worktree remove` and deletes the session mapping
-- `exec` sessions skip the prompt (always keep)
-- The same prompt appears after resuming a session that has a worktree
+- **No changes**: The worktree is automatically removed (no prompt). A message is printed: `✓ Worktree removed (no changes)`
+- **Has changes (interactive `run`)**: The user is prompted whether to keep or remove the worktree
+- **Has changes (`exec`)**: The worktree is kept and the resume command is printed
 
 ### Restrictions
 

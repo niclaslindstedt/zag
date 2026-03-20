@@ -27,11 +27,9 @@ pub struct Claude {
     output_format: Option<String>,
     input_format: Option<String>,
     add_dirs: Vec<String>,
-    worktree: Option<Option<String>>,
     capture_output: bool,
     verbose: bool,
     json_schema: Option<String>,
-    session_id: Option<String>,
     sandbox: Option<SandboxConfig>,
 }
 
@@ -45,11 +43,9 @@ impl Claude {
             output_format: None,
             input_format: None,
             add_dirs: Vec::new(),
-            worktree: None,
             capture_output: false,
             verbose: false,
             json_schema: None,
-            session_id: None,
             sandbox: None,
         }
     }
@@ -58,20 +54,12 @@ impl Claude {
         self.input_format = format;
     }
 
-    pub fn set_worktree(&mut self, name: Option<String>) {
-        self.worktree = Some(name);
-    }
-
     pub fn set_verbose(&mut self, verbose: bool) {
         self.verbose = verbose;
     }
 
     pub fn set_json_schema(&mut self, schema: Option<String>) {
         self.json_schema = schema;
-    }
-
-    pub fn set_session_id(&mut self, id: String) {
-        self.session_id = Some(id);
     }
 
     /// Build the argument list for a run/exec invocation.
@@ -122,17 +110,6 @@ impl Claude {
 
         if !interactive && let Some(ref input_fmt) = self.input_format {
             args.extend(["--input-format".to_string(), input_fmt.clone()]);
-        }
-
-        if let Some(ref wt) = self.worktree {
-            args.push("--worktree".to_string());
-            if let Some(name) = wt {
-                args.push(name.clone());
-            }
-        }
-
-        if let Some(ref sid) = self.session_id {
-            args.extend(["--session-id".to_string(), sid.clone()]);
         }
 
         if let Some(ref schema) = self.json_schema {

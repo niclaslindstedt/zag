@@ -1,4 +1,21 @@
 use super::*;
+use std::path::Path;
+
+#[test]
+fn test_has_changes_clean_repo() {
+    // The current repo root should have a clean status (tests run from clean state)
+    let root = git_repo_root(None).unwrap();
+    // We can't guarantee the repo is clean during development,
+    // but we can verify the function runs without error
+    let result = has_changes(&root);
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_has_changes_invalid_path() {
+    let result = has_changes(Path::new("/nonexistent/path"));
+    assert!(result.is_err());
+}
 
 #[test]
 fn test_generate_name_has_prefix() {

@@ -556,11 +556,11 @@ struct WorktreeSetup {
     worktree_path: Option<String>,
 }
 
-/// Set up worktree session state: generate IDs, create worktree for non-Claude providers.
+/// Set up worktree session state: generate IDs, create worktree.
+/// All providers get the same treatment — worktree at `.git/agent-worktrees/<name>`.
 fn setup_worktree(
     worktree_flag: &Option<Option<String>>,
     action: &Commands,
-    provider: &str,
     root: &Option<String>,
     show_wrapper: bool,
 ) -> Result<WorktreeSetup> {
@@ -586,33 +586,20 @@ fn setup_worktree(
             .unwrap_or_else(worktree::generate_name),
     );
 
-    let (effective_root, worktree_path) = if provider != "claude" {
-        let repo_root = worktree::git_repo_root(root.as_deref())?;
-        let name = worktree_name.as_deref().unwrap();
-        let wt_path = worktree::create_worktree(&repo_root, name)?;
-        if show_wrapper {
-            println!("\x1b[32m✓\x1b[0m Worktree created at {}", wt_path.display());
-        }
-        let path_str = wt_path.to_string_lossy().to_string();
-        (Some(path_str.clone()), Some(path_str))
-    } else {
-        let repo_root = worktree::git_repo_root(root.as_deref())?;
-        let name = worktree_name.as_deref().unwrap();
-        let wt_path = repo_root
-            .join(".claude")
-            .join("worktrees")
-            .join(name)
-            .to_string_lossy()
-            .to_string();
-        (root.clone(), Some(wt_path))
-    };
+    let repo_root = worktree::git_repo_root(root.as_deref())?;
+    let name = worktree_name.as_deref().unwrap();
+    let wt_path = worktree::create_worktree(&repo_root, name)?;
+    if show_wrapper {
+        println!("\x1b[32m✓\x1b[0m Worktree created at {}", wt_path.display());
+    }
+    let path_str = wt_path.to_string_lossy().to_string();
 
     Ok(WorktreeSetup {
         is_worktree_session: true,
         session_id,
         worktree_name,
-        effective_root,
-        worktree_path,
+        effective_root: Some(path_str.clone()),
+        worktree_path: Some(path_str),
     })
 }
 
@@ -691,7 +678,6 @@ struct AgentSetupParams {
 fn create_and_configure_agent(
     p: AgentSetupParams,
     json_schema: &Option<serde_json::Value>,
-    wt: &WorktreeSetup,
     show_wrapper: bool,
 ) -> Result<(Box<dyn crate::agent::Agent + Send + Sync>, Option<String>)> {
     let spinner = if show_wrapper {
@@ -721,12 +707,6 @@ fn create_and_configure_agent(
         claude_agent.set_verbose(p.verbose);
         if let Some(input_fmt) = p.input_format {
             claude_agent.set_input_format(Some(input_fmt));
-        }
-        if wt.is_worktree_session {
-            claude_agent.set_worktree(wt.worktree_name.clone());
-            if let Some(sid) = &wt.session_id {
-                claude_agent.set_session_id(sid.clone());
-            }
         }
         if p.json_mode
             && let Some(schema) = json_schema
@@ -1017,7 +997,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         debug!("Effective system prompt: {}", sp);
     }
 
-    let wt = setup_worktree(&worktree_flag, &action, &provider, &root, show_wrapper)?;
+    let wt = setup_worktree(&worktree_flag, &action, &root, show_wrapper)?;
     let sb = setup_sandbox(&sandbox_flag, &action, &root)?;
 
     // Extract output/input format from exec action
@@ -1053,7 +1033,6 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
             json_stream,
         },
         &json_schema,
-        &wt,
         show_wrapper,
     )?;
 
@@ -1124,6 +1103,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     // Save session-worktree mapping before execution (so it survives Ctrl+C)
     save_session_mapping(&wt, &sb, &provider, root.as_deref());
 
+    let is_worktree_session = wt.is_worktree_session;
     let is_interactive_worktree = wt.is_worktree_session && matches!(action, Commands::Run { .. });
     let is_interactive_sandbox = sb.is_sandbox_session && matches!(action, Commands::Run { .. });
 
@@ -1157,8 +1137,10 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         prompt_sandbox_cleanup(sid, sandbox_name, root.as_deref())?;
     }
 
-    // Worktree cleanup prompt
-    let cleanup_info = if is_interactive_worktree {
+    // Worktree cleanup
+    // For interactive sessions: auto-delete if no changes, prompt if changes exist
+    // For exec sessions: auto-delete if no changes, keep if changes exist
+    let cleanup_info = if is_worktree_session {
         wt.session_id
             .as_ref()
             .zip(wt.worktree_path.as_ref())
@@ -1168,7 +1150,37 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     };
 
     if let Some((sid, wtp)) = cleanup_info {
-        prompt_worktree_cleanup(&sid, &wtp, root.as_deref())?;
+        let wt_path = std::path::Path::new(&wtp);
+        let has_changes = wt_path.exists() && worktree::has_changes(wt_path).unwrap_or(true);
+
+        if !has_changes {
+            // Auto-remove worktree with no changes
+            if wt_path.exists() {
+                match worktree::remove_worktree(wt_path) {
+                    Ok(()) => {
+                        if show_wrapper {
+                            println!("\x1b[32m✓\x1b[0m Worktree removed (no changes)");
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to remove worktree: {}", e);
+                    }
+                }
+            }
+            let mut store = session::SessionStore::load(root.as_deref()).unwrap_or_default();
+            store.remove(&sid);
+            let _ = store.save(root.as_deref());
+        } else if is_interactive_worktree {
+            prompt_worktree_cleanup(&sid, &wtp, root.as_deref())?;
+        } else {
+            // Exec with changes: keep and print resume command
+            if show_wrapper {
+                println!(
+                    "\x1b[32m✓\x1b[0m Workspace kept. Resume with: agent resume {}",
+                    sid
+                );
+            }
+        }
     }
 
     Ok(())

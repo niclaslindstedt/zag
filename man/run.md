@@ -26,7 +26,7 @@ All global flags apply (see `agent man agent`). No command-specific flags.
 
 The agent subprocess inherits stdin, stdout, and stderr, giving you full interactive control. The wrapper displays initialization messages (model name, auto-approve status) unless `--quiet` is set.
 
-After the session ends, agent resources are cleaned up. If a worktree was created (`--worktree`), you are prompted whether to keep or remove it. If a sandbox was created (`--sandbox`), you are similarly prompted.
+After the session ends, agent resources are cleaned up. If a worktree was created (`--worktree`) and has no uncommitted changes, it is automatically removed. If there are changes, you are prompted whether to keep or remove it. If a sandbox was created (`--sandbox`), you are similarly prompted.
 
 ## Sandbox Mode
 

@@ -60,16 +60,6 @@ fn test_build_run_args_with_system_prompt() {
 }
 
 #[test]
-fn test_build_run_args_with_worktree() {
-    let mut claude = Claude::new();
-    claude.worktree = Some(Some("my-wt".to_string()));
-
-    let args = claude.build_run_args(true, None, &None);
-    assert!(args.contains(&"--worktree".to_string()));
-    assert!(args.contains(&"my-wt".to_string()));
-}
-
-#[test]
 fn test_build_run_args_input_format_only_non_interactive() {
     let mut claude = Claude::new();
     claude.input_format = Some("stream-json".to_string());

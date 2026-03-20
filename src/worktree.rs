@@ -65,6 +65,23 @@ pub fn create_worktree(repo_root: &Path, name: &str) -> Result<PathBuf> {
     Ok(worktree_path)
 }
 
+/// Check if a worktree has any uncommitted changes (staged, unstaged, or untracked).
+pub fn has_changes(path: &Path) -> Result<bool> {
+    let output = std::process::Command::new("git")
+        .current_dir(path)
+        .args(["status", "--porcelain"])
+        .output()
+        .context("Failed to run git status --porcelain")?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("git status failed: {}", stderr.trim());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    Ok(!stdout.trim().is_empty())
+}
+
 /// Remove a git worktree at the given path.
 pub fn remove_worktree(path: &Path) -> Result<()> {
     debug!("Removing worktree at {}", path.display());
