@@ -599,7 +599,7 @@ agent -p gemini -w my-task exec "analyze code"
 
 ### Worktree Location
 
-All providers use the same worktree path: `<repo>/.git/agent-worktrees/<name>/`. The wrapper creates the worktree via `git worktree add --detach` and sets the agent's root directory to the worktree path.
+All providers use the same worktree path: `~/.agent/worktrees/<sanitized-repo-path>/<name>/`. The wrapper creates the worktree via `git worktree add --detach` and sets the agent's root directory to the worktree path. The sanitized path uses the same scheme as config (`/Users/me/Source/app` → `Users-me-Source-app`).
 
 ### Session Tracking & Resume
 

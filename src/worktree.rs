@@ -2,9 +2,20 @@
 #[path = "worktree_tests.rs"]
 mod tests;
 
+use crate::config::Config;
 use anyhow::{Context, Result, bail};
 use log::debug;
 use std::path::{Path, PathBuf};
+
+/// Compute the base directory for worktrees: `~/.agent/worktrees/<sanitized-repo-path>/`.
+pub fn worktree_base_dir(repo_root: &Path) -> PathBuf {
+    let sanitized = Config::sanitize_path(&repo_root.to_string_lossy());
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".agent")
+        .join("worktrees")
+        .join(sanitized)
+}
 
 /// Get the git repository root from a given directory (or current directory).
 pub fn git_repo_root(from: Option<&str>) -> Result<PathBuf> {
@@ -38,10 +49,10 @@ pub fn generate_name() -> String {
     format!("agent-{:08x}", (hash & 0xFFFF_FFFF) as u32)
 }
 
-/// Create a git worktree at `<repo_root>/.git/worktrees/<name>` using detached HEAD.
+/// Create a git worktree at `~/.agent/worktrees/<sanitized-repo-path>/<name>` using detached HEAD.
 /// Returns the path to the new worktree directory.
 pub fn create_worktree(repo_root: &Path, name: &str) -> Result<PathBuf> {
-    let worktree_path = repo_root.join(".git").join("agent-worktrees").join(name);
+    let worktree_path = worktree_base_dir(repo_root).join(name);
 
     debug!("Creating worktree at {}", worktree_path.display());
 

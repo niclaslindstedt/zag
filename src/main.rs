@@ -557,7 +557,7 @@ struct WorktreeSetup {
 }
 
 /// Set up worktree session state: generate IDs, create worktree.
-/// All providers get the same treatment — worktree at `.git/agent-worktrees/<name>`.
+/// All providers get the same treatment — worktree at `~/.agent/worktrees/<project>/<name>`.
 fn setup_worktree(
     worktree_flag: &Option<Option<String>>,
     action: &Commands,
