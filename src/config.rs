@@ -172,13 +172,11 @@ impl Config {
     fn resolve_project_dir(root: Option<&str>) -> PathBuf {
         let base = Self::global_base_dir();
 
+        // Keep this helper free of logging. It is used by config/session path
+        // resolution on hot paths, and debug logging here can re-enter the same
+        // resolution flow through logger setup and formatting.
         if let Some(r) = root {
             let sanitized = Self::sanitize_path(r);
-            debug!(
-                "Project dir from explicit root: {}/projects/{}",
-                base.display(),
-                sanitized
-            );
             return base.join("projects").join(sanitized);
         }
 
@@ -187,16 +185,10 @@ impl Config {
         // Try to find git root
         if let Some(git_root) = Self::find_git_root(&current_dir) {
             let sanitized = Self::sanitize_path(&git_root.to_string_lossy());
-            debug!(
-                "Project dir from git root: {}/projects/{}",
-                base.display(),
-                sanitized
-            );
             return base.join("projects").join(sanitized);
         }
 
         // Fall back to global base directory (no project subdir)
-        debug!("Project dir from global base: {}", base.display());
         base
     }
 
