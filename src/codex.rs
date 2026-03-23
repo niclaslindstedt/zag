@@ -8,6 +8,7 @@ use crate::session_log::{
 };
 use anyhow::Result;
 use async_trait::async_trait;
+use log::info;
 use std::io::BufRead;
 use std::path::Path;
 use std::process::Stdio;
@@ -394,6 +395,7 @@ impl HistoricalLogAdapter for CodexHistoricalLogAdapter {
         let mut sessions = std::collections::HashMap::<String, BackfilledSession>::new();
         let path = codex_history_path();
         if path.exists() {
+            info!("Scanning Codex history: {}", path.display());
             let file = std::fs::File::open(&path)?;
             let reader = std::io::BufReader::new(file);
             for line in reader.lines() {
@@ -438,6 +440,7 @@ impl HistoricalLogAdapter for CodexHistoricalLogAdapter {
 
         let tui_path = codex_tui_log_path();
         if tui_path.exists() {
+            info!("Scanning Codex TUI log: {}", tui_path.display());
             let file = std::fs::File::open(&tui_path)?;
             let reader = std::io::BufReader::new(file);
             for line in reader.lines() {

@@ -7,6 +7,7 @@ use crate::session_log::{
 };
 use anyhow::Result;
 use async_trait::async_trait;
+use log::info;
 use std::collections::HashSet;
 use std::path::Path;
 use std::process::Stdio;
@@ -331,6 +332,7 @@ impl HistoricalLogAdapter for GeminiHistoricalLogAdapter {
             };
             for file in files.flatten() {
                 let path = file.path();
+                info!("Scanning Gemini history: {}", path.display());
                 let content = match std::fs::read_to_string(&path) {
                     Ok(content) => content,
                     Err(_) => continue,

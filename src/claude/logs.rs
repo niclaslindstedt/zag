@@ -4,6 +4,7 @@ use crate::session_log::{
 };
 use anyhow::{Context, Result};
 use async_trait::async_trait;
+use log::info;
 use serde_json::Value;
 use std::collections::HashSet;
 use std::fs::File;
@@ -171,6 +172,7 @@ impl HistoricalLogAdapter for ClaudeHistoricalLogAdapter {
                 if path.extension().and_then(|ext| ext.to_str()) != Some("jsonl") {
                     continue;
                 }
+                info!("Scanning Claude history: {}", path.display());
                 if let Some(session) = backfill_session(&path)? {
                     sessions.push(session);
                 }

@@ -3,6 +3,7 @@ use crate::output::{AgentOutput, ContentBlock, Event};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use log::info;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs::{File, OpenOptions};
@@ -548,20 +549,42 @@ pub fn run_backfill(root: Option<&str>, providers: &[&dyn HistoricalLogAdapter])
     let mut state = load_backfill_state(&state_path)?;
     let current_version = 1;
     if state.version == current_version {
+        info!("Historical log import already completed for version {}", current_version);
         return Ok(0);
     }
 
+    info!("Starting historical log import");
     let mut imported = 0;
     for provider in providers {
         for session in provider.backfill(root)? {
             let key = session_key(&session.metadata);
             if state.imported_session_keys.contains(&key) {
+                info!(
+                    "Skipping already imported historical session: {} {}",
+                    session.metadata.provider,
+                    session
+                        .metadata
+                        .provider_session_id
+                        .as_deref()
+                        .unwrap_or(&session.metadata.wrapper_session_id)
+                );
                 continue;
             }
+
+            info!(
+                "Importing historical session: {} {}",
+                session.metadata.provider,
+                session
+                    .metadata
+                    .provider_session_id
+                    .as_deref()
+                    .unwrap_or(&session.metadata.wrapper_session_id)
+            );
 
             let writer = SessionLogWriter::create(root, session.metadata.clone())?;
             writer.set_completeness(session.completeness)?;
             for source_path in session.source_paths {
+                info!("  source: {}", source_path);
                 let _ = writer.add_source_path(source_path);
             }
             for (source_kind, event) in session.events {
@@ -575,6 +598,7 @@ pub fn run_backfill(root: Option<&str>, providers: &[&dyn HistoricalLogAdapter])
 
     state.version = current_version;
     save_backfill_state(&state_path, &state)?;
+    info!("Historical log import finished: {} session(s) imported", imported);
     Ok(imported)
 }
 

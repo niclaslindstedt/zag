@@ -63,25 +63,29 @@ fn test_writer_emits_events_and_updates_index() {
         backfilled: false,
     };
 
-    let writer = SessionLogWriter::create(Some(&root), metadata).unwrap();
-    record_prompt(&writer, Some("hello")).unwrap();
-    writer
-        .emit(
-            LogSourceKind::Wrapper,
-            LogEventKind::AssistantMessage {
-                content: "world".to_string(),
-                message_id: Some("msg-1".to_string()),
-            },
-        )
-        .unwrap();
-    writer.finish(true, None).unwrap();
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(async {
+        let coordinator = SessionLogCoordinator::start(Some(&root), metadata, None).unwrap();
+        record_prompt(coordinator.writer(), Some("hello")).unwrap();
+        coordinator
+            .writer()
+            .emit(
+                LogSourceKind::Wrapper,
+                LogEventKind::AssistantMessage {
+                    content: "world".to_string(),
+                    message_id: Some("msg-1".to_string()),
+                },
+            )
+            .unwrap();
+        let log_path = coordinator.writer().log_path().unwrap();
+        coordinator.finish(true, None).await.unwrap();
 
-    let log_path = writer.log_path().unwrap();
-    let content = std::fs::read_to_string(&log_path).unwrap();
-    assert!(content.contains("\"session_started\""));
-    assert!(content.contains("\"user_message\""));
-    assert!(content.contains("\"assistant_message\""));
-    assert!(content.contains("\"session_ended\""));
+        let content = std::fs::read_to_string(&log_path).unwrap();
+        assert!(content.contains("\"session_started\""));
+        assert!(content.contains("\"user_message\""));
+        assert!(content.contains("\"assistant_message\""));
+        assert!(content.contains("\"session_ended\""));
+    });
 
     let index_path = logs_dir(Some(&root)).join("index.json");
     let index: SessionLogIndex = serde_json::from_str(&std::fs::read_to_string(index_path).unwrap()).unwrap();

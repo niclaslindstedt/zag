@@ -7,6 +7,7 @@ use crate::session_log::{
 };
 use anyhow::{Context, Result};
 use async_trait::async_trait;
+use log::info;
 use std::collections::HashSet;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -315,6 +316,7 @@ impl HistoricalLogAdapter for CopilotHistoricalLogAdapter {
             if !events_path.exists() {
                 continue;
             }
+            info!("Scanning Copilot history: {}", events_path.display());
             let file = std::fs::File::open(&events_path)
                 .with_context(|| format!("Failed to open {}", events_path.display()))?;
             let reader = BufReader::new(file);

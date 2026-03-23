@@ -1010,6 +1010,23 @@ fn print_resume_hint(wrapper_session_id: &str, provider_session_id: Option<&str>
     }
 }
 
+/// Prints a session resume hint after exiting an interactive session.
+fn print_session_resume_hint(wrapper_session_id: &str, provider_session_id: Option<&str>) {
+    println!();
+    println!(
+        "Resume this session: \x1b[36magent run --resume {}\x1b[0m",
+        wrapper_session_id
+    );
+    if let Some(provider_session_id) = provider_session_id
+        && provider_session_id != wrapper_session_id
+    {
+        println!(
+            "   (native provider ID: {})",
+            provider_session_id
+        );
+    }
+}
+
 /// Context for executing an action.
 struct ExecutionContext<'a> {
     provider: &'a str,
@@ -1738,6 +1755,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     let is_worktree_session = wt.is_worktree_session;
     let is_interactive_worktree = wt.is_worktree_session && matches!(action, Commands::Run { .. });
     let is_interactive_sandbox = sb.is_sandbox_session && matches!(action, Commands::Run { .. });
+    let is_interactive_run = matches!(action, Commands::Run { .. });
 
     let exec_ctx = ExecutionContext {
         provider: &provider,
@@ -1855,6 +1873,15 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
                     .and_then(|entry| entry.provider_session_id.as_deref());
                 print_resume_hint(&sid, provider_session_id, "Workspace");
             }
+        }
+    } else if let Some(wrapper_session_id) = wrapper_session_id {
+        // Plain interactive session (no worktree/sandbox): print resume hint
+        if is_interactive_run && show_wrapper {
+            let store = session::SessionStore::load(root.as_deref()).unwrap_or_default();
+            let provider_session_id = store
+                .find_by_session_id(wrapper_session_id)
+                .and_then(|entry| entry.provider_session_id.clone());
+            print_session_resume_hint(wrapper_session_id, provider_session_id.as_deref());
         }
     }
 
