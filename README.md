@@ -39,7 +39,7 @@ agent review --uncommitted
 
 # Configuration
 agent config provider claude
-agent config model.codex=gpt-5.1-codex-max
+agent config model.codex=gpt-5.4
 ```
 
 ## Supported Agents
@@ -47,7 +47,7 @@ agent config model.codex=gpt-5.1-codex-max
 | Provider | CLI | Default Model | Models |
 |----------|-----|---------------|--------|
 | `claude` | `claude` | opus | sonnet, opus, haiku |
-| `codex` | `codex` | gpt-5.2-codex | gpt-5.2-codex, gpt-5.1-codex-max, gpt-5.1-codex-mini, gpt-5.2 |
+| `codex` | `codex` | gpt-5.4 | gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex-mini |
 | `gemini` | `gemini` | auto | auto, gemini-3-pro-preview, gemini-3-flash-preview, gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite |
 | `copilot` | `copilot` | claude-sonnet-4.5 | claude-sonnet-4.5, claude-opus-4.5, claude-haiku-4.5, gpt-5, gpt-5.1, gpt-5.2, gemini-3-pro-preview |
 | `ollama` | `ollama` | qwen3.5:9b | Any model from ollama.com (use `--size` for parameter size) |
@@ -58,9 +58,9 @@ Instead of remembering provider-specific model names, use size aliases:
 
 | Size | Claude | Codex | Gemini | Copilot |
 |------|--------|-------|--------|---------|
-| `small` / `s` | haiku | gpt-5.1-codex-mini | gemini-2.5-flash-lite | claude-haiku-4.5 |
-| `medium` / `m` | sonnet | gpt-5.2-codex | gemini-2.5-flash | claude-sonnet-4.5 |
-| `large` / `l` / `max` | opus | gpt-5.1-codex-max | gemini-2.5-pro | claude-opus-4.5 |
+| `small` / `s` | haiku | gpt-5.4-mini | gemini-2.5-flash-lite | claude-haiku-4.5 |
+| `medium` / `m` | sonnet | gpt-5.3-codex | gemini-2.5-flash | claude-sonnet-4.5 |
+| `large` / `l` / `max` | opus | gpt-5.4 | gemini-2.5-pro | claude-opus-4.5 |
 
 For Ollama, size aliases map to parameter sizes (not model names): `small`=2b, `medium`=9b, `large`=35b. These are configurable via `ollama.size_small`, `ollama.size_medium`, `ollama.size_large`.
 
@@ -107,7 +107,7 @@ auto_approve = false
 
 [models]
 claude = "opus"
-codex = "gpt-5.2-codex"
+codex = "gpt-5.4"
 
 [auto]
 provider = "claude"

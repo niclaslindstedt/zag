@@ -30,9 +30,9 @@ fn test_claude_resolve_model() {
 
 #[test]
 fn test_codex_resolve_model() {
-    assert_eq!(Codex::resolve_model("small"), "gpt-5.1-codex-mini");
-    assert_eq!(Codex::resolve_model("medium"), "gpt-5.2-codex");
-    assert_eq!(Codex::resolve_model("large"), "gpt-5.1-codex-max");
+    assert_eq!(Codex::resolve_model("small"), "gpt-5.4-mini");
+    assert_eq!(Codex::resolve_model("medium"), "gpt-5.3-codex");
+    assert_eq!(Codex::resolve_model("large"), "gpt-5.4");
     assert_eq!(Codex::resolve_model("gpt-5.2"), "gpt-5.2"); // passthrough
 }
 
@@ -57,7 +57,7 @@ fn test_short_aliases() {
     assert_eq!(Claude::resolve_model("s"), "haiku");
     assert_eq!(Claude::resolve_model("m"), "sonnet");
     assert_eq!(Claude::resolve_model("l"), "opus");
-    assert_eq!(Codex::resolve_model("max"), "gpt-5.1-codex-max");
+    assert_eq!(Codex::resolve_model("max"), "gpt-5.4");
 }
 
 #[test]
@@ -82,7 +82,7 @@ fn test_validate_model_invalid() {
 
 #[test]
 fn test_validate_model_all_agents() {
-    assert!(Codex::validate_model("gpt-5.2-codex", "Codex").is_ok());
+    assert!(Codex::validate_model("gpt-5.4", "Codex").is_ok());
     assert!(Codex::validate_model("invalid", "Codex").is_err());
 
     assert!(Gemini::validate_model("auto", "Gemini").is_ok());
@@ -95,7 +95,7 @@ fn test_validate_model_all_agents() {
 #[test]
 fn test_default_models() {
     assert_eq!(Claude::default_model(), "opus");
-    assert_eq!(Codex::default_model(), "gpt-5.2-codex");
+    assert_eq!(Codex::default_model(), "gpt-5.4");
     assert_eq!(Gemini::default_model(), "auto");
     assert_eq!(Copilot::default_model(), "claude-sonnet-4.5");
 }
@@ -106,7 +106,7 @@ fn test_available_models() {
     assert!(Claude::available_models().contains(&"opus"));
     assert!(Claude::available_models().contains(&"haiku"));
 
-    assert!(Codex::available_models().contains(&"gpt-5.2-codex"));
+    assert!(Codex::available_models().contains(&"gpt-5.4"));
     assert!(Gemini::available_models().contains(&"auto"));
     assert!(Copilot::available_models().contains(&"claude-sonnet-4.5"));
 }

@@ -15,12 +15,12 @@ auto_approve = true
 
 [models]
 claude = "sonnet"
-codex = "gpt-5.1-codex-mini"
+codex = "gpt-5.4-mini"
 "#;
     let config: Config = toml::from_str(toml).unwrap();
     assert_eq!(config.defaults.auto_approve, Some(true));
     assert_eq!(config.models.claude, Some("sonnet".to_string()));
-    assert_eq!(config.models.codex, Some("gpt-5.1-codex-mini".to_string()));
+    assert_eq!(config.models.codex, Some("gpt-5.4-mini".to_string()));
     assert!(config.models.gemini.is_none());
 }
 
@@ -170,8 +170,8 @@ fn test_set_value() {
     config.set_value("model.claude", "opus").unwrap();
     assert_eq!(config.models.claude, Some("opus".to_string()));
 
-    config.set_value("model.codex", "gpt-5.2").unwrap();
-    assert_eq!(config.models.codex, Some("gpt-5.2".to_string()));
+    config.set_value("model.codex", "gpt-5.4").unwrap();
+    assert_eq!(config.models.codex, Some("gpt-5.4".to_string()));
 
     config.set_value("model.gemini", "auto").unwrap();
     assert_eq!(config.models.gemini, Some("auto".to_string()));
@@ -260,7 +260,7 @@ auto_approve = false
 
 [models]
 claude = "opus"
-codex = "gpt-5.2-codex"
+codex = "gpt-5.4"
 gemini = "auto"
 copilot = "claude-sonnet-4.5"
 "#;
@@ -269,7 +269,7 @@ copilot = "claude-sonnet-4.5"
     assert_eq!(config.defaults.model, Some("large".to_string()));
     assert_eq!(config.defaults.auto_approve, Some(false));
     assert_eq!(config.models.claude, Some("opus".to_string()));
-    assert_eq!(config.models.codex, Some("gpt-5.2-codex".to_string()));
+    assert_eq!(config.models.codex, Some("gpt-5.4".to_string()));
     assert_eq!(config.models.gemini, Some("auto".to_string()));
     assert_eq!(config.models.copilot, Some("claude-sonnet-4.5".to_string()));
 }

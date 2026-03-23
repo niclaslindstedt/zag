@@ -382,7 +382,7 @@ model = "medium"
 # Default models for each agent (overrides defaults.model)
 # Use size aliases (small, medium, large) or specific model names
 # claude = "opus"
-# codex = "gpt-5.2-codex"
+# codex = "gpt-5.4"
 # gemini = "auto"
 # copilot = "claude-sonnet-4.5"
 

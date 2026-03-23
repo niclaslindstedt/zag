@@ -26,7 +26,7 @@ Flags that cannot be used with review: `--worktree`, `--json`, `--json-schema`, 
 ## Notes
 
 - The provider flag (`-p`) is ignored — review always uses Codex
-- The `--model` flag selects the Codex model (e.g., `--model large` for gpt-5.1-codex-max)
+- The `--model` flag selects the Codex model (e.g., `--model large` for gpt-5.4)
 - Output is interactive (streamed to terminal), not captured
 
 ## Examples

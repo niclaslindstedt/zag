@@ -109,14 +109,14 @@ fn test_parse_response_json_with_markdown_fences() {
 #[test]
 fn test_parse_response_json_without_reason() {
     let result = parse_response(
-        r#"{"provider": "codex", "model": "gpt-5.2-codex"}"#,
+        r#"{"provider": "codex", "model": "gpt-5.4"}"#,
         true,
         true,
         None,
     )
     .unwrap();
     assert_eq!(result.provider, Some("codex".to_string()));
-    assert_eq!(result.model, Some("gpt-5.2-codex".to_string()));
+    assert_eq!(result.model, Some("gpt-5.4".to_string()));
 }
 
 #[test]

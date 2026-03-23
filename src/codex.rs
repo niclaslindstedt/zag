@@ -9,13 +9,16 @@ use std::process::Stdio;
 use tokio::fs;
 use tokio::process::Command;
 
-pub const DEFAULT_MODEL: &str = "gpt-5.2-codex";
+pub const DEFAULT_MODEL: &str = "gpt-5.4";
 
 pub const AVAILABLE_MODELS: &[&str] = &[
+    "gpt-5.4",
+    "gpt-5.4-mini",
+    "gpt-5.3-codex",
     "gpt-5.2-codex",
+    "gpt-5.2",
     "gpt-5.1-codex-max",
     "gpt-5.1-codex-mini",
-    "gpt-5.2",
 ];
 
 pub struct Codex {
@@ -282,9 +285,9 @@ impl Agent for Codex {
 
     fn model_for_size(size: ModelSize) -> &'static str {
         match size {
-            ModelSize::Small => "gpt-5.1-codex-mini",
-            ModelSize::Medium => "gpt-5.2-codex",
-            ModelSize::Large => "gpt-5.1-codex-max",
+            ModelSize::Small => "gpt-5.4-mini",
+            ModelSize::Medium => "gpt-5.3-codex",
+            ModelSize::Large => "gpt-5.4",
         }
     }
 

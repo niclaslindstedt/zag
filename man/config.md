@@ -70,7 +70,7 @@ The `--provider` flag overrides `defaults.provider`, and `--auto-approve` overri
 
     [models]
     claude = "opus"
-    codex = "gpt-5.2-codex"
+    codex = "gpt-5.4"
     gemini = "auto"
     copilot = "claude-sonnet-4.5"
 

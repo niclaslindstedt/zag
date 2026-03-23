@@ -48,7 +48,7 @@ Run `agent man <command>` for detailed help on each command.
 ## Providers
 
     claude    Default. Models: haiku, sonnet, opus (default: opus)
-    codex     Models: gpt-5.1-codex-mini, gpt-5.2-codex, gpt-5.1-codex-max, gpt-5.2
+    codex     Models: gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex-mini
     gemini    Models: gemini-2.5-flash-lite, gemini-2.5-flash, gemini-2.5-pro, auto
     copilot   Models: claude-haiku-4.5, claude-sonnet-4.5, claude-opus-4.5, and more
     ollama    Local models via Ollama. Default: qwen3.5:9b. Use --size for parameter size
@@ -57,9 +57,9 @@ Run `agent man <command>` for detailed help on each command.
 
 Size aliases resolve to the appropriate model for the active provider:
 
-    small  (s)     Lightweight, fast — haiku / gpt-5.1-codex-mini / gemini-2.5-flash-lite
-    medium (m)     Balanced — sonnet / gpt-5.2-codex / gemini-2.5-flash
-    large  (l/max) Most capable — opus / gpt-5.1-codex-max / gemini-2.5-pro
+    small  (s)     Lightweight, fast — haiku / gpt-5.4-mini / gemini-2.5-flash-lite
+    medium (m)     Balanced — sonnet / gpt-5.3-codex / gemini-2.5-flash
+    large  (l/max) Most capable — opus / gpt-5.4 / gemini-2.5-pro
 
 ## Configuration
 

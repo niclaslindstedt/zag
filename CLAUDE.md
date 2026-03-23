@@ -10,6 +10,13 @@ Keep this file updated when making architectural changes to the codebase.
 - `make fmt` - Format code
 - `make clippy` - Lint
 
+## Commit Messages
+
+- Follow the repository's conventional commit style: `type(scope): summary`
+- Use lowercase types like `feat`, `fix`, `refactor`, `docs`, or `test`
+- Keep scopes lowercase and comma-separated when multiple areas changed, e.g. `refactor(codex,docs): update Codex model lineup`
+- Write the summary in imperative mood and keep it specific to the change
+
 ## Architecture
 
 Rust CLI that provides a unified interface for multiple AI coding agents (Claude, Codex, Gemini, Copilot).
@@ -55,7 +62,7 @@ Instead of specifying agent-specific model names, you can use size aliases that 
 ```bash
 # Use size aliases
 agent --model large run              # Uses opus (default provider: claude)
-agent -p codex --model large run     # Uses gpt-5.1-codex-max
+agent -p codex --model large run     # Uses gpt-5.4
 agent -p gemini --model small run    # Uses gemini-2.5-flash-lite
 
 # Or use specific model names (passthrough)
@@ -68,9 +75,9 @@ Each agent implements `model_for_size()` in its `Agent` trait implementation:
 
 | Size | Claude | Codex | Gemini | Copilot | Ollama (size) |
 |------|--------|-------|--------|---------|---------------|
-| `small` / `s` | haiku | gpt-5.1-codex-mini | gemini-2.5-flash-lite | claude-haiku-4.5 | 2b |
-| `medium` / `m` | sonnet | gpt-5.2-codex | gemini-2.5-flash | claude-sonnet-4.5 | 9b |
-| `large` / `l` / `max` | opus | gpt-5.1-codex-max | gemini-2.5-pro | claude-opus-4.5 | 35b |
+| `small` / `s` | haiku | gpt-5.4-mini | gemini-2.5-flash-lite | claude-haiku-4.5 | 2b |
+| `medium` / `m` | sonnet | gpt-5.3-codex | gemini-2.5-flash | claude-sonnet-4.5 | 9b |
+| `large` / `l` / `max` | opus | gpt-5.4 | gemini-2.5-pro | claude-opus-4.5 | 35b |
 
 For Ollama, size aliases map to parameter sizes (not model names). The model is always `ollama.model` config (default: qwen3.5). Sizes are configurable via `ollama.size_small`, `ollama.size_medium`, `ollama.size_large`.
 
@@ -153,7 +160,7 @@ model = "medium"
 # Default models for each agent (overrides defaults.model)
 # Use size aliases (small, medium, large) or specific model names
 # claude = "opus"
-# codex = "gpt-5.2-codex"
+# codex = "gpt-5.4"
 # gemini = "auto"
 # copilot = "claude-sonnet-4.5"
 
@@ -538,8 +545,8 @@ agent [-p claude] <run|exec|resume> [OPTIONS]
 agent -p codex <run|exec|resume> [OPTIONS]
 ```
 
-**Available models**: gpt-5.2-codex, gpt-5.1-codex-max, gpt-5.1-codex-mini, gpt-5.2
-**Default**: gpt-5.2-codex
+**Available models**: gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex-mini
+**Default**: gpt-5.4
 
 ### Gemini
 ```bash

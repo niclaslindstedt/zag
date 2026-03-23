@@ -46,7 +46,7 @@ fn test_resolve_model_size_alias() {
     assert_eq!(AgentFactory::resolve_model("claude", "small"), "haiku");
     assert_eq!(
         AgentFactory::resolve_model("codex", "large"),
-        "gpt-5.1-codex-max"
+        "gpt-5.4"
     );
     assert_eq!(
         AgentFactory::resolve_model("gemini", "medium"),
@@ -77,7 +77,7 @@ fn test_resolve_model_unknown_agent_passthrough() {
 #[test]
 fn test_validate_model_valid() {
     assert!(AgentFactory::validate_model("claude", "sonnet").is_ok());
-    assert!(AgentFactory::validate_model("codex", "gpt-5.2-codex").is_ok());
+    assert!(AgentFactory::validate_model("codex", "gpt-5.4").is_ok());
     assert!(AgentFactory::validate_model("gemini", "auto").is_ok());
     assert!(AgentFactory::validate_model("copilot", "claude-sonnet-4.5").is_ok());
 }

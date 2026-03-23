@@ -34,9 +34,9 @@ agent -p auto exec "..."               Auto-select best provider
 Use size aliases (portable across providers) or specific model names:
 
 ```
-agent --model small exec "..."         Fast/cheap: haiku / gpt-5.1-codex-mini / gemini-2.5-flash-lite
-agent --model medium exec "..."        Balanced: sonnet / gpt-5.2-codex / gemini-2.5-flash
-agent --model large exec "..."         Most capable: opus / gpt-5.1-codex-max / gemini-2.5-pro
+agent --model small exec "..."         Fast/cheap: haiku / gpt-5.4-mini / gemini-2.5-flash-lite
+agent --model medium exec "..."        Balanced: sonnet / gpt-5.3-codex / gemini-2.5-flash
+agent --model large exec "..."         Most capable: opus / gpt-5.4 / gemini-2.5-pro
 agent --model auto exec "..."          Auto-select best model for the task
 agent -p auto -m auto exec "..."       Auto-select both provider and model
 ```

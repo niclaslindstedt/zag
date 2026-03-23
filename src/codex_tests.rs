@@ -112,7 +112,7 @@ fn test_build_output_json_mode_parses_ndjson() {
 #[test]
 fn test_build_run_args_non_interactive() {
     let mut codex = Codex::new();
-    codex.model = "gpt-5.2-codex".to_string();
+    codex.model = "gpt-5.4".to_string();
     codex.root = Some("/project".to_string());
 
     let args = codex.build_run_args(false, Some("hello"));
@@ -121,7 +121,7 @@ fn test_build_run_args_non_interactive() {
     assert!(args.contains(&"--cd".to_string()));
     assert!(args.contains(&"/project".to_string()));
     assert!(args.contains(&"--model".to_string()));
-    assert!(args.contains(&"gpt-5.2-codex".to_string()));
+    assert!(args.contains(&"gpt-5.4".to_string()));
     assert!(args.contains(&"hello".to_string()));
 }
 
