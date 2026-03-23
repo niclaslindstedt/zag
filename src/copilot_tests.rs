@@ -1,6 +1,6 @@
-use super::{parse_copilot_event_line, Copilot};
-use crate::session_log::LogEventKind;
+use super::{Copilot, parse_copilot_event_line};
 use crate::sandbox::SandboxConfig;
+use crate::session_log::LogEventKind;
 use std::collections::HashSet;
 
 #[test]

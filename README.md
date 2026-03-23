@@ -74,6 +74,7 @@ For Ollama, size aliases map to parameter sizes (not model names): `small`=2b, `
 | `review` | Code review (uses Codex) |
 | `config [key] [value]` | View or set configuration |
 | `logs import` | Import historical provider logs into unified session logs |
+| `capability` | Show provider capability declarations (`--format json\|yaml\|toml`, `--pretty`) |
 | `man [command]` | Show manual pages (`agent man exec`, etc.) |
 
 ## Global Flags

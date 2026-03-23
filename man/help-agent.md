@@ -13,6 +13,7 @@ agent run --continue           Resume the latest tracked session
 agent run --resume <id>        Resume a specific session
 agent review --uncommitted     Code review (uses Codex)
 agent config [key] [value]     View or set configuration
+agent capability [-p provider] Show provider capability declarations
 agent man [command]            Show detailed docs for a command
 ```
 
@@ -223,4 +224,5 @@ agent man exec         Non-interactive execution, output formats
 agent man run          Interactive sessions, worktrees, sandboxes
 agent man review       Code review
 agent man config       Configuration reference
+agent man capability   Provider capability declarations
 ```

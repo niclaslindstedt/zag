@@ -88,7 +88,8 @@ fn test_writer_emits_events_and_updates_index() {
     });
 
     let index_path = logs_dir(Some(&root)).join("index.json");
-    let index: SessionLogIndex = serde_json::from_str(&std::fs::read_to_string(index_path).unwrap()).unwrap();
+    let index: SessionLogIndex =
+        serde_json::from_str(&std::fs::read_to_string(index_path).unwrap()).unwrap();
     assert_eq!(index.sessions.len(), 1);
     assert_eq!(index.sessions[0].wrapper_session_id, "session-1");
 }
@@ -162,6 +163,7 @@ fn test_run_backfill_is_idempotent() {
     run_backfill(Some(&root), &[&adapter]).unwrap();
 
     let index_path = logs_dir(Some(&root)).join("index.json");
-    let index: SessionLogIndex = serde_json::from_str(&std::fs::read_to_string(index_path).unwrap()).unwrap();
+    let index: SessionLogIndex =
+        serde_json::from_str(&std::fs::read_to_string(index_path).unwrap()).unwrap();
     assert_eq!(index.sessions.len(), 1);
 }

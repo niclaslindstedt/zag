@@ -1,5 +1,6 @@
 mod agent;
 mod auto_selector;
+mod capability;
 mod claude;
 mod codex;
 mod config;
@@ -151,9 +152,19 @@ enum Commands {
         #[command(subcommand)]
         command: LogsCommand,
     },
+    /// Show capability declarations for a provider
+    Capability {
+        /// Output format (json, yaml, toml)
+        #[arg(short = 'f', long, default_value = "json")]
+        format: String,
+
+        /// Pretty-print output (applies to JSON)
+        #[arg(long)]
+        pretty: bool,
+    },
     /// Show manual pages for commands
     Man {
-        /// Command to show help for (run, exec, review, config, man)
+        /// Command to show help for (run, exec, review, config, capability, man)
         command: Option<String>,
     },
 }
@@ -201,6 +212,7 @@ async fn main() -> Result<()> {
             Commands::Review { .. } => bail!("--json-stream cannot be used with review"),
             Commands::Config { .. } => bail!("--json-stream cannot be used with config"),
             Commands::Logs { .. } => bail!("--json-stream cannot be used with logs"),
+            Commands::Capability { .. } => bail!("--json-stream cannot be used with capability"),
             Commands::Run {
                 prompt: _,
                 resume,
@@ -221,6 +233,9 @@ async fn main() -> Result<()> {
             Commands::Review { .. } => bail!("--json/--json-schema cannot be used with review"),
             Commands::Config { .. } => bail!("--json/--json-schema cannot be used with config"),
             Commands::Logs { .. } => bail!("--json/--json-schema cannot be used with logs"),
+            Commands::Capability { .. } => {
+                bail!("--json/--json-schema cannot be used with capability")
+            }
             Commands::Run {
                 resume,
                 continue_session,
@@ -268,6 +283,7 @@ async fn main() -> Result<()> {
             Commands::Review { .. } => bail!("--worktree cannot be used with review"),
             Commands::Config { .. } => bail!("--worktree cannot be used with config"),
             Commands::Logs { .. } => bail!("--worktree cannot be used with logs"),
+            Commands::Capability { .. } => bail!("--worktree cannot be used with capability"),
             Commands::Run {
                 resume,
                 continue_session,
@@ -285,6 +301,7 @@ async fn main() -> Result<()> {
             Commands::Review { .. } => bail!("--sandbox cannot be used with review"),
             Commands::Config { .. } => bail!("--sandbox cannot be used with config"),
             Commands::Logs { .. } => bail!("--sandbox cannot be used with logs"),
+            Commands::Capability { .. } => bail!("--sandbox cannot be used with capability"),
             Commands::Man { .. } => bail!("--sandbox cannot be used with man"),
             Commands::Run {
                 resume,
@@ -308,6 +325,7 @@ async fn main() -> Result<()> {
             Commands::Review { .. } => bail!("auto cannot be used with review"),
             Commands::Config { .. } => bail!("auto cannot be used with config"),
             Commands::Logs { .. } => bail!("auto cannot be used with logs"),
+            Commands::Capability { .. } => bail!("auto cannot be used with capability"),
             Commands::Run {
                 resume,
                 continue_session,
@@ -329,8 +347,18 @@ async fn main() -> Result<()> {
             run_config(args, cli.root.as_deref())?;
         }
         Commands::Logs { command } => {
-            debug!("Running logs subcommand: {:?}", std::mem::discriminant(&command));
+            debug!(
+                "Running logs subcommand: {:?}",
+                std::mem::discriminant(&command)
+            );
             run_logs(command, cli.root.as_deref())?;
+        }
+        Commands::Capability { format, pretty } => {
+            let provider = resolve_provider(cli.provider.as_deref(), cli.root.as_deref())?;
+            debug!("Showing capabilities for provider: {}", provider);
+            let cap = capability::get_capability(&provider)?;
+            let output = capability::format_capability(&cap, &format, pretty)?;
+            println!("{}", output);
         }
         Commands::Review {
             uncommitted,
@@ -483,6 +511,7 @@ const MAN_EXEC: &str = include_str!("../man/exec.md");
 const MAN_REVIEW: &str = include_str!("../man/review.md");
 const MAN_CONFIG: &str = include_str!("../man/config.md");
 const MAN_LOGS: &str = include_str!("../man/logs.md");
+const MAN_CAPABILITY: &str = include_str!("../man/capability.md");
 const MAN_MAN: &str = include_str!("../man/man.md");
 
 /// AI-oriented reference document for `--help-agent`.
@@ -497,9 +526,10 @@ fn print_manpage(command: Option<&str>) -> Result<()> {
         Some("review") => MAN_REVIEW,
         Some("config") => MAN_CONFIG,
         Some("logs") => MAN_LOGS,
+        Some("capability") => MAN_CAPABILITY,
         Some("man") => MAN_MAN,
         Some(other) => bail!(
-            "No manual entry for '{}'. Available: run, exec, review, config, logs, man",
+            "No manual entry for '{}'. Available: run, exec, review, config, logs, capability, man",
             other
         ),
     };
@@ -1020,10 +1050,7 @@ fn print_session_resume_hint(wrapper_session_id: &str, provider_session_id: Opti
     if let Some(provider_session_id) = provider_session_id
         && provider_session_id != wrapper_session_id
     {
-        println!(
-            "   (native provider ID: {})",
-            provider_session_id
-        );
+        println!("   (native provider ID: {})", provider_session_id);
     }
 }
 
@@ -1456,6 +1483,7 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Review { .. } => "review",
         Commands::Config { .. } => "config",
         Commands::Logs { .. } => "logs",
+        Commands::Capability { .. } => "capability",
         Commands::Man { .. } => "man",
     }
 }
@@ -1482,7 +1510,11 @@ fn update_session_log_metadata(
         return;
     };
     let mut store = session::SessionStore::load(root).unwrap_or_default();
-    if let Some(entry) = store.sessions.iter_mut().find(|entry| entry.session_id == session_id) {
+    if let Some(entry) = store
+        .sessions
+        .iter_mut()
+        .find(|entry| entry.session_id == session_id)
+    {
         entry.log_path = log_path;
         entry.log_completeness = completeness.to_string();
         let _ = store.save(root);
@@ -1570,7 +1602,11 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     let wrapper_session_id = plain.session_id.clone();
     let log_session_id = wrapper_session_id
         .clone()
-        .or_else(|| resume_target.as_ref().map(|target| target.entry.session_id.clone()))
+        .or_else(|| {
+            resume_target
+                .as_ref()
+                .map(|target| target.entry.session_id.clone())
+        })
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
     let wt = setup_worktree(
@@ -1765,8 +1801,11 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         live_ctx,
         should_enable_live_session_logs(&action, json_mode),
     );
-    let log_coordinator =
-        crate::session_log::SessionLogCoordinator::start(root.as_deref(), log_metadata, live_adapter)?;
+    let log_coordinator = crate::session_log::SessionLogCoordinator::start(
+        root.as_deref(),
+        log_metadata,
+        live_adapter,
+    )?;
     crate::session_log::record_prompt(log_coordinator.writer(), action_prompt(&action))?;
     if let Ok(log_path) = log_coordinator.writer().log_path() {
         update_session_log_metadata(
@@ -1794,11 +1833,15 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         verbose,
         root: &root,
     };
-    let action_result = execute_action(action, &mut *agent, &exec_ctx, Some(log_coordinator.writer())).await;
+    let action_result = execute_action(
+        action,
+        &mut *agent,
+        &exec_ctx,
+        Some(log_coordinator.writer()),
+    )
+    .await;
     if let Err(err) = &action_result {
-        log_coordinator
-            .finish(false, Some(err.to_string()))
-            .await?;
+        log_coordinator.finish(false, Some(err.to_string())).await?;
         return Err(anyhow::anyhow!(err.to_string()));
     }
 
@@ -2044,8 +2087,14 @@ async fn run_review(params: ReviewParams) -> Result<()> {
     );
 
     let spinner = logging::spinner("Initializing Codex for review".to_string());
-    let mut agent =
-        AgentFactory::create("codex", system_prompt, model, root.clone(), auto_approve, add_dirs)?;
+    let mut agent = AgentFactory::create(
+        "codex",
+        system_prompt,
+        model,
+        root.clone(),
+        auto_approve,
+        add_dirs,
+    )?;
     logging::finish_spinner_quiet(&spinner);
 
     let model_name = agent.get_model().to_string();
@@ -2063,7 +2112,11 @@ async fn run_review(params: ReviewParams) -> Result<()> {
         .expect("Failed to get Codex agent for review");
 
     let review_session_id = uuid::Uuid::new_v4().to_string();
-    let workspace_path = root.clone().or_else(|| std::env::current_dir().ok().map(|p| p.to_string_lossy().to_string()));
+    let workspace_path = root.clone().or_else(|| {
+        std::env::current_dir()
+            .ok()
+            .map(|p| p.to_string_lossy().to_string())
+    });
     let log_metadata = crate::session_log::SessionLogMetadata {
         provider: "codex".to_string(),
         wrapper_session_id: review_session_id,
@@ -2084,8 +2137,11 @@ async fn run_review(params: ReviewParams) -> Result<()> {
         },
         true,
     );
-    let log_coordinator =
-        crate::session_log::SessionLogCoordinator::start(root.as_deref(), log_metadata, live_adapter)?;
+    let log_coordinator = crate::session_log::SessionLogCoordinator::start(
+        root.as_deref(),
+        log_metadata,
+        live_adapter,
+    )?;
     let review_prompt = format!(
         "review uncommitted={} base={:?} commit={:?} title={:?}",
         uncommitted, base, commit, title
@@ -2106,9 +2162,7 @@ async fn run_review(params: ReviewParams) -> Result<()> {
             Ok(())
         }
         Err(err) => {
-            log_coordinator
-                .finish(false, Some(err.to_string()))
-                .await?;
+            log_coordinator.finish(false, Some(err.to_string())).await?;
             Err(err)
         }
     }?;

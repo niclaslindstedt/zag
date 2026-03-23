@@ -60,16 +60,14 @@ impl ClaudeLiveLogAdapter {
                         Ok(metadata) => metadata,
                         Err(_) => continue,
                     };
-                let modified = match metadata.modified() {
-                    Ok(modified) => modified,
-                    Err(_) => continue,
-                };
-                let started_at = system_time_from_utc(self.ctx.started_at);
-                if modified
-                    < started_at
-                {
-                    continue;
-                }
+                    let modified = match metadata.modified() {
+                        Ok(modified) => modified,
+                        Err(_) => continue,
+                    };
+                    let started_at = system_time_from_utc(self.ctx.started_at);
+                    if modified < started_at {
+                        continue;
+                    }
                     if let Some(workspace) = workspace
                         && !file_contains_workspace(&path, workspace)
                     {
@@ -389,19 +387,23 @@ fn parse_claude_value(value: &Value, seen_keys: &mut HashSet<String>) -> Vec<Log
 }
 
 fn event_key(value: &Value) -> Option<String> {
-    value.get("uuid")
+    value
+        .get("uuid")
         .and_then(|uuid| uuid.as_str())
         .map(str::to_string)
         .or_else(|| {
             Some(format!(
                 "{}:{}:{}",
-                value.get("timestamp")
+                value
+                    .get("timestamp")
                     .and_then(|value| value.as_str())
                     .unwrap_or(""),
-                value.get("type")
+                value
+                    .get("type")
                     .and_then(|value| value.as_str())
                     .unwrap_or(""),
-                value.get("sessionId")
+                value
+                    .get("sessionId")
                     .or_else(|| value.get("session_id"))
                     .and_then(|value| value.as_str())
                     .unwrap_or("")
@@ -428,6 +430,5 @@ fn file_contains_workspace(path: &Path, workspace: &str) -> bool {
 }
 
 fn system_time_from_utc(ts: chrono::DateTime<chrono::Utc>) -> std::time::SystemTime {
-    std::time::SystemTime::UNIX_EPOCH
-        + std::time::Duration::from_secs(ts.timestamp().max(0) as u64)
+    std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(ts.timestamp().max(0) as u64)
 }

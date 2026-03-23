@@ -407,24 +407,28 @@ impl HistoricalLogAdapter for CodexHistoricalLogAdapter {
                     Ok(value) => value,
                     Err(_) => continue,
                 };
-                let Some(session_id) = value.get("session_id").and_then(|value| value.as_str()) else {
+                let Some(session_id) = value.get("session_id").and_then(|value| value.as_str())
+                else {
                     continue;
                 };
-                let entry = sessions.entry(session_id.to_string()).or_insert_with(|| BackfilledSession {
-                    metadata: SessionLogMetadata {
-                        provider: "codex".to_string(),
-                        wrapper_session_id: session_id.to_string(),
-                        provider_session_id: Some(session_id.to_string()),
-                        workspace_path: None,
-                        command: "backfill".to_string(),
-                        model: None,
-                        resumed: false,
-                        backfilled: true,
-                    },
-                    completeness: LogCompleteness::Partial,
-                    source_paths: vec![path.to_string_lossy().to_string()],
-                    events: Vec::new(),
-                });
+                let entry =
+                    sessions
+                        .entry(session_id.to_string())
+                        .or_insert_with(|| BackfilledSession {
+                            metadata: SessionLogMetadata {
+                                provider: "codex".to_string(),
+                                wrapper_session_id: session_id.to_string(),
+                                provider_session_id: Some(session_id.to_string()),
+                                workspace_path: None,
+                                command: "backfill".to_string(),
+                                model: None,
+                                resumed: false,
+                                backfilled: true,
+                            },
+                            completeness: LogCompleteness::Partial,
+                            source_paths: vec![path.to_string_lossy().to_string()],
+                            events: Vec::new(),
+                        });
                 if let Some(text) = value.get("text").and_then(|value| value.as_str()) {
                     entry.events.push((
                         LogSourceKind::Backfill,

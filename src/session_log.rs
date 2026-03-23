@@ -235,19 +235,28 @@ impl SessionLogWriter {
     }
 
     pub fn log_path(&self) -> Result<PathBuf> {
-        let state = self.state.lock().map_err(|_| anyhow::anyhow!("Log mutex poisoned"))?;
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Log mutex poisoned"))?;
         Ok(state.log_path.clone())
     }
 
     pub fn set_provider_session_id(&self, provider_session_id: Option<String>) -> Result<()> {
-        let mut state = self.state.lock().map_err(|_| anyhow::anyhow!("Log mutex poisoned"))?;
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Log mutex poisoned"))?;
         state.metadata.provider_session_id = provider_session_id;
         drop(state);
         self.upsert_index()
     }
 
     pub fn set_completeness(&self, completeness: LogCompleteness) -> Result<()> {
-        let mut state = self.state.lock().map_err(|_| anyhow::anyhow!("Log mutex poisoned"))?;
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Log mutex poisoned"))?;
         if rank_completeness(completeness) < rank_completeness(state.completeness) {
             state.completeness = completeness;
         }
@@ -279,7 +288,10 @@ impl SessionLogWriter {
     }
 
     pub fn emit(&self, source_kind: LogSourceKind, kind: LogEventKind) -> Result<()> {
-        let mut state = self.state.lock().map_err(|_| anyhow::anyhow!("Log mutex poisoned"))?;
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Log mutex poisoned"))?;
         let event = AgentLogEvent {
             seq: state.next_seq,
             ts: Utc::now().to_rfc3339(),
@@ -325,7 +337,10 @@ impl SessionLogWriter {
     }
 
     fn upsert_index(&self) -> Result<()> {
-        let state = self.state.lock().map_err(|_| anyhow::anyhow!("Log mutex poisoned"))?;
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Log mutex poisoned"))?;
         let mut index = load_index(&state.index_path)?;
         let existing = index
             .sessions
@@ -382,9 +397,8 @@ impl SessionLogCoordinator {
         if let Some(adapter) = live_adapter {
             let (stop_tx, stop_rx) = watch::channel(false);
             let writer_clone = writer.clone();
-            let task = tokio::spawn(async move {
-                run_live_adapter(adapter, writer_clone, stop_rx).await
-            });
+            let task =
+                tokio::spawn(async move { run_live_adapter(adapter, writer_clone, stop_rx).await });
             Ok(Self {
                 writer,
                 stop_tx: Some(stop_tx),
@@ -549,7 +563,10 @@ pub fn run_backfill(root: Option<&str>, providers: &[&dyn HistoricalLogAdapter])
     let mut state = load_backfill_state(&state_path)?;
     let current_version = 1;
     if state.version == current_version {
-        info!("Historical log import already completed for version {}", current_version);
+        info!(
+            "Historical log import already completed for version {}",
+            current_version
+        );
         return Ok(0);
     }
 
@@ -598,7 +615,10 @@ pub fn run_backfill(root: Option<&str>, providers: &[&dyn HistoricalLogAdapter])
 
     state.version = current_version;
     save_backfill_state(&state_path, &state)?;
-    info!("Historical log import finished: {} session(s) imported", imported);
+    info!(
+        "Historical log import finished: {} session(s) imported",
+        imported
+    );
     Ok(imported)
 }
 
@@ -608,8 +628,7 @@ pub fn run_default_backfill(root: Option<&str>) -> Result<usize> {
     let gemini = crate::gemini::GeminiHistoricalLogAdapter;
     let copilot = crate::copilot::CopilotHistoricalLogAdapter;
     let ollama = crate::ollama::OllamaHistoricalLogAdapter;
-    let providers: [&dyn HistoricalLogAdapter; 5] =
-        [&claude, &codex, &gemini, &copilot, &ollama];
+    let providers: [&dyn HistoricalLogAdapter; 5] = [&claude, &codex, &gemini, &copilot, &ollama];
     run_backfill(root, &providers)
 }
 
@@ -623,7 +642,9 @@ pub fn live_adapter_for_provider(
     }
 
     match provider {
-        "claude" => Some(Box::new(crate::claude::logs::ClaudeLiveLogAdapter::new(ctx))),
+        "claude" => Some(Box::new(crate::claude::logs::ClaudeLiveLogAdapter::new(
+            ctx,
+        ))),
         "codex" => Some(Box::new(crate::codex::CodexLiveLogAdapter::new(ctx))),
         "gemini" => Some(Box::new(crate::gemini::GeminiLiveLogAdapter::new(ctx))),
         "copilot" => Some(Box::new(crate::copilot::CopilotLiveLogAdapter::new(ctx))),

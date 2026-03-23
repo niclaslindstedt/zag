@@ -203,7 +203,11 @@ impl CopilotLiveLogAdapter {
         }
 
         let started_at = system_time_from_utc(self.ctx.started_at);
-        let workspace = self.ctx.workspace_path.as_deref().or(self.ctx.root.as_deref());
+        let workspace = self
+            .ctx
+            .workspace_path
+            .as_deref()
+            .or(self.ctx.root.as_deref());
         let mut best: Option<(std::time::SystemTime, PathBuf)> = None;
         let entries = std::fs::read_dir(base).ok()?;
         for entry in entries.flatten() {
@@ -215,7 +219,11 @@ impl CopilotLiveLogAdapter {
                 .metadata()
                 .ok()
                 .and_then(|metadata| metadata.modified().ok())
-                .or_else(|| std::fs::metadata(&path).ok().and_then(|metadata| metadata.modified().ok()))?;
+                .or_else(|| {
+                    std::fs::metadata(&path)
+                        .ok()
+                        .and_then(|metadata| metadata.modified().ok())
+                })?;
             if modified < started_at {
                 continue;
             }
@@ -258,8 +266,8 @@ impl LiveLogAdapter for CopilotLiveLogAdapter {
             return Ok(());
         };
 
-        let mut file =
-            std::fs::File::open(path).with_context(|| format!("Failed to open {}", path.display()))?;
+        let mut file = std::fs::File::open(path)
+            .with_context(|| format!("Failed to open {}", path.display()))?;
         file.seek(SeekFrom::Start(self.offset))?;
         let mut reader = BufReader::new(file);
         let mut line = String::new();
@@ -415,13 +423,22 @@ pub(crate) fn parse_copilot_event_line(
         }
     };
 
-    let event_id = value.get("id").and_then(|value| value.as_str()).unwrap_or_default();
+    let event_id = value
+        .get("id")
+        .and_then(|value| value.as_str())
+        .unwrap_or_default();
     if !event_id.is_empty() && !seen_event_ids.insert(event_id.to_string()) {
         return None;
     }
 
-    let event_type = value.get("type").and_then(|value| value.as_str()).unwrap_or_default();
-    let data = value.get("data").cloned().unwrap_or(serde_json::Value::Null);
+    let event_type = value
+        .get("type")
+        .and_then(|value| value.as_str())
+        .unwrap_or_default();
+    let data = value
+        .get("data")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
     let provider_session_id = value
         .get("data")
         .and_then(|value| value.get("sessionId"))
@@ -469,7 +486,10 @@ pub(crate) fn parse_copilot_event_line(
                 .and_then(|value| value.as_str())
                 .unwrap_or_default()
                 .to_string(),
-            message_id: value.get("id").and_then(|value| value.as_str()).map(str::to_string),
+            message_id: value
+                .get("id")
+                .and_then(|value| value.as_str())
+                .map(str::to_string),
         }),
         "assistant.turn_start" => events.push(LogEventKind::ProviderStatus {
             message: "Copilot assistant turn started".to_string(),
@@ -495,7 +515,8 @@ pub(crate) fn parse_copilot_event_line(
                     message_id: message_id.clone(),
                 });
             }
-            if let Some(tool_requests) = data.get("toolRequests").and_then(|value| value.as_array()) {
+            if let Some(tool_requests) = data.get("toolRequests").and_then(|value| value.as_array())
+            {
                 for request in tool_requests {
                     events.push(LogEventKind::ToolCall {
                         tool_name: request

@@ -191,9 +191,7 @@ impl GeminiLiveLogAdapter {
                 let modified = metadata.modified().ok()?;
                 let started_at = std::time::SystemTime::UNIX_EPOCH
                     + std::time::Duration::from_secs(self.ctx.started_at.timestamp().max(0) as u64);
-                if modified
-                    < started_at
-                {
+                if modified < started_at {
                     continue;
                 }
                 if best
@@ -341,7 +339,8 @@ impl HistoricalLogAdapter for GeminiHistoricalLogAdapter {
                     Ok(json) => json,
                     Err(_) => continue,
                 };
-                let Some(session_id) = json.get("sessionId").and_then(|value| value.as_str()) else {
+                let Some(session_id) = json.get("sessionId").and_then(|value| value.as_str())
+                else {
                     continue;
                 };
                 let mut events = Vec::new();

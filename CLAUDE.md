@@ -47,6 +47,7 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/ollama.rs` | Ollama agent implementation (local models) |
 | `src/process.rs` | Subprocess helpers: stderr capture, exit status checking, output handling |
 | `src/output.rs` | Unified AgentOutput format and event formatting |
+| `src/capability.rs` | Provider capability declarations and formatting |
 | `src/auto_selector.rs` | Auto provider/model selection via lightweight LLM call |
 | `src/sandbox.rs` | Docker sandbox configuration, command building, and removal |
 | `src/session.rs` | Session-worktree/sandbox mapping store (`sessions.json`) |
@@ -55,6 +56,7 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `man/*.md` | Embedded manpages for the `agent man` command |
 | `prompts/auto-selector/*.md` | Versioned prompt templates for auto-selection (latest: 3_1) |
 | `prompts/json-wrap/*.md` | Versioned prompt templates for wrapping user prompts with JSON instructions (latest: 1_0) |
+| `man/capability.md` | Manpage for the `agent capability` command |
 
 ## Model Size Abstraction
 
@@ -426,6 +428,7 @@ The provider is specified via the `--provider` (or `-p`) flag. If omitted, it de
 - Resume a previous session with `run --resume <id>` or `run --continue`
 - **`review`** - Review code changes (uses Codex)
 - **`config`** - View or set configuration values
+- **`capability`** - Show provider capability declarations
 - **`man`** - Show manual pages for commands
 
 ```bash
@@ -513,6 +516,13 @@ agent exec --json-stream "list 3 colors"                                 # Strea
 agent --debug --model opus -a exec "complex task"
 agent -q exec "simple task" -o json
 agent -v exec "complex task"          # Verbose exec with icons
+
+# Provider capabilities
+agent capability                              # Default provider capabilities (JSON)
+agent -p ollama capability                    # Ollama capabilities
+agent -p claude capability --pretty           # Pretty-printed JSON
+agent -p gemini capability -f yaml            # YAML format
+agent -p codex capability -f toml             # TOML format
 
 # Configuration
 agent config                       # Print full config
