@@ -1035,6 +1035,7 @@ struct ExecutionContext<'a> {
     output_fmt: Option<&'a str>,
     show_usage: bool,
     verbose: bool,
+    root: &'a Option<String>,
 }
 
 fn home_dir() -> Option<std::path::PathBuf> {
@@ -1297,6 +1298,33 @@ async fn execute_action(
         } => {
             if resume.is_some() || continue_session {
                 info!("Resuming session");
+                
+                // Print resume hint at the start when resuming
+                if let Some(ref session_id) = resume {
+                    if !crate::logging::is_quiet() {
+                        println!();
+                        println!(
+                            "Resume this session: \x1b[36magent run --resume {}\x1b[0m",
+                            session_id
+                        );
+                        
+                        // Try to get provider session ID if different
+                        if let Ok(store) = session::SessionStore::load(ctx.root.as_deref()) {
+                            if let Some(entry) = store.find_by_session_id(session_id) {
+                                if let Some(ref provider_session_id) = entry.provider_session_id {
+                                    if provider_session_id != session_id {
+                                        println!(
+                                            "   (native provider ID: {})",
+                                            provider_session_id
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                        println!();
+                    }
+                }
+                
                 agent
                     .run_resume(resume.as_deref(), continue_session)
                     .await?;
@@ -1764,6 +1792,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         output_fmt: output_fmt_clone.as_deref(),
         show_usage,
         verbose,
+        root: &root,
     };
     let action_result = execute_action(action, &mut *agent, &exec_ctx, Some(log_coordinator.writer())).await;
     if let Err(err) = &action_result {
@@ -1801,7 +1830,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     // Cleanup
     debug!("Cleaning up agent resources");
     agent.cleanup().await?;
-    info!("Session terminated");
+    println!("\x1b[32m✓\x1b[0m Session terminated");
 
     // Sandbox cleanup prompt
     if is_interactive_sandbox {
