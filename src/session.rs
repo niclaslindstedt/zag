@@ -14,6 +14,8 @@ use std::path::PathBuf;
 pub struct SessionEntry {
     pub session_id: String,
     pub provider: String,
+    #[serde(default)]
+    pub model: String,
     pub worktree_path: String,
     pub worktree_name: String,
     pub created_at: String,

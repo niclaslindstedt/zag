@@ -867,6 +867,7 @@ fn save_session_mapping(
     wt: &WorktreeSetup,
     sb: &SandboxSetup,
     provider: &str,
+    model: &str,
     root: Option<&str>,
 ) {
     if plain.session_id.is_some() && !wt.is_worktree_session && !sb.is_sandbox_session {
@@ -874,6 +875,7 @@ fn save_session_mapping(
         store.add(session::SessionEntry {
             session_id: plain.session_id.clone().unwrap_or_default(),
             provider: provider.to_string(),
+            model: model.to_string(),
             worktree_path: plain.workspace_path.clone().unwrap_or_default(),
             worktree_name: String::new(),
             created_at: chrono::Utc::now().to_rfc3339(),
@@ -896,6 +898,7 @@ fn save_session_mapping(
         store.add(session::SessionEntry {
             session_id: sid.clone(),
             provider: provider.to_string(),
+            model: model.to_string(),
             worktree_path: wt_path.clone(),
             worktree_name: wt_name.clone(),
             created_at: chrono::Utc::now().to_rfc3339(),
@@ -918,6 +921,7 @@ fn save_session_mapping(
         store.add(session::SessionEntry {
             session_id: sid.clone(),
             provider: provider.to_string(),
+            model: model.to_string(),
             worktree_path: workspace.clone(),
             worktree_name: sandbox_name.clone(),
             created_at: chrono::Utc::now().to_rfc3339(),
@@ -1074,6 +1078,7 @@ fn cache_discovered_session(
     let entry = session::SessionEntry {
         session_id: discovered.provider_session_id.clone(),
         provider: discovered.provider.clone(),
+        model: String::new(),
         worktree_path: workspace_path.clone(),
         worktree_name: if is_worktree {
             worktree_name_from_path(&workspace_path)
@@ -1359,7 +1364,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         provider_explicit,
         mut action,
         system_prompt,
-        model,
+        mut model,
         root,
         auto_approve,
         add_dirs,
@@ -1404,6 +1409,9 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
             );
         }
         provider = target.entry.provider.clone();
+        if !target.entry.model.is_empty() {
+            model = Some(target.entry.model.clone());
+        }
     }
 
     if let Some(target) = &resume_target {
@@ -1565,6 +1573,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     } else {
         agent.get_model().to_string()
     };
+    let persisted_model = agent.get_model().to_string();
     let auto_approve_suffix = if auto_approve { " (auto approve)" } else { "" };
     if show_wrapper {
         println!(
@@ -1576,7 +1585,14 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     }
 
     // Save session-worktree mapping before execution (so it survives Ctrl+C)
-    save_session_mapping(&plain, &wt, &sb, &provider, root.as_deref());
+    save_session_mapping(
+        &plain,
+        &wt,
+        &sb,
+        &provider,
+        &persisted_model,
+        root.as_deref(),
+    );
 
     let is_worktree_session = wt.is_worktree_session;
     let is_interactive_worktree = wt.is_worktree_session && matches!(action, Commands::Run { .. });

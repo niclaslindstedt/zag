@@ -22,6 +22,7 @@ fn sample_entry(id: &str) -> SessionEntry {
     SessionEntry {
         session_id: id.to_string(),
         provider: "claude".to_string(),
+        model: "opus".to_string(),
         worktree_path: "/tmp/test-wt".to_string(),
         worktree_name: "test-wt".to_string(),
         created_at: "2026-03-13T00:00:00Z".to_string(),
