@@ -279,16 +279,17 @@ The harmonized log design is based on real local provider files inspected during
   - Expected completeness: `full`
 
 - **Copilot**
-  - Discovered native session location: `~/.config/github-copilot/rd/chat-sessions/<session-id>/`
-  - Observed storage is opaque/binary/Xodus-like (`*.xd`, blob directories), not a simple text or JSON log
-  - Current assumption: provider-native metadata discovery is possible, but a proper semantic parser is not implemented until a reliable native log/export format is known
-  - Expected completeness today: `metadata_only` or wrapper/live-capture fallback
-  - Future work: once a real textual/session event source is found, add a provider-owned parser rather than pushing Copilot-specific logic into the shared logging layer
+  - Native session source: `~/.copilot/session-state/<session-id>/events.jsonl`
+  - Supplemental metadata sources: `~/.copilot/session-state/<session-id>/vscode.metadata.json` and sometimes `workspace.yaml`
+  - Observed contents: `session.start`, `session.info`, `session.truncation`, `user.message`, `assistant.turn_start`, `assistant.message`, `assistant.reasoning`, `assistant.turn_end`, `tool.execution_start`, `tool.execution_complete`
+  - `events.jsonl` is append-only and includes stable event ids plus native `sessionId`
+  - Tool requests appear both embedded in `assistant.message.toolRequests` and as explicit tool execution lifecycle events
+  - Expected completeness: `full`
 
 - **Ollama**
   - In this wrapper, no provider-native resumable session log/store was identified
   - Current assumption: harmonized logging for Ollama must rely on wrapper-observed prompt/stdout/stderr unless a native session/event source is discovered later
-  - Expected completeness today: wrapper/live-capture fallback only
+  - Expected completeness: wrapper/live-capture fallback only
   - Future work: if Ollama exposes a durable native session/event log, add a provider-owned parser there too
 
 ### Implementation Notes For Future Work
@@ -300,8 +301,9 @@ The harmonized log design is based on real local provider files inspected during
 - Do not assume all providers are append-only:
   - Claude looks append-only
   - Gemini chat files look rewrite/snapshot based
-  - Codex currently needs correlation across more than one native file
-- For Copilot and Ollama, do not fake completeness. Keep emitting `partial` / `metadata_only` until a real native source is confirmed.
+  - Codex needs correlation across more than one native file
+- Copilot uses a native parser over `~/.copilot/session-state/<session-id>/events.jsonl`; Ollama does not have a confirmed native session source.
+- For Ollama, do not fake completeness. Keep emitting `partial` / wrapper-only coverage until a real native source is confirmed.
 - If you later find proper Copilot or Ollama logs, update this file with:
   - exact file paths
   - whether files append or rewrite

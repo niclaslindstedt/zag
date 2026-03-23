@@ -1058,10 +1058,8 @@ fn detect_provider_session(session_id: &str) -> Option<DiscoveredSession> {
         }
     }
 
-    let copilot_dir = home
-        .join(".config/github-copilot/rd/chat-sessions")
-        .join(session_id);
-    if copilot_dir.exists() {
+    let copilot_dir = home.join(".copilot/session-state").join(session_id);
+    if copilot_dir.join("events.jsonl").exists() {
         return Some(DiscoveredSession {
             provider: "copilot".to_string(),
             provider_session_id: session_id.to_string(),
@@ -1204,11 +1202,15 @@ fn discover_provider_session_id(
             newest.map(|(_, session_id)| session_id)
         }
         "copilot" => {
-            let chat_sessions = home_dir()?.join(".config/github-copilot/rd/chat-sessions");
+            let chat_sessions = home_dir()?.join(".copilot/session-state");
             let mut newest: Option<(std::time::SystemTime, String)> = None;
             let entries = std::fs::read_dir(chat_sessions).ok()?;
             for entry in entries.flatten() {
-                let metadata = match entry.metadata() {
+                let events_path = entry.path().join("events.jsonl");
+                if !events_path.exists() {
+                    continue;
+                }
+                let metadata = match std::fs::metadata(&events_path) {
                     Ok(metadata) => metadata,
                     Err(_) => continue,
                 };

@@ -1,5 +1,7 @@
-use super::Copilot;
+use super::{parse_copilot_event_line, Copilot};
+use crate::session_log::LogEventKind;
 use crate::sandbox::SandboxConfig;
+use std::collections::HashSet;
 
 #[test]
 fn test_build_run_args_non_interactive() {
@@ -84,4 +86,94 @@ fn test_make_command_with_sandbox() {
     assert!(args.contains(&"sandbox-cp"));
     assert!(args.contains(&"-p"));
     assert!(args.contains(&"hello"));
+}
+
+#[test]
+fn test_parse_copilot_assistant_message_event() {
+    let line = r#"{"type":"assistant.message","data":{"messageId":"msg-1","content":"hello","toolRequests":[{"toolCallId":"tool-1","name":"view","arguments":{"path":"CLAUDE.md"}}]},"id":"evt-1","timestamp":"2026-01-14T12:41:41.008Z","parentId":null}"#;
+    let mut seen = HashSet::new();
+
+    let parsed = parse_copilot_event_line(line, &mut seen).expect("parsed event");
+
+    assert_eq!(parsed.events.len(), 2);
+    match &parsed.events[0] {
+        LogEventKind::AssistantMessage {
+            content,
+            message_id,
+        } => {
+            assert_eq!(content, "hello");
+            assert_eq!(message_id.as_deref(), Some("msg-1"));
+        }
+        other => panic!("unexpected event: {other:?}"),
+    }
+    match &parsed.events[1] {
+        LogEventKind::ToolCall {
+            tool_name,
+            tool_id,
+            input,
+        } => {
+            assert_eq!(tool_name, "view");
+            assert_eq!(tool_id.as_deref(), Some("tool-1"));
+            assert_eq!(
+                input
+                    .as_ref()
+                    .and_then(|value| value.get("path"))
+                    .and_then(|value| value.as_str()),
+                Some("CLAUDE.md")
+            );
+        }
+        other => panic!("unexpected event: {other:?}"),
+    }
+}
+
+#[test]
+fn test_parse_copilot_tool_result_event() {
+    let line = r#"{"type":"tool.execution_complete","data":{"toolCallId":"tool-2","toolName":"bash","success":true,"result":{"content":"ok"}},"id":"evt-2","timestamp":"2026-01-14T12:41:41.008Z","parentId":null}"#;
+    let mut seen = HashSet::new();
+
+    let parsed = parse_copilot_event_line(line, &mut seen).expect("parsed event");
+
+    assert_eq!(parsed.events.len(), 1);
+    match &parsed.events[0] {
+        LogEventKind::ToolResult {
+            tool_name,
+            tool_id,
+            success,
+            output,
+            error,
+            ..
+        } => {
+            assert_eq!(tool_name.as_deref(), Some("bash"));
+            assert_eq!(tool_id.as_deref(), Some("tool-2"));
+            assert_eq!(*success, Some(true));
+            assert_eq!(output.as_deref(), Some("ok"));
+            assert_eq!(error, &None);
+        }
+        other => panic!("unexpected event: {other:?}"),
+    }
+}
+
+#[test]
+fn test_parse_copilot_session_start_metadata() {
+    let line = r#"{"type":"session.start","data":{"sessionId":"session-1","selectedModel":"claude-sonnet-4.5","context":{"cwd":"/repo"}},"id":"evt-3","timestamp":"2026-01-14T12:40:56.938Z","parentId":null}"#;
+    let mut seen = HashSet::new();
+
+    let parsed = parse_copilot_event_line(line, &mut seen).expect("parsed event");
+
+    assert_eq!(parsed.provider_session_id.as_deref(), Some("session-1"));
+    assert_eq!(parsed.model.as_deref(), Some("claude-sonnet-4.5"));
+    assert_eq!(parsed.workspace_path.as_deref(), Some("/repo"));
+    assert!(matches!(
+        parsed.events.first(),
+        Some(LogEventKind::ProviderStatus { .. })
+    ));
+}
+
+#[test]
+fn test_parse_copilot_event_dedupes_ids() {
+    let line = r#"{"type":"user.message","data":{"content":"hello"},"id":"evt-4","timestamp":"2026-01-14T12:40:56.938Z","parentId":null}"#;
+    let mut seen = HashSet::new();
+
+    assert!(parse_copilot_event_line(line, &mut seen).is_some());
+    assert!(parse_copilot_event_line(line, &mut seen).is_none());
 }

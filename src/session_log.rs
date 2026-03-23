@@ -616,6 +616,7 @@ pub fn live_adapter_for_provider(
         "claude" => Some(Box::new(crate::claude::logs::ClaudeLiveLogAdapter::new(ctx))),
         "codex" => Some(Box::new(crate::codex::CodexLiveLogAdapter::new(ctx))),
         "gemini" => Some(Box::new(crate::gemini::GeminiLiveLogAdapter::new(ctx))),
+        "copilot" => Some(Box::new(crate::copilot::CopilotLiveLogAdapter::new(ctx))),
         _ => None,
     }
 }
