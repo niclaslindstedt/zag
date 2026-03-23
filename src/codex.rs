@@ -38,7 +38,7 @@ pub struct Codex {
 }
 
 pub struct CodexLiveLogAdapter {
-    ctx: LiveLogContext,
+    _ctx: LiveLogContext,
     tui_offset: u64,
     history_offset: u64,
     thread_id: Option<String>,
@@ -291,7 +291,7 @@ impl Default for Codex {
 impl CodexLiveLogAdapter {
     pub fn new(ctx: LiveLogContext) -> Self {
         Self {
-            ctx,
+            _ctx: ctx,
             tui_offset: file_len(&codex_tui_log_path()).unwrap_or(0),
             history_offset: file_len(&codex_history_path()).unwrap_or(0),
             thread_id: None,

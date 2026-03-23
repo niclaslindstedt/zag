@@ -40,6 +40,7 @@ These flags can be used with any subcommand.
     exec      Run non-interactively (print output and exit)
     review    Review code changes (uses Codex)
     config    View or set configuration values
+    logs      Historical session log utilities
     man       Show manual pages for commands
 
 Run `agent man <command>` for detailed help on each command.
@@ -79,6 +80,7 @@ Settings priority: CLI flags > config file > agent defaults.
     agent -p ollama --size 35b exec "hello"   Ollama with large model size
     agent exec --json "list 3 colors"         Get structured JSON output
     agent --help-agent                        Print AI-oriented CLI reference
+    agent logs import                         Import historical provider logs
 
 ## See Also
 
@@ -86,3 +88,4 @@ Settings priority: CLI flags > config file > agent defaults.
     agent man exec
     agent man review
     agent man config
+    agent man logs

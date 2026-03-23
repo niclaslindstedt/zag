@@ -151,9 +151,7 @@ pub struct SessionLogMetadata {
 
 #[derive(Debug, Clone)]
 pub struct LiveLogContext {
-    pub provider: String,
     pub root: Option<String>,
-    pub wrapper_session_id: String,
     pub provider_session_id: Option<String>,
     pub workspace_path: Option<String>,
     pub started_at: DateTime<Utc>,
@@ -431,21 +429,6 @@ pub fn record_prompt(writer: &SessionLogWriter, prompt: Option<&str>) -> Result<
     Ok(())
 }
 
-pub fn record_stderr(writer: &SessionLogWriter, stderr: &str) -> Result<()> {
-    if stderr.trim().is_empty() {
-        return Ok(());
-    }
-    for line in stderr.lines() {
-        writer.emit(
-            LogSourceKind::Stderr,
-            LogEventKind::Stderr {
-                message: line.to_string(),
-            },
-        )?;
-    }
-    Ok(())
-}
-
 pub fn record_agent_output(writer: &SessionLogWriter, output: &AgentOutput) -> Result<()> {
     if !output.session_id.is_empty() && output.session_id != "unknown" {
         writer.set_provider_session_id(Some(output.session_id.clone()))?;
@@ -560,14 +543,15 @@ pub fn record_agent_output(writer: &SessionLogWriter, output: &AgentOutput) -> R
     Ok(())
 }
 
-pub fn run_backfill(root: Option<&str>, providers: &[&dyn HistoricalLogAdapter]) -> Result<()> {
+pub fn run_backfill(root: Option<&str>, providers: &[&dyn HistoricalLogAdapter]) -> Result<usize> {
     let state_path = backfill_state_path(root);
     let mut state = load_backfill_state(&state_path)?;
     let current_version = 1;
     if state.version == current_version {
-        return Ok(());
+        return Ok(0);
     }
 
+    let mut imported = 0;
     for provider in providers {
         for session in provider.backfill(root)? {
             let key = session_key(&session.metadata);
@@ -585,14 +569,16 @@ pub fn run_backfill(root: Option<&str>, providers: &[&dyn HistoricalLogAdapter])
             }
             writer.finish(true, None)?;
             state.imported_session_keys.push(key);
+            imported += 1;
         }
     }
 
     state.version = current_version;
-    save_backfill_state(&state_path, &state)
+    save_backfill_state(&state_path, &state)?;
+    Ok(imported)
 }
 
-pub fn run_default_backfill(root: Option<&str>) -> Result<()> {
+pub fn run_default_backfill(root: Option<&str>) -> Result<usize> {
     let claude = crate::claude::logs::ClaudeHistoricalLogAdapter;
     let codex = crate::codex::CodexHistoricalLogAdapter;
     let gemini = crate::gemini::GeminiHistoricalLogAdapter;

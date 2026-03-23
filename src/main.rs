@@ -146,11 +146,22 @@ enum Commands {
         /// Config key and value (e.g., "provider claude" or "provider=claude")
         args: Vec<String>,
     },
+    /// Historical session log utilities
+    Logs {
+        #[command(subcommand)]
+        command: LogsCommand,
+    },
     /// Show manual pages for commands
     Man {
         /// Command to show help for (run, exec, review, config, man)
         command: Option<String>,
     },
+}
+
+#[derive(Subcommand)]
+enum LogsCommand {
+    /// Import historical provider logs into the unified session log store
+    Import,
 }
 
 #[tokio::main]
@@ -189,6 +200,7 @@ async fn main() -> Result<()> {
         match &cli.command {
             Commands::Review { .. } => bail!("--json-stream cannot be used with review"),
             Commands::Config { .. } => bail!("--json-stream cannot be used with config"),
+            Commands::Logs { .. } => bail!("--json-stream cannot be used with logs"),
             Commands::Run {
                 prompt: _,
                 resume,
@@ -208,6 +220,7 @@ async fn main() -> Result<()> {
         match &cli.command {
             Commands::Review { .. } => bail!("--json/--json-schema cannot be used with review"),
             Commands::Config { .. } => bail!("--json/--json-schema cannot be used with config"),
+            Commands::Logs { .. } => bail!("--json/--json-schema cannot be used with logs"),
             Commands::Run {
                 resume,
                 continue_session,
@@ -254,6 +267,7 @@ async fn main() -> Result<()> {
         match &cli.command {
             Commands::Review { .. } => bail!("--worktree cannot be used with review"),
             Commands::Config { .. } => bail!("--worktree cannot be used with config"),
+            Commands::Logs { .. } => bail!("--worktree cannot be used with logs"),
             Commands::Run {
                 resume,
                 continue_session,
@@ -270,6 +284,7 @@ async fn main() -> Result<()> {
         match &cli.command {
             Commands::Review { .. } => bail!("--sandbox cannot be used with review"),
             Commands::Config { .. } => bail!("--sandbox cannot be used with config"),
+            Commands::Logs { .. } => bail!("--sandbox cannot be used with logs"),
             Commands::Man { .. } => bail!("--sandbox cannot be used with man"),
             Commands::Run {
                 resume,
@@ -292,6 +307,7 @@ async fn main() -> Result<()> {
         match &cli.command {
             Commands::Review { .. } => bail!("auto cannot be used with review"),
             Commands::Config { .. } => bail!("auto cannot be used with config"),
+            Commands::Logs { .. } => bail!("auto cannot be used with logs"),
             Commands::Run {
                 resume,
                 continue_session,
@@ -311,6 +327,10 @@ async fn main() -> Result<()> {
         Commands::Config { args } => {
             debug!("Running config subcommand with args: {:?}", args);
             run_config(args, cli.root.as_deref())?;
+        }
+        Commands::Logs { command } => {
+            debug!("Running logs subcommand: {:?}", std::mem::discriminant(&command));
+            run_logs(command, cli.root.as_deref())?;
         }
         Commands::Review {
             uncommitted,
@@ -462,6 +482,7 @@ const MAN_RUN: &str = include_str!("../man/run.md");
 const MAN_EXEC: &str = include_str!("../man/exec.md");
 const MAN_REVIEW: &str = include_str!("../man/review.md");
 const MAN_CONFIG: &str = include_str!("../man/config.md");
+const MAN_LOGS: &str = include_str!("../man/logs.md");
 const MAN_MAN: &str = include_str!("../man/man.md");
 
 /// AI-oriented reference document for `--help-agent`.
@@ -475,9 +496,10 @@ fn print_manpage(command: Option<&str>) -> Result<()> {
         Some("exec") => MAN_EXEC,
         Some("review") => MAN_REVIEW,
         Some("config") => MAN_CONFIG,
+        Some("logs") => MAN_LOGS,
         Some("man") => MAN_MAN,
         Some(other) => bail!(
-            "No manual entry for '{}'. Available: run, exec, review, config, man",
+            "No manual entry for '{}'. Available: run, exec, review, config, logs, man",
             other
         ),
     };
@@ -490,6 +512,16 @@ fn run_resume_id(action: &Commands) -> Option<&str> {
         Commands::Run { resume, .. } => resume.as_deref(),
         _ => None,
     }
+}
+
+fn run_logs(command: LogsCommand, root: Option<&str>) -> Result<()> {
+    match command {
+        LogsCommand::Import => {
+            let imported = crate::session_log::run_default_backfill(root)?;
+            println!("Imported {} historical session log(s)", imported);
+        }
+    }
+    Ok(())
 }
 
 fn run_continue_requested(action: &Commands) -> bool {
@@ -1378,6 +1410,7 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Exec { .. } => "exec",
         Commands::Review { .. } => "review",
         Commands::Config { .. } => "config",
+        Commands::Logs { .. } => "logs",
         Commands::Man { .. } => "man",
     }
 }
@@ -1438,8 +1471,6 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
 
     let is_exec = matches!(action, Commands::Exec { .. });
     let show_wrapper = !quiet && (!is_exec || verbose);
-
-    crate::session_log::run_default_backfill(root.as_deref())?;
 
     let system_prompt =
         augment_system_prompt_for_json(system_prompt, json_mode, &provider, &json_schema);
@@ -1679,9 +1710,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         backfilled: false,
     };
     let live_ctx = crate::session_log::LiveLogContext {
-        provider: provider.clone(),
         root: root.clone(),
-        wrapper_session_id: log_session_id.clone(),
         provider_session_id: log_metadata.provider_session_id.clone(),
         workspace_path: log_metadata.workspace_path.clone(),
         started_at: chrono::Utc::now(),
@@ -1958,8 +1987,6 @@ async fn run_review(params: ReviewParams) -> Result<()> {
         uncommitted, base, commit
     );
 
-    crate::session_log::run_default_backfill(root.as_deref())?;
-
     let spinner = logging::spinner("Initializing Codex for review".to_string());
     let mut agent =
         AgentFactory::create("codex", system_prompt, model, root.clone(), auto_approve, add_dirs)?;
@@ -1994,9 +2021,7 @@ async fn run_review(params: ReviewParams) -> Result<()> {
     let live_adapter = crate::session_log::live_adapter_for_provider(
         "codex",
         crate::session_log::LiveLogContext {
-            provider: "codex".to_string(),
             root: root.clone(),
-            wrapper_session_id: log_metadata.wrapper_session_id.clone(),
             provider_session_id: None,
             workspace_path: log_metadata.workspace_path.clone(),
             started_at: chrono::Utc::now(),
