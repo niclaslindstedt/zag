@@ -4,7 +4,7 @@ Start an interactive agent session.
 
 ## Synopsis
 
-    agent [flags] run [prompt]
+    agent [flags] run [prompt] [--resume <session-id> | --continue]
 
 ## Description
 
@@ -14,13 +14,18 @@ If a prompt is provided, it is sent as the first message. Otherwise the agent st
 
 When `--json` or `--json-schema` is combined with a prompt, the session runs non-interactively instead (equivalent to `exec`) to capture and validate the output.
 
+Use `--resume <session-id>` to resume a specific session or `--continue` to resume the latest tracked session. The wrapper accepts either its own printed session ID or a native provider session ID.
+
 ## Arguments
 
     prompt    Optional initial prompt for the session
 
 ## Flags
 
-All global flags apply (see `agent man agent`). No command-specific flags.
+All global flags apply (see `agent man agent`).
+
+    --resume <session-id>    Resume a specific interactive session
+    --continue               Resume the latest tracked interactive session
 
 ## Behavior
 
@@ -39,7 +44,7 @@ Each provider maps to a Docker sandbox template (e.g., `docker/sandbox-templates
 
 `--sandbox` and `--worktree` are mutually exclusive. `--sandbox` cannot be used with `review`, `config`, or `man`.
 
-After an interactive sandbox session, you are prompted whether to keep or remove the sandbox. Sandboxes can be resumed with `agent resume <session-id>`.
+After an interactive sandbox session, you are prompted whether to keep or remove the sandbox. Sandboxes can be resumed with `agent run --resume <session-id>`.
 
 ## Examples
 
@@ -50,10 +55,11 @@ After an interactive sandbox session, you are prompted whether to keep or remove
     agent --sandbox run                       Run in a Docker sandbox
     agent --sandbox my-sandbox run            Named sandbox session
     agent --model small run                   Use lightweight model for quick tasks
+    agent run --continue                      Resume the latest tracked session
+    agent run --resume abc-123                Resume a specific session
     agent -p ollama run                       Interactive Ollama session (qwen3.5:9b)
     agent -p ollama --size 35b run            Ollama with large model size
 
 ## See Also
 
     agent man exec      Non-interactive alternative
-    agent man resume    Continue a previous session

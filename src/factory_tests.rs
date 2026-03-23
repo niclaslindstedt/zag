@@ -44,10 +44,7 @@ fn test_create_agent_unknown() {
 #[test]
 fn test_resolve_model_size_alias() {
     assert_eq!(AgentFactory::resolve_model("claude", "small"), "haiku");
-    assert_eq!(
-        AgentFactory::resolve_model("codex", "large"),
-        "gpt-5.4"
-    );
+    assert_eq!(AgentFactory::resolve_model("codex", "large"), "gpt-5.4");
     assert_eq!(
         AgentFactory::resolve_model("gemini", "medium"),
         "gemini-2.5-flash"

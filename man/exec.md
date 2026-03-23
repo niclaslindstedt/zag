@@ -84,7 +84,7 @@ The `--sandbox` flag runs the agent inside a Docker sandbox microVM for stronger
     agent --sandbox exec "say hello"           Run in auto-named sandbox
     agent --sandbox my-name exec "say hello"   Run in named sandbox
 
-In exec mode, the sandbox is kept after execution (no cleanup prompt). Resume with `agent resume <session-id>`.
+In exec mode, the sandbox is kept after execution (no cleanup prompt). Resume with `agent run --resume <session-id>`.
 
 ## Examples
 
@@ -105,4 +105,3 @@ In exec mode, the sandbox is kept after execution (no cleanup prompt). Resume wi
 ## See Also
 
     agent man run       Interactive alternative
-    agent man resume    Continue a previous session

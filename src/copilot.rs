@@ -242,8 +242,14 @@ impl Agent for Copilot {
         Ok(())
     }
 
-    async fn run_resume(&self, _session_id: Option<&str>, _last: bool) -> Result<()> {
-        let mut args = vec!["--resume".to_string()];
+    async fn run_resume(&self, session_id: Option<&str>, last: bool) -> Result<()> {
+        let mut args = if let Some(session_id) = session_id {
+            vec!["--resume".to_string(), session_id.to_string()]
+        } else if last {
+            vec!["--continue".to_string()]
+        } else {
+            vec!["--resume".to_string()]
+        };
 
         if self.skip_permissions {
             args.push("--allow-all-tools".to_string());

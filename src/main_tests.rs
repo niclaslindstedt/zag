@@ -14,7 +14,7 @@ fn test_print_manpage_agent() {
 
 #[test]
 fn test_print_manpage_all_commands() {
-    for cmd in &["run", "exec", "resume", "review", "config", "man"] {
+    for cmd in &["run", "exec", "review", "config", "man"] {
         assert!(
             print_manpage(Some(cmd)).is_ok(),
             "manpage for '{}' failed",
@@ -38,10 +38,53 @@ fn test_manpage_content_has_headers() {
     assert!(MAN_AGENT.contains("# agent"));
     assert!(MAN_RUN.contains("# agent run"));
     assert!(MAN_EXEC.contains("# agent exec"));
-    assert!(MAN_RESUME.contains("# agent resume"));
     assert!(MAN_REVIEW.contains("# agent review"));
     assert!(MAN_CONFIG.contains("# agent config"));
     assert!(MAN_MAN.contains("# agent man"));
+}
+
+#[test]
+fn test_run_resume_parses() {
+    let cli = Cli::try_parse_from(["agent", "run", "--resume", "sess-123"]).unwrap();
+    match cli.command {
+        Commands::Run {
+            resume,
+            continue_session,
+            prompt,
+        } => {
+            assert_eq!(resume.as_deref(), Some("sess-123"));
+            assert!(!continue_session);
+            assert!(prompt.is_none());
+        }
+        _ => panic!("expected run command"),
+    }
+}
+
+#[test]
+fn test_run_continue_parses() {
+    let cli = Cli::try_parse_from(["agent", "run", "--continue"]).unwrap();
+    match cli.command {
+        Commands::Run {
+            resume,
+            continue_session,
+            prompt,
+        } => {
+            assert!(resume.is_none());
+            assert!(continue_session);
+            assert!(prompt.is_none());
+        }
+        _ => panic!("expected run command"),
+    }
+}
+
+#[test]
+fn test_run_resume_rejects_prompt() {
+    assert!(Cli::try_parse_from(["agent", "run", "--resume", "sess-123", "hello"]).is_err());
+}
+
+#[test]
+fn test_run_resume_rejects_continue() {
+    assert!(Cli::try_parse_from(["agent", "run", "--resume", "sess-123", "--continue"]).is_err());
 }
 
 // --- wrap_prompt_for_json ---

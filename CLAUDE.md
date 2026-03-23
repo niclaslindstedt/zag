@@ -119,7 +119,7 @@ Config keys: `auto.provider`, `auto.model`
 ### Restrictions
 
 - Requires a prompt to analyze (errors if used with `run` without a prompt)
-- Cannot be used with `resume`, `review`, or `config` subcommands
+- Cannot be used with `run --resume`, `run --continue`, `review`, or `config`
 
 ## Configuration
 
@@ -347,7 +347,7 @@ The provider is specified via the `--provider` (or `-p`) flag. If omitted, it de
 
 - **`run`** - Start an interactive session
 - **`exec`** - Run non-interactively (print output and exit)
-- **`resume`** - Resume a previous session
+- Resume a previous session with `run --resume <id>` or `run --continue`
 - **`review`** - Review code changes (uses Codex)
 - **`config`** - View or set configuration values
 - **`man`** - Show manual pages for commands
@@ -386,9 +386,8 @@ echo '{"type":"message","content":"hello"}' | agent exec -i stream-json "analyze
 cat input.ndjson | agent exec --input-format stream-json "process"
 
 # Resume a session
-agent resume                    # Resume most recent / show picker
-agent resume <session-id>       # Resume specific session
-agent resume --last             # Resume most recent session
+agent run --continue            # Resume the latest tracked session
+agent run --resume <session-id> # Resume a specific session
 
 # With specific model
 agent --model opus exec "complex task"
@@ -511,7 +510,7 @@ agent run --json "list 3 colors"
 
 - `--json-schema` implies `--json`
 - `--json-stream` is mutually exclusive with `--json`/`--json-schema`
-- Cannot be used with `resume`, `review`, or `config`
+- Cannot be used with `run --resume`, `run --continue`, `review`, or `config`
 - Requires a prompt (doesn't work with interactive `run` without a prompt)
 - **Claude**: Uses native `--json-schema` support when a schema is provided
 - **Other agents**: Augments the system prompt with JSON instructions and schema
@@ -534,7 +533,7 @@ Size aliases (small, medium, large) are always valid and automatically resolve t
 
 ### Claude (default)
 ```bash
-agent [-p claude] <run|exec|resume> [OPTIONS]
+agent [-p claude] <run|exec> [OPTIONS]
 ```
 
 **Available models**: sonnet, opus, haiku
@@ -542,7 +541,7 @@ agent [-p claude] <run|exec|resume> [OPTIONS]
 
 ### Codex
 ```bash
-agent -p codex <run|exec|resume> [OPTIONS]
+agent -p codex <run|exec> [OPTIONS]
 ```
 
 **Available models**: gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex-mini
@@ -550,7 +549,7 @@ agent -p codex <run|exec|resume> [OPTIONS]
 
 ### Gemini
 ```bash
-agent -p gemini <run|exec|resume> [OPTIONS]
+agent -p gemini <run|exec> [OPTIONS]
 ```
 
 **Available models**: auto, gemini-3-pro-preview, gemini-3-flash-preview, gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite
@@ -558,7 +557,7 @@ agent -p gemini <run|exec|resume> [OPTIONS]
 
 ### Copilot
 ```bash
-agent -p copilot <run|exec|resume> [OPTIONS]
+agent -p copilot <run|exec> [OPTIONS]
 ```
 
 **Models**: claude-sonnet-4.5 (default), claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.2, gpt-5.1, gpt-5, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1, gemini-3-pro-preview
@@ -579,7 +578,7 @@ agent -p ollama --model llama3 run           # llama3:9b (default size)
 agent -p ollama --model small run            # qwen3.5:2b (size alias)
 ```
 
-Does not support `resume`.
+Does not support `run --resume` or `run --continue`.
 
 ### Review
 ```bash
@@ -613,7 +612,7 @@ All providers use the same worktree path: `~/.agent/worktrees/<sanitized-repo-pa
 Worktree sessions are tracked in `~/.agent/projects/<sanitized-path>/sessions.json`. Each session records the session ID, provider, worktree path, and creation timestamp.
 
 - A UUID session ID is generated for each worktree session
-- `agent resume <session-id>` automatically resumes inside the correct worktree
+- `agent run --resume <session-id>` automatically resumes inside the correct worktree
 - If the worktree no longer exists, the stale mapping is removed and resume proceeds without it
 
 ### Cleanup Behavior
@@ -627,7 +626,7 @@ After a worktree session ends, the CLI checks for uncommitted changes (staged, u
 ### Restrictions
 
 - Cannot be used with `review` or `config` subcommands
-- `--worktree` flag is ignored with `resume` (worktree comes from session mapping)
+- `--worktree` cannot be combined with `run --resume` or `run --continue`
 - Requires a git repository (errors if not in one)
 
 ## Sandbox Mode
@@ -680,7 +679,7 @@ Each provider maps to a Docker sandbox template:
 
 Sandbox sessions are tracked in `~/.agent/projects/<sanitized-path>/sessions.json` with a `sandbox_name` field. Each session records the session ID, provider, workspace path, sandbox name, and creation timestamp.
 
-- `agent resume <session-id>` looks up the sandbox name and re-configures the agent with `SandboxConfig`
+- `agent run --resume <session-id>` looks up the sandbox name and re-configures the agent with `SandboxConfig`
 - The sandbox is idempotent — `docker sandbox run` with the same name reuses the existing VM
 
 ### Cleanup Prompt
@@ -700,7 +699,7 @@ After interactive (`run`) sandbox sessions:
 
 - `--sandbox` and `--worktree` are mutually exclusive
 - Cannot be used with `review`, `config`, or `man` subcommands
-- `--sandbox` flag is ignored with `resume` (sandbox comes from session mapping)
+- `--sandbox` cannot be combined with `run --resume` or `run --continue`
 
 ### Interaction Matrix
 
@@ -711,7 +710,7 @@ After interactive (`run`) sandbox sessions:
 | `--root` | Used as workspace path |
 | `--json` / `--json-schema` | Works (flags passed through to agent inside sandbox) |
 | `--system-prompt` | Works (files written to workspace, synced into sandbox) |
-| `resume` | Works via session store `sandbox_name` lookup |
+| `run --resume` / `run --continue` | Works via session store `sandbox_name` lookup |
 | `exec` | Works, no cleanup prompt |
 | `run` | Works, cleanup prompt shown |
 | `review` / `config` / `man` | Not supported (error) |
@@ -727,7 +726,7 @@ Pattern for adding new CLI features:
    - `setup_worktree()` — worktree creation and session ID generation
    - `setup_sandbox()` — sandbox creation and session ID generation
    - `create_and_configure_agent()` — agent factory call and option setting
-   - `execute_action()` — the run/exec/resume dispatch
+   - `execute_action()` — the run/exec dispatch
 3. **If agent-specific**: Add to `Agent` trait or use the downcast pattern via `as_any_mut()` (e.g., `input_format` for Claude). Claude-specific options are consolidated in a single downcast block inside `create_and_configure_agent()`.
 4. **If native in underlying binary**: Pass through the flag in the agent's `execute()` method (e.g., `--worktree` for Claude)
 5. **If not native**: Implement the behavior in the wrapper before delegating to the agent (e.g., worktree creation for Codex/Gemini/Copilot)

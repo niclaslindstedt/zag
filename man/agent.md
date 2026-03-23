@@ -38,7 +38,6 @@ These flags can be used with any subcommand.
 
     run       Start an interactive session
     exec      Run non-interactively (print output and exit)
-    resume    Resume a previous session
     review    Review code changes (uses Codex)
     config    View or set configuration values
     man       Show manual pages for commands
@@ -75,6 +74,8 @@ Settings priority: CLI flags > config file > agent defaults.
     agent -p auto -m auto exec "refactor"     Auto-select provider and model
     agent -w run                              Run in isolated worktree
     agent --sandbox run                       Run in Docker sandbox
+    agent run --continue                      Resume latest tracked interactive session
+    agent run --resume abc-123                Resume a specific session
     agent -p ollama --size 35b exec "hello"   Ollama with large model size
     agent exec --json "list 3 colors"         Get structured JSON output
     agent --help-agent                        Print AI-oriented CLI reference
@@ -83,6 +84,5 @@ Settings priority: CLI flags > config file > agent defaults.
 
     agent man run
     agent man exec
-    agent man resume
     agent man review
     agent man config

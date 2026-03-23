@@ -1,10 +1,11 @@
 //! Session-to-worktree mapping store.
 //!
 //! Persists session-worktree mappings in `~/.agent/projects/<id>/sessions.json`
-//! so that `agent resume <id>` can resume inside the correct worktree.
+//! so that `agent run --resume <id>` can resume inside the correct workspace.
 
 use crate::config::Config;
 use anyhow::{Context, Result};
+use chrono::{DateTime, FixedOffset};
 use log::debug;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -17,7 +18,15 @@ pub struct SessionEntry {
     pub worktree_name: String,
     pub created_at: String,
     #[serde(default)]
+    pub provider_session_id: Option<String>,
+    #[serde(default)]
     pub sandbox_name: Option<String>,
+    #[serde(default)]
+    pub is_worktree: bool,
+    #[serde(default)]
+    pub discovered: bool,
+    #[serde(default)]
+    pub discovery_source: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -72,6 +81,11 @@ impl SessionStore {
 
     /// Add a session entry.
     pub fn add(&mut self, entry: SessionEntry) {
+        self.sessions.retain(|existing| {
+            existing.session_id != entry.session_id
+                && !(entry.provider_session_id.is_some()
+                    && existing.provider_session_id == entry.provider_session_id)
+        });
         debug!(
             "Adding session: id={}, provider={}, worktree={}",
             entry.session_id, entry.provider, entry.worktree_name
@@ -90,11 +104,55 @@ impl SessionStore {
         result
     }
 
+    /// Find a session by provider-native session ID.
+    pub fn find_by_provider_session_id(&self, id: &str) -> Option<&SessionEntry> {
+        let result = self
+            .sessions
+            .iter()
+            .find(|e| e.provider_session_id.as_deref() == Some(id));
+        if result.is_some() {
+            debug!("Found provider session: {}", id);
+        } else {
+            debug!("Provider session not found: {}", id);
+        }
+        result
+    }
+
+    /// Find a session by either wrapper or provider-native ID.
+    pub fn find_by_any_id(&self, id: &str) -> Option<&SessionEntry> {
+        self.find_by_session_id(id)
+            .or_else(|| self.find_by_provider_session_id(id))
+    }
+
+    /// Get the most recently created session.
+    pub fn latest(&self) -> Option<&SessionEntry> {
+        self.sessions.iter().max_by(|a, b| {
+            parse_created_at(&a.created_at)
+                .cmp(&parse_created_at(&b.created_at))
+                .then_with(|| a.session_id.cmp(&b.session_id))
+        })
+    }
+
+    /// Update a wrapper session with the provider-native session ID.
+    pub fn set_provider_session_id(&mut self, session_id: &str, provider_session_id: String) {
+        if let Some(entry) = self
+            .sessions
+            .iter_mut()
+            .find(|e| e.session_id == session_id)
+        {
+            entry.provider_session_id = Some(provider_session_id);
+        }
+    }
+
     /// Remove a session by ID.
     pub fn remove(&mut self, session_id: &str) {
         debug!("Removing session: {}", session_id);
         self.sessions.retain(|e| e.session_id != session_id);
     }
+}
+
+fn parse_created_at(created_at: &str) -> Option<DateTime<FixedOffset>> {
+    DateTime::parse_from_rfc3339(created_at).ok()
 }
 
 #[cfg(test)]

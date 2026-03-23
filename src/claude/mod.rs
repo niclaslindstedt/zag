@@ -23,6 +23,7 @@ pub struct Claude {
     system_prompt: String,
     model: String,
     root: Option<String>,
+    session_id: Option<String>,
     skip_permissions: bool,
     output_format: Option<String>,
     input_format: Option<String>,
@@ -39,6 +40,7 @@ impl Claude {
             system_prompt: String::new(),
             model: DEFAULT_MODEL.to_string(),
             root: None,
+            session_id: None,
             skip_permissions: false,
             output_format: None,
             input_format: None,
@@ -52,6 +54,10 @@ impl Claude {
 
     pub fn set_input_format(&mut self, format: Option<String>) {
         self.input_format = format;
+    }
+
+    pub fn set_session_id(&mut self, session_id: String) {
+        self.session_id = Some(session_id);
     }
 
     pub fn set_verbose(&mut self, verbose: bool) {
@@ -96,6 +102,10 @@ impl Claude {
         }
 
         args.extend(["--model".to_string(), self.model.clone()]);
+
+        if interactive && let Some(session_id) = &self.session_id {
+            args.extend(["--session-id".to_string(), session_id.clone()]);
+        }
 
         for dir in &self.add_dirs {
             args.extend(["--add-dir".to_string(), dir.clone()]);

@@ -12,7 +12,7 @@ Displays detailed documentation for agent commands. When called without argument
 
 ## Arguments
 
-    command    Command to show help for: run, exec, resume, review, config, man
+    command    Command to show help for: run, exec, review, config, man
 
 ## Examples
 

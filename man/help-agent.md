@@ -9,7 +9,8 @@ This document is designed to be read by an AI agent. Use it when you need to inv
 ```
 agent exec "<prompt>"          Non-interactive: send prompt, get output, exit
 agent run ["<prompt>"]         Interactive: start a full terminal session
-agent resume [<session-id>]    Resume a previous session
+agent run --continue           Resume the latest tracked session
+agent run --resume <id>        Resume a specific session
 agent review --uncommitted     Code review (uses Codex)
 agent config [key] [value]     View or set configuration
 agent man [command]            Show detailed docs for a command
@@ -150,7 +151,7 @@ agent --sandbox exec "risky refactor"
 agent --sandbox my-sb run
 
 # Resume an isolated session later
-agent resume <session-id>
+agent run --resume <session-id>
 ```
 
 `--worktree` and `--sandbox` are mutually exclusive. Both create resumable sessions tracked in `~/.agent/projects/<sanitized-path>/sessions.json`.
@@ -220,7 +221,6 @@ For deeper documentation on any command, run:
 agent man              General overview
 agent man exec         Non-interactive execution, output formats
 agent man run          Interactive sessions, worktrees, sandboxes
-agent man resume       Resuming sessions
 agent man review       Code review
 agent man config       Configuration reference
 ```

@@ -98,7 +98,16 @@ enum Commands {
     /// Start an interactive session
     Run {
         /// Initial prompt for the session
+        #[arg(conflicts_with = "resume", conflicts_with = "continue_session")]
         prompt: Option<String>,
+
+        /// Resume a specific session
+        #[arg(long, value_name = "SESSION_ID", conflicts_with = "continue_session")]
+        resume: Option<String>,
+
+        /// Resume the most recent tracked session
+        #[arg(long = "continue")]
+        continue_session: bool,
     },
     /// Run non-interactively (print output and exit)
     Exec {
@@ -112,15 +121,6 @@ enum Commands {
         /// Input format (text, stream-json) - Claude only
         #[arg(short = 'i', long)]
         input_format: Option<String>,
-    },
-    /// Resume a previous session
-    Resume {
-        /// Session ID to resume
-        session_id: Option<String>,
-
-        /// Resume the most recent session
-        #[arg(long)]
-        last: bool,
     },
     /// Review code changes (uses Codex under the hood)
     Review {
@@ -147,7 +147,7 @@ enum Commands {
     },
     /// Show manual pages for commands
     Man {
-        /// Command to show help for (run, exec, resume, review, config, man)
+        /// Command to show help for (run, exec, review, config, man)
         command: Option<String>,
     },
 }
@@ -186,10 +186,16 @@ async fn main() -> Result<()> {
     // Validate --json-stream usage (same restrictions as --json)
     if json_stream {
         match &cli.command {
-            Commands::Resume { .. } => bail!("--json-stream cannot be used with resume"),
             Commands::Review { .. } => bail!("--json-stream cannot be used with review"),
             Commands::Config { .. } => bail!("--json-stream cannot be used with config"),
-            Commands::Run { prompt } if prompt.is_none() => {
+            Commands::Run {
+                prompt: _,
+                resume,
+                continue_session,
+            } if resume.is_some() || *continue_session => {
+                bail!("--json-stream cannot be used with run --resume or run --continue")
+            }
+            Commands::Run { prompt, .. } if prompt.is_none() => {
                 bail!("--json-stream requires a prompt (use exec or run with a prompt)")
             }
             _ => {}
@@ -199,10 +205,16 @@ async fn main() -> Result<()> {
     // Validate --json/--json-schema usage and parse schema once
     let json_schema: Option<serde_json::Value> = if json_mode {
         match &cli.command {
-            Commands::Resume { .. } => bail!("--json/--json-schema cannot be used with resume"),
             Commands::Review { .. } => bail!("--json/--json-schema cannot be used with review"),
             Commands::Config { .. } => bail!("--json/--json-schema cannot be used with config"),
-            Commands::Run { prompt } if prompt.is_none() => {
+            Commands::Run {
+                resume,
+                continue_session,
+                ..
+            } if resume.is_some() || *continue_session => {
+                bail!("--json/--json-schema cannot be used with run --resume or run --continue")
+            }
+            Commands::Run { prompt, .. } if prompt.is_none() => {
                 bail!("--json/--json-schema requires a prompt (use exec or run with a prompt)")
             }
             _ => {}
@@ -241,6 +253,13 @@ async fn main() -> Result<()> {
         match &cli.command {
             Commands::Review { .. } => bail!("--worktree cannot be used with review"),
             Commands::Config { .. } => bail!("--worktree cannot be used with config"),
+            Commands::Run {
+                resume,
+                continue_session,
+                ..
+            } if resume.is_some() || *continue_session => {
+                bail!("--worktree cannot be used with run --resume or run --continue")
+            }
             _ => {}
         }
     }
@@ -251,6 +270,13 @@ async fn main() -> Result<()> {
             Commands::Review { .. } => bail!("--sandbox cannot be used with review"),
             Commands::Config { .. } => bail!("--sandbox cannot be used with config"),
             Commands::Man { .. } => bail!("--sandbox cannot be used with man"),
+            Commands::Run {
+                resume,
+                continue_session,
+                ..
+            } if resume.is_some() || *continue_session => {
+                bail!("--sandbox cannot be used with run --resume or run --continue")
+            }
             _ => {}
         }
         if cli.worktree.is_some() {
@@ -263,9 +289,15 @@ async fn main() -> Result<()> {
     let is_auto_model = cli.model.as_deref() == Some("auto");
     if is_auto_provider || is_auto_model {
         match &cli.command {
-            Commands::Resume { .. } => bail!("auto cannot be used with resume"),
             Commands::Review { .. } => bail!("auto cannot be used with review"),
             Commands::Config { .. } => bail!("auto cannot be used with config"),
+            Commands::Run {
+                resume,
+                continue_session,
+                ..
+            } if resume.is_some() || *continue_session => {
+                bail!("auto cannot be used with run --resume or run --continue")
+            }
             _ => {}
         }
     }
@@ -306,6 +338,7 @@ async fn main() -> Result<()> {
             run_agent_action(AgentActionParams {
                 agent_name: display_name,
                 provider,
+                provider_explicit: cli.provider.is_some(),
                 action,
                 system_prompt: cli.system_prompt,
                 model: cli.model,
@@ -402,6 +435,7 @@ fn run_config(args: Vec<String>, root: Option<&str>) -> Result<()> {
 struct AgentActionParams {
     agent_name: String,
     provider: String,
+    provider_explicit: bool,
     action: Commands,
     system_prompt: Option<String>,
     model: Option<String>,
@@ -425,7 +459,6 @@ const JSON_WRAP_TEMPLATE: &str = include_str!("../prompts/json-wrap/1_0.md");
 const MAN_AGENT: &str = include_str!("../man/agent.md");
 const MAN_RUN: &str = include_str!("../man/run.md");
 const MAN_EXEC: &str = include_str!("../man/exec.md");
-const MAN_RESUME: &str = include_str!("../man/resume.md");
 const MAN_REVIEW: &str = include_str!("../man/review.md");
 const MAN_CONFIG: &str = include_str!("../man/config.md");
 const MAN_MAN: &str = include_str!("../man/man.md");
@@ -439,17 +472,51 @@ fn print_manpage(command: Option<&str>) -> Result<()> {
         None | Some("agent") => MAN_AGENT,
         Some("run") => MAN_RUN,
         Some("exec") => MAN_EXEC,
-        Some("resume") => MAN_RESUME,
         Some("review") => MAN_REVIEW,
         Some("config") => MAN_CONFIG,
         Some("man") => MAN_MAN,
         Some(other) => bail!(
-            "No manual entry for '{}'. Available: run, exec, resume, review, config, man",
+            "No manual entry for '{}'. Available: run, exec, review, config, man",
             other
         ),
     };
     print!("{}", content);
     Ok(())
+}
+
+fn run_resume_id(action: &Commands) -> Option<&str> {
+    match action {
+        Commands::Run { resume, .. } => resume.as_deref(),
+        _ => None,
+    }
+}
+
+fn run_continue_requested(action: &Commands) -> bool {
+    matches!(
+        action,
+        Commands::Run {
+            continue_session: true,
+            ..
+        }
+    )
+}
+
+fn is_resume_run(action: &Commands) -> bool {
+    run_resume_id(action).is_some() || run_continue_requested(action)
+}
+
+fn run_prompt(action: &Commands) -> Option<&str> {
+    match action {
+        Commands::Run { prompt, .. } => prompt.as_deref(),
+        Commands::Exec { prompt, .. } => Some(prompt.as_str()),
+        _ => None,
+    }
+}
+
+fn is_new_interactive_run(action: &Commands, json_mode: bool) -> bool {
+    matches!(action, Commands::Run { .. })
+        && !is_resume_run(action)
+        && !(json_mode && run_prompt(action).is_some())
 }
 
 /// Wrap a user prompt with explicit JSON instructions for non-Claude agents.
@@ -466,11 +533,7 @@ async fn resolve_auto_selection(params: &mut AgentActionParams) -> Result<()> {
         return Ok(());
     }
 
-    let task_prompt = match &params.action {
-        Commands::Run { prompt } => prompt.as_deref(),
-        Commands::Exec { prompt, .. } => Some(prompt.as_str()),
-        _ => None,
-    };
+    let task_prompt = run_prompt(&params.action);
 
     let task_prompt = task_prompt
         .ok_or_else(|| anyhow::anyhow!("auto provider/model requires a prompt to analyze"))?;
@@ -556,6 +619,55 @@ struct WorktreeSetup {
     worktree_path: Option<String>,
 }
 
+struct PlainSessionSetup {
+    session_id: Option<String>,
+    workspace_path: Option<String>,
+}
+
+#[derive(Clone)]
+struct ResumeTarget {
+    entry: session::SessionEntry,
+    matched_by_wrapper_id: bool,
+}
+
+struct DiscoveredSession {
+    provider: String,
+    provider_session_id: String,
+    workspace_path: Option<String>,
+    discovery_source: String,
+}
+
+fn current_workspace(root: Option<&str>) -> String {
+    if let Some(root) = root {
+        root.to_string()
+    } else if let Ok(repo_root) = worktree::git_repo_root(None) {
+        repo_root.to_string_lossy().to_string()
+    } else {
+        std::env::current_dir()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string()
+    }
+}
+
+fn wrapper_worktrees_root() -> Option<std::path::PathBuf> {
+    home_dir().map(|home| home.join(".agent").join("worktrees"))
+}
+
+fn is_wrapper_worktree_path(path: &str) -> bool {
+    let Some(root) = wrapper_worktrees_root() else {
+        return false;
+    };
+    std::path::Path::new(path).starts_with(root)
+}
+
+fn worktree_name_from_path(path: &str) -> String {
+    std::path::Path::new(path)
+        .file_name()
+        .map(|name| name.to_string_lossy().to_string())
+        .unwrap_or_default()
+}
+
 /// Set up worktree session state: generate IDs, create worktree.
 /// All providers get the same treatment — worktree at `~/.agent/worktrees/<project>/<name>`.
 fn setup_worktree(
@@ -563,8 +675,9 @@ fn setup_worktree(
     action: &Commands,
     root: &Option<String>,
     show_wrapper: bool,
+    session_id: Option<String>,
 ) -> Result<WorktreeSetup> {
-    let is_worktree_session = worktree_flag.is_some() && !matches!(action, Commands::Resume { .. });
+    let is_worktree_session = worktree_flag.is_some() && !is_resume_run(action);
 
     if !is_worktree_session {
         return Ok(WorktreeSetup {
@@ -576,7 +689,6 @@ fn setup_worktree(
         });
     }
 
-    let session_id = Some(uuid::Uuid::new_v4().to_string());
     let worktree_name = Some(
         worktree_flag
             .as_ref()
@@ -616,8 +728,9 @@ fn setup_sandbox(
     sandbox_flag: &Option<Option<String>>,
     action: &Commands,
     root: &Option<String>,
+    session_id: Option<String>,
 ) -> Result<SandboxSetup> {
-    let is_sandbox_session = sandbox_flag.is_some() && !matches!(action, Commands::Resume { .. });
+    let is_sandbox_session = sandbox_flag.is_some() && !is_resume_run(action);
 
     if !is_sandbox_session {
         return Ok(SandboxSetup {
@@ -628,7 +741,6 @@ fn setup_sandbox(
         });
     }
 
-    let session_id = Some(uuid::Uuid::new_v4().to_string());
     let sandbox_name = Some(
         sandbox_flag
             .as_ref()
@@ -639,16 +751,7 @@ fn setup_sandbox(
     );
 
     // Determine workspace: root flag > git repo root > current dir
-    let workspace = if let Some(r) = root {
-        r.clone()
-    } else if let Ok(repo_root) = worktree::git_repo_root(None) {
-        repo_root.to_string_lossy().to_string()
-    } else {
-        std::env::current_dir()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string()
-    };
+    let workspace = current_workspace(root.as_deref());
 
     Ok(SandboxSetup {
         is_sandbox_session: true,
@@ -658,6 +761,24 @@ fn setup_sandbox(
     })
 }
 
+fn setup_plain_session(
+    action: &Commands,
+    json_mode: bool,
+    root: &Option<String>,
+) -> PlainSessionSetup {
+    if !is_new_interactive_run(action, json_mode) {
+        return PlainSessionSetup {
+            session_id: None,
+            workspace_path: None,
+        };
+    }
+
+    PlainSessionSetup {
+        session_id: Some(uuid::Uuid::new_v4().to_string()),
+        workspace_path: Some(current_workspace(root.as_deref())),
+    }
+}
+
 /// Parameters for creating and configuring an agent.
 struct AgentSetupParams {
     provider: String,
@@ -665,6 +786,7 @@ struct AgentSetupParams {
     system_prompt: Option<String>,
     model: Option<String>,
     effective_root: Option<String>,
+    session_id: Option<String>,
     auto_approve: bool,
     add_dirs: Vec<String>,
     output_format: Option<String>,
@@ -705,6 +827,9 @@ fn create_and_configure_agent(
         && let Some(claude_agent) = agent.as_any_mut().downcast_mut::<crate::claude::Claude>()
     {
         claude_agent.set_verbose(p.verbose);
+        if let Some(session_id) = p.session_id {
+            claude_agent.set_session_id(session_id);
+        }
         if let Some(input_fmt) = p.input_format {
             claude_agent.set_input_format(Some(input_fmt));
         }
@@ -737,7 +862,32 @@ fn create_and_configure_agent(
 }
 
 /// Save the session-worktree/sandbox mapping to disk.
-fn save_session_mapping(wt: &WorktreeSetup, sb: &SandboxSetup, provider: &str, root: Option<&str>) {
+fn save_session_mapping(
+    plain: &PlainSessionSetup,
+    wt: &WorktreeSetup,
+    sb: &SandboxSetup,
+    provider: &str,
+    root: Option<&str>,
+) {
+    if plain.session_id.is_some() && !wt.is_worktree_session && !sb.is_sandbox_session {
+        let mut store = session::SessionStore::load(root).unwrap_or_default();
+        store.add(session::SessionEntry {
+            session_id: plain.session_id.clone().unwrap_or_default(),
+            provider: provider.to_string(),
+            worktree_path: plain.workspace_path.clone().unwrap_or_default(),
+            worktree_name: String::new(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+            provider_session_id: None,
+            sandbox_name: None,
+            is_worktree: false,
+            discovered: false,
+            discovery_source: None,
+        });
+        if let Err(e) = store.save(root) {
+            log::warn!("Failed to save session mapping: {}", e);
+        }
+    }
+
     // Save worktree session mapping
     if let (Some(sid), Some(wt_path), Some(wt_name)) =
         (&wt.session_id, &wt.worktree_path, &wt.worktree_name)
@@ -749,7 +899,11 @@ fn save_session_mapping(wt: &WorktreeSetup, sb: &SandboxSetup, provider: &str, r
             worktree_path: wt_path.clone(),
             worktree_name: wt_name.clone(),
             created_at: chrono::Utc::now().to_rfc3339(),
+            provider_session_id: None,
             sandbox_name: None,
+            is_worktree: true,
+            discovered: false,
+            discovery_source: None,
         });
         if let Err(e) = store.save(root) {
             log::warn!("Failed to save session mapping: {}", e);
@@ -767,12 +921,49 @@ fn save_session_mapping(wt: &WorktreeSetup, sb: &SandboxSetup, provider: &str, r
             worktree_path: workspace.clone(),
             worktree_name: sandbox_name.clone(),
             created_at: chrono::Utc::now().to_rfc3339(),
+            provider_session_id: None,
             sandbox_name: Some(sandbox_name.clone()),
+            is_worktree: false,
+            discovered: false,
+            discovery_source: None,
         });
         if let Err(e) = store.save(root) {
             log::warn!("Failed to save sandbox session mapping: {}", e);
         }
         debug!("Saved sandbox session mapping: {} -> {}", sid, sandbox_name);
+    }
+}
+
+fn update_provider_session_id(
+    wrapper_session_id: Option<&str>,
+    provider_session_id: Option<String>,
+    root: Option<&str>,
+) {
+    let (Some(wrapper_session_id), Some(provider_session_id)) =
+        (wrapper_session_id, provider_session_id)
+    else {
+        return;
+    };
+
+    let mut store = session::SessionStore::load(root).unwrap_or_default();
+    store.set_provider_session_id(wrapper_session_id, provider_session_id);
+    if let Err(e) = store.save(root) {
+        log::warn!("Failed to update provider session id: {}", e);
+    }
+}
+
+fn print_resume_hint(wrapper_session_id: &str, provider_session_id: Option<&str>, label: &str) {
+    println!(
+        "\x1b[32m✓\x1b[0m {} kept. Resume with: agent run --resume {}",
+        label, wrapper_session_id
+    );
+    if let Some(provider_session_id) = provider_session_id
+        && provider_session_id != wrapper_session_id
+    {
+        println!(
+            "\x1b[32m✓\x1b[0m Native provider ID: {}",
+            provider_session_id
+        );
     }
 }
 
@@ -784,23 +975,266 @@ struct ExecutionContext<'a> {
     output_fmt: Option<&'a str>,
     show_usage: bool,
     verbose: bool,
-    root: Option<&'a str>,
 }
 
-/// Execute the requested action (run, exec, or resume).
-///
-/// Returns optional `(session_id, worktree_path)` and optional `(session_id, sandbox_name)` for cleanup.
+fn home_dir() -> Option<std::path::PathBuf> {
+    std::env::var_os("HOME").map(std::path::PathBuf::from)
+}
+
+fn detect_provider_session(session_id: &str) -> Option<DiscoveredSession> {
+    let home = home_dir()?;
+
+    let claude_projects = home.join(".claude/projects");
+    if let Ok(projects) = std::fs::read_dir(&claude_projects) {
+        for project in projects.flatten() {
+            let candidate = project.path().join(format!("{}.jsonl", session_id));
+            if candidate.exists() {
+                let workspace_path = std::fs::read_to_string(&candidate)
+                    .ok()
+                    .and_then(|content| {
+                        content.lines().find_map(|line| {
+                            serde_json::from_str::<serde_json::Value>(line)
+                                .ok()
+                                .and_then(|json| {
+                                    json.get("cwd")
+                                        .and_then(|value| value.as_str())
+                                        .map(str::to_string)
+                                })
+                        })
+                    });
+                return Some(DiscoveredSession {
+                    provider: "claude".to_string(),
+                    provider_session_id: session_id.to_string(),
+                    workspace_path,
+                    discovery_source: candidate.to_string_lossy().to_string(),
+                });
+            }
+        }
+    }
+
+    let codex_history = home.join(".codex/history.jsonl");
+    if let Ok(content) = std::fs::read_to_string(&codex_history) {
+        let needle = format!("\"session_id\":\"{}\"", session_id);
+        if content.contains(&needle) {
+            return Some(DiscoveredSession {
+                provider: "codex".to_string(),
+                provider_session_id: session_id.to_string(),
+                workspace_path: None,
+                discovery_source: codex_history.to_string_lossy().to_string(),
+            });
+        }
+    }
+
+    let gemini_tmp = home.join(".gemini/tmp");
+    if let Ok(projects) = std::fs::read_dir(&gemini_tmp) {
+        for project in projects.flatten() {
+            let chats = project.path().join("chats");
+            if let Ok(files) = std::fs::read_dir(&chats) {
+                for file in files.flatten() {
+                    if let Ok(content) = std::fs::read_to_string(file.path()) {
+                        let needle = format!("\"sessionId\": \"{}\"", session_id);
+                        if content.contains(&needle) {
+                            return Some(DiscoveredSession {
+                                provider: "gemini".to_string(),
+                                provider_session_id: session_id.to_string(),
+                                workspace_path: None,
+                                discovery_source: file.path().to_string_lossy().to_string(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let copilot_dir = home
+        .join(".config/github-copilot/rd/chat-sessions")
+        .join(session_id);
+    if copilot_dir.exists() {
+        return Some(DiscoveredSession {
+            provider: "copilot".to_string(),
+            provider_session_id: session_id.to_string(),
+            workspace_path: None,
+            discovery_source: copilot_dir.to_string_lossy().to_string(),
+        });
+    }
+
+    None
+}
+
+fn cache_discovered_session(
+    discovered: &DiscoveredSession,
+    root: Option<&str>,
+) -> session::SessionEntry {
+    let workspace_path = discovered
+        .workspace_path
+        .clone()
+        .unwrap_or_else(|| current_workspace(root));
+    let is_worktree = is_wrapper_worktree_path(&workspace_path);
+    let entry = session::SessionEntry {
+        session_id: discovered.provider_session_id.clone(),
+        provider: discovered.provider.clone(),
+        worktree_path: workspace_path.clone(),
+        worktree_name: if is_worktree {
+            worktree_name_from_path(&workspace_path)
+        } else {
+            String::new()
+        },
+        created_at: chrono::Utc::now().to_rfc3339(),
+        provider_session_id: Some(discovered.provider_session_id.clone()),
+        sandbox_name: None,
+        is_worktree,
+        discovered: true,
+        discovery_source: Some(discovered.discovery_source.clone()),
+    };
+
+    let mut store = session::SessionStore::load(root).unwrap_or_default();
+    store.add(entry.clone());
+    if let Err(e) = store.save(root) {
+        log::warn!("Failed to cache discovered session: {}", e);
+    }
+
+    entry
+}
+
+fn resolve_resume_target(requested_id: &str, root: Option<&str>) -> Option<ResumeTarget> {
+    let store = session::SessionStore::load(root).unwrap_or_default();
+    if let Some(entry) = store.find_by_any_id(requested_id) {
+        return Some(ResumeTarget {
+            entry: entry.clone(),
+            matched_by_wrapper_id: store.find_by_session_id(requested_id).is_some(),
+        });
+    }
+
+    let discovered = detect_provider_session(requested_id)?;
+    let entry = cache_discovered_session(&discovered, root);
+    Some(ResumeTarget {
+        entry,
+        matched_by_wrapper_id: false,
+    })
+}
+
+fn resolve_continue_target(root: Option<&str>) -> Option<ResumeTarget> {
+    let store = session::SessionStore::load(root).unwrap_or_default();
+    store.latest().map(|entry| ResumeTarget {
+        entry: entry.clone(),
+        matched_by_wrapper_id: true,
+    })
+}
+
+fn discover_provider_session_id(
+    provider: &str,
+    wrapper_session_id: Option<&str>,
+    _root: Option<&str>,
+    _wt: &WorktreeSetup,
+    _plain: &PlainSessionSetup,
+) -> Option<String> {
+    match provider {
+        "claude" => wrapper_session_id.map(str::to_string),
+        "codex" => {
+            let history = home_dir()?.join(".codex/history.jsonl");
+            let content = std::fs::read_to_string(history).ok()?;
+            content
+                .lines()
+                .rev()
+                .find_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+                .and_then(|json| {
+                    json.get("session_id")
+                        .and_then(|value| value.as_str())
+                        .map(str::to_string)
+                })
+        }
+        "gemini" => {
+            let gemini_tmp = home_dir()?.join(".gemini/tmp");
+            let mut newest: Option<(std::time::SystemTime, String)> = None;
+            let projects = std::fs::read_dir(gemini_tmp).ok()?;
+            for project in projects.flatten() {
+                let chats = project.path().join("chats");
+                let files = match std::fs::read_dir(chats) {
+                    Ok(files) => files,
+                    Err(_) => continue,
+                };
+                for file in files.flatten() {
+                    let path = file.path();
+                    let metadata = match file.metadata() {
+                        Ok(metadata) => metadata,
+                        Err(_) => continue,
+                    };
+                    let modified = match metadata.modified() {
+                        Ok(modified) => modified,
+                        Err(_) => continue,
+                    };
+                    let content = match std::fs::read_to_string(path) {
+                        Ok(content) => content,
+                        Err(_) => continue,
+                    };
+                    let session_id = match serde_json::from_str::<serde_json::Value>(&content)
+                        .ok()
+                        .and_then(|json| {
+                            json.get("sessionId")
+                                .and_then(|value| value.as_str())
+                                .map(str::to_string)
+                        }) {
+                        Some(session_id) => session_id,
+                        None => continue,
+                    };
+                    if newest
+                        .as_ref()
+                        .map(|(current, _)| modified > *current)
+                        .unwrap_or(true)
+                    {
+                        newest = Some((modified, session_id));
+                    }
+                }
+            }
+            newest.map(|(_, session_id)| session_id)
+        }
+        "copilot" => {
+            let chat_sessions = home_dir()?.join(".config/github-copilot/rd/chat-sessions");
+            let mut newest: Option<(std::time::SystemTime, String)> = None;
+            let entries = std::fs::read_dir(chat_sessions).ok()?;
+            for entry in entries.flatten() {
+                let metadata = match entry.metadata() {
+                    Ok(metadata) => metadata,
+                    Err(_) => continue,
+                };
+                let modified = match metadata.modified() {
+                    Ok(modified) => modified,
+                    Err(_) => continue,
+                };
+                let session_id = entry.file_name().to_string_lossy().to_string();
+                if newest
+                    .as_ref()
+                    .map(|(current, _)| modified > *current)
+                    .unwrap_or(true)
+                {
+                    newest = Some((modified, session_id));
+                }
+            }
+            newest.map(|(_, session_id)| session_id)
+        }
+        _ => None,
+    }
+}
+
+/// Execute the requested action.
 async fn execute_action(
     action: Commands,
     agent: &mut (dyn crate::agent::Agent + Send + Sync),
     ctx: &ExecutionContext<'_>,
-) -> Result<(Option<(String, String)>, Option<(String, String)>)> {
-    let mut resume_worktree_info = None;
-    let mut resume_sandbox_info = None;
-
+) -> Result<()> {
     match action {
-        Commands::Run { prompt } => {
-            if ctx.json_mode && prompt.is_some() {
+        Commands::Run {
+            prompt,
+            resume,
+            continue_session,
+        } => {
+            if resume.is_some() || continue_session {
+                info!("Resuming session");
+                agent
+                    .run_resume(resume.as_deref(), continue_session)
+                    .await?;
+            } else if ctx.json_mode && prompt.is_some() {
                 info!("Starting non-interactive session (JSON mode)");
                 let wrapped = if ctx.provider != "claude" {
                     let w = prompt.as_deref().map(wrap_prompt_for_json);
@@ -852,59 +1286,10 @@ async fn execute_action(
                 print_agent_output(&agent_out, ctx.output_fmt, ctx.show_usage, ctx.verbose)?;
             }
         }
-        Commands::Resume {
-            session_id: resume_id,
-            last,
-        } => {
-            debug!("Resume action: session_id={:?}, last={}", resume_id, last);
-            if let Some(ref sid) = resume_id {
-                let store = session::SessionStore::load(ctx.root).unwrap_or_default();
-                if let Some(entry) = store.find_by_session_id(sid) {
-                    // Handle sandbox resume
-                    if let Some(ref sandbox_name) = entry.sandbox_name {
-                        debug!("Resuming in sandbox: {}", sandbox_name);
-                        let workspace = if !entry.worktree_path.is_empty() {
-                            entry.worktree_path.clone()
-                        } else {
-                            std::env::current_dir()
-                                .unwrap_or_default()
-                                .to_string_lossy()
-                                .to_string()
-                        };
-                        let config = sandbox::SandboxConfig {
-                            name: sandbox_name.clone(),
-                            template: sandbox::template_for_provider(&entry.provider).to_string(),
-                            workspace,
-                        };
-                        agent.set_sandbox(config);
-                        resume_sandbox_info = Some((sid.clone(), sandbox_name.clone()));
-                    } else {
-                        // Handle worktree resume
-                        let wt_path = std::path::Path::new(&entry.worktree_path);
-                        if wt_path.exists() {
-                            debug!("Resuming in worktree: {}", entry.worktree_path);
-                            agent.set_root(entry.worktree_path.clone());
-                            resume_worktree_info = Some((sid.clone(), entry.worktree_path.clone()));
-                        } else {
-                            log::warn!(
-                                "Worktree no longer exists at {}, resuming without it",
-                                entry.worktree_path
-                            );
-                            let mut store = store;
-                            store.remove(sid);
-                            let _ = store.save(ctx.root);
-                        }
-                    }
-                }
-            }
-
-            info!("Resuming session");
-            agent.run_resume(resume_id.as_deref(), last).await?;
-        }
         _ => unreachable!(),
     }
 
-    Ok((resume_worktree_info, resume_sandbox_info))
+    Ok(())
 }
 
 /// Print agent output in the requested format.
@@ -969,9 +1354,10 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     log_config_details(&params);
 
     let AgentActionParams {
-        agent_name,
-        provider,
-        action,
+        agent_name: _,
+        mut provider,
+        provider_explicit,
+        mut action,
         system_prompt,
         model,
         root,
@@ -997,8 +1383,81 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         debug!("Effective system prompt: {}", sp);
     }
 
-    let wt = setup_worktree(&worktree_flag, &action, &root, show_wrapper)?;
-    let sb = setup_sandbox(&sandbox_flag, &action, &root)?;
+    let resume_target = if let Some(session_id) = run_resume_id(&action) {
+        resolve_resume_target(session_id, root.as_deref())
+    } else if run_continue_requested(&action) {
+        resolve_continue_target(root.as_deref())
+    } else {
+        None
+    };
+
+    if is_resume_run(&action) && resume_target.is_none() {
+        bail!("No matching session found to resume");
+    }
+
+    if let Some(target) = &resume_target {
+        if provider_explicit && provider != target.entry.provider {
+            bail!(
+                "Requested provider '{}' does not match the stored session provider '{}'",
+                provider,
+                target.entry.provider
+            );
+        }
+        provider = target.entry.provider.clone();
+    }
+
+    if let Some(target) = &resume_target {
+        let native_id = target
+            .entry
+            .provider_session_id
+            .clone()
+            .unwrap_or_else(|| target.entry.session_id.clone());
+        if let Commands::Run {
+            resume,
+            continue_session,
+            ..
+        } = &mut action
+        {
+            *resume = Some(native_id);
+            *continue_session = false;
+        }
+    }
+
+    let plain = setup_plain_session(&action, json_mode, &root);
+    let wrapper_session_id = plain.session_id.clone();
+
+    let wt = setup_worktree(
+        &worktree_flag,
+        &action,
+        &root,
+        show_wrapper,
+        wrapper_session_id.clone(),
+    )?;
+    let sb = setup_sandbox(&sandbox_flag, &action, &root, wrapper_session_id.clone())?;
+
+    let effective_root = if let Some(target) = &resume_target {
+        if target.entry.is_worktree {
+            let wt_path = std::path::Path::new(&target.entry.worktree_path);
+            if !wt_path.exists() && target.matched_by_wrapper_id {
+                log::warn!(
+                    "Worktree no longer exists at {}, resuming without it",
+                    target.entry.worktree_path
+                );
+                let mut store = session::SessionStore::load(root.as_deref()).unwrap_or_default();
+                store.remove(&target.entry.session_id);
+                let _ = store.save(root.as_deref());
+                Some(current_workspace(root.as_deref()))
+            } else {
+                Some(target.entry.worktree_path.clone())
+            }
+        } else {
+            Some(target.entry.worktree_path.clone())
+        }
+    } else {
+        wt.effective_root
+            .clone()
+            .or_else(|| plain.workspace_path.clone())
+    };
 
     // Extract output/input format from exec action
     let (output_format, input_format) = match &action {
@@ -1020,10 +1479,11 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     let (mut agent, output_fmt_clone) = create_and_configure_agent(
         AgentSetupParams {
             provider: provider.clone(),
-            agent_name: agent_name.clone(),
+            agent_name: capitalize(&provider),
             system_prompt,
             model,
-            effective_root: wt.effective_root.clone(),
+            effective_root,
+            session_id: wrapper_session_id.clone(),
             auto_approve,
             add_dirs,
             output_format,
@@ -1044,6 +1504,19 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
             name: name.clone(),
             template: sandbox::template_for_provider(&provider).to_string(),
             workspace: workspace.clone(),
+        };
+        agent.set_sandbox(config);
+        if show_wrapper {
+            println!("\x1b[32m✓\x1b[0m Sandbox configured: {}", name);
+        }
+    }
+    if let Some(target) = &resume_target
+        && let Some(name) = &target.entry.sandbox_name
+    {
+        let config = sandbox::SandboxConfig {
+            name: name.clone(),
+            template: sandbox::template_for_provider(&provider).to_string(),
+            workspace: target.entry.worktree_path.clone(),
         };
         agent.set_sandbox(config);
         if show_wrapper {
@@ -1096,12 +1569,14 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     if show_wrapper {
         println!(
             "\x1b[32m✓\x1b[0m {} initialized with model {}{}",
-            agent_name, model_display, auto_approve_suffix
+            capitalize(&provider),
+            model_display,
+            auto_approve_suffix
         );
     }
 
     // Save session-worktree mapping before execution (so it survives Ctrl+C)
-    save_session_mapping(&wt, &sb, &provider, root.as_deref());
+    save_session_mapping(&plain, &wt, &sb, &provider, root.as_deref());
 
     let is_worktree_session = wt.is_worktree_session;
     let is_interactive_worktree = wt.is_worktree_session && matches!(action, Commands::Run { .. });
@@ -1114,10 +1589,17 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         output_fmt: output_fmt_clone.as_deref(),
         show_usage,
         verbose,
-        root: root.as_deref(),
     };
-    let (resume_worktree_info, resume_sandbox_info) =
-        execute_action(action, &mut *agent, &exec_ctx).await?;
+    execute_action(action, &mut *agent, &exec_ctx).await?;
+
+    let wrapper_session_id = wt
+        .session_id
+        .as_deref()
+        .or(sb.session_id.as_deref())
+        .or(plain.session_id.as_deref());
+    let native_session_id =
+        discover_provider_session_id(&provider, wrapper_session_id, root.as_deref(), &wt, &plain);
+    update_provider_session_id(wrapper_session_id, native_session_id, root.as_deref());
 
     // Cleanup
     debug!("Cleaning up agent resources");
@@ -1133,7 +1615,11 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
                 root.as_deref(),
             )?;
         }
-    } else if let Some((ref sid, ref sandbox_name)) = resume_sandbox_info {
+    } else if let Some(target) = &resume_target
+        && let Some(ref sandbox_name) = target.entry.sandbox_name
+        && target.matched_by_wrapper_id
+    {
+        let sid = target.entry.session_id.as_str();
         prompt_sandbox_cleanup(sid, sandbox_name, root.as_deref())?;
     }
 
@@ -1145,8 +1631,17 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
             .as_ref()
             .zip(wt.worktree_path.as_ref())
             .map(|(sid, wtp)| (sid.clone(), wtp.clone()))
+    } else if let Some(target) = &resume_target {
+        if target.entry.is_worktree && target.matched_by_wrapper_id {
+            Some((
+                target.entry.session_id.clone(),
+                target.entry.worktree_path.clone(),
+            ))
+        } else {
+            None
+        }
     } else {
-        resume_worktree_info
+        None
     };
 
     if let Some((sid, wtp)) = cleanup_info {
@@ -1175,10 +1670,11 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         } else {
             // Exec with changes: keep and print resume command
             if show_wrapper {
-                println!(
-                    "\x1b[32m✓\x1b[0m Workspace kept. Resume with: agent resume {}",
-                    sid
-                );
+                let store = session::SessionStore::load(root.as_deref()).unwrap_or_default();
+                let provider_session_id = store
+                    .find_by_session_id(&sid)
+                    .and_then(|entry| entry.provider_session_id.as_deref());
+                print_resume_hint(&sid, provider_session_id, "Workspace");
             }
         }
     }
@@ -1218,10 +1714,11 @@ fn prompt_sandbox_cleanup(session_id: &str, sandbox_name: &str, root: Option<&st
         store.remove(session_id);
         let _ = store.save(root);
     } else {
-        println!(
-            "\x1b[32m✓\x1b[0m Sandbox kept. Resume with: agent resume {}",
-            session_id
-        );
+        let store = session::SessionStore::load(root).unwrap_or_default();
+        let provider_session_id = store
+            .find_by_session_id(session_id)
+            .and_then(|entry| entry.provider_session_id.as_deref());
+        print_resume_hint(session_id, provider_session_id, "Sandbox");
     }
 
     Ok(())
@@ -1266,10 +1763,11 @@ fn prompt_worktree_cleanup(
         store.remove(session_id);
         let _ = store.save(root);
     } else {
-        println!(
-            "\x1b[32m✓\x1b[0m Workspace kept. Resume with: agent resume {}",
-            session_id
-        );
+        let store = session::SessionStore::load(root).unwrap_or_default();
+        let provider_session_id = store
+            .find_by_session_id(session_id)
+            .and_then(|entry| entry.provider_session_id.as_deref());
+        print_resume_hint(session_id, provider_session_id, "Workspace");
     }
 
     Ok(())
