@@ -2,8 +2,13 @@ use crate::agent::{Agent, ModelSize};
 use crate::debug;
 use crate::output::AgentOutput;
 use crate::sandbox::SandboxConfig;
+use crate::session_log::{
+    BackfilledSession, HistoricalLogAdapter, LiveLogAdapter, LiveLogContext, LogCompleteness,
+    LogEventKind, LogSourceKind, SessionLogMetadata, SessionLogWriter,
+};
 use anyhow::Result;
 use async_trait::async_trait;
+use std::io::BufRead;
 use std::path::Path;
 use std::process::Stdio;
 use tokio::fs;
@@ -31,6 +36,16 @@ pub struct Codex {
     capture_output: bool,
     sandbox: Option<SandboxConfig>,
 }
+
+pub struct CodexLiveLogAdapter {
+    ctx: LiveLogContext,
+    tui_offset: u64,
+    history_offset: u64,
+    thread_id: Option<String>,
+    pending_history: Vec<(String, String)>,
+}
+
+pub struct CodexHistoricalLogAdapter;
 
 impl Codex {
     pub fn new() -> Self {
@@ -271,6 +286,249 @@ impl Default for Codex {
     fn default() -> Self {
         Self::new()
     }
+}
+
+impl CodexLiveLogAdapter {
+    pub fn new(ctx: LiveLogContext) -> Self {
+        Self {
+            ctx,
+            tui_offset: file_len(&codex_tui_log_path()).unwrap_or(0),
+            history_offset: file_len(&codex_history_path()).unwrap_or(0),
+            thread_id: None,
+            pending_history: Vec::new(),
+        }
+    }
+}
+
+#[async_trait]
+impl LiveLogAdapter for CodexLiveLogAdapter {
+    async fn poll(&mut self, writer: &SessionLogWriter) -> Result<()> {
+        self.poll_tui(writer)?;
+        self.poll_history(writer)?;
+        Ok(())
+    }
+}
+
+impl CodexLiveLogAdapter {
+    fn poll_tui(&mut self, writer: &SessionLogWriter) -> Result<()> {
+        let path = codex_tui_log_path();
+        if !path.exists() {
+            return Ok(());
+        }
+        let mut reader = open_reader_from_offset(&path, &mut self.tui_offset)?;
+        let mut line = String::new();
+        while reader.read_line(&mut line)? > 0 {
+            let current = line.trim().to_string();
+            self.tui_offset += line.len() as u64;
+            if self.thread_id.is_none() {
+                self.thread_id = extract_thread_id(&current);
+                if let Some(thread_id) = &self.thread_id {
+                    writer.set_provider_session_id(Some(thread_id.clone()))?;
+                    writer.add_source_path(path.to_string_lossy().to_string())?;
+                }
+            }
+            if let Some(thread_id) = &self.thread_id
+                && current.contains(thread_id)
+            {
+                if let Some(event) = parse_codex_tui_line(&current) {
+                    writer.emit(LogSourceKind::ProviderLog, event)?;
+                }
+            }
+            line.clear();
+        }
+        Ok(())
+    }
+
+    fn poll_history(&mut self, writer: &SessionLogWriter) -> Result<()> {
+        let path = codex_history_path();
+        if !path.exists() {
+            return Ok(());
+        }
+        let mut reader = open_reader_from_offset(&path, &mut self.history_offset)?;
+        let mut line = String::new();
+        while reader.read_line(&mut line)? > 0 {
+            self.history_offset += line.len() as u64;
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                line.clear();
+                continue;
+            }
+            if let Ok(value) = serde_json::from_str::<serde_json::Value>(trimmed)
+                && let (Some(session_id), Some(text)) = (
+                    value.get("session_id").and_then(|value| value.as_str()),
+                    value.get("text").and_then(|value| value.as_str()),
+                )
+            {
+                self.pending_history
+                    .push((session_id.to_string(), text.to_string()));
+            }
+            line.clear();
+        }
+
+        if let Some(thread_id) = &self.thread_id {
+            let mut still_pending = Vec::new();
+            for (session_id, text) in self.pending_history.drain(..) {
+                if &session_id == thread_id {
+                    writer.emit(
+                        LogSourceKind::ProviderLog,
+                        LogEventKind::UserMessage {
+                            role: "user".to_string(),
+                            content: text,
+                            message_id: None,
+                        },
+                    )?;
+                } else {
+                    still_pending.push((session_id, text));
+                }
+            }
+            self.pending_history = still_pending;
+            writer.add_source_path(path.to_string_lossy().to_string())?;
+        }
+
+        Ok(())
+    }
+}
+
+impl HistoricalLogAdapter for CodexHistoricalLogAdapter {
+    fn backfill(&self, _root: Option<&str>) -> Result<Vec<BackfilledSession>> {
+        let mut sessions = std::collections::HashMap::<String, BackfilledSession>::new();
+        let path = codex_history_path();
+        if path.exists() {
+            let file = std::fs::File::open(&path)?;
+            let reader = std::io::BufReader::new(file);
+            for line in reader.lines() {
+                let line = line?;
+                if line.trim().is_empty() {
+                    continue;
+                }
+                let value: serde_json::Value = match serde_json::from_str(&line) {
+                    Ok(value) => value,
+                    Err(_) => continue,
+                };
+                let Some(session_id) = value.get("session_id").and_then(|value| value.as_str()) else {
+                    continue;
+                };
+                let entry = sessions.entry(session_id.to_string()).or_insert_with(|| BackfilledSession {
+                    metadata: SessionLogMetadata {
+                        provider: "codex".to_string(),
+                        wrapper_session_id: session_id.to_string(),
+                        provider_session_id: Some(session_id.to_string()),
+                        workspace_path: None,
+                        command: "backfill".to_string(),
+                        model: None,
+                        resumed: false,
+                        backfilled: true,
+                    },
+                    completeness: LogCompleteness::Partial,
+                    source_paths: vec![path.to_string_lossy().to_string()],
+                    events: Vec::new(),
+                });
+                if let Some(text) = value.get("text").and_then(|value| value.as_str()) {
+                    entry.events.push((
+                        LogSourceKind::Backfill,
+                        LogEventKind::UserMessage {
+                            role: "user".to_string(),
+                            content: text.to_string(),
+                            message_id: None,
+                        },
+                    ));
+                }
+            }
+        }
+
+        let tui_path = codex_tui_log_path();
+        if tui_path.exists() {
+            let file = std::fs::File::open(&tui_path)?;
+            let reader = std::io::BufReader::new(file);
+            for line in reader.lines() {
+                let line = line?;
+                let Some(thread_id) = extract_thread_id(&line) else {
+                    continue;
+                };
+                if let Some(session) = sessions.get_mut(&thread_id)
+                    && let Some(event) = parse_codex_tui_line(&line)
+                {
+                    session.events.push((LogSourceKind::Backfill, event));
+                    if !session
+                        .source_paths
+                        .contains(&tui_path.to_string_lossy().to_string())
+                    {
+                        session
+                            .source_paths
+                            .push(tui_path.to_string_lossy().to_string());
+                    }
+                }
+            }
+        }
+
+        Ok(sessions.into_values().collect())
+    }
+}
+
+fn parse_codex_tui_line(line: &str) -> Option<LogEventKind> {
+    if let Some(rest) = line.split("ToolCall: ").nth(1) {
+        let mut parts = rest.splitn(2, ' ');
+        let tool_name = parts.next()?.to_string();
+        let json_part = parts
+            .next()
+            .unwrap_or_default()
+            .split(" thread_id=")
+            .next()
+            .unwrap_or_default();
+        let input = serde_json::from_str(json_part).ok();
+        return Some(LogEventKind::ToolCall {
+            tool_name,
+            tool_id: None,
+            input,
+        });
+    }
+
+    if line.contains("BackgroundEvent:") || line.contains("codex_core::client:") {
+        return Some(LogEventKind::ProviderStatus {
+            message: line.to_string(),
+            data: None,
+        });
+    }
+
+    None
+}
+
+fn extract_thread_id(line: &str) -> Option<String> {
+    let needle = "thread_id=";
+    let start = line.find(needle)? + needle.len();
+    let tail = &line[start..];
+    let end = tail
+        .find(|ch: char| ch == ' ' || ch == '}' || ch == ':')
+        .unwrap_or(tail.len());
+    Some(tail[..end].to_string())
+}
+
+fn codex_history_path() -> std::path::PathBuf {
+    std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join(".codex/history.jsonl")
+}
+
+fn codex_tui_log_path() -> std::path::PathBuf {
+    std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join(".codex/log/codex-tui.log")
+}
+
+fn file_len(path: &std::path::Path) -> Option<u64> {
+    std::fs::metadata(path).ok().map(|metadata| metadata.len())
+}
+
+fn open_reader_from_offset(
+    path: &std::path::Path,
+    offset: &mut u64,
+) -> Result<std::io::BufReader<std::fs::File>> {
+    let mut file = std::fs::File::open(path)?;
+    use std::io::Seek;
+    file.seek(std::io::SeekFrom::Start(*offset))?;
+    Ok(std::io::BufReader::new(file))
 }
 
 #[async_trait]

@@ -13,6 +13,7 @@ mod output;
 mod process;
 mod sandbox;
 mod session;
+mod session_log;
 mod worktree;
 
 use anyhow::{Result, bail};
@@ -884,6 +885,8 @@ fn save_session_mapping(
             is_worktree: false,
             discovered: false,
             discovery_source: None,
+            log_path: None,
+            log_completeness: "partial".to_string(),
         });
         if let Err(e) = store.save(root) {
             log::warn!("Failed to save session mapping: {}", e);
@@ -907,6 +910,8 @@ fn save_session_mapping(
             is_worktree: true,
             discovered: false,
             discovery_source: None,
+            log_path: None,
+            log_completeness: "partial".to_string(),
         });
         if let Err(e) = store.save(root) {
             log::warn!("Failed to save session mapping: {}", e);
@@ -930,6 +935,8 @@ fn save_session_mapping(
             is_worktree: false,
             discovered: false,
             discovery_source: None,
+            log_path: None,
+            log_completeness: "partial".to_string(),
         });
         if let Err(e) = store.save(root) {
             log::warn!("Failed to save sandbox session mapping: {}", e);
@@ -1091,6 +1098,8 @@ fn cache_discovered_session(
         is_worktree,
         discovered: true,
         discovery_source: Some(discovered.discovery_source.clone()),
+        log_path: None,
+        log_completeness: "partial".to_string(),
     };
 
     let mut store = session::SessionStore::load(root).unwrap_or_default();
@@ -1227,6 +1236,7 @@ async fn execute_action(
     action: Commands,
     agent: &mut (dyn crate::agent::Agent + Send + Sync),
     ctx: &ExecutionContext<'_>,
+    log_writer: Option<&crate::session_log::SessionLogWriter>,
 ) -> Result<()> {
     match action {
         Commands::Run {
@@ -1253,6 +1263,9 @@ async fn execute_action(
                 };
                 let run_prompt = wrapped.as_deref().or(prompt.as_deref());
                 let agent_output = agent.run(run_prompt).await?;
+                if let (Some(writer), Some(agent_output)) = (log_writer, agent_output.as_ref()) {
+                    crate::session_log::record_agent_output(writer, agent_output)?;
+                }
                 handle_json_output(
                     agent_output,
                     agent,
@@ -1277,6 +1290,9 @@ async fn execute_action(
                 prompt.clone()
             };
             let agent_output = agent.run(Some(&run_prompt)).await?;
+            if let (Some(writer), Some(agent_output)) = (log_writer, agent_output.as_ref()) {
+                crate::session_log::record_agent_output(writer, agent_output)?;
+            }
 
             if ctx.json_mode {
                 handle_json_output(
@@ -1354,6 +1370,45 @@ fn log_config_details(params: &AgentActionParams) {
     }
 }
 
+fn command_name(action: &Commands) -> &'static str {
+    match action {
+        Commands::Run { .. } => "run",
+        Commands::Exec { .. } => "exec",
+        Commands::Review { .. } => "review",
+        Commands::Config { .. } => "config",
+        Commands::Man { .. } => "man",
+    }
+}
+
+fn action_prompt(action: &Commands) -> Option<&str> {
+    match action {
+        Commands::Run { prompt, .. } => prompt.as_deref(),
+        Commands::Exec { prompt, .. } => Some(prompt.as_str()),
+        _ => None,
+    }
+}
+
+fn should_enable_live_session_logs(action: &Commands, json_mode: bool) -> bool {
+    matches!(action, Commands::Run { .. }) && !json_mode
+}
+
+fn update_session_log_metadata(
+    session_id: Option<&str>,
+    log_path: Option<String>,
+    completeness: &str,
+    root: Option<&str>,
+) {
+    let Some(session_id) = session_id else {
+        return;
+    };
+    let mut store = session::SessionStore::load(root).unwrap_or_default();
+    if let Some(entry) = store.sessions.iter_mut().find(|entry| entry.session_id == session_id) {
+        entry.log_path = log_path;
+        entry.log_completeness = completeness.to_string();
+        let _ = store.save(root);
+    }
+}
+
 async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     resolve_auto_selection(&mut params).await?;
     log_config_details(&params);
@@ -1381,6 +1436,8 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
 
     let is_exec = matches!(action, Commands::Exec { .. });
     let show_wrapper = !quiet && (!is_exec || verbose);
+
+    crate::session_log::run_default_backfill(root.as_deref())?;
 
     let system_prompt =
         augment_system_prompt_for_json(system_prompt, json_mode, &provider, &json_schema);
@@ -1433,6 +1490,10 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
 
     let plain = setup_plain_session(&action, json_mode, &root);
     let wrapper_session_id = plain.session_id.clone();
+    let log_session_id = wrapper_session_id
+        .clone()
+        .or_else(|| resume_target.as_ref().map(|target| target.entry.session_id.clone()))
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
     let wt = setup_worktree(
         &worktree_flag,
@@ -1490,7 +1551,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
             agent_name: capitalize(&provider),
             system_prompt,
             model,
-            effective_root,
+            effective_root: effective_root.clone(),
             session_id: wrapper_session_id.clone(),
             auto_approve,
             add_dirs,
@@ -1594,6 +1655,55 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         root.as_deref(),
     );
 
+    let initial_provider_session_id = if provider == "claude" {
+        wrapper_session_id.clone()
+    } else {
+        resume_target
+            .as_ref()
+            .and_then(|target| target.entry.provider_session_id.clone())
+    };
+    let log_metadata = crate::session_log::SessionLogMetadata {
+        provider: provider.clone(),
+        wrapper_session_id: log_session_id.clone(),
+        provider_session_id: initial_provider_session_id,
+        workspace_path: effective_root
+            .clone()
+            .or_else(|| plain.workspace_path.clone())
+            .or_else(|| wt.worktree_path.clone())
+            .or_else(|| sb.workspace.clone()),
+        command: command_name(&action).to_string(),
+        model: Some(persisted_model.clone()),
+        resumed: is_resume_run(&action),
+        backfilled: false,
+    };
+    let live_ctx = crate::session_log::LiveLogContext {
+        provider: provider.clone(),
+        root: root.clone(),
+        wrapper_session_id: log_session_id.clone(),
+        provider_session_id: log_metadata.provider_session_id.clone(),
+        workspace_path: log_metadata.workspace_path.clone(),
+        started_at: chrono::Utc::now(),
+    };
+    let live_adapter = crate::session_log::live_adapter_for_provider(
+        &provider,
+        live_ctx,
+        should_enable_live_session_logs(&action, json_mode),
+    );
+    let log_coordinator =
+        crate::session_log::SessionLogCoordinator::start(root.as_deref(), log_metadata, live_adapter)?;
+    crate::session_log::record_prompt(log_coordinator.writer(), action_prompt(&action))?;
+    if let Ok(log_path) = log_coordinator.writer().log_path() {
+        update_session_log_metadata(
+            wrapper_session_id
+                .as_deref()
+                .or(wt.session_id.as_deref())
+                .or(sb.session_id.as_deref()),
+            Some(log_path.to_string_lossy().to_string()),
+            "partial",
+            root.as_deref(),
+        );
+    }
+
     let is_worktree_session = wt.is_worktree_session;
     let is_interactive_worktree = wt.is_worktree_session && matches!(action, Commands::Run { .. });
     let is_interactive_sandbox = sb.is_sandbox_session && matches!(action, Commands::Run { .. });
@@ -1606,7 +1716,13 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         show_usage,
         verbose,
     };
-    execute_action(action, &mut *agent, &exec_ctx).await?;
+    let action_result = execute_action(action, &mut *agent, &exec_ctx, Some(log_coordinator.writer())).await;
+    if let Err(err) = &action_result {
+        log_coordinator
+            .finish(false, Some(err.to_string()))
+            .await?;
+        return Err(anyhow::anyhow!(err.to_string()));
+    }
 
     let wrapper_session_id = wt
         .session_id
@@ -1615,7 +1731,23 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         .or(plain.session_id.as_deref());
     let native_session_id =
         discover_provider_session_id(&provider, wrapper_session_id, root.as_deref(), &wt, &plain);
+    if let Some(native_session_id) = &native_session_id {
+        log_coordinator
+            .writer()
+            .set_provider_session_id(Some(native_session_id.clone()))?;
+    }
     update_provider_session_id(wrapper_session_id, native_session_id, root.as_deref());
+    update_session_log_metadata(
+        wrapper_session_id,
+        log_coordinator
+            .writer()
+            .log_path()
+            .ok()
+            .map(|path| path.to_string_lossy().to_string()),
+        "partial",
+        root.as_deref(),
+    );
+    log_coordinator.finish(true, None).await?;
 
     // Cleanup
     debug!("Cleaning up agent resources");
@@ -1824,9 +1956,11 @@ async fn run_review(params: ReviewParams) -> Result<()> {
         uncommitted, base, commit
     );
 
+    crate::session_log::run_default_backfill(root.as_deref())?;
+
     let spinner = logging::spinner("Initializing Codex for review".to_string());
     let mut agent =
-        AgentFactory::create("codex", system_prompt, model, root, auto_approve, add_dirs)?;
+        AgentFactory::create("codex", system_prompt, model, root.clone(), auto_approve, add_dirs)?;
     logging::finish_spinner_quiet(&spinner);
 
     let model_name = agent.get_model().to_string();
@@ -1843,14 +1977,58 @@ async fn run_review(params: ReviewParams) -> Result<()> {
         .downcast_mut::<crate::codex::Codex>()
         .expect("Failed to get Codex agent for review");
 
-    codex
+    let review_session_id = uuid::Uuid::new_v4().to_string();
+    let workspace_path = root.clone().or_else(|| std::env::current_dir().ok().map(|p| p.to_string_lossy().to_string()));
+    let log_metadata = crate::session_log::SessionLogMetadata {
+        provider: "codex".to_string(),
+        wrapper_session_id: review_session_id,
+        provider_session_id: None,
+        workspace_path,
+        command: "review".to_string(),
+        model: Some(model_name.clone()),
+        resumed: false,
+        backfilled: false,
+    };
+    let live_adapter = crate::session_log::live_adapter_for_provider(
+        "codex",
+        crate::session_log::LiveLogContext {
+            provider: "codex".to_string(),
+            root: root.clone(),
+            wrapper_session_id: log_metadata.wrapper_session_id.clone(),
+            provider_session_id: None,
+            workspace_path: log_metadata.workspace_path.clone(),
+            started_at: chrono::Utc::now(),
+        },
+        true,
+    );
+    let log_coordinator =
+        crate::session_log::SessionLogCoordinator::start(root.as_deref(), log_metadata, live_adapter)?;
+    let review_prompt = format!(
+        "review uncommitted={} base={:?} commit={:?} title={:?}",
+        uncommitted, base, commit, title
+    );
+    crate::session_log::record_prompt(log_coordinator.writer(), Some(&review_prompt))?;
+
+    let review_result = codex
         .review(
             uncommitted,
             base.as_deref(),
             commit.as_deref(),
             title.as_deref(),
         )
-        .await?;
+        .await;
+    match review_result {
+        Ok(()) => {
+            log_coordinator.finish(true, None).await?;
+            Ok(())
+        }
+        Err(err) => {
+            log_coordinator
+                .finish(false, Some(err.to_string()))
+                .await?;
+            Err(err)
+        }
+    }?;
 
     Ok(())
 }

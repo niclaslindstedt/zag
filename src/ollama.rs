@@ -1,6 +1,7 @@
 use crate::agent::{Agent, ModelSize};
 use crate::output::AgentOutput;
 use crate::sandbox::SandboxConfig;
+use crate::session_log::HistoricalLogAdapter;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::process::Stdio;
@@ -22,6 +23,8 @@ pub struct Ollama {
     capture_output: bool,
     sandbox: Option<SandboxConfig>,
 }
+
+pub struct OllamaHistoricalLogAdapter;
 
 impl Ollama {
     pub fn new() -> Self {
@@ -196,6 +199,12 @@ mod tests;
 impl Default for Ollama {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl HistoricalLogAdapter for OllamaHistoricalLogAdapter {
+    fn backfill(&self, _root: Option<&str>) -> Result<Vec<crate::session_log::BackfilledSession>> {
+        Ok(Vec::new())
     }
 }
 

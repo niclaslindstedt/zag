@@ -31,6 +31,8 @@ fn sample_entry(id: &str) -> SessionEntry {
         is_worktree: true,
         discovered: false,
         discovery_source: None,
+        log_path: None,
+        log_completeness: "partial".to_string(),
     }
 }
 

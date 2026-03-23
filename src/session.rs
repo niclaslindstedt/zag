@@ -29,6 +29,10 @@ pub struct SessionEntry {
     pub discovered: bool,
     #[serde(default)]
     pub discovery_source: Option<String>,
+    #[serde(default)]
+    pub log_path: Option<String>,
+    #[serde(default = "default_log_completeness")]
+    pub log_completeness: String,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -151,6 +155,10 @@ impl SessionStore {
         debug!("Removing session: {}", session_id);
         self.sessions.retain(|e| e.session_id != session_id);
     }
+}
+
+fn default_log_completeness() -> String {
+    "partial".to_string()
 }
 
 fn parse_created_at(created_at: &str) -> Option<DateTime<FixedOffset>> {

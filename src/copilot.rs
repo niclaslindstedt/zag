@@ -1,6 +1,9 @@
 use crate::agent::{Agent, ModelSize};
 use crate::output::AgentOutput;
 use crate::sandbox::SandboxConfig;
+use crate::session_log::{
+    BackfilledSession, HistoricalLogAdapter, LogCompleteness, SessionLogMetadata,
+};
 use anyhow::Result;
 use async_trait::async_trait;
 use std::path::Path;
@@ -36,6 +39,8 @@ pub struct Copilot {
     capture_output: bool,
     sandbox: Option<SandboxConfig>,
 }
+
+pub struct CopilotHistoricalLogAdapter;
 
 impl Copilot {
     pub fn new() -> Self {
@@ -164,6 +169,42 @@ mod tests;
 impl Default for Copilot {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl HistoricalLogAdapter for CopilotHistoricalLogAdapter {
+    fn backfill(&self, _root: Option<&str>) -> Result<Vec<BackfilledSession>> {
+        let Some(home) = std::env::var_os("HOME").map(std::path::PathBuf::from) else {
+            return Ok(Vec::new());
+        };
+        let base = home.join(".config/github-copilot/rd/chat-sessions");
+        let entries = match std::fs::read_dir(&base) {
+            Ok(entries) => entries,
+            Err(_) => return Ok(Vec::new()),
+        };
+        let mut sessions = Vec::new();
+        for entry in entries.flatten() {
+            if !entry.path().is_dir() {
+                continue;
+            }
+            let session_id = entry.file_name().to_string_lossy().to_string();
+            sessions.push(BackfilledSession {
+                metadata: SessionLogMetadata {
+                    provider: "copilot".to_string(),
+                    wrapper_session_id: session_id.clone(),
+                    provider_session_id: Some(session_id),
+                    workspace_path: None,
+                    command: "backfill".to_string(),
+                    model: None,
+                    resumed: false,
+                    backfilled: true,
+                },
+                completeness: LogCompleteness::MetadataOnly,
+                source_paths: vec![entry.path().to_string_lossy().to_string()],
+                events: Vec::new(),
+            });
+        }
+        Ok(sessions)
     }
 }
 

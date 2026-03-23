@@ -38,6 +38,7 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/main.rs` | CLI entry point with clap |
 | `src/config.rs` | Configuration management with get/set support |
 | `src/logging.rs` | Logging infrastructure and progress indicators |
+| `src/session_log.rs` | Harmonized per-session log schema, storage, backfill, and live adapter wiring |
 | `src/claude/mod.rs` | Claude agent implementation |
 | `src/claude/models.rs` | Claude JSON output models and conversion to unified format |
 | `src/codex.rs` | Codex agent implementation |
@@ -234,6 +235,79 @@ The CLI includes professional logging and progress indicators to provide clear f
 - **Model display**: Shows the actual model name being used
 - **File-based logging**: All log messages are written to session log files in `~/.agent/logs/` (always at debug level)
 - **Stderr capture**: In non-interactive (exec) mode, agent subprocess stderr is captured and logged to file. On failure, stderr is included in the error message. Interactive sessions pass stderr through unchanged.
+
+### Harmonized Session Logs
+
+There is a second logging layer, separate from the human/debug log in `src/logging.rs`, intended for machine consumption by other tools.
+
+- **Purpose**: One-way normalization of provider session activity into a stable per-session NDJSON format. This is not intended to reconstruct native provider logs.
+- **Storage**: Per-project under `~/.agent/projects/<sanitized-root>/logs/`.
+- **Primary file shape**:
+  - `logs/sessions/<wrapper-session-id>.jsonl` — normalized events
+  - `logs/index.json` — session metadata / lookup
+  - `logs/backfill_state.json` — one-time import state
+- **Normalized events** include the important parts only: session start/end, user messages, assistant messages, reasoning/thinking, tool calls, tool results, permission outcomes, provider status lines, stderr, and parse warnings.
+- **Completeness is explicit**:
+  - `full` when native provider storage exposes the needed detail
+  - `partial` when only some event classes are available
+  - `metadata_only` when only session discovery metadata exists
+
+### Provider Log Sources
+
+The harmonized log design is based on real local provider files inspected during implementation, plus the repo's existing session discovery/parsing code.
+
+- **Claude**
+  - Native session source: `~/.claude/projects/**/<session-id>.jsonl`
+  - Observed contents: queue operations, user messages, assistant messages, thinking blocks, tool use blocks, tool result/user echo blocks, result events, cwd/session metadata
+  - Sidecars may exist under provider-owned subdirectories such as `tool-results/`
+  - Expected completeness: `full`
+
+- **Codex**
+  - Native prompt history: `~/.codex/history.jsonl`
+  - Native live activity log: `~/.codex/log/codex-tui.log`
+  - Observed contents:
+    - `history.jsonl` stores `session_id`, timestamp, and prompt text
+    - `codex-tui.log` stores `thread_id`-scoped live records including `ToolCall:` lines and provider/client status lines
+  - Important limitation: the observed TUI log is good for tool calls and status, but not a complete canonical source for all tool results / final assistant text in every mode
+  - Expected completeness: `partial` for interactive/native-log ingestion, better coverage for non-interactive JSON/NDJSON flows
+
+- **Gemini**
+  - Native session source: `~/.gemini/tmp/*/chats/session-*.json`
+  - Supplemental metadata source: `~/.gemini/tmp/*/logs.json`
+  - Observed contents: `sessionId`, message array, user messages, assistant messages, thoughts/reasoning entries, token/model metadata
+  - File behavior appears snapshot/rewrite-oriented rather than append-only
+  - Expected completeness: `full`
+
+- **Copilot**
+  - Discovered native session location: `~/.config/github-copilot/rd/chat-sessions/<session-id>/`
+  - Observed storage is opaque/binary/Xodus-like (`*.xd`, blob directories), not a simple text or JSON log
+  - Current assumption: provider-native metadata discovery is possible, but a proper semantic parser is not implemented until a reliable native log/export format is known
+  - Expected completeness today: `metadata_only` or wrapper/live-capture fallback
+  - Future work: once a real textual/session event source is found, add a provider-owned parser rather than pushing Copilot-specific logic into the shared logging layer
+
+- **Ollama**
+  - In this wrapper, no provider-native resumable session log/store was identified
+  - Current assumption: harmonized logging for Ollama must rely on wrapper-observed prompt/stdout/stderr unless a native session/event source is discovered later
+  - Expected completeness today: wrapper/live-capture fallback only
+  - Future work: if Ollama exposes a durable native session/event log, add a provider-owned parser there too
+
+### Implementation Notes For Future Work
+
+- Provider parsers should remain provider-owned. Shared code should only define:
+  - normalized schema
+  - storage/index/backfill mechanics
+  - coordinator lifecycle
+- Do not assume all providers are append-only:
+  - Claude looks append-only
+  - Gemini chat files look rewrite/snapshot based
+  - Codex currently needs correlation across more than one native file
+- For Copilot and Ollama, do not fake completeness. Keep emitting `partial` / `metadata_only` until a real native source is confirmed.
+- If you later find proper Copilot or Ollama logs, update this file with:
+  - exact file paths
+  - whether files append or rewrite
+  - stable ids available for dedupe/correlation
+  - whether tool calls, tool results, assistant text, and reasoning are actually present
+  - expected completeness level after that parser is added
 
 ### Debug Mode
 

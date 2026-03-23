@@ -1,8 +1,13 @@
 use crate::agent::{Agent, ModelSize};
 use crate::output::AgentOutput;
 use crate::sandbox::SandboxConfig;
+use crate::session_log::{
+    BackfilledSession, HistoricalLogAdapter, LiveLogAdapter, LiveLogContext, LogCompleteness,
+    LogEventKind, LogSourceKind, SessionLogMetadata, SessionLogWriter,
+};
 use anyhow::Result;
 use async_trait::async_trait;
+use std::collections::HashSet;
 use std::path::Path;
 use std::process::Stdio;
 use tokio::fs;
@@ -29,6 +34,14 @@ pub struct Gemini {
     capture_output: bool,
     sandbox: Option<SandboxConfig>,
 }
+
+pub struct GeminiLiveLogAdapter {
+    ctx: LiveLogContext,
+    session_path: Option<std::path::PathBuf>,
+    emitted_message_ids: std::collections::HashSet<String>,
+}
+
+pub struct GeminiHistoricalLogAdapter;
 
 impl Gemini {
     pub fn new() -> Self {
@@ -151,6 +164,256 @@ mod tests;
 impl Default for Gemini {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl GeminiLiveLogAdapter {
+    pub fn new(ctx: LiveLogContext) -> Self {
+        Self {
+            ctx,
+            session_path: None,
+            emitted_message_ids: HashSet::new(),
+        }
+    }
+
+    fn discover_session_path(&self) -> Option<std::path::PathBuf> {
+        let home = std::env::var_os("HOME").map(std::path::PathBuf::from)?;
+        let gemini_tmp = home.join(".gemini/tmp");
+        let mut best: Option<(std::time::SystemTime, std::path::PathBuf)> = None;
+        let projects = std::fs::read_dir(gemini_tmp).ok()?;
+        for project in projects.flatten() {
+            let chats = project.path().join("chats");
+            let files = std::fs::read_dir(chats).ok()?;
+            for file in files.flatten() {
+                let path = file.path();
+                let metadata = file.metadata().ok()?;
+                let modified = metadata.modified().ok()?;
+                let started_at = std::time::SystemTime::UNIX_EPOCH
+                    + std::time::Duration::from_secs(self.ctx.started_at.timestamp().max(0) as u64);
+                if modified
+                    < started_at
+                {
+                    continue;
+                }
+                if best
+                    .as_ref()
+                    .map(|(current, _)| modified > *current)
+                    .unwrap_or(true)
+                {
+                    best = Some((modified, path));
+                }
+            }
+        }
+        best.map(|(_, path)| path)
+    }
+}
+
+#[async_trait]
+impl LiveLogAdapter for GeminiLiveLogAdapter {
+    async fn poll(&mut self, writer: &SessionLogWriter) -> Result<()> {
+        if self.session_path.is_none() {
+            self.session_path = self.discover_session_path();
+            if let Some(path) = &self.session_path {
+                writer.add_source_path(path.to_string_lossy().to_string())?;
+            }
+        }
+        let Some(path) = self.session_path.as_ref() else {
+            return Ok(());
+        };
+        let content = match std::fs::read_to_string(path) {
+            Ok(content) => content,
+            Err(_) => return Ok(()),
+        };
+        let json: serde_json::Value = match serde_json::from_str(&content) {
+            Ok(json) => json,
+            Err(_) => {
+                writer.emit(
+                    LogSourceKind::ProviderFile,
+                    LogEventKind::ParseWarning {
+                        message: "Failed to parse Gemini chat file".to_string(),
+                        raw: None,
+                    },
+                )?;
+                return Ok(());
+            }
+        };
+        if let Some(session_id) = json.get("sessionId").and_then(|value| value.as_str()) {
+            writer.set_provider_session_id(Some(session_id.to_string()))?;
+        }
+        if let Some(messages) = json.get("messages").and_then(|value| value.as_array()) {
+            for message in messages {
+                let message_id = message
+                    .get("id")
+                    .and_then(|value| value.as_str())
+                    .unwrap_or_default()
+                    .to_string();
+                if message_id.is_empty() || !self.emitted_message_ids.insert(message_id.clone()) {
+                    continue;
+                }
+                match message.get("type").and_then(|value| value.as_str()) {
+                    Some("user") => writer.emit(
+                        LogSourceKind::ProviderFile,
+                        LogEventKind::UserMessage {
+                            role: "user".to_string(),
+                            content: message
+                                .get("content")
+                                .and_then(|value| value.as_str())
+                                .unwrap_or_default()
+                                .to_string(),
+                            message_id: Some(message_id.clone()),
+                        },
+                    )?,
+                    Some("gemini") => {
+                        writer.emit(
+                            LogSourceKind::ProviderFile,
+                            LogEventKind::AssistantMessage {
+                                content: message
+                                    .get("content")
+                                    .and_then(|value| value.as_str())
+                                    .unwrap_or_default()
+                                    .to_string(),
+                                message_id: Some(message_id.clone()),
+                            },
+                        )?;
+                        if let Some(thoughts) =
+                            message.get("thoughts").and_then(|value| value.as_array())
+                        {
+                            for thought in thoughts {
+                                writer.emit(
+                                    LogSourceKind::ProviderFile,
+                                    LogEventKind::Reasoning {
+                                        content: thought
+                                            .get("description")
+                                            .and_then(|value| value.as_str())
+                                            .unwrap_or_default()
+                                            .to_string(),
+                                        message_id: Some(message_id.clone()),
+                                    },
+                                )?;
+                            }
+                        }
+                        writer.emit(
+                            LogSourceKind::ProviderFile,
+                            LogEventKind::ProviderStatus {
+                                message: "Gemini message metadata".to_string(),
+                                data: Some(serde_json::json!({
+                                    "tokens": message.get("tokens"),
+                                    "model": message.get("model"),
+                                })),
+                            },
+                        )?;
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl HistoricalLogAdapter for GeminiHistoricalLogAdapter {
+    fn backfill(&self, _root: Option<&str>) -> Result<Vec<BackfilledSession>> {
+        let mut sessions = Vec::new();
+        let Some(home) = std::env::var_os("HOME").map(std::path::PathBuf::from) else {
+            return Ok(sessions);
+        };
+        let gemini_tmp = home.join(".gemini/tmp");
+        let projects = match std::fs::read_dir(gemini_tmp) {
+            Ok(projects) => projects,
+            Err(_) => return Ok(sessions),
+        };
+        for project in projects.flatten() {
+            let chats = project.path().join("chats");
+            let files = match std::fs::read_dir(chats) {
+                Ok(files) => files,
+                Err(_) => continue,
+            };
+            for file in files.flatten() {
+                let path = file.path();
+                let content = match std::fs::read_to_string(&path) {
+                    Ok(content) => content,
+                    Err(_) => continue,
+                };
+                let json: serde_json::Value = match serde_json::from_str(&content) {
+                    Ok(json) => json,
+                    Err(_) => continue,
+                };
+                let Some(session_id) = json.get("sessionId").and_then(|value| value.as_str()) else {
+                    continue;
+                };
+                let mut events = Vec::new();
+                if let Some(messages) = json.get("messages").and_then(|value| value.as_array()) {
+                    for message in messages {
+                        let message_id = message
+                            .get("id")
+                            .and_then(|value| value.as_str())
+                            .map(str::to_string);
+                        match message.get("type").and_then(|value| value.as_str()) {
+                            Some("user") => events.push((
+                                LogSourceKind::Backfill,
+                                LogEventKind::UserMessage {
+                                    role: "user".to_string(),
+                                    content: message
+                                        .get("content")
+                                        .and_then(|value| value.as_str())
+                                        .unwrap_or_default()
+                                        .to_string(),
+                                    message_id: message_id.clone(),
+                                },
+                            )),
+                            Some("gemini") => {
+                                events.push((
+                                    LogSourceKind::Backfill,
+                                    LogEventKind::AssistantMessage {
+                                        content: message
+                                            .get("content")
+                                            .and_then(|value| value.as_str())
+                                            .unwrap_or_default()
+                                            .to_string(),
+                                        message_id: message_id.clone(),
+                                    },
+                                ));
+                                if let Some(thoughts) =
+                                    message.get("thoughts").and_then(|value| value.as_array())
+                                {
+                                    for thought in thoughts {
+                                        events.push((
+                                            LogSourceKind::Backfill,
+                                            LogEventKind::Reasoning {
+                                                content: thought
+                                                    .get("description")
+                                                    .and_then(|value| value.as_str())
+                                                    .unwrap_or_default()
+                                                    .to_string(),
+                                                message_id: message_id.clone(),
+                                            },
+                                        ));
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                sessions.push(BackfilledSession {
+                    metadata: SessionLogMetadata {
+                        provider: "gemini".to_string(),
+                        wrapper_session_id: session_id.to_string(),
+                        provider_session_id: Some(session_id.to_string()),
+                        workspace_path: None,
+                        command: "backfill".to_string(),
+                        model: None,
+                        resumed: false,
+                        backfilled: true,
+                    },
+                    completeness: LogCompleteness::Full,
+                    source_paths: vec![path.to_string_lossy().to_string()],
+                    events,
+                });
+            }
+        }
+        Ok(sessions)
     }
 }
 

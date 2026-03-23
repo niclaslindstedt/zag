@@ -5,6 +5,7 @@
 /// - JSON output models for parsing Claude's verbose output
 /// - Conversion to unified AgentOutput format
 pub mod models;
+pub mod logs;
 
 use crate::agent::{Agent, ModelSize};
 use crate::output::AgentOutput;
