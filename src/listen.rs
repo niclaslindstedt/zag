@@ -423,7 +423,7 @@ pub fn format_event_rich(event: &AgentLogEvent, show_thinking: bool) -> Option<S
             render_content(content)
         )),
         LogEventKind::AssistantMessage { content, .. } => {
-            let rendered = render_content(content);
+            let rendered = render_markdown(content.trim());
             let indented = indent_continuation(&rendered, "  ");
             Some(format!("\n\x1b[1m\u{23fa}\x1b[0m {}", indented))
         }
@@ -531,6 +531,14 @@ fn format_tool_output(s: &str) -> String {
 /// Render content for display: preserve newlines, trim leading/trailing whitespace.
 fn render_content(s: &str) -> String {
     s.trim().to_string()
+}
+
+/// Render markdown content as ANSI-styled terminal text using termimad.
+fn render_markdown(s: &str) -> String {
+    let text = termimad::text(s);
+    // termimad::text returns a FmtText whose Display impl produces ANSI output.
+    // Trim trailing whitespace/newlines that termimad may add.
+    format!("{}", text).trim_end().to_string()
 }
 
 /// Indent continuation lines (2nd line onwards) with the given prefix.
