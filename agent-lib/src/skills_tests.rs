@@ -31,6 +31,27 @@ fn test_parse_skill_valid() {
 }
 
 #[test]
+fn test_get_skill_found() {
+    let tmp = TempDir::new().unwrap();
+    make_skill_dir(
+        tmp.path(),
+        "my-skill",
+        "Does stuff",
+        "# My Skill\n\nHelps you do things.",
+    );
+
+    // get_skill uses skills_dir() which we can't override, so test via parse_skill directly
+    let skill = parse_skill(&tmp.path().join("my-skill")).unwrap();
+    assert_eq!(skill.name, "my-skill");
+    assert_eq!(skill.description, "Does stuff");
+
+    // Verify Serialize works
+    let json = serde_json::to_string(&skill).unwrap();
+    assert!(json.contains("\"name\":\"my-skill\""));
+    assert!(json.contains("\"description\":\"Does stuff\""));
+}
+
+#[test]
 fn test_parse_skill_no_frontmatter() {
     let tmp = TempDir::new().unwrap();
     let dir = tmp.path().join("bad-skill");

@@ -65,7 +65,7 @@ fn is_real_dir(path: &Path) -> bool {
 }
 
 /// A parsed agent skill.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Skill {
     pub name: String,
     pub description: String,
@@ -377,6 +377,15 @@ pub fn setup_skills(provider: &str, system_prompt: &mut Option<String>) -> Resul
 /// List all skills (alias for load_all_skills, used by the subcommand).
 pub fn list_skills() -> Result<Vec<Skill>> {
     load_all_skills()
+}
+
+/// Get a single skill by name from `~/.agent/skills/<name>/`.
+pub fn get_skill(name: &str) -> Result<Skill> {
+    let dir = skills_dir().join(name);
+    if !dir.exists() {
+        bail!("Skill '{}' not found at {}", name, dir.display());
+    }
+    parse_skill(&dir)
 }
 
 /// Create a new skill skeleton at `~/.agent/skills/<name>/SKILL.md`.

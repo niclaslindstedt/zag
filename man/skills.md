@@ -58,7 +58,15 @@ Skill directories are symlinked with an `agent-` prefix to avoid collisions with
 List all available skills.
 
 ```
-agent skills list
+agent skills list [--json]
+```
+
+### show
+
+Show details of a specific skill, including its full body content.
+
+```
+agent skills show <name> [--json]
 ```
 
 ### add
@@ -110,6 +118,15 @@ agent skills add code-reviewer -d "Review code changes for quality and correctne
 
 # List all skills
 agent skills list
+
+# List all skills as JSON
+agent skills list --json
+
+# Show a specific skill
+agent skills show code-reviewer
+
+# Show a specific skill as JSON
+agent skills show code-reviewer --json
 
 # Manually sync to all providers
 agent skills sync

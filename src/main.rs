@@ -208,6 +208,9 @@ enum Commands {
     },
     /// Manage provider-agnostic skills stored in ~/.agent/skills/
     Skills {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
         #[command(subcommand)]
         command: SkillsCommand,
     },
@@ -223,6 +226,11 @@ enum LogsCommand {
 enum SkillsCommand {
     /// List all available skills
     List,
+    /// Show details of a specific skill
+    Show {
+        /// Skill name to show
+        name: String,
+    },
     /// Create a new skill skeleton
     Add {
         /// Skill name (directory name)
@@ -455,12 +463,12 @@ async fn main() -> Result<()> {
             );
             run_logs(command, cli.root.as_deref())?;
         }
-        Commands::Skills { command } => {
+        Commands::Skills { command, json } => {
             debug!(
                 "Running skills subcommand: {:?}",
                 std::mem::discriminant(&command)
             );
-            run_skills(command)?;
+            run_skills(command, json)?;
         }
         Commands::Capability { format, pretty } => {
             let provider = resolve_provider(cli.provider.as_deref(), cli.root.as_deref())?;
@@ -690,10 +698,14 @@ fn run_logs(command: LogsCommand, root: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-fn run_skills(command: SkillsCommand) -> Result<()> {
+fn run_skills(command: SkillsCommand, json: bool) -> Result<()> {
     match command {
         SkillsCommand::List => {
             let skill_list = skills::list_skills()?;
+            if json {
+                println!("{}", serde_json::to_string(&skill_list)?);
+                return Ok(());
+            }
             if skill_list.is_empty() {
                 println!("No skills found in {}", skills::skills_dir().display());
                 println!("Use 'agent skills add <name>' to create one.");
@@ -712,6 +724,20 @@ fn run_skills(command: SkillsCommand) -> Result<()> {
                     },
                     skill.dir.display()
                 );
+            }
+        }
+        SkillsCommand::Show { name } => {
+            let skill = skills::get_skill(&name)?;
+            if json {
+                println!("{}", serde_json::to_string(&skill)?);
+                return Ok(());
+            }
+            println!("Name:        {}", skill.name);
+            println!("Description: {}", skill.description);
+            println!("Path:        {}", skill.dir.display());
+            if !skill.body.is_empty() {
+                println!();
+                println!("{}", skill.body);
             }
         }
         SkillsCommand::Add { name, description } => {
