@@ -129,6 +129,59 @@ pub struct SessionLogIndexEntry {
     pub backfilled: bool,
 }
 
+/// Global session index — maps session IDs to their project-scoped log paths
+/// so that `agent listen` can find sessions from any directory.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct GlobalSessionIndex {
+    pub sessions: Vec<GlobalSessionEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GlobalSessionEntry {
+    pub session_id: String,
+    pub project: String,
+    pub log_path: String,
+    pub provider: String,
+    pub started_at: String,
+}
+
+pub fn load_global_index(base_dir: &Path) -> Result<GlobalSessionIndex> {
+    let path = base_dir.join("sessions_index.json");
+    if !path.exists() {
+        return Ok(GlobalSessionIndex::default());
+    }
+    let content = std::fs::read_to_string(&path)
+        .with_context(|| format!("Failed to read {}", path.display()))?;
+    Ok(serde_json::from_str(&content).unwrap_or_default())
+}
+
+pub fn save_global_index(base_dir: &Path, index: &GlobalSessionIndex) -> Result<()> {
+    let path = base_dir.join("sessions_index.json");
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create {}", parent.display()))?;
+    }
+    std::fs::write(&path, serde_json::to_string_pretty(index)?)
+        .with_context(|| format!("Failed to write {}", path.display()))
+}
+
+pub fn upsert_global_entry(base_dir: &Path, entry: GlobalSessionEntry) -> Result<()> {
+    let mut index = load_global_index(base_dir)?;
+    if let Some(existing) = index
+        .sessions
+        .iter_mut()
+        .find(|e| e.session_id == entry.session_id)
+    {
+        existing.log_path = entry.log_path;
+        existing.provider = entry.provider;
+        existing.started_at = entry.started_at;
+        existing.project = entry.project;
+    } else {
+        index.sessions.push(entry);
+    }
+    save_global_index(base_dir, &index)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BackfillState {
     #[serde(default)]
@@ -189,6 +242,7 @@ struct WriterState {
     index_path: PathBuf,
     next_seq: u64,
     completeness: LogCompleteness,
+    global_index_dir: Option<PathBuf>,
 }
 
 pub struct SessionLogCoordinator {
@@ -230,11 +284,23 @@ impl SessionLogWriter {
                 index_path,
                 next_seq,
                 completeness: LogCompleteness::Full,
+                global_index_dir: None,
             })),
         };
 
         writer.upsert_index()?;
         Ok(writer)
+    }
+
+    /// Set the global index directory so that session entries are also
+    /// written to `~/.agent/sessions_index.json` for cross-project lookup.
+    pub fn set_global_index_dir(&self, dir: PathBuf) -> Result<()> {
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Log mutex poisoned"))?;
+        state.global_index_dir = Some(dir);
+        Ok(())
     }
 
     pub fn log_path(&self) -> Result<PathBuf> {
@@ -345,6 +411,7 @@ impl SessionLogWriter {
             .lock()
             .map_err(|_| anyhow::anyhow!("Log mutex poisoned"))?;
         let mut index = load_index(&state.index_path)?;
+        let started_at;
         let existing = index
             .sessions
             .iter_mut()
@@ -356,14 +423,16 @@ impl SessionLogWriter {
             entry.command = Some(state.metadata.command.clone());
             entry.completeness = state.completeness;
             entry.backfilled = state.metadata.backfilled;
+            started_at = entry.started_at.clone();
         } else {
+            started_at = Utc::now().to_rfc3339();
             index.sessions.push(SessionLogIndexEntry {
                 wrapper_session_id: state.metadata.wrapper_session_id.clone(),
                 provider: state.metadata.provider.clone(),
                 provider_session_id: state.metadata.provider_session_id.clone(),
                 log_path: state.log_path.to_string_lossy().to_string(),
                 completeness: state.completeness,
-                started_at: Utc::now().to_rfc3339(),
+                started_at: started_at.clone(),
                 ended_at: None,
                 workspace_path: state.metadata.workspace_path.clone(),
                 command: Some(state.metadata.command.clone()),
@@ -371,7 +440,31 @@ impl SessionLogWriter {
                 backfilled: state.metadata.backfilled,
             });
         }
-        save_index(&state.index_path, &index)
+        save_index(&state.index_path, &index)?;
+
+        // Also upsert into global session index if configured
+        if let Some(ref global_dir) = state.global_index_dir {
+            // Derive project name from the index_path (parent of logs/index.json is the project dir)
+            let project = state
+                .index_path
+                .parent()
+                .and_then(|logs| logs.parent())
+                .and_then(|proj| proj.file_name())
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let _ = upsert_global_entry(
+                global_dir,
+                GlobalSessionEntry {
+                    session_id: state.metadata.wrapper_session_id.clone(),
+                    project,
+                    log_path: state.log_path.to_string_lossy().to_string(),
+                    provider: state.metadata.provider.clone(),
+                    started_at,
+                },
+            );
+        }
+
+        Ok(())
     }
 }
 

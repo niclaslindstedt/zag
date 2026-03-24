@@ -162,7 +162,7 @@ impl Config {
     }
 
     /// Get the global agent base directory (~/.agent).
-    fn global_base_dir() -> PathBuf {
+    pub fn global_base_dir() -> PathBuf {
         dirs::home_dir()
             .unwrap_or_else(|| PathBuf::from("."))
             .join(".agent")

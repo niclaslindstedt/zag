@@ -2,6 +2,7 @@
 
 use crate::config::Config;
 use crate::session_log::{AgentLogEvent, LogEventKind, SessionLogIndex};
+use agent_lib::session_log::load_global_index;
 use anyhow::{Context, Result, bail};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
@@ -88,6 +89,11 @@ pub fn resolve_session_log(
             }
         }
 
+        // Fallback: check global session index
+        if let Some(path) = lookup_global_index_by_id(id) {
+            return Ok(path);
+        }
+
         bail!("No session log found for '{}'", id);
     }
 
@@ -105,33 +111,69 @@ pub fn resolve_session_log(
 /// Find the latest session by `started_at` in the index.
 fn resolve_latest_session(logs_dir: &Path) -> Result<PathBuf> {
     let index_path = logs_dir.join("index.json");
-    if !index_path.exists() {
-        bail!("No session index found. Run an agent session first.");
+
+    // Try project-scoped index first
+    if index_path.exists() {
+        let content = std::fs::read_to_string(&index_path)
+            .with_context(|| format!("Failed to read {}", index_path.display()))?;
+        let index: SessionLogIndex = serde_json::from_str(&content).unwrap_or_default();
+
+        if let Some(newest) = index
+            .sessions
+            .iter()
+            .max_by(|a, b| a.started_at.cmp(&b.started_at))
+        {
+            let path = PathBuf::from(&newest.log_path);
+            if path.exists() {
+                return Ok(path);
+            }
+        }
     }
 
-    let content = std::fs::read_to_string(&index_path)
-        .with_context(|| format!("Failed to read {}", index_path.display()))?;
-    let index: SessionLogIndex = serde_json::from_str(&content).unwrap_or_default();
-
-    if index.sessions.is_empty() {
-        bail!("No sessions found in index");
+    // Fallback: check global session index for the latest across all projects
+    let global_dir = Config::global_base_dir();
+    if let Ok(global_index) = load_global_index(&global_dir)
+        && let Some(newest) = global_index
+            .sessions
+            .iter()
+            .max_by(|a, b| a.started_at.cmp(&b.started_at))
+    {
+        let path = PathBuf::from(&newest.log_path);
+        if path.exists() {
+            return Ok(path);
+        }
     }
 
-    let newest = index
+    bail!("No session index found. Run an agent session first.");
+}
+
+/// Look up a session ID (exact or prefix) in the global session index.
+fn lookup_global_index_by_id(id: &str) -> Option<PathBuf> {
+    let global_dir = Config::global_base_dir();
+    let global_index = load_global_index(&global_dir).ok()?;
+
+    // Exact match
+    if let Some(entry) = global_index.sessions.iter().find(|e| e.session_id == id) {
+        let path = PathBuf::from(&entry.log_path);
+        if path.exists() {
+            return Some(path);
+        }
+    }
+
+    // Prefix match
+    let matches: Vec<_> = global_index
         .sessions
         .iter()
-        .max_by(|a, b| a.started_at.cmp(&b.started_at))
-        .unwrap();
-
-    let path = PathBuf::from(&newest.log_path);
-    if path.exists() {
-        Ok(path)
-    } else {
-        bail!(
-            "Latest session log file no longer exists: {}",
-            path.display()
-        );
+        .filter(|e| e.session_id.starts_with(id))
+        .collect();
+    if matches.len() == 1 {
+        let path = PathBuf::from(&matches[0].log_path);
+        if path.exists() {
+            return Some(path);
+        }
     }
+
+    None
 }
 
 /// Find the most recently modified `.jsonl` file in the sessions directory.

@@ -1875,6 +1875,9 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         log_metadata,
         live_adapter,
     )?;
+    let _ = log_coordinator
+        .writer()
+        .set_global_index_dir(Config::global_base_dir());
     crate::session_log::record_prompt(log_coordinator.writer(), action_prompt(&action))?;
     if let Ok(log_path) = log_coordinator.writer().log_path() {
         update_session_log_metadata(
@@ -2213,6 +2216,9 @@ async fn run_review(params: ReviewParams) -> Result<()> {
         log_metadata,
         live_adapter,
     )?;
+    let _ = log_coordinator
+        .writer()
+        .set_global_index_dir(Config::global_base_dir());
     let review_prompt = format!(
         "review uncommitted={} base={:?} commit={:?} title={:?}",
         uncommitted, base, commit, title

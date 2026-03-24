@@ -18,7 +18,15 @@ use tokio::process::Command;
 
 pub const DEFAULT_MODEL: &str = "default";
 
-pub const AVAILABLE_MODELS: &[&str] = &["default", "sonnet", "sonnet-4.6", "opus", "opus-4.6", "haiku", "haiku-4.5"];
+pub const AVAILABLE_MODELS: &[&str] = &[
+    "default",
+    "sonnet",
+    "sonnet-4.6",
+    "opus",
+    "opus-4.6",
+    "haiku",
+    "haiku-4.5",
+];
 
 pub struct Claude {
     system_prompt: String,

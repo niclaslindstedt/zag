@@ -4,6 +4,7 @@
 //! so that `agent run --resume <id>` can resume inside the correct workspace.
 
 use crate::config::Config;
+use agent_lib::session_log::{GlobalSessionEntry, upsert_global_entry};
 use anyhow::{Context, Result};
 use chrono::{DateTime, FixedOffset};
 use log::debug;
@@ -82,6 +83,29 @@ impl SessionStore {
         std::fs::write(&path, content)
             .with_context(|| format!("Failed to write sessions file: {}", path.display()))?;
         debug!("Session store saved to {}", path.display());
+
+        // Also upsert entries with log_path into the global session index
+        let global_dir = Config::global_base_dir();
+        let project = path
+            .parent()
+            .and_then(|p| p.file_name())
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
+        for entry in &self.sessions {
+            if let Some(ref log_path) = entry.log_path {
+                let _ = upsert_global_entry(
+                    &global_dir,
+                    GlobalSessionEntry {
+                        session_id: entry.session_id.clone(),
+                        project: project.clone(),
+                        log_path: log_path.clone(),
+                        provider: entry.provider.clone(),
+                        started_at: entry.created_at.clone(),
+                    },
+                );
+            }
+        }
+
         Ok(())
     }
 
