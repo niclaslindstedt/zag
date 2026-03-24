@@ -431,9 +431,7 @@ fn event_key(value: &Value) -> Option<String> {
 }
 
 fn claude_projects_dir() -> Option<PathBuf> {
-    std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .map(|home| home.join(".claude/projects"))
+    super::projects_dir()
 }
 
 fn file_contains_workspace(path: &Path, workspace: &str) -> bool {

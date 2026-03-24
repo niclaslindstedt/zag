@@ -14,6 +14,11 @@ use std::process::Stdio;
 use tokio::fs;
 use tokio::process::Command;
 
+/// Return the Gemini tmp directory: `~/.gemini/tmp/`.
+pub fn tmp_dir() -> Option<std::path::PathBuf> {
+    dirs::home_dir().map(|h| h.join(".gemini/tmp"))
+}
+
 pub const DEFAULT_MODEL: &str = "auto";
 
 pub const AVAILABLE_MODELS: &[&str] = &[
@@ -178,8 +183,7 @@ impl GeminiLiveLogAdapter {
     }
 
     fn discover_session_path(&self) -> Option<std::path::PathBuf> {
-        let home = std::env::var_os("HOME").map(std::path::PathBuf::from)?;
-        let gemini_tmp = home.join(".gemini/tmp");
+        let gemini_tmp = tmp_dir()?;
         let mut best: Option<(std::time::SystemTime, std::path::PathBuf)> = None;
         let projects = std::fs::read_dir(gemini_tmp).ok()?;
         for project in projects.flatten() {
@@ -314,10 +318,9 @@ impl LiveLogAdapter for GeminiLiveLogAdapter {
 impl HistoricalLogAdapter for GeminiHistoricalLogAdapter {
     fn backfill(&self, _root: Option<&str>) -> Result<Vec<BackfilledSession>> {
         let mut sessions = Vec::new();
-        let Some(home) = std::env::var_os("HOME").map(std::path::PathBuf::from) else {
+        let Some(gemini_tmp) = tmp_dir() else {
             return Ok(sessions);
         };
-        let gemini_tmp = home.join(".gemini/tmp");
         let projects = match std::fs::read_dir(gemini_tmp) {
             Ok(projects) => projects,
             Err(_) => return Ok(sessions),

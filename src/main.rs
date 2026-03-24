@@ -18,9 +18,12 @@ use agent_lib::providers::ollama;
 
 // Modules that remain in the binary crate
 mod capability;
+mod cleanup;
+mod json_mode;
 mod listen;
 mod logging;
 mod output;
+mod resume;
 mod session_log;
 
 use anyhow::{Result, bail};
@@ -708,8 +711,6 @@ struct AgentActionParams {
     session: Option<String>,
 }
 
-const JSON_WRAP_TEMPLATE: &str = include_str!("../prompts/json-wrap/1_0.md");
-
 /// Embedded manpages.
 const MAN_AGENT: &str = include_str!("../man/agent.md");
 const MAN_RUN: &str = include_str!("../man/run.md");
@@ -950,11 +951,6 @@ fn is_new_interactive_run(action: &Commands, json_mode: bool) -> bool {
         && !(json_mode && run_prompt(action).is_some())
 }
 
-/// Wrap a user prompt with explicit JSON instructions for non-Claude agents.
-fn wrap_prompt_for_json(prompt: &str) -> String {
-    JSON_WRAP_TEMPLATE.replace("{PROMPT}", prompt)
-}
-
 /// Handle auto provider/model selection, mutating params in place.
 async fn resolve_auto_selection(params: &mut AgentActionParams) -> Result<()> {
     let is_auto_provider = params.provider == "auto";
@@ -1014,33 +1010,6 @@ async fn resolve_auto_selection(params: &mut AgentActionParams) -> Result<()> {
     Ok(())
 }
 
-/// Augment the system prompt with JSON instructions for non-Claude agents.
-fn augment_system_prompt_for_json(
-    system_prompt: Option<String>,
-    json_mode: bool,
-    provider: &str,
-    json_schema: &Option<serde_json::Value>,
-) -> Option<String> {
-    if !json_mode || provider == "claude" {
-        return system_prompt;
-    }
-
-    let mut prompt = system_prompt.unwrap_or_default();
-    if let Some(schema) = json_schema {
-        let schema_str = serde_json::to_string_pretty(schema).unwrap_or_default();
-        prompt.push_str(&format!(
-            "\n\nYou MUST respond with valid JSON only. No markdown fences, no explanations. \
-             Your response must conform to this JSON schema:\n{}",
-            schema_str
-        ));
-    } else {
-        prompt.push_str(
-            "\n\nYou MUST respond with valid JSON only. No markdown fences, no explanations.",
-        );
-    }
-    Some(prompt)
-}
-
 /// Worktree setup state computed before agent creation.
 struct WorktreeSetup {
     is_worktree_session: bool,
@@ -1055,49 +1024,16 @@ struct PlainSessionSetup {
     workspace_path: Option<String>,
 }
 
-#[derive(Clone)]
-struct ResumeTarget {
-    entry: session::SessionEntry,
-    matched_by_wrapper_id: bool,
-}
-
-struct DiscoveredSession {
-    provider: String,
-    provider_session_id: String,
-    workspace_path: Option<String>,
-    discovery_source: String,
-}
-
-fn current_workspace(root: Option<&str>) -> String {
-    if let Some(root) = root {
-        root.to_string()
-    } else if let Ok(repo_root) = worktree::git_repo_root(None) {
-        repo_root.to_string_lossy().to_string()
-    } else {
-        std::env::current_dir()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string()
-    }
-}
-
-fn wrapper_worktrees_root() -> Option<std::path::PathBuf> {
-    home_dir().map(|home| home.join(".agent").join("worktrees"))
-}
-
-fn is_wrapper_worktree_path(path: &str) -> bool {
-    let Some(root) = wrapper_worktrees_root() else {
-        return false;
-    };
-    std::path::Path::new(path).starts_with(root)
-}
-
-fn worktree_name_from_path(path: &str) -> String {
-    std::path::Path::new(path)
-        .file_name()
-        .map(|name| name.to_string_lossy().to_string())
-        .unwrap_or_default()
-}
+use cleanup::{
+    print_resume_hint, print_session_resume_hint, prompt_sandbox_cleanup, prompt_worktree_cleanup,
+};
+use json_mode::{
+    augment_system_prompt_for_json, build_correction_prompt, handle_json_output,
+    validate_json_output, wrap_prompt_for_json,
+};
+use resume::{
+    current_workspace, discover_provider_session_id, resolve_continue_target, resolve_resume_target,
+};
 
 /// Set up worktree session state: generate IDs, create worktree.
 /// All providers get the same treatment — worktree at `~/.agent/worktrees/<project>/<name>`.
@@ -1279,6 +1215,42 @@ fn create_and_configure_agent(
             let schema_str = serde_json::to_string(schema).unwrap_or_default();
             claude_agent.set_json_schema(Some(schema_str));
         }
+
+        // Set up event handler for streaming output (text or stream-json modes)
+        let is_stream_json = p.json_stream || output_fmt_clone.as_deref() == Some("stream-json");
+        claude_agent.set_event_handler(Box::new(move |event, verbose| {
+            use crate::output::{ContentBlock, Event};
+            if is_stream_json {
+                // Output as unified NDJSON
+                if let Ok(json) = serde_json::to_string(event) {
+                    println!("{}", json);
+                }
+            } else {
+                match event {
+                    Event::Result { .. } => {
+                        // End of stream — flush
+                        if !verbose {
+                            use std::io::Write;
+                            println!();
+                            let _ = std::io::stdout().flush();
+                        }
+                    }
+                    _ => {
+                        if verbose {
+                            if let Some(formatted) = crate::output::format_event_as_text(event) {
+                                println!("{}", formatted);
+                            }
+                        } else if let Event::AssistantMessage { content, .. } = event {
+                            for block in content {
+                                if let ContentBlock::Text { text } = block {
+                                    print!("{}", text);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }));
     }
 
     // Force output capture when JSON mode is active
@@ -1407,35 +1379,6 @@ fn update_provider_session_id(
     }
 }
 
-fn print_resume_hint(wrapper_session_id: &str, provider_session_id: Option<&str>, label: &str) {
-    println!(
-        "\x1b[32m✓\x1b[0m {} kept. Resume with: agent run --resume {}",
-        label, wrapper_session_id
-    );
-    if let Some(provider_session_id) = provider_session_id
-        && provider_session_id != wrapper_session_id
-    {
-        println!(
-            "\x1b[32m✓\x1b[0m Native provider ID: {}",
-            provider_session_id
-        );
-    }
-}
-
-/// Prints a session resume hint after exiting an interactive session.
-fn print_session_resume_hint(wrapper_session_id: &str, provider_session_id: Option<&str>) {
-    println!();
-    println!(
-        "Resume this session: \x1b[36magent run --resume {}\x1b[0m",
-        wrapper_session_id
-    );
-    if let Some(provider_session_id) = provider_session_id
-        && provider_session_id != wrapper_session_id
-    {
-        println!("   (native provider ID: {})", provider_session_id);
-    }
-}
-
 /// Context for executing an action.
 struct ExecutionContext<'a> {
     provider: &'a str,
@@ -1445,341 +1388,6 @@ struct ExecutionContext<'a> {
     show_usage: bool,
     verbose: bool,
     root: &'a Option<String>,
-}
-
-fn home_dir() -> Option<std::path::PathBuf> {
-    std::env::var_os("HOME").map(std::path::PathBuf::from)
-}
-
-fn detect_provider_session(session_id: &str) -> Option<DiscoveredSession> {
-    let home = home_dir()?;
-
-    let claude_projects = home.join(".claude/projects");
-    if let Ok(projects) = std::fs::read_dir(&claude_projects) {
-        for project in projects.flatten() {
-            let candidate = project.path().join(format!("{}.jsonl", session_id));
-            if candidate.exists() {
-                let workspace_path = std::fs::read_to_string(&candidate)
-                    .ok()
-                    .and_then(|content| {
-                        content.lines().find_map(|line| {
-                            serde_json::from_str::<serde_json::Value>(line)
-                                .ok()
-                                .and_then(|json| {
-                                    json.get("cwd")
-                                        .and_then(|value| value.as_str())
-                                        .map(str::to_string)
-                                })
-                        })
-                    });
-                return Some(DiscoveredSession {
-                    provider: "claude".to_string(),
-                    provider_session_id: session_id.to_string(),
-                    workspace_path,
-                    discovery_source: candidate.to_string_lossy().to_string(),
-                });
-            }
-        }
-    }
-
-    let codex_history = home.join(".codex/history.jsonl");
-    if let Ok(content) = std::fs::read_to_string(&codex_history) {
-        let needle = format!("\"session_id\":\"{}\"", session_id);
-        if content.contains(&needle) {
-            return Some(DiscoveredSession {
-                provider: "codex".to_string(),
-                provider_session_id: session_id.to_string(),
-                workspace_path: None,
-                discovery_source: codex_history.to_string_lossy().to_string(),
-            });
-        }
-    }
-
-    let gemini_tmp = home.join(".gemini/tmp");
-    if let Ok(projects) = std::fs::read_dir(&gemini_tmp) {
-        for project in projects.flatten() {
-            let chats = project.path().join("chats");
-            if let Ok(files) = std::fs::read_dir(&chats) {
-                for file in files.flatten() {
-                    if let Ok(content) = std::fs::read_to_string(file.path()) {
-                        let needle = format!("\"sessionId\": \"{}\"", session_id);
-                        if content.contains(&needle) {
-                            return Some(DiscoveredSession {
-                                provider: "gemini".to_string(),
-                                provider_session_id: session_id.to_string(),
-                                workspace_path: None,
-                                discovery_source: file.path().to_string_lossy().to_string(),
-                            });
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    let copilot_dir = home.join(".copilot/session-state").join(session_id);
-    if copilot_dir.join("events.jsonl").exists() {
-        return Some(DiscoveredSession {
-            provider: "copilot".to_string(),
-            provider_session_id: session_id.to_string(),
-            workspace_path: None,
-            discovery_source: copilot_dir.to_string_lossy().to_string(),
-        });
-    }
-
-    None
-}
-
-fn cache_discovered_session(
-    discovered: &DiscoveredSession,
-    root: Option<&str>,
-) -> session::SessionEntry {
-    // Try to preserve model from any existing entry for this session
-    let existing_model = session::SessionStore::load(root)
-        .unwrap_or_default()
-        .find_by_any_id(&discovered.provider_session_id)
-        .map(|e| e.model.clone())
-        .unwrap_or_default();
-
-    let workspace_path = discovered
-        .workspace_path
-        .clone()
-        .unwrap_or_else(|| current_workspace(root));
-    let is_worktree = is_wrapper_worktree_path(&workspace_path);
-    let entry = session::SessionEntry {
-        session_id: discovered.provider_session_id.clone(),
-        provider: discovered.provider.clone(),
-        model: existing_model,
-        worktree_path: workspace_path.clone(),
-        worktree_name: if is_worktree {
-            worktree_name_from_path(&workspace_path)
-        } else {
-            String::new()
-        },
-        created_at: chrono::Utc::now().to_rfc3339(),
-        provider_session_id: Some(discovered.provider_session_id.clone()),
-        sandbox_name: None,
-        is_worktree,
-        discovered: true,
-        discovery_source: Some(discovered.discovery_source.clone()),
-        log_path: None,
-        log_completeness: "partial".to_string(),
-    };
-
-    let mut store = session::SessionStore::load(root).unwrap_or_default();
-    store.add(entry.clone());
-    if let Err(e) = store.save(root) {
-        log::warn!("Failed to cache discovered session: {}", e);
-    }
-
-    entry
-}
-
-fn resolve_resume_target(requested_id: &str, root: Option<&str>) -> Option<ResumeTarget> {
-    let store = session::SessionStore::load(root).unwrap_or_default();
-    if let Some(entry) = store.find_by_any_id(requested_id) {
-        debug!(
-            "Found session in store: id={}, provider={}, model='{}'",
-            entry.session_id, entry.provider, entry.model
-        );
-        return Some(ResumeTarget {
-            entry: entry.clone(),
-            matched_by_wrapper_id: store.find_by_session_id(requested_id).is_some(),
-        });
-    }
-
-    debug!(
-        "Session {} not in store, trying provider discovery",
-        requested_id
-    );
-    let discovered = detect_provider_session(requested_id)?;
-    let entry = cache_discovered_session(&discovered, root);
-    debug!(
-        "Discovered session: provider={}, model='{}'",
-        entry.provider, entry.model
-    );
-    Some(ResumeTarget {
-        entry,
-        matched_by_wrapper_id: false,
-    })
-}
-
-fn resolve_continue_target(root: Option<&str>) -> Option<ResumeTarget> {
-    let store = session::SessionStore::load(root).unwrap_or_default();
-    store.latest().map(|entry| ResumeTarget {
-        entry: entry.clone(),
-        matched_by_wrapper_id: true,
-    })
-}
-
-/// Read the native session ID and optional cwd from a Claude `.jsonl` session file.
-fn read_claude_session_metadata(path: &std::path::Path) -> Option<(String, Option<String>)> {
-    let file = std::fs::File::open(path).ok()?;
-    let reader = std::io::BufReader::new(file);
-    use std::io::BufRead;
-    let mut session_id = None;
-    let mut cwd = None;
-    for line in reader.lines().take(10) {
-        let line = line.ok()?;
-        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&line) {
-            if session_id.is_none() {
-                session_id = value
-                    .get("sessionId")
-                    .or_else(|| value.get("session_id"))
-                    .and_then(|v| v.as_str())
-                    .map(str::to_string);
-            }
-            if cwd.is_none() {
-                cwd = value
-                    .get("cwd")
-                    .and_then(|v| v.as_str())
-                    .map(str::to_string);
-            }
-            if session_id.is_some() && cwd.is_some() {
-                break;
-            }
-        }
-    }
-    session_id.map(|sid| (sid, cwd))
-}
-
-fn discover_provider_session_id(
-    provider: &str,
-    _wrapper_session_id: Option<&str>,
-    _root: Option<&str>,
-    _wt: &WorktreeSetup,
-    _plain: &PlainSessionSetup,
-) -> Option<String> {
-    match provider {
-        "claude" => {
-            // Scan Claude session files to find the native session ID.
-            // Scope to the workspace path so we don't pick up sessions from
-            // other Claude Code instances (e.g., a worktree session).
-            let projects_dir = home_dir()?.join(".claude/projects");
-            let workspace = _plain.workspace_path.as_deref();
-            let entries = std::fs::read_dir(&projects_dir).ok()?;
-            let mut newest: Option<(std::time::SystemTime, String)> = None;
-            for project in entries.flatten() {
-                let files = match std::fs::read_dir(project.path()) {
-                    Ok(files) => files,
-                    Err(_) => continue,
-                };
-                for file in files.flatten() {
-                    let path = file.path();
-                    if path.extension().and_then(|ext| ext.to_str()) != Some("jsonl") {
-                        continue;
-                    }
-                    let metadata = match file.metadata() {
-                        Ok(m) => m,
-                        Err(_) => continue,
-                    };
-                    let modified = match metadata.modified() {
-                        Ok(m) => m,
-                        Err(_) => continue,
-                    };
-                    if newest.as_ref().map(|(t, _)| modified > *t).unwrap_or(true)
-                        && let Some((sid, file_cwd)) = read_claude_session_metadata(&path)
-                    {
-                        // Filter by workspace: only match sessions from the same project
-                        if let Some(ws) = workspace
-                            && file_cwd.as_deref() != Some(ws)
-                        {
-                            continue;
-                        }
-                        newest = Some((modified, sid));
-                    }
-                }
-            }
-            newest.map(|(_, sid)| sid)
-        }
-        "codex" => {
-            let history = home_dir()?.join(".codex/history.jsonl");
-            let content = std::fs::read_to_string(history).ok()?;
-            content
-                .lines()
-                .rev()
-                .find_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
-                .and_then(|json| {
-                    json.get("session_id")
-                        .and_then(|value| value.as_str())
-                        .map(str::to_string)
-                })
-        }
-        "gemini" => {
-            let gemini_tmp = home_dir()?.join(".gemini/tmp");
-            let mut newest: Option<(std::time::SystemTime, String)> = None;
-            let projects = std::fs::read_dir(gemini_tmp).ok()?;
-            for project in projects.flatten() {
-                let chats = project.path().join("chats");
-                let files = match std::fs::read_dir(chats) {
-                    Ok(files) => files,
-                    Err(_) => continue,
-                };
-                for file in files.flatten() {
-                    let path = file.path();
-                    let metadata = match file.metadata() {
-                        Ok(metadata) => metadata,
-                        Err(_) => continue,
-                    };
-                    let modified = match metadata.modified() {
-                        Ok(modified) => modified,
-                        Err(_) => continue,
-                    };
-                    let content = match std::fs::read_to_string(path) {
-                        Ok(content) => content,
-                        Err(_) => continue,
-                    };
-                    let session_id = match serde_json::from_str::<serde_json::Value>(&content)
-                        .ok()
-                        .and_then(|json| {
-                            json.get("sessionId")
-                                .and_then(|value| value.as_str())
-                                .map(str::to_string)
-                        }) {
-                        Some(session_id) => session_id,
-                        None => continue,
-                    };
-                    if newest
-                        .as_ref()
-                        .map(|(current, _)| modified > *current)
-                        .unwrap_or(true)
-                    {
-                        newest = Some((modified, session_id));
-                    }
-                }
-            }
-            newest.map(|(_, session_id)| session_id)
-        }
-        "copilot" => {
-            let chat_sessions = home_dir()?.join(".copilot/session-state");
-            let mut newest: Option<(std::time::SystemTime, String)> = None;
-            let entries = std::fs::read_dir(chat_sessions).ok()?;
-            for entry in entries.flatten() {
-                let events_path = entry.path().join("events.jsonl");
-                if !events_path.exists() {
-                    continue;
-                }
-                let metadata = match std::fs::metadata(&events_path) {
-                    Ok(metadata) => metadata,
-                    Err(_) => continue,
-                };
-                let modified = match metadata.modified() {
-                    Ok(modified) => modified,
-                    Err(_) => continue,
-                };
-                let session_id = entry.file_name().to_string_lossy().to_string();
-                if newest
-                    .as_ref()
-                    .map(|(current, _)| modified > *current)
-                    .unwrap_or(true)
-                {
-                    newest = Some((modified, session_id));
-                }
-            }
-            newest.map(|(_, session_id)| session_id)
-        }
-        _ => None,
-    }
 }
 
 /// Execute the requested action.
@@ -2344,8 +1952,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
                 &provider,
                 wrapper_session_id,
                 root.as_deref(),
-                &wt,
-                &plain,
+                plain.workspace_path.as_deref(),
             )
         });
     if let Some(ref native_id) = native_session_id {
@@ -2369,7 +1976,9 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     // Cleanup
     debug!("Cleaning up agent resources");
     agent.cleanup().await?;
-    println!("\x1b[32m✓\x1b[0m Session terminated");
+    if show_wrapper {
+        println!("\x1b[32m✓\x1b[0m Session terminated");
+    }
 
     // Sandbox cleanup prompt
     if is_interactive_sandbox {
@@ -2466,97 +2075,6 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
             .find_by_session_id(sid)
             .and_then(|entry| entry.provider_session_id.clone());
         print_session_resume_hint(sid, provider_session_id.as_deref());
-    }
-
-    Ok(())
-}
-
-/// Prompt the user whether to keep or remove a sandbox after an interactive session.
-fn prompt_sandbox_cleanup(session_id: &str, sandbox_name: &str, root: Option<&str>) -> Result<()> {
-    use std::io::{self, BufRead, Write};
-
-    debug!(
-        "Prompting sandbox cleanup: session={}, sandbox={}",
-        session_id, sandbox_name
-    );
-    println!("\n\x1b[33m>\x1b[0m Sandbox: {}", sandbox_name);
-    print!("\x1b[33m>\x1b[0m Keep sandbox? [Y/n] ");
-    io::stdout().flush()?;
-
-    let stdin = io::stdin();
-    let mut line = String::new();
-    stdin.lock().read_line(&mut line)?;
-    let answer = line.trim().to_lowercase();
-
-    if answer == "n" || answer == "no" {
-        match sandbox::remove_sandbox(sandbox_name) {
-            Ok(()) => {
-                println!("\x1b[32m✓\x1b[0m Sandbox removed");
-            }
-            Err(e) => {
-                log::warn!("Failed to remove sandbox: {}", e);
-                println!("\x1b[31m✗\x1b[0m Failed to remove sandbox: {}", e);
-            }
-        }
-        // Remove session mapping
-        let mut store = session::SessionStore::load(root).unwrap_or_default();
-        store.remove(session_id);
-        let _ = store.save(root);
-    } else {
-        let store = session::SessionStore::load(root).unwrap_or_default();
-        let provider_session_id = store
-            .find_by_session_id(session_id)
-            .and_then(|entry| entry.provider_session_id.as_deref());
-        print_resume_hint(session_id, provider_session_id, "Sandbox");
-    }
-
-    Ok(())
-}
-
-/// Prompt the user whether to keep or delete a worktree after an interactive session.
-fn prompt_worktree_cleanup(
-    session_id: &str,
-    worktree_path: &str,
-    root: Option<&str>,
-) -> Result<()> {
-    use std::io::{self, BufRead, Write};
-
-    debug!(
-        "Prompting worktree cleanup: session={}, path={}",
-        session_id, worktree_path
-    );
-    println!("\n\x1b[33m>\x1b[0m Worktree at {}", worktree_path);
-    print!("\x1b[33m>\x1b[0m Keep workspace? [Y/n] ");
-    io::stdout().flush()?;
-
-    let stdin = io::stdin();
-    let mut line = String::new();
-    stdin.lock().read_line(&mut line)?;
-    let answer = line.trim().to_lowercase();
-
-    if answer == "n" || answer == "no" {
-        let wt_path = std::path::Path::new(worktree_path);
-        if wt_path.exists() {
-            match worktree::remove_worktree(wt_path) {
-                Ok(()) => {
-                    println!("\x1b[32m✓\x1b[0m Worktree removed");
-                }
-                Err(e) => {
-                    log::warn!("Failed to remove worktree: {}", e);
-                    println!("\x1b[31m✗\x1b[0m Failed to remove worktree: {}", e);
-                }
-            }
-        }
-        // Remove session mapping
-        let mut store = session::SessionStore::load(root).unwrap_or_default();
-        store.remove(session_id);
-        let _ = store.save(root);
-    } else {
-        let store = session::SessionStore::load(root).unwrap_or_default();
-        let provider_session_id = store
-            .find_by_session_id(session_id)
-            .and_then(|entry| entry.provider_session_id.as_deref());
-        print_resume_hint(session_id, provider_session_id, "Workspace");
     }
 
     Ok(())
@@ -2682,127 +2200,6 @@ async fn run_review(params: ReviewParams) -> Result<()> {
     }?;
 
     Ok(())
-}
-
-const MAX_JSON_RETRIES: usize = 3;
-
-/// Handle JSON output mode: validate agent output and retry via session resume if invalid.
-async fn handle_json_output(
-    agent_output: Option<crate::output::AgentOutput>,
-    agent: &(dyn crate::agent::Agent + Sync),
-    schema: &Option<serde_json::Value>,
-    _show_usage: bool,
-    _verbose: bool,
-) -> Result<()> {
-    let Some(agent_out) = agent_output else {
-        bail!("Agent produced no output for JSON validation");
-    };
-
-    let raw_result = agent_out
-        .final_result()
-        .ok_or_else(|| anyhow::anyhow!("Agent output has no result text for JSON validation"))?;
-    debug!(
-        "JSON mode: raw agent result ({} bytes): {}",
-        raw_result.len(),
-        raw_result
-    );
-
-    let result_text = json_validation::strip_markdown_fences(raw_result).to_string();
-    debug!(
-        "JSON mode: after fence stripping ({} bytes): {}",
-        result_text.len(),
-        result_text
-    );
-
-    let session_id = if !agent_out.session_id.is_empty() && agent_out.session_id != "unknown" {
-        Some(agent_out.session_id.clone())
-    } else {
-        None
-    };
-
-    // Try validation
-    if validate_json_output(&result_text, schema).is_ok() {
-        // Minify JSON output
-        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&result_text) {
-            println!("{}", serde_json::to_string(&parsed)?);
-        } else {
-            println!("{}", result_text);
-        }
-        return Ok(());
-    }
-
-    // Validation failed — collect errors for retry/reporting
-    let initial_errors = validate_json_output(&result_text, schema).unwrap_err();
-    debug!("JSON validation failed: {:?}", initial_errors);
-
-    let Some(sid) = session_id else {
-        bail!("JSON validation failed:\n- {}", initial_errors.join("\n- "));
-    };
-
-    // Try to retry via session resume
-    let mut last_errors = initial_errors;
-    for attempt in 1..=MAX_JSON_RETRIES {
-        debug!("JSON retry attempt {}/{}", attempt, MAX_JSON_RETRIES);
-
-        let correction_prompt = build_correction_prompt(&last_errors);
-        debug!("JSON retry correction prompt: {}", correction_prompt);
-
-        match agent.run_resume_with_prompt(&sid, &correction_prompt).await {
-            Ok(Some(retry_output)) => {
-                if let Some(raw_retry_text) = retry_output.final_result() {
-                    let retry_text = json_validation::strip_markdown_fences(raw_retry_text);
-                    if validate_json_output(retry_text, schema).is_ok() {
-                        // Minify JSON output
-                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(retry_text) {
-                            println!("{}", serde_json::to_string(&parsed)?);
-                        } else {
-                            println!("{}", retry_text);
-                        }
-                        return Ok(());
-                    }
-                    last_errors = validate_json_output(retry_text, schema).unwrap_err();
-                } else {
-                    last_errors = vec!["Agent returned no result text".to_string()];
-                }
-            }
-            Ok(None) => {
-                last_errors = vec!["Agent produced no output on retry".to_string()];
-            }
-            Err(e) => {
-                debug!("Resume with prompt failed: {}", e);
-                break;
-            }
-        }
-    }
-
-    bail!(
-        "JSON validation failed after {} retries. Last errors:\n- {}",
-        MAX_JSON_RETRIES,
-        last_errors.join("\n- ")
-    )
-}
-
-/// Validate JSON output, optionally against a schema.
-fn validate_json_output(text: &str, schema: &Option<serde_json::Value>) -> Result<(), Vec<String>> {
-    if let Some(schema) = schema {
-        json_validation::validate_json_schema(text, schema)?;
-    } else {
-        json_validation::validate_json(text).map_err(|e| vec![e])?;
-    }
-    Ok(())
-}
-
-/// Build a correction prompt for retrying invalid JSON.
-fn build_correction_prompt(errors: &[String]) -> String {
-    let error_list: String = errors
-        .iter()
-        .map(|e| format!("- {}", e))
-        .collect::<Vec<_>>()
-        .join("\n");
-    format!(
-        "Your previous response was not valid JSON. Errors:\n{}\n\nPlease respond with ONLY valid JSON. No markdown fences, no explanations.",
-        error_list
-    )
 }
 
 /// Process and display structured agent output

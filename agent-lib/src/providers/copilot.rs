@@ -27,6 +27,13 @@ use std::process::Stdio;
 use tokio::fs;
 use tokio::process::Command;
 
+/// Return the Copilot session-state directory: `~/.copilot/session-state/`.
+pub fn session_state_dir() -> std::path::PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join(".copilot/session-state")
+}
+
 pub const DEFAULT_MODEL: &str = "claude-sonnet-4.5";
 
 pub const AVAILABLE_MODELS: &[&str] = &[
@@ -616,10 +623,7 @@ pub(crate) fn parse_copilot_event_line(
 }
 
 fn copilot_session_state_dir() -> PathBuf {
-    std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".copilot/session-state")
+    session_state_dir()
 }
 
 fn read_copilot_workspace_path(session_dir: &Path) -> Option<String> {

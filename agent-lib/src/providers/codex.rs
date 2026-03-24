@@ -27,6 +27,20 @@ use std::process::Stdio;
 use tokio::fs;
 use tokio::process::Command;
 
+/// Return the Codex history file path: `~/.codex/history.jsonl`.
+pub fn history_path() -> std::path::PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join(".codex/history.jsonl")
+}
+
+/// Return the Codex TUI log path: `~/.codex/log/codex-tui.log`.
+pub fn tui_log_path() -> std::path::PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join(".codex/log/codex-tui.log")
+}
+
 pub const DEFAULT_MODEL: &str = "gpt-5.4";
 
 pub const AVAILABLE_MODELS: &[&str] = &[
@@ -524,17 +538,11 @@ fn extract_thread_id(line: &str) -> Option<String> {
 }
 
 fn codex_history_path() -> std::path::PathBuf {
-    std::env::var_os("HOME")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join(".codex/history.jsonl")
+    history_path()
 }
 
 fn codex_tui_log_path() -> std::path::PathBuf {
-    std::env::var_os("HOME")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join(".codex/log/codex-tui.log")
+    tui_log_path()
 }
 
 fn file_len(path: &std::path::Path) -> Option<u64> {

@@ -8,6 +8,11 @@ pub mod logs;
 pub mod models;
 
 use crate::agent::{Agent, ModelSize};
+
+/// Return the Claude projects directory: `~/.claude/projects/`.
+pub fn projects_dir() -> Option<std::path::PathBuf> {
+    dirs::home_dir().map(|h| h.join(".claude/projects"))
+}
 use crate::output::AgentOutput;
 use crate::sandbox::SandboxConfig;
 use anyhow::Result;
@@ -28,6 +33,10 @@ pub const AVAILABLE_MODELS: &[&str] = &[
     "haiku-4.5",
 ];
 
+/// Callback for streaming events. Set via `set_event_handler` to receive
+/// unified events as they arrive during non-interactive execution.
+pub type EventHandler = Box<dyn Fn(&crate::output::Event, bool) + Send + Sync>;
+
 pub struct Claude {
     system_prompt: String,
     model: String,
@@ -41,6 +50,7 @@ pub struct Claude {
     verbose: bool,
     json_schema: Option<String>,
     sandbox: Option<SandboxConfig>,
+    event_handler: Option<EventHandler>,
 }
 
 impl Claude {
@@ -58,6 +68,7 @@ impl Claude {
             verbose: false,
             json_schema: None,
             sandbox: None,
+            event_handler: None,
         }
     }
 
@@ -75,6 +86,14 @@ impl Claude {
 
     pub fn set_json_schema(&mut self, schema: Option<String>) {
         self.json_schema = schema;
+    }
+
+    /// Set a callback to receive streaming events during non-interactive execution.
+    ///
+    /// The callback receives `(event, verbose)` where `verbose` indicates whether
+    /// the user requested verbose output.
+    pub fn set_event_handler(&mut self, handler: EventHandler) {
+        self.event_handler = Some(handler);
     }
 
     /// Build the argument list for a run/exec invocation.
@@ -259,46 +278,16 @@ impl Claude {
                 let format_as_text = output_format.is_none(); // Default: beautiful text
                 let format_as_json = output_format == Some("stream-json"); // Explicit: unified JSON
 
-                // Stream each line to stdout as it arrives
+                // Stream each line, dispatching via event_handler if set
                 while let Some(line) = lines.next_line().await? {
                     if format_as_text || format_as_json {
-                        // Parse the NDJSON line and convert to unified format
                         match serde_json::from_str::<models::ClaudeEvent>(&line) {
                             Ok(claude_event) => {
-                                // Convert individual event to unified format
                                 if let Some(unified_event) =
                                     convert_claude_event_to_unified(&claude_event)
                                 {
-                                    if format_as_text {
-                                        if self.verbose {
-                                            // Verbose: format as beautiful text with icons
-                                            if let Some(formatted) =
-                                                crate::output::format_event_as_text(&unified_event)
-                                            {
-                                                println!("{}", formatted);
-                                            }
-                                        } else {
-                                            // Default exec: plain text only from assistant messages
-                                            if let crate::output::Event::AssistantMessage {
-                                                ref content,
-                                                ..
-                                            } = unified_event
-                                            {
-                                                for block in content {
-                                                    if let crate::output::ContentBlock::Text {
-                                                        text,
-                                                    } = block
-                                                    {
-                                                        print!("{}", text);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        // Output as unified JSON (stream-json mode)
-                                        if let Ok(json) = serde_json::to_string(&unified_event) {
-                                            println!("{}", json);
-                                        }
+                                    if let Some(ref handler) = self.event_handler {
+                                        handler(&unified_event, self.verbose);
                                     }
                                 }
                             }
@@ -313,11 +302,18 @@ impl Claude {
                     }
                 }
 
-                // Flush stdout and add trailing newline for plain text mode
-                if format_as_text && !self.verbose {
-                    use std::io::Write;
-                    println!();
-                    let _ = std::io::stdout().flush();
+                // Signal end of streaming to handler
+                if let Some(ref handler) = self.event_handler {
+                    // Send a Result event to signal completion
+                    handler(
+                        &crate::output::Event::Result {
+                            success: true,
+                            message: None,
+                            duration_ms: None,
+                            num_turns: None,
+                        },
+                        self.verbose,
+                    );
                 }
 
                 crate::process::wait_with_stderr(child).await?;
