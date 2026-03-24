@@ -16,6 +16,7 @@ mod process;
 mod sandbox;
 mod session;
 mod session_log;
+mod skills;
 mod worktree;
 
 use anyhow::{Result, bail};
@@ -190,8 +191,13 @@ enum Commands {
     },
     /// Show manual pages for commands
     Man {
-        /// Command to show help for (run, exec, review, config, capability, listen, man)
+        /// Command to show help for (run, exec, review, config, capability, listen, man, skills)
         command: Option<String>,
+    },
+    /// Manage provider-agnostic skills stored in ~/.agent/skills/
+    Skills {
+        #[command(subcommand)]
+        command: SkillsCommand,
     },
 }
 
@@ -199,6 +205,37 @@ enum Commands {
 enum LogsCommand {
     /// Import historical provider logs into the unified session log store
     Import,
+}
+
+#[derive(Subcommand)]
+enum SkillsCommand {
+    /// List all available skills
+    List,
+    /// Create a new skill skeleton
+    Add {
+        /// Skill name (directory name)
+        name: String,
+        /// Short description of what the skill does
+        #[arg(long)]
+        description: Option<String>,
+    },
+    /// Remove a skill and its provider symlinks
+    Remove {
+        /// Skill name to remove
+        name: String,
+    },
+    /// Sync skills to all provider-specific locations
+    Sync {
+        /// Only sync for this provider (claude, gemini, copilot, codex)
+        #[arg(short = 'p', long)]
+        provider: Option<String>,
+    },
+    /// Import existing skills from a provider's native skill directory
+    Import {
+        /// Provider to import from (default: claude)
+        #[arg(long, default_value = "claude")]
+        from: String,
+    },
 }
 
 #[tokio::main]
@@ -240,6 +277,7 @@ async fn main() -> Result<()> {
             Commands::Logs { .. } => bail!("--json-stream cannot be used with logs"),
             Commands::Capability { .. } => bail!("--json-stream cannot be used with capability"),
             Commands::Listen { .. } => bail!("--json-stream cannot be used with listen"),
+            Commands::Skills { .. } => bail!("--json-stream cannot be used with skills"),
             Commands::Run {
                 prompt: _,
                 resume,
@@ -264,6 +302,7 @@ async fn main() -> Result<()> {
                 bail!("--json/--json-schema cannot be used with capability")
             }
             Commands::Listen { .. } => bail!("--json/--json-schema cannot be used with listen"),
+            Commands::Skills { .. } => bail!("--json/--json-schema cannot be used with skills"),
             Commands::Run {
                 resume,
                 continue_session,
@@ -313,6 +352,7 @@ async fn main() -> Result<()> {
             Commands::Logs { .. } => bail!("--worktree cannot be used with logs"),
             Commands::Capability { .. } => bail!("--worktree cannot be used with capability"),
             Commands::Listen { .. } => bail!("--worktree cannot be used with listen"),
+            Commands::Skills { .. } => bail!("--worktree cannot be used with skills"),
             Commands::Run {
                 resume,
                 continue_session,
@@ -333,6 +373,7 @@ async fn main() -> Result<()> {
             Commands::Capability { .. } => bail!("--sandbox cannot be used with capability"),
             Commands::Listen { .. } => bail!("--sandbox cannot be used with listen"),
             Commands::Man { .. } => bail!("--sandbox cannot be used with man"),
+            Commands::Skills { .. } => bail!("--sandbox cannot be used with skills"),
             Commands::Run {
                 resume,
                 continue_session,
@@ -357,6 +398,7 @@ async fn main() -> Result<()> {
             Commands::Logs { .. } => bail!("auto cannot be used with logs"),
             Commands::Capability { .. } => bail!("auto cannot be used with capability"),
             Commands::Listen { .. } => bail!("auto cannot be used with listen"),
+            Commands::Skills { .. } => bail!("auto cannot be used with skills"),
             Commands::Run {
                 resume,
                 continue_session,
@@ -383,6 +425,13 @@ async fn main() -> Result<()> {
                 std::mem::discriminant(&command)
             );
             run_logs(command, cli.root.as_deref())?;
+        }
+        Commands::Skills { command } => {
+            debug!(
+                "Running skills subcommand: {:?}",
+                std::mem::discriminant(&command)
+            );
+            run_skills(command)?;
         }
         Commands::Capability { format, pretty } => {
             let provider = resolve_provider(cli.provider.as_deref(), cli.root.as_deref())?;
@@ -565,6 +614,7 @@ const MAN_LOGS: &str = include_str!("../man/logs.md");
 const MAN_CAPABILITY: &str = include_str!("../man/capability.md");
 const MAN_LISTEN: &str = include_str!("../man/listen.md");
 const MAN_MAN: &str = include_str!("../man/man.md");
+const MAN_SKILLS: &str = include_str!("../man/skills.md");
 
 /// AI-oriented reference document for `--help-agent`.
 const HELP_AGENT: &str = include_str!("../man/help-agent.md");
@@ -581,8 +631,9 @@ fn print_manpage(command: Option<&str>) -> Result<()> {
         Some("capability") => MAN_CAPABILITY,
         Some("listen") => MAN_LISTEN,
         Some("man") => MAN_MAN,
+        Some("skills") => MAN_SKILLS,
         Some(other) => bail!(
-            "No manual entry for '{}'. Available: run, exec, review, config, logs, capability, listen, man",
+            "No manual entry for '{}'. Available: run, exec, review, config, logs, capability, listen, man, skills",
             other
         ),
     };
@@ -602,6 +653,89 @@ fn run_logs(command: LogsCommand, root: Option<&str>) -> Result<()> {
         LogsCommand::Import => {
             let imported = crate::session_log::run_default_backfill(root)?;
             println!("Imported {} historical session log(s)", imported);
+        }
+    }
+    Ok(())
+}
+
+fn run_skills(command: SkillsCommand) -> Result<()> {
+    match command {
+        SkillsCommand::List => {
+            let skill_list = skills::list_skills()?;
+            if skill_list.is_empty() {
+                println!("No skills found in {}", skills::skills_dir().display());
+                println!("Use 'agent skills add <name>' to create one.");
+                return Ok(());
+            }
+            println!("{:<20} {:<50} {}", "NAME", "DESCRIPTION", "PATH");
+            println!("{}", "-".repeat(100));
+            for skill in &skill_list {
+                println!(
+                    "{:<20} {:<50} {}",
+                    skill.name,
+                    if skill.description.len() > 48 {
+                        format!("{}...", &skill.description[..48])
+                    } else {
+                        skill.description.clone()
+                    },
+                    skill.dir.display()
+                );
+            }
+        }
+        SkillsCommand::Add { name, description } => {
+            let description = description.unwrap_or_default();
+            let dir = skills::add_skill(&name, &description)?;
+            println!(
+                "\x1b[32m✓\x1b[0m Created skill '{}' at {}",
+                name,
+                dir.display()
+            );
+            println!(
+                "Edit {} to add your skill content.",
+                dir.join("SKILL.md").display()
+            );
+        }
+        SkillsCommand::Remove { name } => {
+            skills::remove_skill(&name)?;
+            println!(
+                "\x1b[32m✓\x1b[0m Removed skill '{}' and its provider symlinks.",
+                name
+            );
+        }
+        SkillsCommand::Sync { provider } => {
+            let skill_list = skills::load_all_skills()?;
+            if skill_list.is_empty() {
+                println!("No skills to sync.");
+                return Ok(());
+            }
+            let providers: Vec<&str> = if let Some(ref p) = provider {
+                vec![p.as_str()]
+            } else {
+                vec!["claude", "gemini", "copilot", "codex"]
+            };
+            for p in providers {
+                if skills::provider_skills_dir(p).is_some() {
+                    skills::sync_skills_for_provider(p, &skill_list)?;
+                    println!(
+                        "\x1b[32m✓\x1b[0m Synced {} skill(s) for {}",
+                        skill_list.len(),
+                        p
+                    );
+                } else {
+                    println!("  {} does not support native skills (skipped)", p);
+                }
+            }
+        }
+        SkillsCommand::Import { from } => {
+            let imported = skills::import_skills(&from)?;
+            if imported.is_empty() {
+                println!("No new skills to import from '{}'.", from);
+            } else {
+                for name in &imported {
+                    println!("\x1b[32m✓\x1b[0m Imported skill '{}'", name);
+                }
+                println!("Imported {} skill(s) from '{}'.", imported.len(), from);
+            }
         }
     }
     Ok(())
@@ -1539,6 +1673,7 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Capability { .. } => "capability",
         Commands::Listen { .. } => "listen",
         Commands::Man { .. } => "man",
+        Commands::Skills { .. } => "skills",
     }
 }
 
@@ -1603,8 +1738,13 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     let is_exec = matches!(action, Commands::Exec { .. });
     let show_wrapper = !quiet && (!is_exec || verbose);
 
-    let system_prompt =
+    let mut system_prompt =
         augment_system_prompt_for_json(system_prompt, json_mode, &provider, &json_schema);
+
+    if let Err(e) = skills::setup_skills(&provider, &mut system_prompt) {
+        log::warn!("Failed to set up skills: {}", e);
+    }
+
     if let Some(ref sp) = system_prompt {
         debug!("Effective system prompt: {}", sp);
     }

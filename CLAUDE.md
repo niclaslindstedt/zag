@@ -68,11 +68,14 @@ Cargo workspace with two crates:
 | `src/worktree.rs` | Git worktree creation, removal, and name generation |
 | `src/json_validation.rs` | JSON and JSON Schema validation utilities |
 | `src/listen.rs` | Listen command: session log tailing, event formatting, session resolution |
+| `src/skills.rs` | Provider-agnostic skill management: parsing, loading, syncing symlinks, system prompt injection |
+| `src/skills_tests.rs` | Unit tests for skills module |
 | `man/*.md` | Embedded manpages for the `agent man` command |
 | `prompts/auto-selector/*.md` | Versioned prompt templates for auto-selection (latest: 3_1) |
 | `prompts/json-wrap/*.md` | Versioned prompt templates for wrapping user prompts with JSON instructions (latest: 1_0) |
 | `man/capability.md` | Manpage for the `agent capability` command |
 | `man/listen.md` | Manpage for the `agent listen` command |
+| `man/skills.md` | Manpage for the `agent skills` command |
 
 ## Model Size Abstraction
 
@@ -240,6 +243,34 @@ Settings are applied in this order (later overrides earlier):
 | `ollama.size_medium` | Size for medium alias (default: "9b") |
 | `ollama.size_large` | Size for large alias (default: "35b") |
 | `listen.format` | Default output format for listen command (default: "text") |
+
+## Skills
+
+Provider-agnostic skills are stored at `~/.agent/skills/<skill-name>/` using the [Agent Skills](https://agentskills.io) open standard format (same `SKILL.md` format used by Claude, Gemini, Copilot, and Codex).
+
+### Storage Format
+
+```
+~/.agent/skills/<skill-name>/
+├── SKILL.md       (required) YAML frontmatter + markdown instructions
+├── scripts/       (optional)
+├── references/    (optional)
+└── assets/        (optional)
+```
+
+`SKILL.md` frontmatter: `name`, `description` (required); body is markdown instructions.
+
+### Provider Integration
+
+| Provider | Strategy | Target |
+|----------|----------|--------|
+| Claude   | Symlink  | `~/.claude/skills/agent-<name>/` |
+| Gemini   | Symlink  | `~/.gemini/skills/agent-<name>/` |
+| Copilot  | Symlink  | `~/.copilot/skills/agent-<name>/` |
+| Codex    | Symlink  | `~/.agents/skills/agent-<name>/` |
+| Ollama   | System prompt injection | N/A |
+
+Skills are synced automatically in `run_agent_action()` (after `augment_system_prompt_for_json`, before `create_and_configure_agent`). Symlinks use `agent-` prefix to avoid collisions.
 
 ## Logging
 
@@ -448,6 +479,7 @@ The provider is specified via the `--provider` (or `-p`) flag. If omitted, it de
 - **`capability`** - Show provider capability declarations
 - **`listen`** - Tail a session's log events in real-time
 - **`man`** - Show manual pages for commands
+- **`skills`** - Manage provider-agnostic skills stored in `~/.agent/skills/`
 
 ```bash
 # Interactive mode (uses default provider, typically claude)
@@ -548,6 +580,16 @@ agent listen --latest                 # Listen to the most recently created sess
 agent listen --active                 # Listen to the most recently written-to session
 agent listen --latest --json          # JSON output (NDJSON)
 agent listen --latest --colors        # Text with ANSI colors
+
+# Skills management
+agent skills list                     # List all skills in ~/.agent/skills/
+agent skills add commit               # Create a new skill skeleton
+agent skills add commit --description "Commit code changes"  # With description
+agent skills remove commit            # Remove skill and provider symlinks
+agent skills sync                     # Manually sync to all providers
+agent skills sync -p claude           # Sync only to Claude
+agent skills import                   # Import existing Claude skills
+agent skills import --from gemini     # Import from another provider
 
 # Configuration
 agent config                       # Print full config
