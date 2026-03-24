@@ -1207,6 +1207,11 @@ fn save_session_mapping(
         if let Err(e) = store.save(root) {
             log::warn!("Failed to save session mapping: {}", e);
         }
+        debug!(
+            "Saved plain session mapping: id={}, model='{}'",
+            plain.session_id.as_deref().unwrap_or(""),
+            model
+        );
     }
 
     // Save worktree session mapping
@@ -1406,6 +1411,13 @@ fn cache_discovered_session(
     discovered: &DiscoveredSession,
     root: Option<&str>,
 ) -> session::SessionEntry {
+    // Try to preserve model from any existing entry for this session
+    let existing_model = session::SessionStore::load(root)
+        .unwrap_or_default()
+        .find_by_any_id(&discovered.provider_session_id)
+        .map(|e| e.model.clone())
+        .unwrap_or_default();
+
     let workspace_path = discovered
         .workspace_path
         .clone()
@@ -1414,7 +1426,7 @@ fn cache_discovered_session(
     let entry = session::SessionEntry {
         session_id: discovered.provider_session_id.clone(),
         provider: discovered.provider.clone(),
-        model: String::new(),
+        model: existing_model,
         worktree_path: workspace_path.clone(),
         worktree_name: if is_worktree {
             worktree_name_from_path(&workspace_path)
@@ -1443,14 +1455,26 @@ fn cache_discovered_session(
 fn resolve_resume_target(requested_id: &str, root: Option<&str>) -> Option<ResumeTarget> {
     let store = session::SessionStore::load(root).unwrap_or_default();
     if let Some(entry) = store.find_by_any_id(requested_id) {
+        debug!(
+            "Found session in store: id={}, provider={}, model='{}'",
+            entry.session_id, entry.provider, entry.model
+        );
         return Some(ResumeTarget {
             entry: entry.clone(),
             matched_by_wrapper_id: store.find_by_session_id(requested_id).is_some(),
         });
     }
 
+    debug!(
+        "Session {} not in store, trying provider discovery",
+        requested_id
+    );
     let discovered = detect_provider_session(requested_id)?;
     let entry = cache_discovered_session(&discovered, root);
+    debug!(
+        "Discovered session: provider={}, model='{}'",
+        entry.provider, entry.model
+    );
     Some(ResumeTarget {
         entry,
         matched_by_wrapper_id: false,
@@ -1839,7 +1863,13 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         }
         provider = target.entry.provider.clone();
         if !target.entry.model.is_empty() {
+            debug!(
+                "Restored model from session entry: '{}'",
+                target.entry.model
+            );
             model = Some(target.entry.model.clone());
+        } else {
+            debug!("Session entry has empty model, will fall back to config/default");
         }
     }
 
