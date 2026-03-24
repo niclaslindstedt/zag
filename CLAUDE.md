@@ -542,6 +542,7 @@ The provider is specified via the `--provider` (or `-p`) flag. If omitted, it de
 - **`config`** - View or set configuration values
 - **`capability`** - Show provider capability declarations
 - **`listen`** - Tail a session's log events in real-time
+- **`session`** - List and inspect sessions, import historical provider logs
 - **`man`** - Show manual pages for commands
 - **`skills`** - Manage provider-agnostic skills stored in `~/.agent/skills/`
 
@@ -648,6 +649,15 @@ agent listen --latest                 # Listen to the most recently created sess
 agent listen --active                 # Listen to the most recently written-to session
 agent listen --latest --json          # JSON output (NDJSON)
 agent listen --latest --colors        # Text with ANSI colors
+
+# Session management
+agent session list                    # List all sessions
+agent session list --json             # JSON output
+agent session list -p claude          # Filter by provider
+agent session list -n 5               # Show 5 most recent
+agent session show <session-id>       # Show session details
+agent session show <id> --json        # JSON output
+agent session import                  # Import historical provider logs
 
 # Skills management
 agent skills list                     # List all skills in ~/.agent/skills/

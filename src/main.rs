@@ -157,10 +157,13 @@ enum Commands {
         /// Config key and value (e.g., "provider claude" or "provider=claude")
         args: Vec<String>,
     },
-    /// Historical session log utilities
-    Logs {
+    /// List and inspect sessions
+    Session {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
         #[command(subcommand)]
-        command: LogsCommand,
+        command: SessionCommand,
     },
     /// Show capability declarations for a provider
     Capability {
@@ -203,7 +206,7 @@ enum Commands {
     },
     /// Show manual pages for commands
     Man {
-        /// Command to show help for (run, exec, review, config, capability, listen, man, skills)
+        /// Command to show help for (run, exec, review, config, session, capability, listen, man, skills)
         command: Option<String>,
     },
     /// Manage provider-agnostic skills stored in ~/.agent/skills/
@@ -217,8 +220,22 @@ enum Commands {
 }
 
 #[derive(Subcommand)]
-enum LogsCommand {
-    /// Import historical provider logs into the unified session log store
+enum SessionCommand {
+    /// List all sessions
+    List {
+        /// Filter by provider
+        #[arg(short = 'p', long)]
+        provider: Option<String>,
+        /// Show only the N most recent sessions
+        #[arg(short = 'n', long)]
+        limit: Option<usize>,
+    },
+    /// Show details of a specific session
+    Show {
+        /// Session ID (wrapper or provider-native)
+        id: String,
+    },
+    /// Import historical provider logs into the session store
     Import,
 }
 
@@ -294,7 +311,7 @@ async fn main() -> Result<()> {
         match &cli.command {
             Commands::Review { .. } => bail!("--json-stream cannot be used with review"),
             Commands::Config { .. } => bail!("--json-stream cannot be used with config"),
-            Commands::Logs { .. } => bail!("--json-stream cannot be used with logs"),
+            Commands::Session { .. } => bail!("--json-stream cannot be used with session"),
             Commands::Capability { .. } => bail!("--json-stream cannot be used with capability"),
             Commands::Listen { .. } => bail!("--json-stream cannot be used with listen"),
             Commands::Skills { .. } => bail!("--json-stream cannot be used with skills"),
@@ -317,7 +334,7 @@ async fn main() -> Result<()> {
         match &cli.command {
             Commands::Review { .. } => bail!("--json/--json-schema cannot be used with review"),
             Commands::Config { .. } => bail!("--json/--json-schema cannot be used with config"),
-            Commands::Logs { .. } => bail!("--json/--json-schema cannot be used with logs"),
+            Commands::Session { .. } => bail!("--json/--json-schema cannot be used with session"),
             Commands::Capability { .. } => {
                 bail!("--json/--json-schema cannot be used with capability")
             }
@@ -369,7 +386,7 @@ async fn main() -> Result<()> {
         match &cli.command {
             Commands::Review { .. } => bail!("--worktree cannot be used with review"),
             Commands::Config { .. } => bail!("--worktree cannot be used with config"),
-            Commands::Logs { .. } => bail!("--worktree cannot be used with logs"),
+            Commands::Session { .. } => bail!("--worktree cannot be used with session"),
             Commands::Capability { .. } => bail!("--worktree cannot be used with capability"),
             Commands::Listen { .. } => bail!("--worktree cannot be used with listen"),
             Commands::Skills { .. } => bail!("--worktree cannot be used with skills"),
@@ -389,7 +406,7 @@ async fn main() -> Result<()> {
         match &cli.command {
             Commands::Review { .. } => bail!("--sandbox cannot be used with review"),
             Commands::Config { .. } => bail!("--sandbox cannot be used with config"),
-            Commands::Logs { .. } => bail!("--sandbox cannot be used with logs"),
+            Commands::Session { .. } => bail!("--sandbox cannot be used with session"),
             Commands::Capability { .. } => bail!("--sandbox cannot be used with capability"),
             Commands::Listen { .. } => bail!("--sandbox cannot be used with listen"),
             Commands::Man { .. } => bail!("--sandbox cannot be used with man"),
@@ -432,7 +449,7 @@ async fn main() -> Result<()> {
         match &cli.command {
             Commands::Review { .. } => bail!("auto cannot be used with review"),
             Commands::Config { .. } => bail!("auto cannot be used with config"),
-            Commands::Logs { .. } => bail!("auto cannot be used with logs"),
+            Commands::Session { .. } => bail!("auto cannot be used with session"),
             Commands::Capability { .. } => bail!("auto cannot be used with capability"),
             Commands::Listen { .. } => bail!("auto cannot be used with listen"),
             Commands::Skills { .. } => bail!("auto cannot be used with skills"),
@@ -456,12 +473,12 @@ async fn main() -> Result<()> {
             debug!("Running config subcommand with args: {:?}", args);
             run_config(args, cli.root.as_deref())?;
         }
-        Commands::Logs { command } => {
+        Commands::Session { command, json } => {
             debug!(
-                "Running logs subcommand: {:?}",
+                "Running session subcommand: {:?}",
                 std::mem::discriminant(&command)
             );
-            run_logs(command, cli.root.as_deref())?;
+            run_session(command, json, cli.root.as_deref())?;
         }
         Commands::Skills { command, json } => {
             debug!(
@@ -650,7 +667,7 @@ const MAN_RUN: &str = include_str!("../man/run.md");
 const MAN_EXEC: &str = include_str!("../man/exec.md");
 const MAN_REVIEW: &str = include_str!("../man/review.md");
 const MAN_CONFIG: &str = include_str!("../man/config.md");
-const MAN_LOGS: &str = include_str!("../man/logs.md");
+const MAN_SESSION: &str = include_str!("../man/session.md");
 const MAN_CAPABILITY: &str = include_str!("../man/capability.md");
 const MAN_LISTEN: &str = include_str!("../man/listen.md");
 const MAN_MAN: &str = include_str!("../man/man.md");
@@ -667,13 +684,13 @@ fn print_manpage(command: Option<&str>) -> Result<()> {
         Some("exec") => MAN_EXEC,
         Some("review") => MAN_REVIEW,
         Some("config") => MAN_CONFIG,
-        Some("logs") => MAN_LOGS,
+        Some("session") => MAN_SESSION,
         Some("capability") => MAN_CAPABILITY,
         Some("listen") => MAN_LISTEN,
         Some("man") => MAN_MAN,
         Some("skills") => MAN_SKILLS,
         Some(other) => bail!(
-            "No manual entry for '{}'. Available: run, exec, review, config, logs, capability, listen, man, skills",
+            "No manual entry for '{}'. Available: run, exec, review, config, session, capability, listen, man, skills",
             other
         ),
     };
@@ -688,9 +705,66 @@ fn run_resume_id(action: &Commands) -> Option<&str> {
     }
 }
 
-fn run_logs(command: LogsCommand, root: Option<&str>) -> Result<()> {
+fn run_session(command: SessionCommand, json: bool, root: Option<&str>) -> Result<()> {
     match command {
-        LogsCommand::Import => {
+        SessionCommand::List { provider, limit } => {
+            let store = session::SessionStore::load(root)?;
+            let mut sessions = store.list();
+            if let Some(ref p) = provider {
+                sessions.retain(|s| s.provider == *p);
+            }
+            if let Some(n) = limit {
+                sessions.truncate(n);
+            }
+            if json {
+                println!("{}", serde_json::to_string(&sessions)?);
+                return Ok(());
+            }
+            if sessions.is_empty() {
+                println!("No sessions found.");
+                return Ok(());
+            }
+            println!(
+                "{:<38} {:<10} {:<12} CREATED",
+                "SESSION ID", "PROVIDER", "MODEL"
+            );
+            println!("{}", "-".repeat(90));
+            for s in &sessions {
+                println!(
+                    "{:<38} {:<10} {:<12} {}",
+                    s.session_id, s.provider, s.model, s.created_at
+                );
+            }
+        }
+        SessionCommand::Show { id } => {
+            let store = session::SessionStore::load(root)?;
+            match store.get(&id) {
+                Some(info) => {
+                    if json {
+                        println!("{}", serde_json::to_string(&info)?);
+                        return Ok(());
+                    }
+                    println!("Session ID:          {}", info.session_id);
+                    println!("Provider:            {}", info.provider);
+                    println!("Model:               {}", info.model);
+                    println!("Created:             {}", info.created_at);
+                    if let Some(ref pid) = info.provider_session_id {
+                        println!("Provider Session ID: {}", pid);
+                    }
+                    if let Some(ref wp) = info.worktree_path {
+                        println!("Worktree:            {}", wp);
+                    }
+                    if let Some(ref sb) = info.sandbox_name {
+                        println!("Sandbox:             {}", sb);
+                    }
+                    println!("Log Completeness:    {}", info.log_completeness);
+                }
+                None => {
+                    bail!("Session not found: {}", id);
+                }
+            }
+        }
+        SessionCommand::Import => {
             let imported = crate::session_log::run_default_backfill(root)?;
             println!("Imported {} historical session log(s)", imported);
         }
@@ -1760,7 +1834,7 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Exec { .. } => "exec",
         Commands::Review { .. } => "review",
         Commands::Config { .. } => "config",
-        Commands::Logs { .. } => "logs",
+        Commands::Session { .. } => "session",
         Commands::Capability { .. } => "capability",
         Commands::Listen { .. } => "listen",
         Commands::Man { .. } => "man",

@@ -19,7 +19,7 @@ fn test_print_manpage_all_commands() {
         "exec",
         "review",
         "config",
-        "logs",
+        "session",
         "capability",
         "listen",
         "man",

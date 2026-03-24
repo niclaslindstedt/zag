@@ -179,6 +179,54 @@ impl SessionStore {
         debug!("Removing session: {}", session_id);
         self.sessions.retain(|e| e.session_id != session_id);
     }
+
+    /// List all sessions as `SessionInfo`, sorted by created_at descending (newest first).
+    pub fn list(&self) -> Vec<SessionInfo> {
+        let mut infos: Vec<SessionInfo> = self.sessions.iter().map(SessionInfo::from).collect();
+        infos.sort_by(|a, b| {
+            parse_created_at(&b.created_at)
+                .cmp(&parse_created_at(&a.created_at))
+                .then_with(|| b.session_id.cmp(&a.session_id))
+        });
+        infos
+    }
+
+    /// Get a session by any ID (wrapper or provider-native) as `SessionInfo`.
+    pub fn get(&self, id: &str) -> Option<SessionInfo> {
+        self.find_by_any_id(id).map(SessionInfo::from)
+    }
+}
+
+/// Public session info struct for programmatic API consumers.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionInfo {
+    pub session_id: String,
+    pub provider: String,
+    pub model: String,
+    pub created_at: String,
+    pub provider_session_id: Option<String>,
+    pub worktree_path: Option<String>,
+    pub sandbox_name: Option<String>,
+    pub log_completeness: String,
+}
+
+impl From<&SessionEntry> for SessionInfo {
+    fn from(e: &SessionEntry) -> Self {
+        Self {
+            session_id: e.session_id.clone(),
+            provider: e.provider.clone(),
+            model: e.model.clone(),
+            created_at: e.created_at.clone(),
+            provider_session_id: e.provider_session_id.clone(),
+            worktree_path: if e.worktree_path.is_empty() {
+                None
+            } else {
+                Some(e.worktree_path.clone())
+            },
+            sandbox_name: e.sandbox_name.clone(),
+            log_completeness: e.log_completeness.clone(),
+        }
+    }
 }
 
 fn default_log_completeness() -> String {
