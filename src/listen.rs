@@ -287,7 +287,7 @@ pub fn format_event_text(event: &AgentLogEvent) -> Option<String> {
             tool_name, input, ..
         } => {
             let summary = summarize_tool_input(tool_name, input.as_ref());
-            Some(format!("  \u{26a1} {}{}", tool_name, summary))
+            Some(format!("\n  \u{26a1} {}{}", tool_name, summary))
         }
         LogEventKind::ToolResult {
             success,
@@ -296,17 +296,17 @@ pub fn format_event_text(event: &AgentLogEvent) -> Option<String> {
             ..
         } => {
             if let Some(err) = error.as_deref() {
-                Some(format!("  \u{2717} {}", truncate(err, 120)))
+                Some(format!("  \u{2717} {}", truncate_tool_output(err, 120)))
             } else if success.unwrap_or(false) {
                 let detail = output
                     .as_deref()
-                    .map(|s| format!(" {}", truncate(s, 120)))
+                    .map(|s| format!(" {}", truncate_tool_output(s, 120)))
                     .unwrap_or_default();
                 Some(format!("  \u{2713}{}", detail))
             } else {
                 let detail = output
                     .as_deref()
-                    .map(|s| format!(" {}", truncate(s, 120)))
+                    .map(|s| format!(" {}", truncate_tool_output(s, 120)))
                     .unwrap_or_default();
                 Some(format!("  \u{2717}{}", detail))
             }
@@ -431,7 +431,7 @@ pub fn format_event_rich(event: &AgentLogEvent) -> Option<String> {
         } => {
             let summary = summarize_tool_input(tool_name, input.as_ref());
             Some(format!(
-                "  \x1b[33m\u{26a1} {}\x1b[0m{}",
+                "\n  \x1b[33m\u{26a1} {}\x1b[0m{}",
                 tool_name, summary
             ))
         }
@@ -444,18 +444,18 @@ pub fn format_event_rich(event: &AgentLogEvent) -> Option<String> {
             if let Some(err) = error.as_deref() {
                 Some(format!(
                     "  \x1b[31m\u{2717}\x1b[0m \x1b[2m{}\x1b[0m",
-                    truncate(err, 120)
+                    truncate_tool_output(err, 120)
                 ))
             } else if success.unwrap_or(false) {
                 let detail = output
                     .as_deref()
-                    .map(|s| format!(" \x1b[2m{}\x1b[0m", truncate(s, 120)))
+                    .map(|s| format!(" \x1b[2m{}\x1b[0m", truncate_tool_output(s, 120)))
                     .unwrap_or_default();
                 Some(format!("  \x1b[32m\u{2713}\x1b[0m{}", detail))
             } else {
                 let detail = output
                     .as_deref()
-                    .map(|s| format!(" \x1b[2m{}\x1b[0m", truncate(s, 120)))
+                    .map(|s| format!(" \x1b[2m{}\x1b[0m", truncate_tool_output(s, 120)))
                     .unwrap_or_default();
                 Some(format!("  \x1b[31m\u{2717}\x1b[0m{}", detail))
             }
@@ -511,6 +511,16 @@ fn truncate(s: &str, max_len: usize) -> String {
     } else {
         format!("{}...", &s[..max_len])
     }
+}
+
+/// Truncate tool output, keeping real newlines (indented) instead of escaping them.
+fn truncate_tool_output(s: &str, max_len: usize) -> String {
+    let truncated = if s.len() <= max_len {
+        s.to_string()
+    } else {
+        format!("{}...", &s[..max_len])
+    };
+    indent_continuation(&truncated, "    ")
 }
 
 /// Render content for display: preserve newlines but truncate total length.

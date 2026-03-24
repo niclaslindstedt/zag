@@ -274,6 +274,21 @@ fn test_truncate_newlines() {
 }
 
 #[test]
+fn test_truncate_tool_output_preserves_newlines() {
+    let text = "file1\nfile2\nfile3";
+    let result = truncate_tool_output(text, 200);
+    assert_eq!(result, "file1\n    file2\n    file3");
+}
+
+#[test]
+fn test_truncate_tool_output_truncates_long() {
+    let long = "a".repeat(200);
+    let result = truncate_tool_output(&long, 120);
+    assert!(result.starts_with("aaa"));
+    assert!(result.contains("..."));
+}
+
+#[test]
 fn test_render_content_preserves_newlines() {
     let text = "line1\nline2\nline3";
     let result = render_content(text, 200);
