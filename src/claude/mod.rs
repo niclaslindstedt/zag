@@ -16,9 +16,9 @@ use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
-pub const DEFAULT_MODEL: &str = "opus-4.6";
+pub const DEFAULT_MODEL: &str = "default";
 
-pub const AVAILABLE_MODELS: &[&str] = &["sonnet", "opus", "opus-4.6", "haiku"];
+pub const AVAILABLE_MODELS: &[&str] = &["default", "sonnet", "sonnet-4.6", "opus", "opus-4.6", "haiku", "haiku-4.5"];
 
 pub struct Claude {
     system_prompt: String,
@@ -513,7 +513,7 @@ impl Agent for Claude {
         match size {
             ModelSize::Small => "haiku",
             ModelSize::Medium => "sonnet",
-            ModelSize::Large => "opus-4.6",
+            ModelSize::Large => "default",
         }
     }
 

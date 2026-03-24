@@ -24,7 +24,7 @@ fn test_model_size_from_str() {
 fn test_claude_resolve_model() {
     assert_eq!(Claude::resolve_model("small"), "haiku");
     assert_eq!(Claude::resolve_model("medium"), "sonnet");
-    assert_eq!(Claude::resolve_model("large"), "opus-4.6");
+    assert_eq!(Claude::resolve_model("large"), "default");
     assert_eq!(Claude::resolve_model("sonnet"), "sonnet"); // passthrough
 }
 
@@ -56,7 +56,7 @@ fn test_copilot_resolve_model() {
 fn test_short_aliases() {
     assert_eq!(Claude::resolve_model("s"), "haiku");
     assert_eq!(Claude::resolve_model("m"), "sonnet");
-    assert_eq!(Claude::resolve_model("l"), "opus-4.6");
+    assert_eq!(Claude::resolve_model("l"), "default");
     assert_eq!(Codex::resolve_model("max"), "gpt-5.4");
 }
 
@@ -94,7 +94,7 @@ fn test_validate_model_all_agents() {
 
 #[test]
 fn test_default_models() {
-    assert_eq!(Claude::default_model(), "opus-4.6");
+    assert_eq!(Claude::default_model(), "default");
     assert_eq!(Codex::default_model(), "gpt-5.4");
     assert_eq!(Gemini::default_model(), "auto");
     assert_eq!(Copilot::default_model(), "claude-sonnet-4.5");
