@@ -2029,6 +2029,19 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
                 .and_then(|entry| entry.provider_session_id.clone());
             print_session_resume_hint(wrapper_session_id, provider_session_id.as_deref());
         }
+    } else if is_interactive_run
+        && show_wrapper
+        && let Some(target) = &resume_target
+        && !target.entry.is_worktree
+        && target.entry.sandbox_name.is_none()
+    {
+        // Resumed plain session (no worktree/sandbox): print resume hint again
+        let sid = &target.entry.session_id;
+        let store = session::SessionStore::load(root.as_deref()).unwrap_or_default();
+        let provider_session_id = store
+            .find_by_session_id(sid)
+            .and_then(|entry| entry.provider_session_id.clone());
+        print_session_resume_hint(sid, provider_session_id.as_deref());
     }
 
     Ok(())
