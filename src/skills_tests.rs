@@ -207,13 +207,21 @@ pub(crate) fn load_skills_from(dir: &Path) -> Result<Vec<Skill>> {
     Ok(skills)
 }
 
-pub(crate) fn sync_skills_for_provider_to(provider_dir: &Path, skills: &[Skill]) -> Result<()> {
+pub(crate) fn sync_skills_for_provider_to(provider_dir: &Path, skills: &[Skill]) -> Result<usize> {
     fs::create_dir_all(provider_dir)?;
 
     let skill_names: std::collections::HashSet<String> =
         skills.iter().map(|s| s.name.clone()).collect();
 
+    let mut skipped = 0usize;
     for skill in skills {
+        // Skip if the provider already has this skill natively (not via our symlink)
+        let native_path = provider_dir.join(&skill.name);
+        if is_real_dir(&native_path) {
+            skipped += 1;
+            continue;
+        }
+
         let link_name = format!("{}{}", SKILL_PREFIX, skill.name);
         let link_path = provider_dir.join(&link_name);
         let target = &skill.dir;
@@ -244,13 +252,15 @@ pub(crate) fn sync_skills_for_provider_to(provider_dir: &Path, skills: &[Skill])
                 continue;
             }
             let skill_name = name.trim_start_matches(SKILL_PREFIX);
-            if !skill_names.contains(skill_name) {
+            let should_remove =
+                !skill_names.contains(skill_name) || is_real_dir(&provider_dir.join(skill_name));
+            if should_remove {
                 let _ = fs::remove_file(&path).or_else(|_| fs::remove_dir(&path));
             }
         }
     }
 
-    Ok(())
+    Ok(skipped)
 }
 
 pub(crate) fn add_skill_to(base: &Path, name: &str, description: &str) -> Result<PathBuf> {
@@ -280,4 +290,136 @@ pub(crate) fn remove_skill_from(base: &Path, name: &str, provider_dirs: &[&Path]
     }
     fs::remove_dir_all(&dir)?;
     Ok(())
+}
+
+#[test]
+fn test_sync_skills_skips_native_duplicate() {
+    let tmp = TempDir::new().unwrap();
+    let skills_src = tmp.path().join("agent-skills");
+    let provider_skills = tmp.path().join("provider-skills");
+    fs::create_dir_all(&skills_src).unwrap();
+    fs::create_dir_all(&provider_skills).unwrap();
+
+    // Provider already has "commit" natively
+    make_skill_dir(&provider_skills, "commit", "Native commit", "Native body");
+
+    // Agent also has "commit" (imported copy)
+    make_skill_dir(&skills_src, "commit", "Imported commit", "Imported body");
+    let skill = parse_skill(&skills_src.join("commit")).unwrap();
+
+    let skipped = sync_skills_for_provider_to(&provider_skills, &[skill]).unwrap();
+
+    // agent-commit symlink should NOT be created
+    let link = provider_skills.join("agent-commit");
+    assert!(
+        link.symlink_metadata().is_err(),
+        "should not create symlink when native dir exists"
+    );
+    assert_eq!(skipped, 1);
+}
+
+#[test]
+fn test_sync_removes_stale_symlink_when_native_exists() {
+    let tmp = TempDir::new().unwrap();
+    let skills_src = tmp.path().join("agent-skills");
+    let provider_skills = tmp.path().join("provider-skills");
+    fs::create_dir_all(&skills_src).unwrap();
+    fs::create_dir_all(&provider_skills).unwrap();
+
+    // Create a skill and symlink it
+    make_skill_dir(&skills_src, "commit", "Commit", "Body");
+    let skill = parse_skill(&skills_src.join("commit")).unwrap();
+    sync_skills_for_provider_to(&provider_skills, &[skill.clone()]).unwrap();
+
+    let link = provider_skills.join("agent-commit");
+    assert!(
+        link.symlink_metadata().is_ok(),
+        "symlink should exist initially"
+    );
+
+    // Now add a native "commit" dir (simulating the original existing)
+    make_skill_dir(&provider_skills, "commit", "Native commit", "Native body");
+
+    // Re-sync — should remove the stale symlink and skip
+    let skipped = sync_skills_for_provider_to(&provider_skills, &[skill]).unwrap();
+    assert_eq!(skipped, 1);
+    assert!(
+        link.symlink_metadata().is_err(),
+        "stale symlink should be removed when native dir exists"
+    );
+}
+
+#[test]
+fn test_import_writes_metadata() {
+    let tmp = TempDir::new().unwrap();
+    let source_dir = tmp.path().join("claude-skills");
+    let dest_dir = tmp.path().join("agent-skills");
+    fs::create_dir_all(&source_dir).unwrap();
+    fs::create_dir_all(&dest_dir).unwrap();
+
+    make_skill_dir(&source_dir, "my-skill", "Test skill", "Do things");
+
+    let source_hash = hash_skill_md(&source_dir.join("my-skill")).unwrap();
+
+    // Use the copy + metadata logic directly
+    let src_path = source_dir.join("my-skill");
+    let dst_path = dest_dir.join("my-skill");
+    copy_dir_all(&src_path, &dst_path).unwrap();
+    write_import_metadata(&dst_path, "claude", &source_hash).unwrap();
+
+    let meta = read_import_metadata(&dst_path).unwrap();
+    assert_eq!(meta.source_provider, "claude");
+    assert_eq!(meta.source_hash, source_hash);
+    assert!(!meta.imported_at.is_empty());
+}
+
+#[test]
+fn test_hash_skill_md_deterministic() {
+    let tmp = TempDir::new().unwrap();
+    make_skill_dir(tmp.path(), "s1", "Desc", "Body content");
+
+    let h1 = hash_skill_md(&tmp.path().join("s1")).unwrap();
+    let h2 = hash_skill_md(&tmp.path().join("s1")).unwrap();
+    assert_eq!(h1, h2);
+}
+
+#[test]
+fn test_hash_skill_md_different_content() {
+    let tmp = TempDir::new().unwrap();
+    make_skill_dir(tmp.path(), "s1", "Desc1", "Body 1");
+    make_skill_dir(tmp.path(), "s2", "Desc2", "Body 2");
+
+    let h1 = hash_skill_md(&tmp.path().join("s1")).unwrap();
+    let h2 = hash_skill_md(&tmp.path().join("s2")).unwrap();
+    assert_ne!(h1, h2);
+}
+
+#[test]
+fn test_import_backfills_metadata_for_existing_skills() {
+    let tmp = TempDir::new().unwrap();
+    let source_dir = tmp.path().join("claude-skills");
+    let dest_dir = tmp.path().join("agent-skills");
+    fs::create_dir_all(&source_dir).unwrap();
+    fs::create_dir_all(&dest_dir).unwrap();
+
+    // Simulate a previously imported skill without metadata
+    make_skill_dir(&source_dir, "commit", "Commit skill", "Commit body");
+    make_skill_dir(&dest_dir, "commit", "Commit skill", "Commit body");
+
+    // No metadata yet
+    assert!(read_import_metadata(&dest_dir.join("commit")).is_none());
+
+    // Run import logic — it should backfill metadata
+    // We can't call import_skills directly (it uses provider_skills_dir),
+    // so replicate the backfill logic
+    let source_path = source_dir.join("commit");
+    let dest_path = dest_dir.join("commit");
+    if dest_path.exists() && read_import_metadata(&dest_path).is_none() {
+        let source_hash = hash_skill_md(&source_path).unwrap();
+        write_import_metadata(&dest_path, "claude", &source_hash).unwrap();
+    }
+
+    let meta = read_import_metadata(&dest_path).unwrap();
+    assert_eq!(meta.source_provider, "claude");
+    assert!(!meta.source_hash.is_empty());
 }

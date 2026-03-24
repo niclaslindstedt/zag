@@ -10,11 +10,59 @@
 mod tests;
 
 use anyhow::{Context, Result, bail};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
 
 const SKILL_PREFIX: &str = "agent-";
+const IMPORT_METADATA_FILE: &str = ".import-metadata.json";
+
+/// Metadata written when a skill is imported from a provider.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImportMetadata {
+    pub source_provider: String,
+    pub source_hash: String,
+    pub imported_at: String,
+}
+
+/// Compute SHA-256 hash of a skill's SKILL.md file.
+pub fn hash_skill_md(skill_dir: &Path) -> Result<String> {
+    let content = fs::read(skill_dir.join("SKILL.md"))
+        .with_context(|| format!("Failed to read SKILL.md in {}", skill_dir.display()))?;
+    let mut hasher = Sha256::new();
+    hasher.update(&content);
+    Ok(hex::encode(hasher.finalize()))
+}
+
+/// Write import metadata to a skill directory.
+pub fn write_import_metadata(skill_dir: &Path, provider: &str, hash: &str) -> Result<()> {
+    let meta = ImportMetadata {
+        source_provider: provider.to_string(),
+        source_hash: hash.to_string(),
+        imported_at: chrono::Utc::now().to_rfc3339(),
+    };
+    let path = skill_dir.join(IMPORT_METADATA_FILE);
+    let json = serde_json::to_string_pretty(&meta)?;
+    fs::write(&path, json).with_context(|| format!("Failed to write {}", path.display()))?;
+    Ok(())
+}
+
+/// Read import metadata from a skill directory. Returns None if missing or invalid.
+pub fn read_import_metadata(skill_dir: &Path) -> Option<ImportMetadata> {
+    let path = skill_dir.join(IMPORT_METADATA_FILE);
+    let content = fs::read_to_string(&path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+/// Check if a path is a real directory (not a symlink).
+fn is_real_dir(path: &Path) -> bool {
+    path.exists()
+        && !path
+            .symlink_metadata()
+            .map(|m| m.file_type().is_symlink())
+            .unwrap_or(false)
+}
 
 /// A parsed agent skill.
 #[derive(Debug, Clone)]
@@ -134,9 +182,10 @@ pub fn load_all_skills() -> Result<Vec<Skill>> {
 /// Sync skills for a provider that supports native skills (Claude, Gemini, Copilot).
 /// Creates `<provider_skills_dir>/agent-<name>` → `~/.agent/skills/<name>` symlinks.
 /// Removes stale symlinks for skills that no longer exist.
-pub fn sync_skills_for_provider(provider: &str, skills: &[Skill]) -> Result<()> {
+/// Returns the number of skills skipped because the provider already has them natively.
+pub fn sync_skills_for_provider(provider: &str, skills: &[Skill]) -> Result<usize> {
     let Some(target_dir) = provider_skills_dir(provider) else {
-        return Ok(());
+        return Ok(0);
     };
 
     fs::create_dir_all(&target_dir).with_context(|| {
@@ -148,7 +197,26 @@ pub fn sync_skills_for_provider(provider: &str, skills: &[Skill]) -> Result<()> 
     })?;
 
     // Create/update symlinks for current skills
+    let mut skipped = 0usize;
     for skill in skills {
+        // Skip if the provider already has this skill natively (not via our symlink)
+        let native_path = target_dir.join(&skill.name);
+        if is_real_dir(&native_path) {
+            let native_hash = hash_skill_md(&native_path).ok();
+            let import_meta = read_import_metadata(&skill.dir);
+            if let (Some(nh), Some(meta)) = (&native_hash, &import_meta)
+                && *nh != meta.source_hash
+            {
+                log::warn!(
+                    "Skill '{}' has diverged from native {} version",
+                    skill.name,
+                    provider
+                );
+            }
+            skipped += 1;
+            continue;
+        }
+
         let link_name = format!("{}{}", SKILL_PREFIX, skill.name);
         let link_path = target_dir.join(&link_name);
         let target = &skill.dir;
@@ -221,14 +289,17 @@ pub fn sync_skills_for_provider(provider: &str, skills: &[Skill]) -> Result<()> 
             }
 
             let skill_name = name.trim_start_matches(SKILL_PREFIX);
-            if !skill_names.contains(skill_name) {
+            // Remove if the skill no longer exists OR if the provider now has it natively
+            let should_remove =
+                !skill_names.contains(skill_name) || is_real_dir(&target_dir.join(skill_name));
+            if should_remove {
                 let _ = fs::remove_file(&path).or_else(|_| remove_symlink_dir(&path));
                 log::debug!("Removed stale skill symlink: {}", path.display());
             }
         }
     }
 
-    Ok(())
+    Ok(skipped)
 }
 
 #[cfg(unix)]
@@ -274,8 +345,18 @@ pub fn setup_skills(provider: &str, system_prompt: &mut Option<String>) -> Resul
 
     if provider_skills_dir(provider).is_some() {
         // Native skills support — symlink skill directories
-        sync_skills_for_provider(provider, &skills)?;
-        log::info!("Synced {} skill(s) for {}", skills.len(), provider);
+        let skipped = sync_skills_for_provider(provider, &skills)?;
+        let synced = skills.len() - skipped;
+        if skipped > 0 {
+            log::info!(
+                "Synced {} skill(s) for {} (skipped {} native duplicate(s))",
+                synced,
+                provider,
+                skipped
+            );
+        } else {
+            log::info!("Synced {} skill(s) for {}", synced, provider);
+        }
     } else {
         // No native skills — inject into system prompt
         let injected = format_skills_for_system_prompt(&skills);
@@ -393,11 +474,23 @@ pub fn import_skills(from_provider: &str) -> Result<Vec<String>> {
 
         let dest = dest_dir.join(name.as_ref());
         if dest.exists() {
+            // Backfill metadata for previously imported skills that lack it
+            if read_import_metadata(&dest).is_none()
+                && let Ok(source_hash) = hash_skill_md(&path)
+            {
+                let _ = write_import_metadata(&dest, from_provider, &source_hash);
+                log::info!("Backfilled import metadata for skill '{}'", name);
+            }
             log::debug!("Skipping '{}': already exists in ~/.agent/skills/", name);
             continue;
         }
 
         copy_dir_all(&path, &dest).with_context(|| format!("Failed to copy skill '{}'", name))?;
+
+        // Write import metadata with hash of the source SKILL.md
+        if let Ok(source_hash) = hash_skill_md(&path) {
+            let _ = write_import_metadata(&dest, from_provider, &source_hash);
+        }
 
         imported.push(name.to_string());
     }
