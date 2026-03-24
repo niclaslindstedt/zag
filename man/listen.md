@@ -36,9 +36,9 @@ Output each event as a raw JSON line (NDJSON format).
 
 Output events as human-readable plain text (default).
 
-### `--colors`
+### `--rich-text`
 
-Output events as human-readable text with ANSI color codes.
+Output events as rich text with ANSI formatting (colors, bold, dim, italic).
 
 ## Configuration
 
@@ -46,7 +46,7 @@ The default output format can be set in `agent.toml`:
 
 ```toml
 [listen]
-format = "text"       # "text", "json", or "colored-text"
+format = "text"       # "text", "json", or "rich-text"
 ```
 
 Config key: `listen.format`
@@ -80,8 +80,8 @@ In text mode, events are formatted as:
     # JSON output for piping
     agent listen --latest --json
 
-    # Colored output
-    agent listen --active --colors
+    # Rich text output (colors, bold, dim, italic)
+    agent listen --active --rich-text
 
 ## Exit Behavior
 

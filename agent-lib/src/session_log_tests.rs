@@ -171,6 +171,53 @@ fn test_run_backfill_is_idempotent() {
 }
 
 #[test]
+fn test_tool_kind_infer() {
+    assert_eq!(ToolKind::infer("Bash"), ToolKind::Shell);
+    assert_eq!(ToolKind::infer("run_shell"), ToolKind::Shell);
+    assert_eq!(ToolKind::infer("read_file"), ToolKind::FileRead);
+    assert_eq!(ToolKind::infer("write_file"), ToolKind::FileWrite);
+    assert_eq!(ToolKind::infer("apply_patch"), ToolKind::FileEdit);
+    assert_eq!(ToolKind::infer("edit_line"), ToolKind::FileEdit);
+    assert_eq!(ToolKind::infer("search_code"), ToolKind::Search);
+    assert_eq!(ToolKind::infer("sub_agent"), ToolKind::SubAgent);
+    assert_eq!(ToolKind::infer("web_fetch"), ToolKind::Web);
+    assert_eq!(ToolKind::infer("notebook_edit"), ToolKind::Notebook);
+    assert_eq!(ToolKind::infer("custom_mcp"), ToolKind::Other);
+}
+
+#[test]
+fn test_tool_kind_serialization_roundtrip() {
+    let event = LogEventKind::ToolCall {
+        tool_name: "Bash".to_string(),
+        tool_kind: Some(ToolKind::Shell),
+        tool_id: None,
+        input: None,
+    };
+    let json = serde_json::to_string(&event).unwrap();
+    assert!(json.contains("\"tool_kind\":\"shell\""));
+    let parsed: LogEventKind = serde_json::from_str(&json).unwrap();
+    match parsed {
+        LogEventKind::ToolCall { tool_kind, .. } => {
+            assert_eq!(tool_kind, Some(ToolKind::Shell));
+        }
+        _ => panic!("expected ToolCall"),
+    }
+}
+
+#[test]
+fn test_tool_kind_absent_in_old_events() {
+    // Events without tool_kind should deserialize with None (backward compat)
+    let json = r#"{"type":"tool_call","tool_name":"Bash","tool_id":null,"input":null}"#;
+    let parsed: LogEventKind = serde_json::from_str(json).unwrap();
+    match parsed {
+        LogEventKind::ToolCall { tool_kind, .. } => {
+            assert_eq!(tool_kind, None);
+        }
+        _ => panic!("expected ToolCall"),
+    }
+}
+
+#[test]
 fn test_global_index_upsert_and_load() {
     let dir = std::env::temp_dir().join(format!(
         "agent-lib-global-index-test-{}",

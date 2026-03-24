@@ -1,5 +1,5 @@
 use super::*;
-use crate::session_log::{AgentLogEvent, LogCompleteness, LogEventKind, LogSourceKind};
+use crate::session_log::{AgentLogEvent, LogCompleteness, LogEventKind, LogSourceKind, ToolKind};
 use agent_lib::session_log::{
     GlobalSessionEntry, GlobalSessionIndex, load_global_index, save_global_index,
 };
@@ -27,7 +27,9 @@ fn test_format_session_started() {
         backfilled: false,
     });
     let text = format_event_text(&event).unwrap();
-    assert_eq!(text, "[session] Started: run (model: opus)");
+    assert!(text.contains("Started: run"));
+    assert!(text.contains("(model: opus)"));
+    assert!(text.contains('\u{25cf}')); // ● icon
 }
 
 #[test]
@@ -40,7 +42,8 @@ fn test_format_session_started_no_model() {
         backfilled: false,
     });
     let text = format_event_text(&event).unwrap();
-    assert_eq!(text, "[session] Started: exec");
+    assert!(text.contains("Started: exec"));
+    assert!(!text.contains("model"));
 }
 
 #[test]
@@ -51,7 +54,8 @@ fn test_format_user_message() {
         message_id: None,
     });
     let text = format_event_text(&event).unwrap();
-    assert_eq!(text, "[user] hello world");
+    assert!(text.contains("hello world"));
+    assert!(text.contains('\u{276f}')); // ❯ icon
 }
 
 #[test]
@@ -61,7 +65,20 @@ fn test_format_assistant_message() {
         message_id: None,
     });
     let text = format_event_text(&event).unwrap();
-    assert_eq!(text, "[assistant] Hi there!");
+    assert!(text.contains("Hi there!"));
+    assert!(text.contains('\u{23fa}')); // ⏺ icon
+}
+
+#[test]
+fn test_format_assistant_message_multiline() {
+    let event = make_event(LogEventKind::AssistantMessage {
+        content: "line one\nline two\nline three".to_string(),
+        message_id: None,
+    });
+    let text = format_event_text(&event).unwrap();
+    assert!(text.contains("line one\n"));
+    assert!(text.contains("  line two\n")); // continuation indented
+    assert!(text.contains("  line three"));
 }
 
 #[test]
@@ -71,25 +88,43 @@ fn test_format_reasoning() {
         message_id: None,
     });
     let text = format_event_text(&event).unwrap();
-    assert_eq!(text, "[thinking] Let me think about this...");
+    assert!(text.contains("Let me think about this..."));
+    assert!(text.contains('\u{2026}')); // … icon
 }
 
 #[test]
 fn test_format_tool_call() {
     let event = make_event(LogEventKind::ToolCall {
         tool_name: "Read".to_string(),
+        tool_kind: Some(ToolKind::FileRead),
         tool_id: Some("tool-1".to_string()),
         input: Some(serde_json::json!({"path": "/tmp/test.rs"})),
     });
     let text = format_event_text(&event).unwrap();
-    assert!(text.starts_with("[tool] Read("));
+    assert!(text.contains("Read"));
     assert!(text.contains("/tmp/test.rs"));
+    assert!(text.contains('\u{26a1}')); // ⚡ icon
+}
+
+#[test]
+fn test_format_tool_call_with_command() {
+    let event = make_event(LogEventKind::ToolCall {
+        tool_name: "shell".to_string(),
+        tool_kind: Some(ToolKind::Shell),
+        tool_id: None,
+        input: Some(serde_json::json!({"command": "ls -la", "description": "List files"})),
+    });
+    let text = format_event_text(&event).unwrap();
+    assert!(text.contains("shell"));
+    assert!(text.contains("ls -la"));
+    assert!(text.contains("List files"));
 }
 
 #[test]
 fn test_format_tool_result_success() {
     let event = make_event(LogEventKind::ToolResult {
         tool_name: Some("Read".to_string()),
+        tool_kind: Some(ToolKind::FileRead),
         tool_id: Some("tool-1".to_string()),
         success: Some(true),
         output: Some("file contents".to_string()),
@@ -97,13 +132,15 @@ fn test_format_tool_result_success() {
         data: None,
     });
     let text = format_event_text(&event).unwrap();
-    assert_eq!(text, "[result] Read: success: file contents");
+    assert!(text.contains('\u{2713}')); // ✓ icon
+    assert!(text.contains("file contents"));
 }
 
 #[test]
 fn test_format_tool_result_error() {
     let event = make_event(LogEventKind::ToolResult {
         tool_name: Some("Write".to_string()),
+        tool_kind: Some(ToolKind::FileEdit),
         tool_id: None,
         success: Some(false),
         output: None,
@@ -111,7 +148,8 @@ fn test_format_tool_result_error() {
         data: None,
     });
     let text = format_event_text(&event).unwrap();
-    assert_eq!(text, "[result] Write: error: permission denied");
+    assert!(text.contains('\u{2717}')); // ✗ icon
+    assert!(text.contains("permission denied"));
 }
 
 #[test]
@@ -122,7 +160,8 @@ fn test_format_permission() {
         granted: true,
     });
     let text = format_event_text(&event).unwrap();
-    assert_eq!(text, "[permission] Bash: granted");
+    assert!(text.contains("Bash"));
+    assert!(text.contains('\u{1f513}')); // 🔓 icon
 }
 
 #[test]
@@ -133,7 +172,8 @@ fn test_format_permission_denied() {
         granted: false,
     });
     let text = format_event_text(&event).unwrap();
-    assert_eq!(text, "[permission] Bash: denied");
+    assert!(text.contains("Bash"));
+    assert!(text.contains('\u{1f512}')); // 🔒 icon
 }
 
 #[test]
@@ -143,7 +183,7 @@ fn test_format_provider_status() {
         data: None,
     });
     let text = format_event_text(&event).unwrap();
-    assert_eq!(text, "[status] Initialized opus");
+    assert!(text.contains("Initialized opus"));
 }
 
 #[test]
@@ -152,7 +192,8 @@ fn test_format_stderr() {
         message: "warning: unused variable".to_string(),
     });
     let text = format_event_text(&event).unwrap();
-    assert_eq!(text, "[stderr] warning: unused variable");
+    assert!(text.contains("warning: unused variable"));
+    assert!(text.contains('!'));
 }
 
 #[test]
@@ -162,7 +203,8 @@ fn test_format_parse_warning() {
         raw: None,
     });
     let text = format_event_text(&event).unwrap();
-    assert_eq!(text, "[warning] unexpected field");
+    assert!(text.contains("unexpected field"));
+    assert!(text.contains('?'));
 }
 
 #[test]
@@ -172,7 +214,8 @@ fn test_format_session_ended_success() {
         error: None,
     });
     let text = format_event_text(&event).unwrap();
-    assert_eq!(text, "[session] Ended (success: true)");
+    assert!(text.contains("Session completed"));
+    assert!(text.contains('\u{25cf}')); // ● icon
 }
 
 #[test]
@@ -182,22 +225,23 @@ fn test_format_session_ended_error() {
         error: Some("timeout".to_string()),
     });
     let text = format_event_text(&event).unwrap();
-    assert_eq!(text, "[session] Ended (success: false) (timeout)");
+    assert!(text.contains("Session failed"));
+    assert!(text.contains("timeout"));
 }
 
 #[test]
-fn test_format_colored_adds_ansi_codes() {
+fn test_format_rich_adds_ansi_codes() {
     let event = make_event(LogEventKind::Stderr {
         message: "error".to_string(),
     });
-    let colored = format_event_colored(&event).unwrap();
-    assert!(colored.starts_with("\x1b[31m")); // red
-    assert!(colored.ends_with("\x1b[0m")); // reset
-    assert!(colored.contains("[stderr] error"));
+    let rich = format_event_rich(&event).unwrap();
+    assert!(rich.contains("\x1b[")); // has ANSI codes
+    assert!(rich.contains("\x1b[0m")); // has reset
+    assert!(rich.contains("error"));
 }
 
 #[test]
-fn test_format_colored_session_green() {
+fn test_format_rich_session_green() {
     let event = make_event(LogEventKind::SessionStarted {
         command: "run".to_string(),
         model: None,
@@ -205,8 +249,8 @@ fn test_format_colored_session_green() {
         resumed: false,
         backfilled: false,
     });
-    let colored = format_event_colored(&event).unwrap();
-    assert!(colored.starts_with("\x1b[32m")); // green
+    let rich = format_event_rich(&event).unwrap();
+    assert!(rich.contains("\x1b[32m")); // green
 }
 
 #[test]
@@ -230,6 +274,72 @@ fn test_truncate_newlines() {
 }
 
 #[test]
+fn test_render_content_preserves_newlines() {
+    let text = "line1\nline2\nline3";
+    let result = render_content(text, 200);
+    assert_eq!(result, "line1\nline2\nline3");
+}
+
+#[test]
+fn test_render_content_truncates_long() {
+    let long = "a".repeat(600);
+    let result = render_content(&long, 500);
+    assert_eq!(result.len(), 503); // 500 + "..."
+}
+
+#[test]
+fn test_indent_continuation() {
+    let text = "first\nsecond\nthird";
+    let result = indent_continuation(text, "  ");
+    assert_eq!(result, "first\n  second\n  third");
+}
+
+#[test]
+fn test_indent_continuation_single_line() {
+    let result = indent_continuation("only one", "  ");
+    assert_eq!(result, "only one");
+}
+
+#[test]
+fn test_shorten_path_short() {
+    assert_eq!(shorten_path("src/main.rs"), "src/main.rs");
+}
+
+#[test]
+fn test_shorten_path_long() {
+    let result = shorten_path("/Users/niclas/Source/personal/agent/src/main.rs");
+    assert_eq!(result, ".../agent/src/main.rs");
+}
+
+#[test]
+fn test_summarize_tool_input_with_command() {
+    let input = serde_json::json!({"command": "ls -la", "description": "List files"});
+    let result = summarize_tool_input("anything", Some(&input));
+    assert!(result.contains("ls -la"));
+    assert!(result.contains("List files"));
+}
+
+#[test]
+fn test_summarize_tool_input_with_file_path() {
+    let input = serde_json::json!({"file_path": "/a/b/c/d/e/f.rs"});
+    let result = summarize_tool_input("anything", Some(&input));
+    assert!(result.contains("f.rs"));
+}
+
+#[test]
+fn test_summarize_tool_input_none() {
+    let result = summarize_tool_input("anything", None);
+    assert!(result.is_empty());
+}
+
+#[test]
+fn test_summarize_tool_input_fallback_json() {
+    let input = serde_json::json!({"weird_key": "value"});
+    let result = summarize_tool_input("anything", Some(&input));
+    assert!(result.contains("weird_key"));
+}
+
+#[test]
 fn test_listen_format_from_flags_json() {
     let config = Config::default();
     assert_eq!(
@@ -239,11 +349,11 @@ fn test_listen_format_from_flags_json() {
 }
 
 #[test]
-fn test_listen_format_from_flags_colors() {
+fn test_listen_format_from_flags_rich_text() {
     let config = Config::default();
     assert_eq!(
         ListenFormat::from_flags(false, true, false, &config),
-        ListenFormat::ColoredText
+        ListenFormat::RichText
     );
 }
 

@@ -1,7 +1,22 @@
 use crate::session_log::{
     BackfilledSession, HistoricalLogAdapter, LiveLogAdapter, LiveLogContext, LogCompleteness,
-    LogEventKind, LogSourceKind, SessionLogMetadata, SessionLogWriter,
+    LogEventKind, LogSourceKind, SessionLogMetadata, SessionLogWriter, ToolKind,
 };
+
+/// Classify a Claude Code built-in tool name into a normalized ToolKind.
+fn tool_kind_from_name(name: &str) -> ToolKind {
+    match name {
+        "Bash" => ToolKind::Shell,
+        "Read" => ToolKind::FileRead,
+        "Write" => ToolKind::FileWrite,
+        "Edit" => ToolKind::FileEdit,
+        "Glob" | "Grep" => ToolKind::Search,
+        "Agent" => ToolKind::SubAgent,
+        "WebFetch" | "WebSearch" => ToolKind::Web,
+        "NotebookEdit" => ToolKind::Notebook,
+        _ => ToolKind::Other,
+    }
+}
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use log::info;
@@ -270,6 +285,7 @@ fn parse_claude_value(value: &Value, seen_keys: &mut HashSet<String>) -> Vec<Log
                     if block.get("type").and_then(|value| value.as_str()) == Some("tool_result") {
                         events.push(LogEventKind::ToolResult {
                             tool_name: None,
+                            tool_kind: None, // tool_use_id could be correlated, but name isn't in result
                             tool_id: block
                                 .get("tool_use_id")
                                 .and_then(|value| value.as_str())
@@ -318,18 +334,21 @@ fn parse_claude_value(value: &Value, seen_keys: &mut HashSet<String>) -> Vec<Log
                                 .to_string(),
                             message_id: message_id.clone(),
                         }),
-                        Some("tool_use") => events.push(LogEventKind::ToolCall {
-                            tool_name: block
+                        Some("tool_use") => {
+                            let name = block
                                 .get("name")
                                 .and_then(|value| value.as_str())
-                                .unwrap_or("unknown")
-                                .to_string(),
-                            tool_id: block
-                                .get("id")
-                                .and_then(|value| value.as_str())
-                                .map(str::to_string),
-                            input: block.get("input").cloned(),
-                        }),
+                                .unwrap_or("unknown");
+                            events.push(LogEventKind::ToolCall {
+                                tool_kind: Some(tool_kind_from_name(name)),
+                                tool_name: name.to_string(),
+                                tool_id: block
+                                    .get("id")
+                                    .and_then(|value| value.as_str())
+                                    .map(str::to_string),
+                                input: block.get("input").cloned(),
+                            });
+                        }
                         _ => {}
                     }
                 }

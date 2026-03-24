@@ -57,7 +57,7 @@ pub struct AutoConfig {
 /// Listen command configuration.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ListenConfig {
-    /// Default output format: "text", "json", or "colored-text"
+    /// Default output format: "text", "json", or "rich-text"
     pub format: Option<String>,
 }
 
@@ -363,9 +363,9 @@ impl Config {
             "ollama.size_large" => self.ollama.size_large = Some(value.to_string()),
             "listen.format" => {
                 let v = value.to_lowercase();
-                if !["text", "json", "colored-text"].contains(&v.as_str()) {
+                if !["text", "json", "rich-text"].contains(&v.as_str()) {
                     anyhow::bail!(
-                        "Invalid listen format '{}'. Available: text, json, colored-text",
+                        "Invalid listen format '{}'. Available: text, json, rich-text",
                         value
                     );
                 }
@@ -418,7 +418,7 @@ model = "medium"
 # size_large = "35b"
 
 [listen]
-# Default output format for listen command: "text", "json", or "colored-text"
+# Default output format for listen command: "text", "json", or "rich-text"
 # format = "text"
 "#
         .to_string()

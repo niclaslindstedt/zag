@@ -111,6 +111,7 @@ fn test_parse_copilot_assistant_message_event() {
             tool_name,
             tool_id,
             input,
+            ..
         } => {
             assert_eq!(tool_name, "view");
             assert_eq!(tool_id.as_deref(), Some("tool-1"));

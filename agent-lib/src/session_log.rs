@@ -31,6 +31,69 @@ pub enum LogSourceKind {
     Backfill,
 }
 
+/// Normalized tool category — provider-agnostic classification of tool calls.
+///
+/// Providers map their native tool names (e.g. Claude's `Read`, Copilot's `view`)
+/// to this enum so consumers can distinguish tool types without hardcoding
+/// provider-specific strings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolKind {
+    /// Shell/command execution (Claude `Bash`, Copilot `bash`, Codex shell calls)
+    Shell,
+    /// File read operations (Claude `Read`, Copilot `view`)
+    FileRead,
+    /// File creation/overwrite (Claude `Write`, Codex `write_file`)
+    FileWrite,
+    /// File modification/patching (Claude `Edit`, Codex `apply_patch`, Copilot `edit`)
+    FileEdit,
+    /// File/content search (Claude `Glob`/`Grep`)
+    Search,
+    /// Sub-agent delegation (Claude `Agent`)
+    SubAgent,
+    /// Web/network operations
+    Web,
+    /// Notebook operations
+    Notebook,
+    /// Tool kind could not be determined from the provider's tool name
+    Other,
+}
+
+impl ToolKind {
+    /// Best-effort classification from any tool name (case-insensitive heuristic).
+    ///
+    /// Provider-specific classifiers (which map exact tool names) should live in
+    /// their respective provider modules in the binary crate. This generic fallback
+    /// is for cases where the provider is unknown or for wrapper-level code.
+    pub fn infer(name: &str) -> Self {
+        let lower = name.to_lowercase();
+        // Check compound/specific categories first to avoid false positives
+        if lower.contains("notebook") {
+            Self::Notebook
+        } else if lower.contains("bash") || lower.contains("shell") || lower == "exec" {
+            Self::Shell
+        } else if lower.contains("read") || lower == "view" || lower == "cat" {
+            Self::FileRead
+        } else if lower.contains("write") {
+            Self::FileWrite
+        } else if lower.contains("edit") || lower.contains("patch") {
+            Self::FileEdit
+        } else if lower.contains("grep")
+            || lower.contains("glob")
+            || lower.contains("search")
+            || lower == "find"
+        {
+            Self::Search
+        } else if lower.contains("agent") {
+            Self::SubAgent
+        } else if lower.contains("web") || lower.contains("fetch") || lower.contains("http") {
+            Self::Web
+        } else {
+            Self::Other
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum LogEventKind {
@@ -56,11 +119,15 @@ pub enum LogEventKind {
     },
     ToolCall {
         tool_name: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tool_kind: Option<ToolKind>,
         tool_id: Option<String>,
         input: Option<Value>,
     },
     ToolResult {
         tool_name: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tool_kind: Option<ToolKind>,
         tool_id: Option<String>,
         success: Option<bool>,
         output: Option<String>,
@@ -565,6 +632,7 @@ pub fn record_agent_output(writer: &SessionLogWriter, output: &AgentOutput) -> R
                             writer.emit(
                                 LogSourceKind::Wrapper,
                                 LogEventKind::ToolCall {
+                                    tool_kind: Some(ToolKind::infer(name)),
                                     tool_name: name.clone(),
                                     tool_id: Some(id.clone()),
                                     input: Some(input.clone()),
@@ -583,6 +651,7 @@ pub fn record_agent_output(writer: &SessionLogWriter, output: &AgentOutput) -> R
                 writer.emit(
                     LogSourceKind::Wrapper,
                     LogEventKind::ToolResult {
+                        tool_kind: Some(ToolKind::infer(tool_name)),
                         tool_name: Some(tool_name.clone()),
                         tool_id: Some(tool_id.clone()),
                         success: Some(result.success),

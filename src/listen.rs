@@ -13,16 +13,16 @@ use std::path::{Path, PathBuf};
 pub enum ListenFormat {
     Text,
     Json,
-    ColoredText,
+    RichText,
 }
 
 impl ListenFormat {
-    pub fn from_flags(json: bool, colors: bool, text: bool, config: &Config) -> Self {
+    pub fn from_flags(json: bool, rich_text: bool, text: bool, config: &Config) -> Self {
         if json {
             return Self::Json;
         }
-        if colors {
-            return Self::ColoredText;
+        if rich_text {
+            return Self::RichText;
         }
         if text {
             return Self::Text;
@@ -30,7 +30,7 @@ impl ListenFormat {
         // Check config default
         match config.listen_format() {
             Some("json") => Self::Json,
-            Some("colored-text") => Self::ColoredText,
+            Some("rich-text") => Self::RichText,
             _ => Self::Text,
         }
     }
@@ -227,11 +227,11 @@ pub fn tail_session_log(path: &Path, format: ListenFormat) -> Result<()> {
                     // Pass through raw JSON
                     println!("{}", trimmed);
                 }
-                ListenFormat::Text | ListenFormat::ColoredText => {
+                ListenFormat::Text | ListenFormat::RichText => {
                     match serde_json::from_str::<AgentLogEvent>(trimmed) {
                         Ok(event) => {
-                            let formatted = if format == ListenFormat::ColoredText {
-                                format_event_colored(&event)
+                            let formatted = if format == ListenFormat::RichText {
+                                format_event_rich(&event)
                             } else {
                                 format_event_text(&event)
                             };
@@ -262,7 +262,7 @@ pub fn tail_session_log(path: &Path, format: ListenFormat) -> Result<()> {
     }
 }
 
-/// Format an event as plain text.
+/// Format an event as plain text with styled prefixes.
 pub fn format_event_text(event: &AgentLogEvent) -> Option<String> {
     match &event.kind {
         LogEventKind::SessionStarted { command, model, .. } => {
@@ -270,97 +270,238 @@ pub fn format_event_text(event: &AgentLogEvent) -> Option<String> {
                 .as_deref()
                 .map(|m| format!(" (model: {})", m))
                 .unwrap_or_default();
-            Some(format!("[session] Started: {}{}", command, model_info))
+            Some(format!("\n\u{25cf} Started: {}{}", command, model_info))
         }
         LogEventKind::UserMessage { content, .. } => {
-            Some(format!("[user] {}", truncate(content, 200)))
+            Some(format!("\n\u{276f} {}", render_content(content, 500)))
         }
-        LogEventKind::AssistantMessage { content, .. } => {
-            Some(format!("[assistant] {}", truncate(content, 200)))
-        }
-        LogEventKind::Reasoning { content, .. } => {
-            Some(format!("[thinking] {}", truncate(content, 200)))
-        }
+        LogEventKind::AssistantMessage { content, .. } => Some(format!(
+            "\n\u{23fa} {}",
+            indent_continuation(&render_content(content, 500), "  ")
+        )),
+        LogEventKind::Reasoning { content, .. } => Some(format!(
+            "  \u{2026} {}",
+            indent_continuation(&render_content(content, 200), "    ")
+        )),
         LogEventKind::ToolCall {
             tool_name, input, ..
         } => {
-            let input_summary = input
-                .as_ref()
-                .map(|v| truncate(&v.to_string(), 100))
-                .unwrap_or_default();
-            Some(format!("[tool] {}({})", tool_name, input_summary))
+            let summary = summarize_tool_input(tool_name, input.as_ref());
+            Some(format!("  \u{26a1} {}{}", tool_name, summary))
         }
         LogEventKind::ToolResult {
-            tool_name,
             success,
             output,
             error,
             ..
         } => {
-            let name = tool_name.as_deref().unwrap_or("unknown");
-            let status = if success.unwrap_or(false) {
-                "success"
+            if let Some(err) = error.as_deref() {
+                Some(format!("  \u{2717} {}", truncate(err, 120)))
+            } else if success.unwrap_or(false) {
+                let detail = output
+                    .as_deref()
+                    .map(|s| format!(" {}", truncate(s, 120)))
+                    .unwrap_or_default();
+                Some(format!("  \u{2713}{}", detail))
             } else {
-                "error"
-            };
-            let detail = error
-                .as_deref()
-                .or(output.as_deref())
-                .map(|s| format!(": {}", truncate(s, 100)))
-                .unwrap_or_default();
-            Some(format!("[result] {}: {}{}", name, status, detail))
+                let detail = output
+                    .as_deref()
+                    .map(|s| format!(" {}", truncate(s, 120)))
+                    .unwrap_or_default();
+                Some(format!("  \u{2717}{}", detail))
+            }
         }
         LogEventKind::Permission {
             tool_name, granted, ..
         } => {
-            let status = if *granted { "granted" } else { "denied" };
-            Some(format!("[permission] {}: {}", tool_name, status))
+            let icon = if *granted { "\u{1f513}" } else { "\u{1f512}" };
+            Some(format!("  {} {}", icon, tool_name))
         }
         LogEventKind::ProviderStatus { message, .. } => {
-            Some(format!("[status] {}", truncate(message, 200)))
+            Some(format!("  > {}", truncate(message, 200)))
         }
-        LogEventKind::Stderr { message } => Some(format!("[stderr] {}", truncate(message, 200))),
+        LogEventKind::Stderr { message } => Some(format!("  ! {}", truncate(message, 200))),
         LogEventKind::ParseWarning { message, .. } => {
-            Some(format!("[warning] {}", truncate(message, 200)))
+            Some(format!("  ? {}", truncate(message, 200)))
         }
         LogEventKind::SessionEnded { success, error } => {
+            let status = if *success { "completed" } else { "failed" };
             let error_info = error
                 .as_deref()
-                .map(|e| format!(" ({})", e))
+                .map(|e| format!(": {}", e))
                 .unwrap_or_default();
-            Some(format!(
-                "[session] Ended (success: {}){}",
-                success, error_info
-            ))
+            Some(format!("\n\u{25cf} Session {}{}", status, error_info))
         }
     }
 }
 
-/// Format an event with ANSI colors.
-pub fn format_event_colored(event: &AgentLogEvent) -> Option<String> {
-    let text = format_event_text(event)?;
-
-    // Apply colors based on event kind
-    let colored = match &event.kind {
-        LogEventKind::SessionStarted { .. } | LogEventKind::SessionEnded { .. } => {
-            colorize(&text, "32") // green
-        }
-        LogEventKind::UserMessage { .. } => colorize(&text, "34"), // blue
-        LogEventKind::AssistantMessage { .. } => colorize(&text, "1"), // bright/bold
-        LogEventKind::Reasoning { .. } => colorize(&text, "2"),    // dim
-        LogEventKind::ToolCall { .. } => colorize(&text, "33"),    // yellow
-        LogEventKind::ToolResult { .. } => colorize(&text, "36"),  // cyan
-        LogEventKind::Permission { .. } => colorize(&text, "35"),  // magenta
-        LogEventKind::ProviderStatus { .. } => colorize(&text, "2"), // dim
-        LogEventKind::Stderr { .. } => colorize(&text, "31"),      // red
-        LogEventKind::ParseWarning { .. } => colorize(&text, "33;1"), // bright yellow
+/// Summarize tool input into a readable short form.
+/// Uses well-known JSON key names (provider-agnostic) to extract a human-readable summary.
+fn summarize_tool_input(_tool_name: &str, input: Option<&serde_json::Value>) -> String {
+    let Some(input) = input else {
+        return String::new();
+    };
+    let obj = match input.as_object() {
+        Some(o) => o,
+        None => return String::new(),
     };
 
-    Some(colored)
+    // Well-known keys that tend to be descriptive across providers, ordered by priority.
+    // First match wins as the primary summary; a secondary "description" is appended if present.
+    const SUMMARY_KEYS: &[&str] = &[
+        "command",
+        "file_path",
+        "path",
+        "pattern",
+        "query",
+        "url",
+        "script",
+        "content",
+    ];
+
+    let mut primary: Option<String> = None;
+    for key in SUMMARY_KEYS {
+        if let Some(val) = obj.get(*key).and_then(|v| v.as_str()) {
+            let display = if *key == "file_path" || *key == "path" {
+                shorten_path(val)
+            } else {
+                truncate(val, 80)
+            };
+            primary = Some(display);
+            break;
+        }
+    }
+
+    if let Some(p) = primary {
+        let desc = obj
+            .get("description")
+            .and_then(|v| v.as_str())
+            .map(|d| format!(" — {}", truncate(d, 60)))
+            .unwrap_or_default();
+        return format!(": {}{}", p, desc);
+    }
+
+    // Fallback: compact JSON
+    let json = input.to_string();
+    if json.len() > 2 {
+        format!("({})", truncate(&json, 80))
+    } else {
+        String::new()
+    }
 }
 
-fn colorize(text: &str, code: &str) -> String {
-    format!("\x1b[{}m{}\x1b[0m", code, text)
+/// Shorten a file path by keeping only the last 2-3 components.
+fn shorten_path(path: &str) -> String {
+    let parts: Vec<&str> = path.split('/').collect();
+    if parts.len() <= 3 {
+        path.to_string()
+    } else {
+        format!(".../{}", parts[parts.len() - 3..].join("/"))
+    }
+}
+
+/// Format an event with ANSI rich text (colors, bold, dim, italic).
+pub fn format_event_rich(event: &AgentLogEvent) -> Option<String> {
+    match &event.kind {
+        LogEventKind::SessionStarted { command, model, .. } => {
+            let model_info = model
+                .as_deref()
+                .map(|m| format!(" \x1b[2m(model: {})\x1b[0m", m))
+                .unwrap_or_default();
+            Some(format!(
+                "\n\x1b[32m\u{25cf}\x1b[0m Started: \x1b[1m{}\x1b[0m{}",
+                command, model_info
+            ))
+        }
+        LogEventKind::UserMessage { content, .. } => Some(format!(
+            "\n\x1b[34m\u{276f}\x1b[0m \x1b[1m{}\x1b[0m",
+            render_content(content, 500)
+        )),
+        LogEventKind::AssistantMessage { content, .. } => {
+            let rendered = render_content(content, 500);
+            let indented = indent_continuation(&rendered, "  ");
+            Some(format!("\n\x1b[1m\u{23fa}\x1b[0m {}", indented))
+        }
+        LogEventKind::Reasoning { content, .. } => Some(format!(
+            "  \x1b[2;3m\u{2026} {}\x1b[0m",
+            indent_continuation(&render_content(content, 200), "    ")
+        )),
+        LogEventKind::ToolCall {
+            tool_name, input, ..
+        } => {
+            let summary = summarize_tool_input(tool_name, input.as_ref());
+            Some(format!(
+                "  \x1b[33m\u{26a1} {}\x1b[0m{}",
+                tool_name, summary
+            ))
+        }
+        LogEventKind::ToolResult {
+            success,
+            output,
+            error,
+            ..
+        } => {
+            if let Some(err) = error.as_deref() {
+                Some(format!(
+                    "  \x1b[31m\u{2717}\x1b[0m \x1b[2m{}\x1b[0m",
+                    truncate(err, 120)
+                ))
+            } else if success.unwrap_or(false) {
+                let detail = output
+                    .as_deref()
+                    .map(|s| format!(" \x1b[2m{}\x1b[0m", truncate(s, 120)))
+                    .unwrap_or_default();
+                Some(format!("  \x1b[32m\u{2713}\x1b[0m{}", detail))
+            } else {
+                let detail = output
+                    .as_deref()
+                    .map(|s| format!(" \x1b[2m{}\x1b[0m", truncate(s, 120)))
+                    .unwrap_or_default();
+                Some(format!("  \x1b[31m\u{2717}\x1b[0m{}", detail))
+            }
+        }
+        LogEventKind::Permission {
+            tool_name, granted, ..
+        } => {
+            if *granted {
+                Some(format!(
+                    "  \x1b[32m\u{1f513}\x1b[0m \x1b[2m{}\x1b[0m",
+                    tool_name
+                ))
+            } else {
+                Some(format!(
+                    "  \x1b[31m\u{1f512}\x1b[0m \x1b[2m{}\x1b[0m",
+                    tool_name
+                ))
+            }
+        }
+        LogEventKind::ProviderStatus { message, .. } => {
+            Some(format!("  \x1b[2m> {}\x1b[0m", truncate(message, 200)))
+        }
+        LogEventKind::Stderr { message } => Some(format!(
+            "  \x1b[31m!\x1b[0m \x1b[2m{}\x1b[0m",
+            truncate(message, 200)
+        )),
+        LogEventKind::ParseWarning { message, .. } => Some(format!(
+            "  \x1b[33m?\x1b[0m \x1b[2m{}\x1b[0m",
+            truncate(message, 200)
+        )),
+        LogEventKind::SessionEnded { success, error } => {
+            let (status, color) = if *success {
+                ("completed", "32")
+            } else {
+                ("failed", "31")
+            };
+            let error_info = error
+                .as_deref()
+                .map(|e| format!(": {}", e))
+                .unwrap_or_default();
+            Some(format!(
+                "\n\x1b[{}m\u{25cf}\x1b[0m Session {}{}",
+                color, status, error_info
+            ))
+        }
+    }
 }
 
 fn truncate(s: &str, max_len: usize) -> String {
@@ -369,6 +510,27 @@ fn truncate(s: &str, max_len: usize) -> String {
         s
     } else {
         format!("{}...", &s[..max_len])
+    }
+}
+
+/// Render content for display: preserve newlines but truncate total length.
+fn render_content(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        s.to_string()
+    } else {
+        format!("{}...", &s[..max_len])
+    }
+}
+
+/// Indent continuation lines (2nd line onwards) with the given prefix.
+fn indent_continuation(s: &str, prefix: &str) -> String {
+    let mut lines = s.lines();
+    let first = lines.next().unwrap_or("");
+    let rest: Vec<String> = lines.map(|l| format!("{}{}", prefix, l)).collect();
+    if rest.is_empty() {
+        first.to_string()
+    } else {
+        format!("{}\n{}", first, rest.join("\n"))
     }
 }
 

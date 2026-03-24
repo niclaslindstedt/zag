@@ -184,9 +184,9 @@ enum Commands {
         #[arg(long)]
         text: bool,
 
-        /// Enable ANSI colors in text output
+        /// Enable rich text output (ANSI colors, bold, dim, italic)
         #[arg(long)]
-        colors: bool,
+        rich_text: bool,
     },
     /// Show manual pages for commands
     Man {
@@ -397,11 +397,11 @@ async fn main() -> Result<()> {
             active,
             json: listen_json,
             text: listen_text,
-            colors,
+            rich_text,
         } => {
             let config = Config::load(cli.root.as_deref()).unwrap_or_default();
             let format =
-                listen::ListenFormat::from_flags(listen_json, colors, listen_text, &config);
+                listen::ListenFormat::from_flags(listen_json, rich_text, listen_text, &config);
             let log_path = listen::resolve_session_log(
                 session_id.as_deref(),
                 latest,

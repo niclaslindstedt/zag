@@ -4,9 +4,21 @@ use crate::output::AgentOutput;
 use crate::sandbox::SandboxConfig;
 use crate::session_log::{
     BackfilledSession, HistoricalLogAdapter, LiveLogAdapter, LiveLogContext, LogCompleteness,
-    LogEventKind, LogSourceKind, SessionLogMetadata, SessionLogWriter,
+    LogEventKind, LogSourceKind, SessionLogMetadata, SessionLogWriter, ToolKind,
 };
 use anyhow::Result;
+
+/// Classify a Codex tool name into a normalized ToolKind.
+fn tool_kind_from_name(name: &str) -> ToolKind {
+    match name {
+        "shell" | "bash" => ToolKind::Shell,
+        "read_file" | "view" => ToolKind::FileRead,
+        "write_file" => ToolKind::FileWrite,
+        "apply_patch" | "edit_file" => ToolKind::FileEdit,
+        "grep" | "find" | "search" => ToolKind::Search,
+        _ => ToolKind::Other,
+    }
+}
 use async_trait::async_trait;
 use log::info;
 use std::io::BufRead;
@@ -484,6 +496,7 @@ fn parse_codex_tui_line(line: &str) -> Option<LogEventKind> {
             .unwrap_or_default();
         let input = serde_json::from_str(json_part).ok();
         return Some(LogEventKind::ToolCall {
+            tool_kind: Some(tool_kind_from_name(&tool_name)),
             tool_name,
             tool_id: None,
             input,

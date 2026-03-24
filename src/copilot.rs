@@ -3,9 +3,21 @@ use crate::output::AgentOutput;
 use crate::sandbox::SandboxConfig;
 use crate::session_log::{
     BackfilledSession, HistoricalLogAdapter, LiveLogAdapter, LiveLogContext, LogCompleteness,
-    LogEventKind, LogSourceKind, SessionLogMetadata, SessionLogWriter,
+    LogEventKind, LogSourceKind, SessionLogMetadata, SessionLogWriter, ToolKind,
 };
 use anyhow::{Context, Result};
+
+/// Classify a Copilot tool name into a normalized ToolKind.
+fn tool_kind_from_name(name: &str) -> ToolKind {
+    match name {
+        "bash" | "shell" => ToolKind::Shell,
+        "view" | "read" | "cat" => ToolKind::FileRead,
+        "write" => ToolKind::FileWrite,
+        "edit" | "insert" | "replace" => ToolKind::FileEdit,
+        "grep" | "glob" | "find" | "search" => ToolKind::Search,
+        _ => ToolKind::Other,
+    }
+}
 use async_trait::async_trait;
 use log::info;
 use std::collections::HashSet;
@@ -518,12 +530,13 @@ pub(crate) fn parse_copilot_event_line(
             if let Some(tool_requests) = data.get("toolRequests").and_then(|value| value.as_array())
             {
                 for request in tool_requests {
+                    let name = request
+                        .get("name")
+                        .and_then(|value| value.as_str())
+                        .unwrap_or_default();
                     events.push(LogEventKind::ToolCall {
-                        tool_name: request
-                            .get("name")
-                            .and_then(|value| value.as_str())
-                            .unwrap_or_default()
-                            .to_string(),
+                        tool_kind: Some(tool_kind_from_name(name)),
+                        tool_name: name.to_string(),
                         tool_id: request
                             .get("toolCallId")
                             .and_then(|value| value.as_str())
@@ -549,40 +562,44 @@ pub(crate) fn parse_copilot_event_line(
                 });
             }
         }
-        "tool.execution_start" => events.push(LogEventKind::ToolCall {
-            tool_name: data
+        "tool.execution_start" => {
+            let name = data
                 .get("toolName")
                 .and_then(|value| value.as_str())
-                .unwrap_or_default()
-                .to_string(),
-            tool_id: data
-                .get("toolCallId")
-                .and_then(|value| value.as_str())
-                .map(str::to_string),
-            input: data.get("arguments").cloned(),
-        }),
-        "tool.execution_complete" => events.push(LogEventKind::ToolResult {
-            tool_name: data
-                .get("toolName")
-                .and_then(|value| value.as_str())
-                .map(str::to_string),
-            tool_id: data
-                .get("toolCallId")
-                .and_then(|value| value.as_str())
-                .map(str::to_string),
-            success: data.get("success").and_then(|value| value.as_bool()),
-            output: data
-                .get("result")
-                .and_then(|value| value.get("content"))
-                .and_then(|value| value.as_str())
-                .map(str::to_string),
-            error: data
-                .get("result")
-                .and_then(|value| value.get("error"))
-                .and_then(|value| value.as_str())
-                .map(str::to_string),
-            data: Some(data),
-        }),
+                .unwrap_or_default();
+            events.push(LogEventKind::ToolCall {
+                tool_kind: Some(tool_kind_from_name(name)),
+                tool_name: name.to_string(),
+                tool_id: data
+                    .get("toolCallId")
+                    .and_then(|value| value.as_str())
+                    .map(str::to_string),
+                input: data.get("arguments").cloned(),
+            });
+        }
+        "tool.execution_complete" => {
+            let name = data.get("toolName").and_then(|value| value.as_str());
+            events.push(LogEventKind::ToolResult {
+                tool_kind: name.map(tool_kind_from_name),
+                tool_name: name.map(str::to_string),
+                tool_id: data
+                    .get("toolCallId")
+                    .and_then(|value| value.as_str())
+                    .map(str::to_string),
+                success: data.get("success").and_then(|value| value.as_bool()),
+                output: data
+                    .get("result")
+                    .and_then(|value| value.get("content"))
+                    .and_then(|value| value.as_str())
+                    .map(str::to_string),
+                error: data
+                    .get("result")
+                    .and_then(|value| value.get("error"))
+                    .and_then(|value| value.as_str())
+                    .map(str::to_string),
+                data: Some(data),
+            });
+        }
         _ => events.push(LogEventKind::ProviderStatus {
             message: format!("Copilot event: {event_type}"),
             data: Some(data),
