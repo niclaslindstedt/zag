@@ -60,6 +60,7 @@ fn test_run_resume_parses() {
             resume,
             continue_session,
             prompt,
+            ..
         } => {
             assert_eq!(resume.as_deref(), Some("sess-123"));
             assert!(!continue_session);
@@ -77,6 +78,7 @@ fn test_run_continue_parses() {
             resume,
             continue_session,
             prompt,
+            ..
         } => {
             assert!(resume.is_none());
             assert!(continue_session);

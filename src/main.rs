@@ -45,64 +45,72 @@ struct Cli {
     #[arg(short = 'v', long, global = true)]
     verbose: bool,
 
-    /// Show token usage statistics (only applies to JSON output mode)
-    #[arg(long, global = true)]
-    show_usage: bool,
+    #[command(subcommand)]
+    command: Commands,
+}
 
+/// Arguments for selecting and configuring an agent (provider, model, etc.)
+#[derive(clap::Args, Clone)]
+struct AgentArgs {
     /// Provider to use (claude, codex, gemini, copilot, auto)
-    #[arg(short = 'p', long, global = true)]
+    #[arg(short = 'p', long)]
     provider: Option<String>,
 
-    /// System prompt to configure agent behavior
-    #[arg(short, long, global = true)]
-    system_prompt: Option<String>,
-
     /// Model to use (agent-specific, size alias: small/medium/large, or auto)
-    #[arg(short, long, global = true)]
+    #[arg(short, long)]
     model: Option<String>,
 
     /// Root directory to run the agent in
-    #[arg(short, long, global = true)]
+    #[arg(short, long)]
     root: Option<String>,
 
     /// Auto-approve all actions (skip permission prompts)
-    #[arg(short = 'a', long, global = true)]
+    #[arg(short = 'a', long)]
     auto_approve: bool,
 
+    /// System prompt to configure agent behavior
+    #[arg(short, long)]
+    system_prompt: Option<String>,
+
     /// Additional directories to include
-    #[arg(long = "add-dir", global = true)]
+    #[arg(long = "add-dir")]
     add_dirs: Vec<String>,
 
+    /// Model parameter size for Ollama (e.g., 0.8b, 2b, 4b, 9b, 27b, 35b, 122b)
+    #[arg(long)]
+    size: Option<String>,
+
+    /// Show token usage statistics (only applies to JSON output mode)
+    #[arg(long)]
+    show_usage: bool,
+}
+
+/// Arguments for session isolation (worktree, sandbox, session ID, JSON output)
+#[derive(clap::Args, Clone)]
+struct SessionIsolationArgs {
     /// Create a git worktree for this session (optionally specify a name)
-    #[arg(short = 'w', long, global = true)]
+    #[arg(short = 'w', long)]
     worktree: Option<Option<String>>,
 
     /// Run inside a Docker sandbox (optionally specify a name)
-    #[arg(long, global = true)]
+    #[arg(long)]
     sandbox: Option<Option<String>>,
 
-    /// Model parameter size for Ollama (e.g., 0.8b, 2b, 4b, 9b, 27b, 35b, 122b)
-    #[arg(long, global = true)]
-    size: Option<String>,
+    /// Session ID (UUID) to use instead of auto-generating one
+    #[arg(long, value_name = "UUID")]
+    session: Option<String>,
 
     /// Request JSON output from the agent
-    #[arg(long, global = true)]
+    #[arg(long)]
     json: bool,
 
     /// JSON schema for structured output (file path or inline JSON string)
-    #[arg(long, global = true, value_name = "SCHEMA")]
+    #[arg(long, value_name = "SCHEMA")]
     json_schema: Option<String>,
 
     /// Stream JSON events (NDJSON format) — sets output format to stream-json
-    #[arg(long, global = true)]
+    #[arg(long)]
     json_stream: bool,
-
-    /// Session ID (UUID) to use instead of auto-generating one
-    #[arg(long, global = true, value_name = "UUID")]
-    session: Option<String>,
-
-    #[command(subcommand)]
-    command: Commands,
 }
 
 #[derive(Subcommand)]
@@ -120,6 +128,12 @@ enum Commands {
         /// Resume the most recent tracked session
         #[arg(long = "continue")]
         continue_session: bool,
+
+        #[command(flatten)]
+        agent: AgentArgs,
+
+        #[command(flatten)]
+        session: SessionIsolationArgs,
     },
     /// Run non-interactively (print output and exit)
     Exec {
@@ -133,6 +147,12 @@ enum Commands {
         /// Input format (text, stream-json) - Claude only
         #[arg(short = 'i', long)]
         input_format: Option<String>,
+
+        #[command(flatten)]
+        agent: AgentArgs,
+
+        #[command(flatten)]
+        session: SessionIsolationArgs,
     },
     /// Review code changes (uses Codex under the hood)
     Review {
@@ -151,17 +171,29 @@ enum Commands {
         /// Optional title for the review summary
         #[arg(long)]
         title: Option<String>,
+
+        #[command(flatten)]
+        agent: AgentArgs,
     },
     /// View or set configuration values
     Config {
         /// Config key and value (e.g., "provider claude" or "provider=claude")
         args: Vec<String>,
+
+        /// Root directory for config file resolution
+        #[arg(short, long)]
+        root: Option<String>,
     },
     /// List and inspect sessions
     Session {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Root directory for session store resolution
+        #[arg(short, long)]
+        root: Option<String>,
+
         #[command(subcommand)]
         command: SessionCommand,
     },
@@ -174,6 +206,14 @@ enum Commands {
         /// Pretty-print output (applies to JSON)
         #[arg(long)]
         pretty: bool,
+
+        /// Provider to use (claude, codex, gemini, copilot)
+        #[arg(short = 'p', long)]
+        provider: Option<String>,
+
+        /// Root directory for config file resolution
+        #[arg(short, long)]
+        root: Option<String>,
     },
     /// Listen to a session's log events in real-time
     Listen {
@@ -203,6 +243,10 @@ enum Commands {
         /// Show thinking/reasoning content
         #[arg(long)]
         show_thinking: bool,
+
+        /// Root directory for session log resolution
+        #[arg(short, long)]
+        root: Option<String>,
     },
     /// Show manual pages for commands
     Man {
@@ -275,6 +319,47 @@ enum SkillsCommand {
     },
 }
 
+/// Extract AgentArgs from a command, if it has them.
+fn command_agent_args(cmd: &Commands) -> Option<&AgentArgs> {
+    match cmd {
+        Commands::Run { agent, .. } => Some(agent),
+        Commands::Exec { agent, .. } => Some(agent),
+        Commands::Review { agent, .. } => Some(agent),
+        _ => None,
+    }
+}
+
+/// Extract SessionIsolationArgs from a command, if it has them.
+fn command_session_args(cmd: &Commands) -> Option<&SessionIsolationArgs> {
+    match cmd {
+        Commands::Run { session, .. } => Some(session),
+        Commands::Exec { session, .. } => Some(session),
+        _ => None,
+    }
+}
+
+/// Parse and validate a JSON schema string, returning the parsed value.
+fn parse_json_schema(schema_str: &str) -> Result<serde_json::Value> {
+    let schema_json = if std::path::Path::new(schema_str).exists() {
+        let content = std::fs::read_to_string(schema_str).map_err(|e| {
+            anyhow::anyhow!("Failed to read JSON schema file '{}': {}", schema_str, e)
+        })?;
+        serde_json::from_str::<serde_json::Value>(&content)
+            .map_err(|e| anyhow::anyhow!("Invalid JSON in schema file '{}': {}", schema_str, e))?
+    } else {
+        serde_json::from_str::<serde_json::Value>(schema_str)
+            .map_err(|e| anyhow::anyhow!("Invalid JSON schema: {}", e))?
+    };
+    json_validation::validate_schema(&schema_json).map_err(|e| anyhow::anyhow!("{}", e))?;
+    debug!(
+        "JSON schema loaded: {} bytes",
+        serde_json::to_string(&schema_json)
+            .unwrap_or_default()
+            .len()
+    );
+    Ok(schema_json)
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // Handle --help-agent before clap parsing so it works without a subcommand.
@@ -293,32 +378,32 @@ async fn main() -> Result<()> {
     logging::init(cli.debug, effective_quiet);
     debug!("Debug logging enabled");
 
-    let show_usage = cli.show_usage;
     let quiet = cli.quiet;
     let verbose = cli.verbose;
 
-    // --json-schema implies --json
-    let json_mode = cli.json || cli.json_schema.is_some();
-    let json_stream = cli.json_stream;
+    // Extract session isolation args (only present on run/exec)
+    let session_args = command_session_args(&cli.command).cloned();
+    let json_mode = session_args
+        .as_ref()
+        .map(|s| s.json || s.json_schema.is_some())
+        .unwrap_or(false);
+    let json_stream = session_args
+        .as_ref()
+        .map(|s| s.json_stream)
+        .unwrap_or(false);
 
     // Validate --json-stream is mutually exclusive with --json/--json-schema
     if json_stream && json_mode {
         bail!("--json-stream cannot be combined with --json or --json-schema");
     }
 
-    // Validate --json-stream usage (same restrictions as --json)
+    // Validate --json-stream usage with resume/continue
     if json_stream {
         match &cli.command {
-            Commands::Review { .. } => bail!("--json-stream cannot be used with review"),
-            Commands::Config { .. } => bail!("--json-stream cannot be used with config"),
-            Commands::Session { .. } => bail!("--json-stream cannot be used with session"),
-            Commands::Capability { .. } => bail!("--json-stream cannot be used with capability"),
-            Commands::Listen { .. } => bail!("--json-stream cannot be used with listen"),
-            Commands::Skills { .. } => bail!("--json-stream cannot be used with skills"),
             Commands::Run {
-                prompt: _,
                 resume,
                 continue_session,
+                ..
             } if resume.is_some() || *continue_session => {
                 bail!("--json-stream cannot be used with run --resume or run --continue")
             }
@@ -332,14 +417,6 @@ async fn main() -> Result<()> {
     // Validate --json/--json-schema usage and parse schema once
     let json_schema: Option<serde_json::Value> = if json_mode {
         match &cli.command {
-            Commands::Review { .. } => bail!("--json/--json-schema cannot be used with review"),
-            Commands::Config { .. } => bail!("--json/--json-schema cannot be used with config"),
-            Commands::Session { .. } => bail!("--json/--json-schema cannot be used with session"),
-            Commands::Capability { .. } => {
-                bail!("--json/--json-schema cannot be used with capability")
-            }
-            Commands::Listen { .. } => bail!("--json/--json-schema cannot be used with listen"),
-            Commands::Skills { .. } => bail!("--json/--json-schema cannot be used with skills"),
             Commands::Run {
                 resume,
                 continue_session,
@@ -354,26 +431,8 @@ async fn main() -> Result<()> {
         }
 
         // Parse and validate schema if provided
-        if let Some(ref schema_str) = cli.json_schema {
-            let schema_json = if std::path::Path::new(schema_str).exists() {
-                let content = std::fs::read_to_string(schema_str).map_err(|e| {
-                    anyhow::anyhow!("Failed to read JSON schema file '{}': {}", schema_str, e)
-                })?;
-                serde_json::from_str::<serde_json::Value>(&content).map_err(|e| {
-                    anyhow::anyhow!("Invalid JSON in schema file '{}': {}", schema_str, e)
-                })?
-            } else {
-                serde_json::from_str::<serde_json::Value>(schema_str)
-                    .map_err(|e| anyhow::anyhow!("Invalid JSON schema: {}", e))?
-            };
-            json_validation::validate_schema(&schema_json).map_err(|e| anyhow::anyhow!("{}", e))?;
-            debug!(
-                "JSON schema loaded: {} bytes",
-                serde_json::to_string(&schema_json)
-                    .unwrap_or_default()
-                    .len()
-            );
-            Some(schema_json)
+        if let Some(ref schema_str) = session_args.as_ref().unwrap().json_schema {
+            Some(parse_json_schema(schema_str)?)
         } else {
             None
         }
@@ -381,86 +440,55 @@ async fn main() -> Result<()> {
         None
     };
 
-    // Validate --worktree usage (ignored with resume — worktree comes from session mapping)
-    if cli.worktree.is_some() {
-        match &cli.command {
-            Commands::Review { .. } => bail!("--worktree cannot be used with review"),
-            Commands::Config { .. } => bail!("--worktree cannot be used with config"),
-            Commands::Session { .. } => bail!("--worktree cannot be used with session"),
-            Commands::Capability { .. } => bail!("--worktree cannot be used with capability"),
-            Commands::Listen { .. } => bail!("--worktree cannot be used with listen"),
-            Commands::Skills { .. } => bail!("--worktree cannot be used with skills"),
-            Commands::Run {
-                resume,
-                continue_session,
-                ..
-            } if resume.is_some() || *continue_session => {
-                bail!("--worktree cannot be used with run --resume or run --continue")
+    // Validate --worktree/--sandbox/--session usage with resume/continue
+    if let Some(ref sa) = session_args {
+        if let Commands::Run {
+            resume,
+            continue_session,
+            ..
+        } = &cli.command
+        {
+            if resume.is_some() || *continue_session {
+                if sa.worktree.is_some() {
+                    bail!("--worktree cannot be used with run --resume or run --continue");
+                }
+                if sa.sandbox.is_some() {
+                    bail!("--sandbox cannot be used with run --resume or run --continue");
+                }
+                if sa.session.is_some() {
+                    bail!("--session cannot be used with run --resume or run --continue");
+                }
             }
-            _ => {}
         }
-    }
 
-    // Validate --sandbox usage
-    if cli.sandbox.is_some() {
-        match &cli.command {
-            Commands::Review { .. } => bail!("--sandbox cannot be used with review"),
-            Commands::Config { .. } => bail!("--sandbox cannot be used with config"),
-            Commands::Session { .. } => bail!("--sandbox cannot be used with session"),
-            Commands::Capability { .. } => bail!("--sandbox cannot be used with capability"),
-            Commands::Listen { .. } => bail!("--sandbox cannot be used with listen"),
-            Commands::Man { .. } => bail!("--sandbox cannot be used with man"),
-            Commands::Skills { .. } => bail!("--sandbox cannot be used with skills"),
-            Commands::Run {
-                resume,
-                continue_session,
-                ..
-            } if resume.is_some() || *continue_session => {
-                bail!("--sandbox cannot be used with run --resume or run --continue")
-            }
-            _ => {}
-        }
-        if cli.worktree.is_some() {
+        if sa.sandbox.is_some() && sa.worktree.is_some() {
             bail!("--sandbox and --worktree are mutually exclusive");
         }
-    }
 
-    // Validate --session usage
-    if let Some(ref session_id) = cli.session {
-        uuid::Uuid::parse_str(session_id)
-            .map_err(|_| anyhow::anyhow!("--session must be a valid UUID, got '{}'", session_id))?;
-        match &cli.command {
-            Commands::Run {
-                resume,
-                continue_session,
-                ..
-            } if resume.is_some() || *continue_session => {
-                bail!("--session cannot be used with run --resume or run --continue")
-            }
-            Commands::Run { .. } | Commands::Exec { .. } => {}
-            _ => bail!("--session can only be used with run or exec"),
+        // Validate --session is a valid UUID
+        if let Some(ref session_id) = sa.session {
+            uuid::Uuid::parse_str(session_id).map_err(|_| {
+                anyhow::anyhow!("--session must be a valid UUID, got '{}'", session_id)
+            })?;
         }
     }
 
     // Validate auto provider/model usage
-    let is_auto_provider = cli.provider.as_deref() == Some("auto");
-    let is_auto_model = cli.model.as_deref() == Some("auto");
-    if is_auto_provider || is_auto_model {
-        match &cli.command {
-            Commands::Review { .. } => bail!("auto cannot be used with review"),
-            Commands::Config { .. } => bail!("auto cannot be used with config"),
-            Commands::Session { .. } => bail!("auto cannot be used with session"),
-            Commands::Capability { .. } => bail!("auto cannot be used with capability"),
-            Commands::Listen { .. } => bail!("auto cannot be used with listen"),
-            Commands::Skills { .. } => bail!("auto cannot be used with skills"),
-            Commands::Run {
-                resume,
-                continue_session,
-                ..
-            } if resume.is_some() || *continue_session => {
-                bail!("auto cannot be used with run --resume or run --continue")
+    if let Some(agent_args) = command_agent_args(&cli.command) {
+        let is_auto_provider = agent_args.provider.as_deref() == Some("auto");
+        let is_auto_model = agent_args.model.as_deref() == Some("auto");
+        if is_auto_provider || is_auto_model {
+            match &cli.command {
+                Commands::Review { .. } => bail!("auto cannot be used with review"),
+                Commands::Run {
+                    resume,
+                    continue_session,
+                    ..
+                } if resume.is_some() || *continue_session => {
+                    bail!("auto cannot be used with run --resume or run --continue")
+                }
+                _ => {}
             }
-            _ => {}
         }
     }
 
@@ -469,16 +497,20 @@ async fn main() -> Result<()> {
             debug!("Showing manpage for: {:?}", command);
             print_manpage(command.as_deref())?;
         }
-        Commands::Config { args } => {
+        Commands::Config { args, root } => {
             debug!("Running config subcommand with args: {:?}", args);
-            run_config(args, cli.root.as_deref())?;
+            run_config(args, root.as_deref())?;
         }
-        Commands::Session { command, json } => {
+        Commands::Session {
+            command,
+            json,
+            root,
+        } => {
             debug!(
                 "Running session subcommand: {:?}",
                 std::mem::discriminant(&command)
             );
-            run_session(command, json, cli.root.as_deref())?;
+            run_session(command, json, root.as_deref())?;
         }
         Commands::Skills { command, json } => {
             debug!(
@@ -487,8 +519,13 @@ async fn main() -> Result<()> {
             );
             run_skills(command, json)?;
         }
-        Commands::Capability { format, pretty } => {
-            let provider = resolve_provider(cli.provider.as_deref(), cli.root.as_deref())?;
+        Commands::Capability {
+            format,
+            pretty,
+            provider,
+            root,
+        } => {
+            let provider = resolve_provider(provider.as_deref(), root.as_deref())?;
             debug!("Showing capabilities for provider: {}", provider);
             let cap = capability::get_capability(&provider)?;
             let output = capability::format_capability(&cap, &format, pretty)?;
@@ -502,15 +539,16 @@ async fn main() -> Result<()> {
             text: listen_text,
             rich_text,
             show_thinking,
+            root,
         } => {
-            let config = Config::load(cli.root.as_deref()).unwrap_or_default();
+            let config = Config::load(root.as_deref()).unwrap_or_default();
             let format =
                 listen::ListenFormat::from_flags(listen_json, rich_text, listen_text, &config);
             let log_path = listen::resolve_session_log(
                 session_id.as_deref(),
                 latest,
                 active,
-                cli.root.as_deref(),
+                root.as_deref(),
             )?;
             debug!("Listening to session log: {}", log_path.display());
             listen::tail_session_log(&log_path, format, show_thinking)?;
@@ -520,45 +558,56 @@ async fn main() -> Result<()> {
             base,
             commit,
             title,
+            agent,
         } => {
             run_review(ReviewParams {
                 uncommitted,
                 base,
                 commit,
                 title,
-                system_prompt: cli.system_prompt,
-                model: cli.model,
-                root: cli.root,
-                auto_approve: cli.auto_approve,
-                add_dirs: cli.add_dirs,
+                system_prompt: agent.system_prompt,
+                model: agent.model,
+                root: agent.root,
+                auto_approve: agent.auto_approve,
+                add_dirs: agent.add_dirs,
                 quiet,
             })
             .await?;
         }
         action => {
-            let provider = resolve_provider(cli.provider.as_deref(), cli.root.as_deref())?;
+            let agent_args = command_agent_args(&action).cloned().unwrap();
+            let session_isolation = session_args.unwrap_or(SessionIsolationArgs {
+                worktree: None,
+                sandbox: None,
+                session: None,
+                json: false,
+                json_schema: None,
+                json_stream: false,
+            });
+            let provider =
+                resolve_provider(agent_args.provider.as_deref(), agent_args.root.as_deref())?;
             debug!("Resolved provider: {}", provider);
             let display_name = capitalize(&provider);
             run_agent_action(AgentActionParams {
                 agent_name: display_name,
                 provider,
-                provider_explicit: cli.provider.is_some(),
+                provider_explicit: agent_args.provider.is_some(),
                 action,
-                system_prompt: cli.system_prompt,
-                model: cli.model,
-                root: cli.root,
-                auto_approve: cli.auto_approve,
-                add_dirs: cli.add_dirs,
-                show_usage,
+                system_prompt: agent_args.system_prompt,
+                model: agent_args.model,
+                root: agent_args.root,
+                auto_approve: agent_args.auto_approve,
+                add_dirs: agent_args.add_dirs,
+                show_usage: agent_args.show_usage,
                 quiet,
                 verbose,
-                worktree: cli.worktree,
-                sandbox: cli.sandbox,
-                size: cli.size,
+                worktree: session_isolation.worktree,
+                sandbox: session_isolation.sandbox,
+                size: agent_args.size,
                 json_mode,
                 json_schema,
                 json_stream,
-                session: cli.session,
+                session: session_isolation.session,
             })
             .await?;
         }
@@ -1745,6 +1794,7 @@ async fn execute_action(
             prompt,
             resume,
             continue_session,
+            ..
         } => {
             if resume.is_some() || continue_session {
                 if let Some(ref session_id) = resume {
