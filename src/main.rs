@@ -1563,23 +1563,35 @@ fn resolve_continue_target(root: Option<&str>) -> Option<ResumeTarget> {
     })
 }
 
-/// Read the native session ID from a Claude `.jsonl` session file.
-fn read_claude_session_id(path: &std::path::Path) -> Option<String> {
+/// Read the native session ID and optional cwd from a Claude `.jsonl` session file.
+fn read_claude_session_metadata(path: &std::path::Path) -> Option<(String, Option<String>)> {
     let file = std::fs::File::open(path).ok()?;
     let reader = std::io::BufReader::new(file);
     use std::io::BufRead;
+    let mut session_id = None;
+    let mut cwd = None;
     for line in reader.lines().take(10) {
         let line = line.ok()?;
-        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&line)
-            && let Some(sid) = value
-                .get("sessionId")
-                .or_else(|| value.get("session_id"))
-                .and_then(|v| v.as_str())
-        {
-            return Some(sid.to_string());
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&line) {
+            if session_id.is_none() {
+                session_id = value
+                    .get("sessionId")
+                    .or_else(|| value.get("session_id"))
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string);
+            }
+            if cwd.is_none() {
+                cwd = value
+                    .get("cwd")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string);
+            }
+            if session_id.is_some() && cwd.is_some() {
+                break;
+            }
         }
     }
-    None
+    session_id.map(|sid| (sid, cwd))
 }
 
 fn discover_provider_session_id(
@@ -1591,9 +1603,11 @@ fn discover_provider_session_id(
 ) -> Option<String> {
     match provider {
         "claude" => {
-            // Scan Claude session files to find the native session ID
-            // (Claude's internal ID differs from the wrapper UUID we pass via --session-id)
+            // Scan Claude session files to find the native session ID.
+            // Scope to the workspace path so we don't pick up sessions from
+            // other Claude Code instances (e.g., a worktree session).
             let projects_dir = home_dir()?.join(".claude/projects");
+            let workspace = _plain.workspace_path.as_deref();
             let entries = std::fs::read_dir(&projects_dir).ok()?;
             let mut newest: Option<(std::time::SystemTime, String)> = None;
             for project in entries.flatten() {
@@ -1615,8 +1629,14 @@ fn discover_provider_session_id(
                         Err(_) => continue,
                     };
                     if newest.as_ref().map(|(t, _)| modified > *t).unwrap_or(true)
-                        && let Some(sid) = read_claude_session_id(&path)
+                        && let Some((sid, file_cwd)) = read_claude_session_metadata(&path)
                     {
+                        // Filter by workspace: only match sessions from the same project
+                        if let Some(ws) = workspace
+                            && file_cwd.as_deref() != Some(ws)
+                        {
+                            continue;
+                        }
                         newest = Some((modified, sid));
                     }
                 }
