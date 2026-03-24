@@ -1,23 +1,27 @@
-mod agent;
-mod auto_selector;
+// Re-export core modules from agent-lib
+use agent_lib::agent;
+use agent_lib::auto_selector;
+use agent_lib::config;
+use agent_lib::factory;
+use agent_lib::json_validation;
+use agent_lib::sandbox;
+use agent_lib::session;
+use agent_lib::skills;
+use agent_lib::worktree;
+
+// Re-export provider modules
+use agent_lib::providers::claude;
+use agent_lib::providers::codex;
+use agent_lib::providers::copilot;
+use agent_lib::providers::gemini;
+use agent_lib::providers::ollama;
+
+// Modules that remain in the binary crate
 mod capability;
-mod claude;
-mod codex;
-mod config;
-mod copilot;
-mod factory;
-mod gemini;
-mod json_validation;
 mod listen;
 mod logging;
-mod ollama;
 mod output;
-mod process;
-mod sandbox;
-mod session;
 mod session_log;
-mod skills;
-mod worktree;
 
 use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};

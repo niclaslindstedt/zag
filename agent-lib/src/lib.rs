@@ -1,3 +1,16 @@
+pub mod agent;
+pub mod auto_selector;
+pub mod builder;
 pub mod capability;
+pub mod config;
+pub mod factory;
+pub mod json_validation;
 pub mod output;
+pub mod process;
+pub mod progress;
+pub mod providers;
+pub mod sandbox;
+pub mod session;
 pub mod session_log;
+pub mod skills;
+pub mod worktree;

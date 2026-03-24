@@ -20,17 +20,69 @@ Keep this file updated when making architectural changes to the codebase.
 ## Architecture
 
 Cargo workspace with two crates:
-- **`agent`** (binary) — CLI entry point and provider implementations
-- **`agent-lib`** (library) — Reusable types for session logs, capability parsing, and unified output format
+- **`agent`** (binary) — Thin CLI wrapper (argument parsing, terminal logging)
+- **`agent-lib`** (library) — All core logic: agent trait, provider implementations, factory, config, builder API, output types, session logs, capabilities
 
 ### Design
 
 - **Trait-based abstraction**: Common `Agent` trait defines the interface for all agent implementations
 - **Factory pattern**: `AgentFactory` creates and configures agents based on parameters
+- **Builder API**: `AgentBuilder` provides ergonomic programmatic access (see below)
+- **Progress handler**: `ProgressHandler` trait abstracts terminal output so the library doesn't depend on `indicatif`
 - **Model validation**: Validates model names against agent-specific allowed lists with helpful error messages
 - **Subprocess delegation**: Each agent spawns its respective CLI tool, passing configuration via arguments or temporary files
 - **Simple execution**: Runs agent processes and waits for completion
-- **Library extraction**: Session log types, capability structs, and unified output format live in `agent-lib` so other Rust crates can integrate against them
+
+### Programmatic API (AgentBuilder)
+
+`agent-lib` exposes an `AgentBuilder` for driving agents from Rust code without the CLI:
+
+```rust
+use agent_lib::builder::AgentBuilder;
+
+// Non-interactive exec
+let output = AgentBuilder::new()
+    .provider("claude")
+    .model("sonnet")
+    .auto_approve(true)
+    .exec("write a hello world program")
+    .await?;
+
+// With JSON schema validation
+let output = AgentBuilder::new()
+    .provider("gemini")
+    .json_schema(schema)
+    .exec("list 3 colors")
+    .await?;
+
+// Interactive session
+AgentBuilder::new()
+    .provider("claude")
+    .run(Some("initial prompt"))
+    .await?;
+
+// Resume
+AgentBuilder::new()
+    .provider("claude")
+    .resume("session-id")
+    .await?;
+```
+
+Custom progress reporting:
+```rust
+use agent_lib::progress::ProgressHandler;
+
+struct MyProgress;
+impl ProgressHandler for MyProgress {
+    fn on_success(&self, msg: &str) { println!("OK: {}", msg); }
+    fn on_error(&self, msg: &str) { eprintln!("ERR: {}", msg); }
+}
+
+AgentBuilder::new()
+    .on_progress(Box::new(MyProgress))
+    .exec("hello")
+    .await?;
+```
 
 ### Key Files
 
@@ -38,30 +90,42 @@ Cargo workspace with two crates:
 
 | File | Purpose |
 |------|---------|
-| `agent-lib/src/lib.rs` | Library root — re-exports output, session_log, capability modules |
-| `agent-lib/src/output.rs` | Unified AgentOutput format, Event types, and event formatting |
+| `agent-lib/src/lib.rs` | Library root — re-exports all modules |
+| `agent-lib/src/builder.rs` | `AgentBuilder` — high-level programmatic API |
+| `agent-lib/src/progress.rs` | `ProgressHandler` trait and `SilentProgress` default |
+| `agent-lib/src/agent.rs` | `Agent` trait definition and `ModelSize` abstraction |
+| `agent-lib/src/factory.rs` | `AgentFactory` — creates and configures agents |
+| `agent-lib/src/config.rs` | Configuration management (`agent.toml`) |
+| `agent-lib/src/output.rs` | Unified `AgentOutput` format, `Event` types, and event formatting |
 | `agent-lib/src/session_log.rs` | Session log schema, writer, coordinator, backfill engine, and adapter traits |
 | `agent-lib/src/capability.rs` | Provider capability structs (`ProviderCapability`, `Features`, etc.) and format helpers |
+| `agent-lib/src/process.rs` | Subprocess helpers: stderr capture, exit status checking, output handling |
+| `agent-lib/src/sandbox.rs` | Docker sandbox configuration, command building, and removal |
+| `agent-lib/src/worktree.rs` | Git worktree creation, removal, and name generation |
+| `agent-lib/src/session.rs` | Session-worktree/sandbox mapping store (`sessions.json`) |
+| `agent-lib/src/json_validation.rs` | JSON and JSON Schema validation utilities |
+| `agent-lib/src/auto_selector.rs` | Auto provider/model selection via lightweight LLM call |
+| `agent-lib/src/skills.rs` | Provider-agnostic skill management |
+| `agent-lib/src/providers/claude/mod.rs` | Claude agent implementation |
+| `agent-lib/src/providers/claude/models.rs` | Claude JSON output models and conversion to unified format |
+| `agent-lib/src/providers/claude/logs.rs` | Claude session log adapter |
+| `agent-lib/src/providers/codex.rs` | Codex agent implementation |
+| `agent-lib/src/providers/gemini.rs` | Gemini agent implementation |
+| `agent-lib/src/providers/copilot.rs` | Copilot agent implementation |
+| `agent-lib/src/providers/ollama.rs` | Ollama agent implementation (local models) |
 
 #### `src/` (binary crate)
 
+The binary crate is a thin CLI wrapper. It parses arguments with clap and delegates to `agent-lib` modules.
+
 | File | Purpose |
 |------|---------|
-| `src/agent.rs` | Agent trait definition and ModelSize abstraction |
-| `src/factory.rs` | AgentFactory for creating and configuring agents |
-| `src/main.rs` | CLI entry point with clap |
-| `src/config.rs` | Configuration management with get/set support |
-| `src/logging.rs` | Logging infrastructure and progress indicators |
-| `src/session_log.rs` | Re-exports agent-lib session_log + provider-specific wiring (logs_dir, backfill, live adapters) |
-| `src/claude/mod.rs` | Claude agent implementation |
-| `src/claude/models.rs` | Claude JSON output models and conversion to unified format |
-| `src/codex.rs` | Codex agent implementation |
-| `src/gemini.rs` | Gemini agent implementation |
-| `src/copilot.rs` | Copilot agent implementation |
-| `src/ollama.rs` | Ollama agent implementation (local models) |
-| `src/process.rs` | Subprocess helpers: stderr capture, exit status checking, output handling |
-| `src/output.rs` | Re-exports agent-lib output types |
+| `src/main.rs` | CLI entry point with clap — maps CLI args to agent-lib calls |
+| `src/logging.rs` | Terminal logging, spinners, colored output (implements `ProgressHandler` pattern) |
+| `src/listen.rs` | Listen command: session log tailing, event formatting, session resolution |
 | `src/capability.rs` | Re-exports agent-lib capability types + provider-specific capability constructors |
+| `src/output.rs` | Re-exports agent-lib output types |
+| `src/session_log.rs` | Re-exports agent-lib session_log + provider-specific wiring |
 | `src/auto_selector.rs` | Auto provider/model selection via lightweight LLM call |
 | `src/sandbox.rs` | Docker sandbox configuration, command building, and removal |
 | `src/session.rs` | Session-worktree/sandbox mapping store (`sessions.json`) |
@@ -874,19 +938,14 @@ After interactive (`run`) sandbox sessions:
 
 ## How to Implement New Features
 
-Pattern for adding new CLI features:
+Pattern for adding new features:
 
-1. **Add CLI flag** to `Cli` struct in `src/main.rs` (use `global = true` for cross-subcommand flags)
-2. **If cross-cutting**: Handle in the appropriate sub-function of `run_agent_action()`:
-   - `resolve_auto_selection()` — auto provider/model selection
-   - `augment_system_prompt_for_json()` — system prompt modifications
-   - `setup_worktree()` — worktree creation and session ID generation
-   - `setup_sandbox()` — sandbox creation and session ID generation
-   - `create_and_configure_agent()` — agent factory call and option setting
-   - `execute_action()` — the run/exec dispatch
-3. **If agent-specific**: Add to `Agent` trait or use the downcast pattern via `as_any_mut()` (e.g., `input_format` for Claude). Claude-specific options are consolidated in a single downcast block inside `create_and_configure_agent()`.
-4. **If native in underlying binary**: Pass through the flag in the agent's `execute()` method (e.g., `--worktree` for Claude)
-5. **If not native**: Implement the behavior in the wrapper before delegating to the agent (e.g., worktree creation for Codex/Gemini/Copilot)
+1. **Core logic goes in `agent-lib`**: Agent trait changes, provider implementations, builder options, config — all in the library crate
+2. **CLI-only changes go in `src/main.rs`**: New clap flags, terminal-specific formatting
+3. **For new builder options**: Add a setter to `AgentBuilder` in `agent-lib/src/builder.rs`, then wire it in `create_agent()` or the terminal methods
+4. **For new CLI flags**: Add to `Cli` struct in `src/main.rs`, then map to the corresponding `AgentBuilder` setter or handle in `run_agent_action()`
+5. **For agent-specific features**: Add to `Agent` trait in `agent-lib/src/agent.rs` or use the downcast pattern via `as_any_mut()` (e.g., `input_format` for Claude)
+6. **For new provider support**: Add a new module under `agent-lib/src/providers/`, register in `agent-lib/src/factory.rs`
 
 ## Development Process
 

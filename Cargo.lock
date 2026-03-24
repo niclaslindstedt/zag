@@ -35,12 +35,19 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "dirs",
+ "hex",
+ "jsonschema",
  "log",
+ "nix",
  "serde",
  "serde_json",
  "serde_yaml",
+ "sha2",
+ "tempfile",
  "tokio",
  "toml",
+ "uuid",
 ]
 
 [[package]]
