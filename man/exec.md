@@ -97,6 +97,7 @@ In exec mode, the sandbox is kept after execution (no cleanup prompt). Resume wi
     agent -q exec "write tests" | less                  Pipe clean output
     agent -v exec "analyze code"                        Verbose with icons
     agent --sandbox exec "write tests"                  Run in Docker sandbox
+    agent --session $(uuidgen) exec "say hello"          Pre-set session ID
     agent -p ollama exec "explain this code"            Ollama non-interactive
     agent -p ollama --size 35b exec "complex task"      Ollama with large size
 

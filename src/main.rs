@@ -93,6 +93,10 @@ struct Cli {
     #[arg(long, global = true)]
     json_stream: bool,
 
+    /// Session ID (UUID) to use instead of auto-generating one
+    #[arg(long, global = true, value_name = "UUID")]
+    session: Option<String>,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -392,6 +396,23 @@ async fn main() -> Result<()> {
         }
     }
 
+    // Validate --session usage
+    if let Some(ref session_id) = cli.session {
+        uuid::Uuid::parse_str(session_id)
+            .map_err(|_| anyhow::anyhow!("--session must be a valid UUID, got '{}'", session_id))?;
+        match &cli.command {
+            Commands::Run {
+                resume,
+                continue_session,
+                ..
+            } if resume.is_some() || *continue_session => {
+                bail!("--session cannot be used with run --resume or run --continue")
+            }
+            Commands::Run { .. } | Commands::Exec { .. } => {}
+            _ => bail!("--session can only be used with run or exec"),
+        }
+    }
+
     // Validate auto provider/model usage
     let is_auto_provider = cli.provider.as_deref() == Some("auto");
     let is_auto_model = cli.model.as_deref() == Some("auto");
@@ -508,6 +529,7 @@ async fn main() -> Result<()> {
                 json_mode,
                 json_schema,
                 json_stream,
+                session: cli.session,
             })
             .await?;
         }
@@ -605,6 +627,7 @@ struct AgentActionParams {
     json_mode: bool,
     json_schema: Option<serde_json::Value>,
     json_stream: bool,
+    session: Option<String>,
 }
 
 const JSON_WRAP_TEMPLATE: &str = include_str!("../prompts/json-wrap/1_0.md");
@@ -1020,7 +1043,16 @@ fn setup_plain_session(
     action: &Commands,
     json_mode: bool,
     root: &Option<String>,
+    explicit_session: &Option<String>,
 ) -> PlainSessionSetup {
+    // If an explicit --session was provided, always use it
+    if let Some(session_id) = explicit_session {
+        return PlainSessionSetup {
+            session_id: Some(session_id.clone()),
+            workspace_path: Some(current_workspace(root.as_deref())),
+        };
+    }
+
     if !is_new_interactive_run(action, json_mode) {
         return PlainSessionSetup {
             session_id: None,
@@ -1738,6 +1770,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         json_mode,
         json_schema,
         json_stream,
+        session,
     } = params;
 
     let is_exec = matches!(action, Commands::Exec { .. });
@@ -1797,7 +1830,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         }
     }
 
-    let plain = setup_plain_session(&action, json_mode, &root);
+    let plain = setup_plain_session(&action, json_mode, &root, &session);
     let wrapper_session_id = plain.session_id.clone();
     let log_session_id = wrapper_session_id
         .clone()

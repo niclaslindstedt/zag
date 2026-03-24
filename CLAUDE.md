@@ -562,6 +562,10 @@ agent exec --json-schema '{"type":"object"}' "list 3 colors"             # With 
 agent exec --json-schema schema.json "list 3 colors"                     # Schema from file
 agent exec --json-stream "list 3 colors"                                 # Stream JSON events (NDJSON)
 
+# Pre-set session ID (for agent listen)
+agent --session $(uuidgen) run                    # Know the session ID before it starts
+agent --session $(uuidgen) exec "complex task"    # Works with exec too
+
 # Combine flags
 agent --debug --model opus -a exec "complex task"
 agent -q exec "simple task" -o json

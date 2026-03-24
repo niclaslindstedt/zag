@@ -211,6 +211,7 @@ Config priority: CLI flags > `models.<agent>` > `defaults.model` > agent built-i
     --json                   Request JSON response from agent
     --json-schema <SCHEMA>   Validate JSON against schema (file or inline)
     --json-stream            Stream NDJSON events
+    --session <UUID>         Pre-set session ID (for agent listen)
 -o, --output <FORMAT>        exec output format: text, json, json-pretty, stream-json
 ```
 

@@ -32,6 +32,7 @@ These flags can be used with any subcommand.
         --json                  Request structured JSON output from the agent
         --json-schema <SCHEMA>  Validate JSON output against a schema (file or inline)
         --json-stream           Stream JSON events in NDJSON format
+        --session <UUID>        Use a specific session ID instead of auto-generating one
         --help-agent            Print AI-oriented reference for using this CLI
 
 ## Commands

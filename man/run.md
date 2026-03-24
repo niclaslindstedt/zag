@@ -26,6 +26,7 @@ All global flags apply (see `agent man agent`).
 
     --resume <session-id>    Resume a specific interactive session
     --continue               Resume the latest tracked interactive session
+    --session <UUID>         Use a specific session ID (cannot combine with --resume/--continue)
 
 ## Behavior
 
@@ -57,6 +58,7 @@ After an interactive sandbox session, you are prompted whether to keep or remove
     agent --model small run                   Use lightweight model for quick tasks
     agent run --continue                      Resume the latest tracked session
     agent run --resume abc-123                Resume a specific session
+    agent --session $(uuidgen) run             Pre-set session ID for agent listen
     agent -p ollama run                       Interactive Ollama session (qwen3.5:9b)
     agent -p ollama --size 35b run            Ollama with large model size
 
