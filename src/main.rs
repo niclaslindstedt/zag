@@ -8,6 +8,7 @@ mod copilot;
 mod factory;
 mod gemini;
 mod json_validation;
+mod listen;
 mod logging;
 mod ollama;
 mod output;
@@ -162,9 +163,34 @@ enum Commands {
         #[arg(long)]
         pretty: bool,
     },
+    /// Listen to a session's log events in real-time
+    Listen {
+        /// Session ID to listen to
+        session_id: Option<String>,
+
+        /// Listen to the latest session (most recently created)
+        #[arg(long)]
+        latest: bool,
+
+        /// Listen to the active session (most recently written-to log file)
+        #[arg(long)]
+        active: bool,
+
+        /// Output as JSON (NDJSON)
+        #[arg(long)]
+        json: bool,
+
+        /// Output as plain text (default)
+        #[arg(long)]
+        text: bool,
+
+        /// Enable ANSI colors in text output
+        #[arg(long)]
+        colors: bool,
+    },
     /// Show manual pages for commands
     Man {
-        /// Command to show help for (run, exec, review, config, capability, man)
+        /// Command to show help for (run, exec, review, config, capability, listen, man)
         command: Option<String>,
     },
 }
@@ -213,6 +239,7 @@ async fn main() -> Result<()> {
             Commands::Config { .. } => bail!("--json-stream cannot be used with config"),
             Commands::Logs { .. } => bail!("--json-stream cannot be used with logs"),
             Commands::Capability { .. } => bail!("--json-stream cannot be used with capability"),
+            Commands::Listen { .. } => bail!("--json-stream cannot be used with listen"),
             Commands::Run {
                 prompt: _,
                 resume,
@@ -236,6 +263,7 @@ async fn main() -> Result<()> {
             Commands::Capability { .. } => {
                 bail!("--json/--json-schema cannot be used with capability")
             }
+            Commands::Listen { .. } => bail!("--json/--json-schema cannot be used with listen"),
             Commands::Run {
                 resume,
                 continue_session,
@@ -284,6 +312,7 @@ async fn main() -> Result<()> {
             Commands::Config { .. } => bail!("--worktree cannot be used with config"),
             Commands::Logs { .. } => bail!("--worktree cannot be used with logs"),
             Commands::Capability { .. } => bail!("--worktree cannot be used with capability"),
+            Commands::Listen { .. } => bail!("--worktree cannot be used with listen"),
             Commands::Run {
                 resume,
                 continue_session,
@@ -302,6 +331,7 @@ async fn main() -> Result<()> {
             Commands::Config { .. } => bail!("--sandbox cannot be used with config"),
             Commands::Logs { .. } => bail!("--sandbox cannot be used with logs"),
             Commands::Capability { .. } => bail!("--sandbox cannot be used with capability"),
+            Commands::Listen { .. } => bail!("--sandbox cannot be used with listen"),
             Commands::Man { .. } => bail!("--sandbox cannot be used with man"),
             Commands::Run {
                 resume,
@@ -326,6 +356,7 @@ async fn main() -> Result<()> {
             Commands::Config { .. } => bail!("auto cannot be used with config"),
             Commands::Logs { .. } => bail!("auto cannot be used with logs"),
             Commands::Capability { .. } => bail!("auto cannot be used with capability"),
+            Commands::Listen { .. } => bail!("auto cannot be used with listen"),
             Commands::Run {
                 resume,
                 continue_session,
@@ -359,6 +390,26 @@ async fn main() -> Result<()> {
             let cap = capability::get_capability(&provider)?;
             let output = capability::format_capability(&cap, &format, pretty)?;
             println!("{}", output);
+        }
+        Commands::Listen {
+            session_id,
+            latest,
+            active,
+            json: listen_json,
+            text: listen_text,
+            colors,
+        } => {
+            let config = Config::load(cli.root.as_deref()).unwrap_or_default();
+            let format =
+                listen::ListenFormat::from_flags(listen_json, colors, listen_text, &config);
+            let log_path = listen::resolve_session_log(
+                session_id.as_deref(),
+                latest,
+                active,
+                cli.root.as_deref(),
+            )?;
+            debug!("Listening to session log: {}", log_path.display());
+            listen::tail_session_log(&log_path, format)?;
         }
         Commands::Review {
             uncommitted,
@@ -512,6 +563,7 @@ const MAN_REVIEW: &str = include_str!("../man/review.md");
 const MAN_CONFIG: &str = include_str!("../man/config.md");
 const MAN_LOGS: &str = include_str!("../man/logs.md");
 const MAN_CAPABILITY: &str = include_str!("../man/capability.md");
+const MAN_LISTEN: &str = include_str!("../man/listen.md");
 const MAN_MAN: &str = include_str!("../man/man.md");
 
 /// AI-oriented reference document for `--help-agent`.
@@ -527,9 +579,10 @@ fn print_manpage(command: Option<&str>) -> Result<()> {
         Some("config") => MAN_CONFIG,
         Some("logs") => MAN_LOGS,
         Some("capability") => MAN_CAPABILITY,
+        Some("listen") => MAN_LISTEN,
         Some("man") => MAN_MAN,
         Some(other) => bail!(
-            "No manual entry for '{}'. Available: run, exec, review, config, logs, capability, man",
+            "No manual entry for '{}'. Available: run, exec, review, config, logs, capability, listen, man",
             other
         ),
     };
@@ -1484,6 +1537,7 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Config { .. } => "config",
         Commands::Logs { .. } => "logs",
         Commands::Capability { .. } => "capability",
+        Commands::Listen { .. } => "listen",
         Commands::Man { .. } => "man",
     }
 }
@@ -1768,6 +1822,21 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         &persisted_model,
         root.as_deref(),
     );
+
+    // Echo session ID for `agent listen` usage
+    if show_wrapper {
+        let display_session_id = wt
+            .session_id
+            .as_deref()
+            .or(sb.session_id.as_deref())
+            .or(plain.session_id.as_deref())
+            .unwrap_or(&log_session_id);
+        println!("\x1b[33m>\x1b[0m Session: {}", display_session_id);
+        println!(
+            "\x1b[33m>\x1b[0m Listen:  agent listen {}",
+            display_session_id
+        );
+    }
 
     let initial_provider_session_id = if provider == "claude" {
         wrapper_session_id.clone()

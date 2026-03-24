@@ -21,6 +21,7 @@ fn test_print_manpage_all_commands() {
         "config",
         "logs",
         "capability",
+        "listen",
         "man",
     ] {
         assert!(

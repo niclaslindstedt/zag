@@ -67,10 +67,12 @@ Cargo workspace with two crates:
 | `src/session.rs` | Session-worktree/sandbox mapping store (`sessions.json`) |
 | `src/worktree.rs` | Git worktree creation, removal, and name generation |
 | `src/json_validation.rs` | JSON and JSON Schema validation utilities |
+| `src/listen.rs` | Listen command: session log tailing, event formatting, session resolution |
 | `man/*.md` | Embedded manpages for the `agent man` command |
 | `prompts/auto-selector/*.md` | Versioned prompt templates for auto-selection (latest: 3_1) |
 | `prompts/json-wrap/*.md` | Versioned prompt templates for wrapping user prompts with JSON instructions (latest: 1_0) |
 | `man/capability.md` | Manpage for the `agent capability` command |
+| `man/listen.md` | Manpage for the `agent listen` command |
 
 ## Model Size Abstraction
 
@@ -237,6 +239,7 @@ Settings are applied in this order (later overrides earlier):
 | `ollama.size_small` | Size for small alias (default: "2b") |
 | `ollama.size_medium` | Size for medium alias (default: "9b") |
 | `ollama.size_large` | Size for large alias (default: "35b") |
+| `listen.format` | Default output format for listen command (default: "text") |
 
 ## Logging
 
@@ -443,6 +446,7 @@ The provider is specified via the `--provider` (or `-p`) flag. If omitted, it de
 - **`review`** - Review code changes (uses Codex)
 - **`config`** - View or set configuration values
 - **`capability`** - Show provider capability declarations
+- **`listen`** - Tail a session's log events in real-time
 - **`man`** - Show manual pages for commands
 
 ```bash
@@ -537,6 +541,13 @@ agent -p ollama capability                    # Ollama capabilities
 agent -p claude capability --pretty           # Pretty-printed JSON
 agent -p gemini capability -f yaml            # YAML format
 agent -p codex capability -f toml             # TOML format
+
+# Listen to session logs
+agent listen <session-id>             # Listen to a specific session
+agent listen --latest                 # Listen to the most recently created session
+agent listen --active                 # Listen to the most recently written-to session
+agent listen --latest --json          # JSON output (NDJSON)
+agent listen --latest --colors        # Text with ANSI colors
 
 # Configuration
 agent config                       # Print full config

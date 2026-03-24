@@ -54,6 +54,13 @@ pub struct AutoConfig {
     pub model: Option<String>,
 }
 
+/// Listen command configuration.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ListenConfig {
+    /// Default output format: "text", "json", or "colored-text"
+    pub format: Option<String>,
+}
+
 /// Root configuration structure.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Config {
@@ -69,6 +76,9 @@ pub struct Config {
     /// Ollama-specific settings
     #[serde(default)]
     pub ollama: OllamaConfig,
+    /// Listen command settings
+    #[serde(default)]
+    pub listen: ListenConfig,
 }
 
 impl Config {
@@ -280,6 +290,11 @@ impl Config {
         self.auto.model.as_deref()
     }
 
+    /// Get the listen output format, if configured.
+    pub fn listen_format(&self) -> Option<&str> {
+        self.listen.format.as_deref()
+    }
+
     /// Valid provider names (including "auto").
     pub const VALID_PROVIDERS: &'static [&'static str] =
         &["claude", "codex", "gemini", "copilot", "ollama", "auto"];
@@ -303,6 +318,7 @@ impl Config {
             "ollama.size_small" => self.ollama.size_small.clone(),
             "ollama.size_medium" => self.ollama.size_medium.clone(),
             "ollama.size_large" => self.ollama.size_large.clone(),
+            "listen.format" => self.listen.format.clone(),
             _ => None,
         }
     }
@@ -345,8 +361,18 @@ impl Config {
             "ollama.size_small" => self.ollama.size_small = Some(value.to_string()),
             "ollama.size_medium" => self.ollama.size_medium = Some(value.to_string()),
             "ollama.size_large" => self.ollama.size_large = Some(value.to_string()),
+            "listen.format" => {
+                let v = value.to_lowercase();
+                if !["text", "json", "colored-text"].contains(&v.as_str()) {
+                    anyhow::bail!(
+                        "Invalid listen format '{}'. Available: text, json, colored-text",
+                        value
+                    );
+                }
+                self.listen.format = Some(v);
+            }
             _ => anyhow::bail!(
-                "Unknown config key '{}'. Available: provider, model, auto_approve, model.claude, model.codex, model.gemini, model.copilot, model.ollama, auto.provider, auto.model, ollama.model, ollama.size, ollama.size_small, ollama.size_medium, ollama.size_large",
+                "Unknown config key '{}'. Available: provider, model, auto_approve, model.claude, model.codex, model.gemini, model.copilot, model.ollama, auto.provider, auto.model, ollama.model, ollama.size, ollama.size_small, ollama.size_medium, ollama.size_large, listen.format",
                 key
             ),
         }
@@ -390,6 +416,10 @@ model = "medium"
 # size_small = "2b"
 # size_medium = "9b"
 # size_large = "35b"
+
+[listen]
+# Default output format for listen command: "text", "json", or "colored-text"
+# format = "text"
 "#
         .to_string()
     }
