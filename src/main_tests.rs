@@ -14,7 +14,15 @@ fn test_print_manpage_agent() {
 
 #[test]
 fn test_print_manpage_all_commands() {
-    for cmd in &["run", "exec", "review", "config", "logs", "capability", "man"] {
+    for cmd in &[
+        "run",
+        "exec",
+        "review",
+        "config",
+        "logs",
+        "capability",
+        "man",
+    ] {
         assert!(
             print_manpage(Some(cmd)).is_ok(),
             "manpage for '{}' failed",

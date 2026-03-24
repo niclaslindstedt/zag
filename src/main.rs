@@ -1325,7 +1325,7 @@ async fn execute_action(
         } => {
             if resume.is_some() || continue_session {
                 info!("Resuming session");
-                
+
                 // Print resume hint at the start when resuming
                 if let Some(ref session_id) = resume {
                     if !crate::logging::is_quiet() {
@@ -1334,7 +1334,7 @@ async fn execute_action(
                             "Resume this session: \x1b[36magent run --resume {}\x1b[0m",
                             session_id
                         );
-                        
+
                         // Try to get provider session ID if different
                         if let Ok(store) = session::SessionStore::load(ctx.root.as_deref()) {
                             if let Some(entry) = store.find_by_session_id(session_id) {
@@ -1351,7 +1351,7 @@ async fn execute_action(
                         println!();
                     }
                 }
-                
+
                 agent
                     .run_resume(resume.as_deref(), continue_session)
                     .await?;
@@ -1802,7 +1802,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         should_enable_live_session_logs(&action, json_mode),
     );
     let log_coordinator = crate::session_log::SessionLogCoordinator::start(
-        root.as_deref(),
+        &crate::session_log::logs_dir(root.as_deref()),
         log_metadata,
         live_adapter,
     )?;
@@ -2138,7 +2138,7 @@ async fn run_review(params: ReviewParams) -> Result<()> {
         true,
     );
     let log_coordinator = crate::session_log::SessionLogCoordinator::start(
-        root.as_deref(),
+        &crate::session_log::logs_dir(root.as_deref()),
         log_metadata,
         live_adapter,
     )?;

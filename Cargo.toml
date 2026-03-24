@@ -3,7 +3,11 @@ name = "agent"
 version = "0.1.0"
 edition = "2024"
 
+[workspace]
+members = [".", "agent-lib"]
+
 [dependencies]
+agent-lib = { path = "agent-lib" }
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 async-trait = "0.1"

@@ -52,7 +52,7 @@ fn test_parse_simple_response() {
     ]"#;
 
     let claude_output: ClaudeOutput = serde_json::from_str(json).expect("Failed to parse");
-    let agent_output: AgentOutput = claude_output.into();
+    let agent_output: AgentOutput = claude_output_to_agent_output(claude_output);
 
     assert_eq!(agent_output.agent, "claude");
     assert_eq!(agent_output.session_id, "test123");
@@ -139,7 +139,7 @@ fn test_parse_with_tool_use() {
     ]"#;
 
     let claude_output: ClaudeOutput = serde_json::from_str(json).expect("Failed to parse");
-    let agent_output: AgentOutput = claude_output.into();
+    let agent_output: AgentOutput = claude_output_to_agent_output(claude_output);
 
     assert_eq!(agent_output.session_id, "sess1");
     assert_eq!(agent_output.result, Some("Found 2 files.".to_string()));
@@ -183,7 +183,7 @@ fn test_parse_error_response() {
     ]"#;
 
     let claude_output: ClaudeOutput = serde_json::from_str(json).expect("Failed to parse");
-    let agent_output: AgentOutput = claude_output.into();
+    let agent_output: AgentOutput = claude_output_to_agent_output(claude_output);
 
     assert!(agent_output.is_error);
     assert_eq!(
@@ -222,7 +222,7 @@ fn test_parse_with_permission_denials() {
     ]"#;
 
     let claude_output: ClaudeOutput = serde_json::from_str(json).expect("Failed to parse");
-    let agent_output: AgentOutput = claude_output.into();
+    let agent_output: AgentOutput = claude_output_to_agent_output(claude_output);
 
     // Should have Init, PermissionRequest, Result
     let perm_events: Vec<_> = agent_output
@@ -299,7 +299,7 @@ fn test_parse_with_tool_error() {
     ]"#;
 
     let claude_output: ClaudeOutput = serde_json::from_str(json).expect("Failed to parse");
-    let agent_output: AgentOutput = claude_output.into();
+    let agent_output: AgentOutput = claude_output_to_agent_output(claude_output);
 
     let tool_execs = agent_output.tool_executions();
     assert_eq!(tool_execs.len(), 1);
@@ -346,7 +346,7 @@ fn test_parse_with_usage_details() {
     ]"#;
 
     let claude_output: ClaudeOutput = serde_json::from_str(json).expect("Failed to parse");
-    let agent_output: AgentOutput = claude_output.into();
+    let agent_output: AgentOutput = claude_output_to_agent_output(claude_output);
 
     let usage = agent_output.usage.unwrap();
     assert_eq!(usage.input_tokens, 500);
@@ -442,7 +442,7 @@ fn test_parse_user_message_with_mixed_content_blocks() {
     ]"#;
 
     let claude_output: ClaudeOutput = serde_json::from_str(json).expect("Failed to parse");
-    let agent_output: AgentOutput = claude_output.into();
+    let agent_output: AgentOutput = claude_output_to_agent_output(claude_output);
 
     // Text blocks in user messages should be skipped; only tool_result produces ToolExecution
     let tool_execs = agent_output.tool_executions();
@@ -487,7 +487,7 @@ fn test_parse_system_event_with_cwd() {
     ]"#;
 
     let claude_output: ClaudeOutput = serde_json::from_str(json).expect("Failed to parse");
-    let agent_output: AgentOutput = claude_output.into();
+    let agent_output: AgentOutput = claude_output_to_agent_output(claude_output);
 
     if let crate::output::Event::Init {
         working_directory,

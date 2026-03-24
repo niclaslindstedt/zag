@@ -2,9 +2,9 @@ use super::*;
 use crate::output::{AgentOutput, ContentBlock, Event, ToolResult};
 use serde_json::json;
 
-fn temp_logs(name: &str) -> (std::path::PathBuf, impl Drop) {
+fn temp_logs_dir(name: &str) -> (std::path::PathBuf, impl Drop) {
     let dir = std::env::temp_dir().join(format!(
-        "agent-session-log-test-{}-{}",
+        "agent-lib-session-log-test-{}-{}",
         std::process::id(),
         name
     ));
@@ -52,7 +52,7 @@ impl HistoricalLogAdapter for DummyBackfillAdapter {
 
 #[test]
 fn test_writer_emits_events_and_updates_index() {
-    let (logs_dir, _guard) = temp_logs("writer");
+    let (logs_dir, _guard) = temp_logs_dir("writer");
     let metadata = SessionLogMetadata {
         provider: "claude".to_string(),
         wrapper_session_id: "session-1".to_string(),
@@ -97,7 +97,7 @@ fn test_writer_emits_events_and_updates_index() {
 
 #[test]
 fn test_record_agent_output_maps_core_events() {
-    let (logs_dir, _guard) = temp_logs("agent-output");
+    let (logs_dir, _guard) = temp_logs_dir("agent-output");
     let writer = SessionLogWriter::create(
         &logs_dir,
         SessionLogMetadata {
@@ -158,7 +158,7 @@ fn test_record_agent_output_maps_core_events() {
 
 #[test]
 fn test_run_backfill_is_idempotent() {
-    let (logs_dir, _guard) = temp_logs("backfill");
+    let (logs_dir, _guard) = temp_logs_dir("backfill");
     let adapter = DummyBackfillAdapter;
     run_backfill(&logs_dir, None, &[&adapter]).unwrap();
     run_backfill(&logs_dir, None, &[&adapter]).unwrap();

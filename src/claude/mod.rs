@@ -340,7 +340,8 @@ impl Claude {
                 log::debug!("Parsed {} Claude events successfully", claude_output.len());
 
                 // Convert to unified AgentOutput
-                let agent_output: AgentOutput = claude_output.into();
+                let agent_output: AgentOutput =
+                    models::claude_output_to_agent_output(claude_output);
                 Ok(Some(agent_output))
             }
         } else {
@@ -637,7 +638,7 @@ impl Agent for Claude {
         let claude_output: models::ClaudeOutput = serde_json::from_str(&json_str)
             .map_err(|e| anyhow::anyhow!("Failed to parse Claude resume JSON output: {}", e))?;
 
-        let agent_output: AgentOutput = claude_output.into();
+        let agent_output: AgentOutput = models::claude_output_to_agent_output(claude_output);
         Ok(Some(agent_output))
     }
 

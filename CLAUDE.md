@@ -19,7 +19,9 @@ Keep this file updated when making architectural changes to the codebase.
 
 ## Architecture
 
-Rust CLI that provides a unified interface for multiple AI coding agents (Claude, Codex, Gemini, Copilot).
+Cargo workspace with two crates:
+- **`agent`** (binary) — CLI entry point and provider implementations
+- **`agent-lib`** (library) — Reusable types for session logs, capability parsing, and unified output format
 
 ### Design
 
@@ -28,8 +30,20 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 - **Model validation**: Validates model names against agent-specific allowed lists with helpful error messages
 - **Subprocess delegation**: Each agent spawns its respective CLI tool, passing configuration via arguments or temporary files
 - **Simple execution**: Runs agent processes and waits for completion
+- **Library extraction**: Session log types, capability structs, and unified output format live in `agent-lib` so other Rust crates can integrate against them
 
 ### Key Files
+
+#### `agent-lib/` (library crate)
+
+| File | Purpose |
+|------|---------|
+| `agent-lib/src/lib.rs` | Library root — re-exports output, session_log, capability modules |
+| `agent-lib/src/output.rs` | Unified AgentOutput format, Event types, and event formatting |
+| `agent-lib/src/session_log.rs` | Session log schema, writer, coordinator, backfill engine, and adapter traits |
+| `agent-lib/src/capability.rs` | Provider capability structs (`ProviderCapability`, `Features`, etc.) and format helpers |
+
+#### `src/` (binary crate)
 
 | File | Purpose |
 |------|---------|
@@ -38,7 +52,7 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/main.rs` | CLI entry point with clap |
 | `src/config.rs` | Configuration management with get/set support |
 | `src/logging.rs` | Logging infrastructure and progress indicators |
-| `src/session_log.rs` | Harmonized per-session log schema, storage, backfill, and live adapter wiring |
+| `src/session_log.rs` | Re-exports agent-lib session_log + provider-specific wiring (logs_dir, backfill, live adapters) |
 | `src/claude/mod.rs` | Claude agent implementation |
 | `src/claude/models.rs` | Claude JSON output models and conversion to unified format |
 | `src/codex.rs` | Codex agent implementation |
@@ -46,8 +60,8 @@ Rust CLI that provides a unified interface for multiple AI coding agents (Claude
 | `src/copilot.rs` | Copilot agent implementation |
 | `src/ollama.rs` | Ollama agent implementation (local models) |
 | `src/process.rs` | Subprocess helpers: stderr capture, exit status checking, output handling |
-| `src/output.rs` | Unified AgentOutput format and event formatting |
-| `src/capability.rs` | Provider capability declarations and formatting |
+| `src/output.rs` | Re-exports agent-lib output types |
+| `src/capability.rs` | Re-exports agent-lib capability types + provider-specific capability constructors |
 | `src/auto_selector.rs` | Auto provider/model selection via lightweight LLM call |
 | `src/sandbox.rs` | Docker sandbox configuration, command building, and removal |
 | `src/session.rs` | Session-worktree/sandbox mapping store (`sessions.json`) |

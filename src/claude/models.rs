@@ -221,199 +221,191 @@ pub struct Plugin {
 }
 
 /// Convert Claude output to unified agent output.
-impl From<ClaudeOutput> for AgentOutput {
-    fn from(claude_output: ClaudeOutput) -> Self {
-        let mut session_id = String::from("unknown");
-        let mut result = None;
-        let mut is_error = false;
-        let mut total_cost_usd = None;
-        let mut usage = None;
-        let mut events = Vec::new();
+pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput {
+    let mut session_id = String::from("unknown");
+    let mut result = None;
+    let mut is_error = false;
+    let mut total_cost_usd = None;
+    let mut usage = None;
+    let mut events = Vec::new();
 
-        for event in claude_output {
-            match event {
-                ClaudeEvent::System {
-                    session_id: sid,
+    for event in claude_output {
+        match event {
+            ClaudeEvent::System {
+                session_id: sid,
+                model,
+                tools,
+                cwd,
+                mut extra,
+                ..
+            } => {
+                session_id = sid;
+
+                // Include all extra fields as metadata
+                if let Some(cwd) = cwd {
+                    extra.insert("cwd".to_string(), serde_json::json!(cwd));
+                }
+
+                events.push(UnifiedEvent::Init {
                     model,
                     tools,
-                    cwd,
-                    mut extra,
-                    ..
-                } => {
-                    session_id = sid;
+                    working_directory: extra
+                        .get("cwd")
+                        .and_then(|v| v.as_str().map(|s| s.to_string())),
+                    metadata: extra,
+                });
+            }
 
-                    // Include all extra fields as metadata
-                    if let Some(cwd) = cwd {
-                        extra.insert("cwd".to_string(), serde_json::json!(cwd));
-                    }
+            ClaudeEvent::Assistant {
+                message,
+                session_id: sid,
+                ..
+            } => {
+                session_id = sid;
 
-                    events.push(UnifiedEvent::Init {
-                        model,
-                        tools,
-                        working_directory: extra
-                            .get("cwd")
-                            .and_then(|v| v.as_str().map(|s| s.to_string())),
-                        metadata: extra,
-                    });
-                }
-
-                ClaudeEvent::Assistant {
-                    message,
-                    session_id: sid,
-                    ..
-                } => {
-                    session_id = sid;
-
-                    // Convert content blocks (skip thinking blocks)
-                    let content: Vec<UnifiedContentBlock> = message
-                        .content
-                        .into_iter()
-                        .filter_map(|block| match block {
-                            ContentBlock::Text { text } => Some(UnifiedContentBlock::Text { text }),
-                            ContentBlock::ToolUse { id, name, input } => {
-                                Some(UnifiedContentBlock::ToolUse { id, name, input })
-                            }
-                            ContentBlock::Thinking { .. } => None,
-                        })
-                        .collect();
-
-                    // Convert usage
-                    let msg_usage = Some(UnifiedUsage {
-                        input_tokens: message.usage.input_tokens,
-                        output_tokens: message.usage.output_tokens,
-                        cache_read_tokens: Some(message.usage.cache_read_input_tokens),
-                        cache_creation_tokens: Some(message.usage.cache_creation_input_tokens),
-                        web_search_requests: message
-                            .usage
-                            .server_tool_use
-                            .as_ref()
-                            .map(|s| s.web_search_requests),
-                        web_fetch_requests: message
-                            .usage
-                            .server_tool_use
-                            .as_ref()
-                            .map(|s| s.web_fetch_requests),
-                    });
-
-                    events.push(UnifiedEvent::AssistantMessage {
-                        content,
-                        usage: msg_usage,
-                    });
-                }
-
-                ClaudeEvent::User {
-                    message,
-                    tool_use_result,
-                    session_id: sid,
-                    ..
-                } => {
-                    session_id = sid;
-
-                    // Convert tool results to tool execution events (skip non-tool-result blocks)
-                    for block in message.content {
-                        if let UserContentBlock::ToolResult {
-                            tool_use_id,
-                            content,
-                            is_error,
-                        } = block
-                        {
-                            let tool_name = find_tool_name(&events, &tool_use_id)
-                                .unwrap_or_else(|| "unknown".to_string());
-
-                            let tool_result = ToolResult {
-                                success: !is_error,
-                                output: if !is_error {
-                                    Some(content.clone())
-                                } else {
-                                    None
-                                },
-                                error: if is_error {
-                                    Some(content.clone())
-                                } else {
-                                    None
-                                },
-                                data: tool_use_result.clone(),
-                            };
-
-                            events.push(UnifiedEvent::ToolExecution {
-                                tool_name,
-                                tool_id: tool_use_id,
-                                input: serde_json::Value::Null,
-                                result: tool_result,
-                            });
+                // Convert content blocks (skip thinking blocks)
+                let content: Vec<UnifiedContentBlock> = message
+                    .content
+                    .into_iter()
+                    .filter_map(|block| match block {
+                        ContentBlock::Text { text } => Some(UnifiedContentBlock::Text { text }),
+                        ContentBlock::ToolUse { id, name, input } => {
+                            Some(UnifiedContentBlock::ToolUse { id, name, input })
                         }
-                    }
-                }
+                        ContentBlock::Thinking { .. } => None,
+                    })
+                    .collect();
 
-                ClaudeEvent::Other => {
-                    log::debug!("Skipping unknown Claude event type during output conversion");
-                }
+                // Convert usage
+                let msg_usage = Some(UnifiedUsage {
+                    input_tokens: message.usage.input_tokens,
+                    output_tokens: message.usage.output_tokens,
+                    cache_read_tokens: Some(message.usage.cache_read_input_tokens),
+                    cache_creation_tokens: Some(message.usage.cache_creation_input_tokens),
+                    web_search_requests: message
+                        .usage
+                        .server_tool_use
+                        .as_ref()
+                        .map(|s| s.web_search_requests),
+                    web_fetch_requests: message
+                        .usage
+                        .server_tool_use
+                        .as_ref()
+                        .map(|s| s.web_fetch_requests),
+                });
 
-                ClaudeEvent::Result {
-                    is_error: err,
-                    result: res,
-                    total_cost_usd: cost,
-                    usage: u,
-                    duration_ms,
-                    num_turns,
-                    permission_denials,
-                    session_id: sid,
-                    subtype: _,
-                    ..
-                } => {
-                    session_id = sid;
-                    is_error = err;
-                    result = Some(res.clone());
-                    total_cost_usd = Some(cost);
+                events.push(UnifiedEvent::AssistantMessage {
+                    content,
+                    usage: msg_usage,
+                });
+            }
 
-                    // Convert usage
-                    usage = Some(UnifiedUsage {
-                        input_tokens: u.input_tokens,
-                        output_tokens: u.output_tokens,
-                        cache_read_tokens: Some(u.cache_read_input_tokens),
-                        cache_creation_tokens: Some(u.cache_creation_input_tokens),
-                        web_search_requests: u
-                            .server_tool_use
-                            .as_ref()
-                            .map(|s| s.web_search_requests),
-                        web_fetch_requests: u
-                            .server_tool_use
-                            .as_ref()
-                            .map(|s| s.web_fetch_requests),
-                    });
+            ClaudeEvent::User {
+                message,
+                tool_use_result,
+                session_id: sid,
+                ..
+            } => {
+                session_id = sid;
 
-                    // Add permission denial events
-                    for denial in permission_denials {
-                        events.push(UnifiedEvent::PermissionRequest {
-                            tool_name: denial.tool_name,
-                            description: format!(
-                                "Permission denied for tool input: {}",
-                                serde_json::to_string(&denial.tool_input).unwrap_or_default()
-                            ),
-                            granted: false,
+                // Convert tool results to tool execution events (skip non-tool-result blocks)
+                for block in message.content {
+                    if let UserContentBlock::ToolResult {
+                        tool_use_id,
+                        content,
+                        is_error,
+                    } = block
+                    {
+                        let tool_name = find_tool_name(&events, &tool_use_id)
+                            .unwrap_or_else(|| "unknown".to_string());
+
+                        let tool_result = ToolResult {
+                            success: !is_error,
+                            output: if !is_error {
+                                Some(content.clone())
+                            } else {
+                                None
+                            },
+                            error: if is_error {
+                                Some(content.clone())
+                            } else {
+                                None
+                            },
+                            data: tool_use_result.clone(),
+                        };
+
+                        events.push(UnifiedEvent::ToolExecution {
+                            tool_name,
+                            tool_id: tool_use_id,
+                            input: serde_json::Value::Null,
+                            result: tool_result,
                         });
                     }
-
-                    // Add final result event
-                    events.push(UnifiedEvent::Result {
-                        success: !err,
-                        message: Some(res),
-                        duration_ms: Some(duration_ms),
-                        num_turns: Some(num_turns),
-                    });
                 }
             }
-        }
 
-        AgentOutput {
-            agent: "claude".to_string(),
-            session_id,
-            events,
-            result,
-            is_error,
-            total_cost_usd,
-            usage,
+            ClaudeEvent::Other => {
+                log::debug!("Skipping unknown Claude event type during output conversion");
+            }
+
+            ClaudeEvent::Result {
+                is_error: err,
+                result: res,
+                total_cost_usd: cost,
+                usage: u,
+                duration_ms,
+                num_turns,
+                permission_denials,
+                session_id: sid,
+                subtype: _,
+                ..
+            } => {
+                session_id = sid;
+                is_error = err;
+                result = Some(res.clone());
+                total_cost_usd = Some(cost);
+
+                // Convert usage
+                usage = Some(UnifiedUsage {
+                    input_tokens: u.input_tokens,
+                    output_tokens: u.output_tokens,
+                    cache_read_tokens: Some(u.cache_read_input_tokens),
+                    cache_creation_tokens: Some(u.cache_creation_input_tokens),
+                    web_search_requests: u.server_tool_use.as_ref().map(|s| s.web_search_requests),
+                    web_fetch_requests: u.server_tool_use.as_ref().map(|s| s.web_fetch_requests),
+                });
+
+                // Add permission denial events
+                for denial in permission_denials {
+                    events.push(UnifiedEvent::PermissionRequest {
+                        tool_name: denial.tool_name,
+                        description: format!(
+                            "Permission denied for tool input: {}",
+                            serde_json::to_string(&denial.tool_input).unwrap_or_default()
+                        ),
+                        granted: false,
+                    });
+                }
+
+                // Add final result event
+                events.push(UnifiedEvent::Result {
+                    success: !err,
+                    message: Some(res),
+                    duration_ms: Some(duration_ms),
+                    num_turns: Some(num_turns),
+                });
+            }
         }
+    }
+
+    AgentOutput {
+        agent: "claude".to_string(),
+        session_id,
+        events,
+        result,
+        is_error,
+        total_cost_usd,
+        usage,
     }
 }
 
