@@ -26,7 +26,7 @@ fn test_format_session_started() {
         resumed: false,
         backfilled: false,
     });
-    let text = format_event_text(&event).unwrap();
+    let text = format_event_text(&event, false).unwrap();
     assert!(text.contains("Started: run"));
     assert!(text.contains("(model: opus)"));
     assert!(text.contains('\u{25cf}')); // ● icon
@@ -41,7 +41,7 @@ fn test_format_session_started_no_model() {
         resumed: false,
         backfilled: false,
     });
-    let text = format_event_text(&event).unwrap();
+    let text = format_event_text(&event, false).unwrap();
     assert!(text.contains("Started: exec"));
     assert!(!text.contains("model"));
 }
@@ -53,7 +53,7 @@ fn test_format_user_message() {
         content: "hello world".to_string(),
         message_id: None,
     });
-    let text = format_event_text(&event).unwrap();
+    let text = format_event_text(&event, false).unwrap();
     assert!(text.contains("hello world"));
     assert!(text.contains('\u{276f}')); // ❯ icon
 }
@@ -64,7 +64,7 @@ fn test_format_assistant_message() {
         content: "Hi there!".to_string(),
         message_id: None,
     });
-    let text = format_event_text(&event).unwrap();
+    let text = format_event_text(&event, false).unwrap();
     assert!(text.contains("Hi there!"));
     assert!(text.contains('\u{23fa}')); // ⏺ icon
 }
@@ -75,21 +75,32 @@ fn test_format_assistant_message_multiline() {
         content: "line one\nline two\nline three".to_string(),
         message_id: None,
     });
-    let text = format_event_text(&event).unwrap();
+    let text = format_event_text(&event, false).unwrap();
     assert!(text.contains("line one\n"));
     assert!(text.contains("  line two\n")); // continuation indented
     assert!(text.contains("  line three"));
 }
 
 #[test]
-fn test_format_reasoning() {
+fn test_format_reasoning_hidden_by_default() {
     let event = make_event(LogEventKind::Reasoning {
         content: "Let me think about this...".to_string(),
         message_id: None,
     });
-    let text = format_event_text(&event).unwrap();
+    assert!(format_event_text(&event, false).is_none());
+}
+
+#[test]
+fn test_format_reasoning_shown_with_flag() {
+    let event = make_event(LogEventKind::Reasoning {
+        content: "Let me think about this...".to_string(),
+        message_id: None,
+    });
+    let text = format_event_text(&event, true).unwrap();
     assert!(text.contains("Let me think about this..."));
     assert!(text.contains('\u{2026}')); // … icon
+    assert!(text.starts_with('\n')); // blank line before
+    assert!(text.ends_with('\n')); // blank line after
 }
 
 #[test]
@@ -100,7 +111,7 @@ fn test_format_tool_call() {
         tool_id: Some("tool-1".to_string()),
         input: Some(serde_json::json!({"path": "/tmp/test.rs"})),
     });
-    let text = format_event_text(&event).unwrap();
+    let text = format_event_text(&event, false).unwrap();
     assert!(text.contains("Read"));
     assert!(text.contains("/tmp/test.rs"));
     assert!(text.contains('\u{26a1}')); // ⚡ icon
@@ -114,7 +125,7 @@ fn test_format_tool_call_with_command() {
         tool_id: None,
         input: Some(serde_json::json!({"command": "ls -la", "description": "List files"})),
     });
-    let text = format_event_text(&event).unwrap();
+    let text = format_event_text(&event, false).unwrap();
     assert!(text.contains("shell"));
     assert!(text.contains("ls -la"));
     assert!(text.contains("List files"));
@@ -131,7 +142,7 @@ fn test_format_tool_result_success() {
         error: None,
         data: None,
     });
-    let text = format_event_text(&event).unwrap();
+    let text = format_event_text(&event, false).unwrap();
     assert!(text.contains('\u{2713}')); // ✓ icon
     assert!(text.contains("file contents"));
 }
@@ -147,7 +158,7 @@ fn test_format_tool_result_error() {
         error: Some("permission denied".to_string()),
         data: None,
     });
-    let text = format_event_text(&event).unwrap();
+    let text = format_event_text(&event, false).unwrap();
     assert!(text.contains('\u{2717}')); // ✗ icon
     assert!(text.contains("permission denied"));
 }
@@ -159,7 +170,7 @@ fn test_format_permission() {
         description: "Run command".to_string(),
         granted: true,
     });
-    let text = format_event_text(&event).unwrap();
+    let text = format_event_text(&event, false).unwrap();
     assert!(text.contains("Bash"));
     assert!(text.contains('\u{1f513}')); // 🔓 icon
 }
@@ -171,7 +182,7 @@ fn test_format_permission_denied() {
         description: "Run command".to_string(),
         granted: false,
     });
-    let text = format_event_text(&event).unwrap();
+    let text = format_event_text(&event, false).unwrap();
     assert!(text.contains("Bash"));
     assert!(text.contains('\u{1f512}')); // 🔒 icon
 }
@@ -182,7 +193,7 @@ fn test_format_provider_status() {
         message: "Initialized opus".to_string(),
         data: None,
     });
-    let text = format_event_text(&event).unwrap();
+    let text = format_event_text(&event, false).unwrap();
     assert!(text.contains("Initialized opus"));
 }
 
@@ -191,7 +202,7 @@ fn test_format_stderr() {
     let event = make_event(LogEventKind::Stderr {
         message: "warning: unused variable".to_string(),
     });
-    let text = format_event_text(&event).unwrap();
+    let text = format_event_text(&event, false).unwrap();
     assert!(text.contains("warning: unused variable"));
     assert!(text.contains('!'));
 }
@@ -202,7 +213,7 @@ fn test_format_parse_warning() {
         message: "unexpected field".to_string(),
         raw: None,
     });
-    let text = format_event_text(&event).unwrap();
+    let text = format_event_text(&event, false).unwrap();
     assert!(text.contains("unexpected field"));
     assert!(text.contains('?'));
 }
@@ -213,7 +224,7 @@ fn test_format_session_ended_success() {
         success: true,
         error: None,
     });
-    let text = format_event_text(&event).unwrap();
+    let text = format_event_text(&event, false).unwrap();
     assert!(text.contains("Session completed"));
     assert!(text.contains('\u{25cf}')); // ● icon
 }
@@ -224,7 +235,7 @@ fn test_format_session_ended_error() {
         success: false,
         error: Some("timeout".to_string()),
     });
-    let text = format_event_text(&event).unwrap();
+    let text = format_event_text(&event, false).unwrap();
     assert!(text.contains("Session failed"));
     assert!(text.contains("timeout"));
 }
@@ -234,7 +245,7 @@ fn test_format_rich_adds_ansi_codes() {
     let event = make_event(LogEventKind::Stderr {
         message: "error".to_string(),
     });
-    let rich = format_event_rich(&event).unwrap();
+    let rich = format_event_rich(&event, false).unwrap();
     assert!(rich.contains("\x1b[")); // has ANSI codes
     assert!(rich.contains("\x1b[0m")); // has reset
     assert!(rich.contains("error"));
@@ -249,7 +260,7 @@ fn test_format_rich_session_green() {
         resumed: false,
         backfilled: false,
     });
-    let rich = format_event_rich(&event).unwrap();
+    let rich = format_event_rich(&event, false).unwrap();
     assert!(rich.contains("\x1b[32m")); // green
 }
 
@@ -274,32 +285,38 @@ fn test_truncate_newlines() {
 }
 
 #[test]
-fn test_truncate_tool_output_preserves_newlines() {
+fn test_format_tool_output_preserves_newlines() {
     let text = "file1\nfile2\nfile3";
-    let result = truncate_tool_output(text, 200);
+    let result = format_tool_output(text);
     assert_eq!(result, "file1\n    file2\n    file3");
 }
 
 #[test]
-fn test_truncate_tool_output_truncates_long() {
-    let long = "a".repeat(200);
-    let result = truncate_tool_output(&long, 120);
-    assert!(result.starts_with("aaa"));
-    assert!(result.contains("..."));
+fn test_format_tool_output_trims_whitespace() {
+    let text = "\n  file1\nfile2\n";
+    let result = format_tool_output(text);
+    assert_eq!(result, "file1\n    file2");
 }
 
 #[test]
 fn test_render_content_preserves_newlines() {
     let text = "line1\nline2\nline3";
-    let result = render_content(text, 200);
+    let result = render_content(text);
     assert_eq!(result, "line1\nline2\nline3");
 }
 
 #[test]
-fn test_render_content_truncates_long() {
+fn test_render_content_trims_leading_whitespace() {
+    let text = "\n\nline1\nline2\n";
+    let result = render_content(text);
+    assert_eq!(result, "line1\nline2");
+}
+
+#[test]
+fn test_render_content_no_truncation() {
     let long = "a".repeat(600);
-    let result = render_content(&long, 500);
-    assert_eq!(result.len(), 503); // 500 + "..."
+    let result = render_content(&long);
+    assert_eq!(result.len(), 600);
 }
 
 #[test]

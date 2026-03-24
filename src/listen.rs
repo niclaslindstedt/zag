@@ -206,7 +206,7 @@ fn resolve_active_session(sessions_dir: &Path) -> Result<PathBuf> {
 
 /// Tail a session log file, printing events as they arrive.
 /// Returns when a SessionEnded event is seen or the process is interrupted.
-pub fn tail_session_log(path: &Path, format: ListenFormat) -> Result<()> {
+pub fn tail_session_log(path: &Path, format: ListenFormat, show_thinking: bool) -> Result<()> {
     let file = File::open(path)
         .with_context(|| format!("Failed to open session log: {}", path.display()))?;
     let mut reader = BufReader::new(file);
@@ -231,9 +231,9 @@ pub fn tail_session_log(path: &Path, format: ListenFormat) -> Result<()> {
                     match serde_json::from_str::<AgentLogEvent>(trimmed) {
                         Ok(event) => {
                             let formatted = if format == ListenFormat::RichText {
-                                format_event_rich(&event)
+                                format_event_rich(&event, show_thinking)
                             } else {
-                                format_event_text(&event)
+                                format_event_text(&event, show_thinking)
                             };
                             if let Some(text) = formatted {
                                 println!("{}", text);
@@ -263,7 +263,7 @@ pub fn tail_session_log(path: &Path, format: ListenFormat) -> Result<()> {
 }
 
 /// Format an event as plain text with styled prefixes.
-pub fn format_event_text(event: &AgentLogEvent) -> Option<String> {
+pub fn format_event_text(event: &AgentLogEvent, show_thinking: bool) -> Option<String> {
     match &event.kind {
         LogEventKind::SessionStarted { command, model, .. } => {
             let model_info = model
@@ -273,16 +273,21 @@ pub fn format_event_text(event: &AgentLogEvent) -> Option<String> {
             Some(format!("\n\u{25cf} Started: {}{}", command, model_info))
         }
         LogEventKind::UserMessage { content, .. } => {
-            Some(format!("\n\u{276f} {}", render_content(content, 500)))
+            Some(format!("\n\u{276f} {}", render_content(content)))
         }
         LogEventKind::AssistantMessage { content, .. } => Some(format!(
             "\n\u{23fa} {}",
-            indent_continuation(&render_content(content, 500), "  ")
+            indent_continuation(&render_content(content), "  ")
         )),
-        LogEventKind::Reasoning { content, .. } => Some(format!(
-            "  \u{2026} {}",
-            indent_continuation(&render_content(content, 200), "    ")
-        )),
+        LogEventKind::Reasoning { content, .. } => {
+            if !show_thinking {
+                return None;
+            }
+            Some(format!(
+                "\n  \u{2026} {}\n",
+                indent_continuation(&render_content(content), "    ")
+            ))
+        }
         LogEventKind::ToolCall {
             tool_name, input, ..
         } => {
@@ -296,17 +301,17 @@ pub fn format_event_text(event: &AgentLogEvent) -> Option<String> {
             ..
         } => {
             if let Some(err) = error.as_deref() {
-                Some(format!("  \u{2717} {}", truncate_tool_output(err, 120)))
+                Some(format!("  \u{2717} {}", format_tool_output(err)))
             } else if success.unwrap_or(false) {
                 let detail = output
                     .as_deref()
-                    .map(|s| format!(" {}", truncate_tool_output(s, 120)))
+                    .map(|s| format!(" {}", format_tool_output(s)))
                     .unwrap_or_default();
                 Some(format!("  \u{2713}{}", detail))
             } else {
                 let detail = output
                     .as_deref()
-                    .map(|s| format!(" {}", truncate_tool_output(s, 120)))
+                    .map(|s| format!(" {}", format_tool_output(s)))
                     .unwrap_or_default();
                 Some(format!("  \u{2717}{}", detail))
             }
@@ -401,7 +406,7 @@ fn shorten_path(path: &str) -> String {
 }
 
 /// Format an event with ANSI rich text (colors, bold, dim, italic).
-pub fn format_event_rich(event: &AgentLogEvent) -> Option<String> {
+pub fn format_event_rich(event: &AgentLogEvent, show_thinking: bool) -> Option<String> {
     match &event.kind {
         LogEventKind::SessionStarted { command, model, .. } => {
             let model_info = model
@@ -415,17 +420,22 @@ pub fn format_event_rich(event: &AgentLogEvent) -> Option<String> {
         }
         LogEventKind::UserMessage { content, .. } => Some(format!(
             "\n\x1b[34m\u{276f}\x1b[0m \x1b[1m{}\x1b[0m",
-            render_content(content, 500)
+            render_content(content)
         )),
         LogEventKind::AssistantMessage { content, .. } => {
-            let rendered = render_content(content, 500);
+            let rendered = render_content(content);
             let indented = indent_continuation(&rendered, "  ");
             Some(format!("\n\x1b[1m\u{23fa}\x1b[0m {}", indented))
         }
-        LogEventKind::Reasoning { content, .. } => Some(format!(
-            "  \x1b[2;3m\u{2026} {}\x1b[0m",
-            indent_continuation(&render_content(content, 200), "    ")
-        )),
+        LogEventKind::Reasoning { content, .. } => {
+            if !show_thinking {
+                return None;
+            }
+            Some(format!(
+                "\n  \x1b[2;3m\u{2026} {}\x1b[0m\n",
+                indent_continuation(&render_content(content), "    ")
+            ))
+        }
         LogEventKind::ToolCall {
             tool_name, input, ..
         } => {
@@ -444,18 +454,18 @@ pub fn format_event_rich(event: &AgentLogEvent) -> Option<String> {
             if let Some(err) = error.as_deref() {
                 Some(format!(
                     "  \x1b[31m\u{2717}\x1b[0m \x1b[2m{}\x1b[0m",
-                    truncate_tool_output(err, 120)
+                    format_tool_output(err)
                 ))
             } else if success.unwrap_or(false) {
                 let detail = output
                     .as_deref()
-                    .map(|s| format!(" \x1b[2m{}\x1b[0m", truncate_tool_output(s, 120)))
+                    .map(|s| format!(" \x1b[2m{}\x1b[0m", format_tool_output(s)))
                     .unwrap_or_default();
                 Some(format!("  \x1b[32m\u{2713}\x1b[0m{}", detail))
             } else {
                 let detail = output
                     .as_deref()
-                    .map(|s| format!(" \x1b[2m{}\x1b[0m", truncate_tool_output(s, 120)))
+                    .map(|s| format!(" \x1b[2m{}\x1b[0m", format_tool_output(s)))
                     .unwrap_or_default();
                 Some(format!("  \x1b[31m\u{2717}\x1b[0m{}", detail))
             }
@@ -513,23 +523,14 @@ fn truncate(s: &str, max_len: usize) -> String {
     }
 }
 
-/// Truncate tool output, keeping real newlines (indented) instead of escaping them.
-fn truncate_tool_output(s: &str, max_len: usize) -> String {
-    let truncated = if s.len() <= max_len {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..max_len])
-    };
-    indent_continuation(&truncated, "    ")
+/// Format tool output, keeping real newlines (indented).
+fn format_tool_output(s: &str) -> String {
+    indent_continuation(s.trim(), "    ")
 }
 
-/// Render content for display: preserve newlines but truncate total length.
-fn render_content(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..max_len])
-    }
+/// Render content for display: preserve newlines, trim leading/trailing whitespace.
+fn render_content(s: &str) -> String {
+    s.trim().to_string()
 }
 
 /// Indent continuation lines (2nd line onwards) with the given prefix.

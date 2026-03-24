@@ -188,6 +188,10 @@ enum Commands {
         /// Enable rich text output (ANSI colors, bold, dim, italic)
         #[arg(long)]
         rich_text: bool,
+
+        /// Show thinking/reasoning content
+        #[arg(long)]
+        show_thinking: bool,
     },
     /// Show manual pages for commands
     Man {
@@ -447,6 +451,7 @@ async fn main() -> Result<()> {
             json: listen_json,
             text: listen_text,
             rich_text,
+            show_thinking,
         } => {
             let config = Config::load(cli.root.as_deref()).unwrap_or_default();
             let format =
@@ -458,7 +463,7 @@ async fn main() -> Result<()> {
                 cli.root.as_deref(),
             )?;
             debug!("Listening to session log: {}", log_path.display());
-            listen::tail_session_log(&log_path, format)?;
+            listen::tail_session_log(&log_path, format, show_thinking)?;
         }
         Commands::Review {
             uncommitted,
