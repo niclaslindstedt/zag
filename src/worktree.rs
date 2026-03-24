@@ -93,6 +93,23 @@ pub fn has_changes(path: &Path) -> Result<bool> {
     Ok(!stdout.trim().is_empty())
 }
 
+/// Check if a worktree has commits not present on any remote-tracking branch.
+pub fn has_unpushed_commits(path: &Path) -> Result<bool> {
+    let output = std::process::Command::new("git")
+        .current_dir(path)
+        .args(["log", "--oneline", "HEAD", "--not", "--remotes"])
+        .output()
+        .context("Failed to run git log")?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("git log failed: {}", stderr.trim());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    Ok(!stdout.trim().is_empty())
+}
+
 /// Remove a git worktree at the given path.
 pub fn remove_worktree(path: &Path) -> Result<()> {
     debug!("Removing worktree at {}", path.display());

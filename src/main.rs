@@ -1984,7 +1984,9 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
 
     if let Some((sid, wtp)) = cleanup_info {
         let wt_path = std::path::Path::new(&wtp);
-        let has_changes = wt_path.exists() && worktree::has_changes(wt_path).unwrap_or(true);
+        let has_changes = wt_path.exists()
+            && (worktree::has_changes(wt_path).unwrap_or(true)
+                || worktree::has_unpushed_commits(wt_path).unwrap_or(true));
 
         if !has_changes {
             // Auto-remove worktree with no changes

@@ -61,6 +61,19 @@ fn test_git_repo_root_with_explicit_dir() {
 }
 
 #[test]
+fn test_has_unpushed_commits_runs_without_error() {
+    let root = git_repo_root(None).unwrap();
+    let result = has_unpushed_commits(&root);
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_has_unpushed_commits_invalid_path() {
+    let result = has_unpushed_commits(Path::new("/nonexistent/path"));
+    assert!(result.is_err());
+}
+
+#[test]
 fn test_git_repo_root_outside_repo() {
     let result = git_repo_root(Some("/tmp"));
     assert!(result.is_err());
