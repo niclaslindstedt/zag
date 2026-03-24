@@ -1563,15 +1563,66 @@ fn resolve_continue_target(root: Option<&str>) -> Option<ResumeTarget> {
     })
 }
 
+/// Read the native session ID from a Claude `.jsonl` session file.
+fn read_claude_session_id(path: &std::path::Path) -> Option<String> {
+    let file = std::fs::File::open(path).ok()?;
+    let reader = std::io::BufReader::new(file);
+    use std::io::BufRead;
+    for line in reader.lines().take(10) {
+        let line = line.ok()?;
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&line)
+            && let Some(sid) = value
+                .get("sessionId")
+                .or_else(|| value.get("session_id"))
+                .and_then(|v| v.as_str())
+        {
+            return Some(sid.to_string());
+        }
+    }
+    None
+}
+
 fn discover_provider_session_id(
     provider: &str,
-    wrapper_session_id: Option<&str>,
+    _wrapper_session_id: Option<&str>,
     _root: Option<&str>,
     _wt: &WorktreeSetup,
     _plain: &PlainSessionSetup,
 ) -> Option<String> {
     match provider {
-        "claude" => wrapper_session_id.map(str::to_string),
+        "claude" => {
+            // Scan Claude session files to find the native session ID
+            // (Claude's internal ID differs from the wrapper UUID we pass via --session-id)
+            let projects_dir = home_dir()?.join(".claude/projects");
+            let entries = std::fs::read_dir(&projects_dir).ok()?;
+            let mut newest: Option<(std::time::SystemTime, String)> = None;
+            for project in entries.flatten() {
+                let files = match std::fs::read_dir(project.path()) {
+                    Ok(files) => files,
+                    Err(_) => continue,
+                };
+                for file in files.flatten() {
+                    let path = file.path();
+                    if path.extension().and_then(|ext| ext.to_str()) != Some("jsonl") {
+                        continue;
+                    }
+                    let metadata = match file.metadata() {
+                        Ok(m) => m,
+                        Err(_) => continue,
+                    };
+                    let modified = match metadata.modified() {
+                        Ok(m) => m,
+                        Err(_) => continue,
+                    };
+                    if newest.as_ref().map(|(t, _)| modified > *t).unwrap_or(true)
+                        && let Some(sid) = read_claude_session_id(&path)
+                    {
+                        newest = Some((modified, sid));
+                    }
+                }
+            }
+            newest.map(|(_, sid)| sid)
+        }
         "codex" => {
             let history = home_dir()?.join(".codex/history.jsonl");
             let content = std::fs::read_to_string(history).ok()?;
@@ -1676,32 +1727,10 @@ async fn execute_action(
             continue_session,
         } => {
             if resume.is_some() || continue_session {
-                info!("Resuming session");
-
-                // Print resume hint at the start when resuming
                 if let Some(ref session_id) = resume {
-                    if !crate::logging::is_quiet() {
-                        println!();
-                        println!(
-                            "Resume this session: \x1b[36magent run --resume {}\x1b[0m",
-                            session_id
-                        );
-
-                        // Try to get provider session ID if different
-                        if let Ok(store) = session::SessionStore::load(ctx.root.as_deref()) {
-                            if let Some(entry) = store.find_by_session_id(session_id) {
-                                if let Some(ref provider_session_id) = entry.provider_session_id {
-                                    if provider_session_id != session_id {
-                                        println!(
-                                            "   (native provider ID: {})",
-                                            provider_session_id
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                        println!();
-                    }
+                    info!("Resuming session {}", session_id);
+                } else {
+                    info!("Resuming latest session");
                 }
 
                 agent
@@ -2234,12 +2263,25 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         .as_deref()
         .or(sb.session_id.as_deref())
         .or(plain.session_id.as_deref());
-    let native_session_id =
-        discover_provider_session_id(&provider, wrapper_session_id, root.as_deref(), &wt, &plain);
-    if let Some(native_session_id) = &native_session_id {
+    // Prefer the provider session ID discovered by the live log adapter during the session.
+    // Fall back to post-session discovery only if the live adapter didn't find one
+    // (or found one identical to the wrapper UUID, which is not a real native ID).
+    let live_discovered_id = log_coordinator.writer().get_provider_session_id();
+    let native_session_id = live_discovered_id
+        .filter(|id| wrapper_session_id.is_none_or(|wid| id != wid))
+        .or_else(|| {
+            discover_provider_session_id(
+                &provider,
+                wrapper_session_id,
+                root.as_deref(),
+                &wt,
+                &plain,
+            )
+        });
+    if let Some(ref native_id) = native_session_id {
         log_coordinator
             .writer()
-            .set_provider_session_id(Some(native_session_id.clone()))?;
+            .set_provider_session_id(Some(native_id.clone()))?;
     }
     update_provider_session_id(wrapper_session_id, native_session_id, root.as_deref());
     update_session_log_metadata(

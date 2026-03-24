@@ -378,6 +378,10 @@ impl SessionLogWriter {
         Ok(state.log_path.clone())
     }
 
+    pub fn get_provider_session_id(&self) -> Option<String> {
+        self.state.lock().ok()?.metadata.provider_session_id.clone()
+    }
+
     pub fn set_provider_session_id(&self, provider_session_id: Option<String>) -> Result<()> {
         let mut state = self
             .state
