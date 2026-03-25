@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zag-agent"
+version = "0.1.0"
+description = "Python SDK for zag — a unified CLI for AI coding agents"
+license = "MIT"
+requires-python = ">=3.10"
+keywords = ["zag", "ai", "agent", "claude", "codex", "gemini", "copilot", "ollama"]
+
+[project.urls]
+Repository = "https://github.com/niclaslindstedt/zag"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

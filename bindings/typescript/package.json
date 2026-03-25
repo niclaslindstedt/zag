@@ -1,0 +1,45 @@
+{
+  "name": "zag-agent",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for zag — a unified CLI for AI coding agents",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test dist/tests/builder.test.js",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/niclaslindstedt/zag",
+    "directory": "bindings/typescript"
+  },
+  "keywords": [
+    "zag",
+    "ai",
+    "agent",
+    "claude",
+    "codex",
+    "gemini",
+    "copilot",
+    "ollama"
+  ]
+}

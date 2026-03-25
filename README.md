@@ -208,6 +208,67 @@ println!("{}", output.result.unwrap_or_default());
 
 See the [`zag-lib` crate](zag-lib/) for the full API including JSON schema validation, custom progress handlers, and interactive sessions.
 
+### Language bindings
+
+SDK packages are available for TypeScript, Python, and C#. Each wraps the `zag` CLI and exposes a fluent builder API with typed output models.
+
+**TypeScript** (`bindings/typescript/`)
+
+```typescript
+import { ZagBuilder } from "zag-agent";
+
+const output = await new ZagBuilder()
+  .provider("claude")
+  .model("sonnet")
+  .autoApprove()
+  .exec("write a hello world program");
+
+console.log(output.result);
+
+// Streaming
+for await (const event of new ZagBuilder().provider("claude").stream("analyze code")) {
+  console.log(event.type);
+}
+```
+
+**Python** (`bindings/python/`)
+
+```python
+from zag import ZagBuilder
+
+output = await ZagBuilder() \
+    .provider("claude") \
+    .model("sonnet") \
+    .auto_approve() \
+    .exec("write a hello world program")
+
+print(output.result)
+
+# Streaming
+async for event in await ZagBuilder().provider("claude").stream("analyze code"):
+    print(event.type)
+```
+
+**C#** (`bindings/csharp/`)
+
+```csharp
+using Zag;
+
+var output = await new ZagBuilder()
+    .Provider("claude")
+    .Model("sonnet")
+    .AutoApprove()
+    .ExecAsync("write a hello world program");
+
+Console.WriteLine(output.Result);
+
+// Streaming
+await foreach (var evt in new ZagBuilder().Provider("claude").StreamAsync("analyze code"))
+{
+    Console.WriteLine(evt.Type);
+}
+```
+
 ## Architecture
 
 ```

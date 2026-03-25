@@ -141,6 +141,20 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `man/listen.md` | Manpage for the `zag listen` command |
 | `man/skills.md` | Manpage for the `zag skills` command |
 
+#### `bindings/` (language SDKs)
+
+Native SDK packages that invoke the `zag` CLI binary and parse its JSON output. Each provides a builder API mirroring `AgentBuilder`.
+
+| Directory | Language | Package | Key Files |
+|-----------|----------|---------|-----------|
+| `bindings/typescript/` | TypeScript | `zag-agent` | `src/builder.ts`, `src/types.ts`, `src/process.ts` |
+| `bindings/python/` | Python | `zag-agent` | `src/zag/builder.py`, `src/zag/types.py`, `src/zag/process.py` |
+| `bindings/csharp/` | C# | `Zag` | `src/Zag/ZagBuilder.cs`, `src/Zag/Models.cs`, `src/Zag/ZagProcess.cs` |
+
+**Design**: Each binding spawns `zag exec -o json` (or `-o stream-json` for streaming) as a subprocess, parses the JSON/NDJSON output into typed models, and exposes a fluent builder API. Zero external runtime dependencies — only stdlib in each language.
+
+**Testing**: TypeScript uses `node --test`, Python uses `pytest`, C# uses `xunit`.
+
 ## Model Size Abstraction
 
 Instead of specifying agent-specific model names, you can use size aliases that automatically map to the appropriate model for each agent:

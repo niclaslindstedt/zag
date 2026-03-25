@@ -1,0 +1,255 @@
+import type { AgentOutput, Event } from "./types.js";
+import { defaultBin, execZag, runZag, streamZag } from "./process.js";
+
+/**
+ * Fluent builder for configuring and running zag agent sessions.
+ *
+ * @example
+ * ```ts
+ * import { ZagBuilder } from "zag-agent";
+ *
+ * const output = await new ZagBuilder()
+ *   .provider("claude")
+ *   .model("sonnet")
+ *   .autoApprove()
+ *   .exec("write a hello world program");
+ *
+ * console.log(output.result);
+ * ```
+ */
+export class ZagBuilder {
+  private _bin: string = defaultBin();
+  private _provider?: string;
+  private _model?: string;
+  private _systemPrompt?: string;
+  private _root?: string;
+  private _autoApprove = false;
+  private _addDirs: string[] = [];
+  private _json = false;
+  private _jsonSchema?: object;
+  private _jsonStream = false;
+  private _worktree?: string | true;
+  private _sandbox?: string | true;
+  private _verbose = false;
+  private _quiet = false;
+  private _debug = false;
+  private _sessionId?: string;
+  private _outputFormat?: string;
+  private _inputFormat?: string;
+
+  /** Override the zag binary path (default: `ZAG_BIN` env or `"zag"`). */
+  bin(path: string): this {
+    this._bin = path;
+    return this;
+  }
+
+  /** Set the provider (e.g., "claude", "codex", "gemini", "copilot", "ollama"). */
+  provider(p: string): this {
+    this._provider = p;
+    return this;
+  }
+
+  /** Set the model (e.g., "sonnet", "opus", "small", "large"). */
+  model(m: string): this {
+    this._model = m;
+    return this;
+  }
+
+  /** Set a system prompt to configure agent behavior. */
+  systemPrompt(p: string): this {
+    this._systemPrompt = p;
+    return this;
+  }
+
+  /** Set the root directory for the agent to operate in. */
+  root(r: string): this {
+    this._root = r;
+    return this;
+  }
+
+  /** Enable auto-approve mode (skip permission prompts). */
+  autoApprove(a = true): this {
+    this._autoApprove = a;
+    return this;
+  }
+
+  /** Add an additional directory for the agent to include. */
+  addDir(d: string): this {
+    this._addDirs.push(d);
+    return this;
+  }
+
+  /** Request JSON output from the agent. */
+  json(): this {
+    this._json = true;
+    return this;
+  }
+
+  /** Set a JSON schema for structured output validation. Implies json(). */
+  jsonSchema(s: object): this {
+    this._jsonSchema = s;
+    this._json = true;
+    return this;
+  }
+
+  /** Enable streaming JSON output (NDJSON format). */
+  jsonStream(): this {
+    this._jsonStream = true;
+    return this;
+  }
+
+  /** Enable worktree mode with an optional name. */
+  worktree(name?: string): this {
+    this._worktree = name ?? true;
+    return this;
+  }
+
+  /** Enable sandbox mode with an optional name. */
+  sandbox(name?: string): this {
+    this._sandbox = name ?? true;
+    return this;
+  }
+
+  /** Enable verbose output. */
+  verbose(v = true): this {
+    this._verbose = v;
+    return this;
+  }
+
+  /** Enable quiet mode. */
+  quiet(q = true): this {
+    this._quiet = q;
+    return this;
+  }
+
+  /** Enable debug logging. */
+  debug(d = true): this {
+    this._debug = d;
+    return this;
+  }
+
+  /** Pre-set a session ID (UUID). */
+  sessionId(id: string): this {
+    this._sessionId = id;
+    return this;
+  }
+
+  /** Set the output format (e.g., "text", "json", "json-pretty", "stream-json"). */
+  outputFormat(f: string): this {
+    this._outputFormat = f;
+    return this;
+  }
+
+  /** Set the input format (Claude only, e.g., "text", "stream-json"). */
+  inputFormat(f: string): this {
+    this._inputFormat = f;
+    return this;
+  }
+
+  /** Build the shared CLI flags (before the subcommand). */
+  private buildGlobalArgs(): string[] {
+    const args: string[] = [];
+    if (this._provider) args.push("-p", this._provider);
+    if (this._model) args.push("--model", this._model);
+    if (this._systemPrompt) args.push("--system-prompt", this._systemPrompt);
+    if (this._root) args.push("--root", this._root);
+    if (this._autoApprove) args.push("--auto-approve");
+    for (const d of this._addDirs) args.push("--add-dir", d);
+    if (this._worktree === true) {
+      args.push("-w");
+    } else if (typeof this._worktree === "string") {
+      args.push("-w", this._worktree);
+    }
+    if (this._sandbox === true) {
+      args.push("--sandbox");
+    } else if (typeof this._sandbox === "string") {
+      args.push("--sandbox", this._sandbox);
+    }
+    if (this._verbose) args.push("--verbose");
+    if (this._quiet) args.push("--quiet");
+    if (this._debug) args.push("--debug");
+    if (this._sessionId) args.push("--session", this._sessionId);
+    return args;
+  }
+
+  /** Build CLI args for exec mode. */
+  private buildExecArgs(prompt: string, streaming: boolean): string[] {
+    const args = this.buildGlobalArgs();
+    args.push("exec");
+    if (this._json) args.push("--json");
+    if (this._jsonSchema) {
+      args.push("--json-schema", JSON.stringify(this._jsonSchema));
+    }
+    if (this._jsonStream || streaming) args.push("--json-stream");
+    if (this._outputFormat) args.push("-o", this._outputFormat);
+    if (this._inputFormat) args.push("-i", this._inputFormat);
+    // For non-streaming exec, default to json output for structured parsing
+    if (!streaming && !this._outputFormat && !this._jsonStream) {
+      args.push("-o", "json");
+    }
+    args.push(prompt);
+    return args;
+  }
+
+  /**
+   * Run the agent non-interactively and return structured output.
+   *
+   * @example
+   * ```ts
+   * const output = await new ZagBuilder()
+   *   .provider("claude")
+   *   .exec("say hello");
+   * console.log(output.result);
+   * ```
+   */
+  async exec(prompt: string): Promise<AgentOutput> {
+    const args = this.buildExecArgs(prompt, false);
+    return execZag(this._bin, args);
+  }
+
+  /**
+   * Run the agent in streaming mode, yielding events as they arrive.
+   *
+   * @example
+   * ```ts
+   * for await (const event of new ZagBuilder()
+   *   .provider("claude")
+   *   .stream("analyze this code")) {
+   *   console.log(event.type);
+   * }
+   * ```
+   */
+  async *stream(prompt: string): AsyncGenerator<Event> {
+    const args = this.buildExecArgs(prompt, true);
+    yield* streamZag(this._bin, args);
+  }
+
+  /**
+   * Start an interactive agent session.
+   * Inherits stdin/stdout/stderr.
+   */
+  async run(prompt?: string): Promise<void> {
+    const args = this.buildGlobalArgs();
+    args.push("run");
+    if (this._json) args.push("--json");
+    if (this._jsonSchema) {
+      args.push("--json-schema", JSON.stringify(this._jsonSchema));
+    }
+    if (prompt) args.push(prompt);
+    return runZag(this._bin, args);
+  }
+
+  /** Resume a previous session by ID. */
+  async resume(sessionId: string): Promise<void> {
+    const args = this.buildGlobalArgs();
+    args.push("run", "--resume", sessionId);
+    return runZag(this._bin, args);
+  }
+
+  /** Resume the most recent session. */
+  async continueLast(): Promise<void> {
+    const args = this.buildGlobalArgs();
+    args.push("run", "--continue");
+    return runZag(this._bin, args);
+  }
+}

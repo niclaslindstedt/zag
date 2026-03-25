@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Zag</RootNamespace>
+    <PackageId>Zag</PackageId>
+    <Version>0.1.0</Version>
+    <Description>C# SDK for zag — a unified CLI for AI coding agents</Description>
+    <Authors>niclaslindstedt</Authors>
+    <License>MIT</License>
+    <RepositoryUrl>https://github.com/niclaslindstedt/zag</RepositoryUrl>
+    <PackageTags>zag;ai;agent;claude;codex;gemini;copilot;ollama</PackageTags>
+  </PropertyGroup>
+
+</Project>
