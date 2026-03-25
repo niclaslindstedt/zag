@@ -101,7 +101,7 @@ In exec mode, the sandbox is kept after execution (no cleanup prompt). Resume wi
     zag -p ollama exec "explain this code"            Ollama non-interactive
     zag -p ollama --size 35b exec "complex task"      Ollama with large size
 
-    echo '{"data":"input"}' | agent exec -i stream-json "process"   Structured input
+    echo '{"data":"input"}' | zag exec -i stream-json "process"     Structured input
 
 ## See Also
 

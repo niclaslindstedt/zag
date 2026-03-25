@@ -1,10 +1,8 @@
 # zag
 
-A unified CLI for AI coding agents. Run Claude, Codex, Gemini, or Copilot through a single interface with consistent flags, model aliases, and output formats.
+One CLI for all your AI coding agents.
 
-## Why
-
-Each AI coding agent has its own CLI with different flags, model names, and output formats. `zag` wraps them all behind one interface so you don't need to remember four different CLIs. It also adds features that work across all providers: size-based model aliases, auto provider/model selection, worktree isolation, and structured JSON output with schema validation.
+`zag` wraps Claude, Codex, Gemini, Copilot, and Ollama behind a single command so you can switch between them without learning five different CLIs. It adds cross-provider features on top: model size aliases, automatic provider/model selection, git worktree isolation, Docker sandboxing, structured JSON output with schema validation, unified session logs, and a programmatic Rust API.
 
 ## Install
 
@@ -12,94 +10,152 @@ Each AI coding agent has its own CLI with different flags, model names, and outp
 cargo install --path .
 ```
 
-Requires the underlying agent CLIs to be installed separately (`claude`, `codex`, `gemini`, `copilot`).
+You also need at least one of the underlying agent CLIs installed: [`claude`](https://docs.anthropic.com/en/docs/claude-code), [`codex`](https://github.com/openai/codex), [`gemini`](https://github.com/google-gemini/gemini-cli), [`copilot`](https://docs.github.com/en/copilot/github-copilot-in-the-cli), or [`ollama`](https://ollama.com).
 
-## Quick Start
+## Quick start
 
 ```bash
-# Interactive session (default: Claude)
+# Interactive session with Claude (the default provider)
 zag run
 
-# Non-interactive
-zag exec "write a hello world program"
+# Non-interactive — prints the response and exits
+zag exec "write a hello world program in Rust"
 
-# Use a different provider
-zag -p codex run
-zag -p gemini exec "analyze this code"
+# Pick a different provider
+zag -p gemini run
+zag -p codex exec "add error handling to src/main.rs"
 
-# Use model size aliases instead of provider-specific names
-zag --model small exec "quick question"
-zag --model large run "complex refactor"
+# Use size aliases instead of provider-specific model names
+zag -m small exec "what does this function do?"   # fastest/cheapest
+zag -m large run                                   # most capable
 
-# Auto-select provider and model based on task
-zag -p auto -m auto exec "refactor the auth system"
+# Let an LLM pick the best provider and model for the task
+zag -p auto -m auto exec "refactor the auth module"
 
-# Code review (uses Codex)
+# Code review (delegates to Codex)
 zag review --uncommitted
-
-# Configuration
-zag config provider claude
-zag config model.codex=gpt-5.4
 ```
 
-## Supported Agents
+## Providers
 
-| Provider | CLI | Default Model | Models |
-|----------|-----|---------------|--------|
-| `claude` | `claude` | opus | sonnet, opus, haiku |
-| `codex` | `codex` | gpt-5.4 | gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex-mini |
-| `gemini` | `gemini` | auto | auto, gemini-3-pro-preview, gemini-3-flash-preview, gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite |
-| `copilot` | `copilot` | claude-sonnet-4.5 | claude-sonnet-4.5, claude-opus-4.5, claude-haiku-4.5, gpt-5, gpt-5.1, gpt-5.2, gemini-3-pro-preview |
-| `ollama` | `ollama` | qwen3.5:9b | Any model from ollama.com (use `--size` for parameter size) |
+| Provider | Default model | Size aliases (small / medium / large) |
+|----------|---------------|---------------------------------------|
+| **claude** | opus | haiku / sonnet / opus |
+| **codex** | gpt-5.4 | gpt-5.4-mini / gpt-5.3-codex / gpt-5.4 |
+| **gemini** | auto | gemini-2.5-flash-lite / gemini-2.5-flash / gemini-2.5-pro |
+| **copilot** | claude-sonnet-4.5 | claude-haiku-4.5 / claude-sonnet-4.5 / claude-opus-4.5 |
+| **ollama** | qwen3.5:9b | 2b / 9b / 35b (parameter sizes, any model from ollama.com) |
 
-### Model Size Aliases
-
-Instead of remembering provider-specific model names, use size aliases:
-
-| Size | Claude | Codex | Gemini | Copilot |
-|------|--------|-------|--------|---------|
-| `small` / `s` | haiku | gpt-5.4-mini | gemini-2.5-flash-lite | claude-haiku-4.5 |
-| `medium` / `m` | sonnet | gpt-5.3-codex | gemini-2.5-flash | claude-sonnet-4.5 |
-| `large` / `l` / `max` | opus | gpt-5.4 | gemini-2.5-pro | claude-opus-4.5 |
-
-For Ollama, size aliases map to parameter sizes (not model names): `small`=2b, `medium`=9b, `large`=35b. These are configurable via `ollama.size_small`, `ollama.size_medium`, `ollama.size_large`.
+Size aliases let you write `zag -m large exec "..."` and get the right model regardless of which provider you're using.
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `run [prompt]` | Interactive session (optional initial prompt) |
-| `exec <prompt>` | Non-interactive — print output and exit |
-| `resume [id]` | Resume a previous session |
-| `review` | Code review (uses Codex) |
-| `config [key] [value]` | View or set configuration |
-| `logs import` | Import historical provider logs into unified session logs |
-| `capability` | Show provider capability declarations (`--format json\|yaml\|toml`, `--pretty`) |
-| `man [command]` | Show manual pages (`zag man exec`, etc.) |
+```
+zag run [prompt]              Interactive session (optional initial prompt)
+zag exec <prompt>             Non-interactive — print output and exit
+zag review                    Code review (--uncommitted, --base, --commit)
+zag config [key] [value]      View or set configuration
+zag session list|show|import  List/inspect sessions, import historical logs
+zag listen <id>               Tail a session's log events in real-time
+zag capability                Show provider capability declarations
+zag skills list|add|remove|sync|import   Manage provider-agnostic skills
+zag man [command]             Built-in manual pages
+```
 
-## Global Flags
+## Flags
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--provider <name>` | `-p` | Provider: claude, codex, gemini, copilot, auto |
-| `--model <name>` | `-m` | Model name or size alias (small/medium/large/auto) |
-| `--system-prompt` | `-s` | Custom system prompt |
+| `--provider <name>` | `-p` | claude, codex, gemini, copilot, ollama, auto |
+| `--model <name>` | `-m` | Model name, size alias (small/medium/large), or auto |
+| `--system-prompt <text>` | `-s` | Appended to the agent's system prompt |
 | `--root <path>` | `-r` | Root directory for the agent |
 | `--auto-approve` | `-a` | Skip permission prompts |
-| `--add-dir <path>` | | Additional directories to include |
+| `--add-dir <path>` | | Additional directories to include (repeatable) |
 | `--worktree [name]` | `-w` | Run in an isolated git worktree |
 | `--sandbox [name]` | | Run inside a Docker sandbox |
-| `--size <size>` | | Model parameter size for Ollama (e.g., 2b, 9b, 35b) |
-| `--debug` | `-d` | Enable debug logging |
-| `--quiet` | `-q` | Suppress all logging except agent output |
-| `--verbose` | `-v` | Show styled output with icons in exec mode |
-| `--json` | | Request JSON output |
-| `--json-schema <schema>` | | Validate JSON output against a schema |
+| `--json` | | Request structured JSON output |
+| `--json-schema <schema>` | | Validate output against a JSON schema |
 | `--json-stream` | | Stream JSON events (NDJSON) |
+| `--session <uuid>` | | Pre-set the session ID |
+| `--debug` | `-d` | Debug logging |
+| `--quiet` | `-q` | Suppress all output except the agent's response |
+| `--verbose` | `-v` | Styled output with icons in exec mode |
+
+## Session management
+
+Every interactive session gets a session ID. You can resume sessions, and `zag` tracks provider-native session IDs automatically.
+
+```bash
+# Resume a specific session
+zag run --resume <session-id>
+
+# Resume the most recent session
+zag run --continue
+
+# List all sessions
+zag session list
+
+# Tail a session's logs in real-time (from another terminal)
+zag listen <session-id>
+zag listen --latest --rich-text
+```
+
+## Worktree and sandbox isolation
+
+```bash
+# Worktree: isolated git worktree per session
+zag -w run                        # auto-named
+zag -w my-feature exec "..."      # named
+
+# Sandbox: Docker microVM isolation
+zag --sandbox run                  # auto-named
+zag --sandbox my-sandbox exec "..."
+
+# Both track sessions — resume restores the correct workspace
+zag run --resume <id>
+```
+
+After interactive sessions, you're prompted to keep or remove the workspace. Exec sessions with changes are kept automatically with a resume command printed.
+
+## JSON output
+
+```bash
+# Request JSON output
+zag exec --json "list 3 programming languages"
+
+# Validate against a schema (inline or file path)
+zag exec --json-schema '{"type":"object","required":["languages"]}' "list 3 languages"
+
+# Stream events as NDJSON
+zag exec --json-stream "complex task"
+```
+
+Claude uses its native `--json-schema` support. Other providers get JSON instructions injected into the system prompt. On validation failure, `zag` retries up to 3 times via session resume.
+
+### Output formats
+
+With `exec -o <format>`:
+
+| Format | Description |
+|--------|-------------|
+| *(default)* | Streamed text — beautiful formatting for Claude, plain for others |
+| `text` | Raw agent output, no parsing |
+| `json` | Compact unified JSON (AgentOutput) |
+| `json-pretty` | Pretty-printed unified JSON |
+| `stream-json` | NDJSON event stream (unified format) |
+| `native-json` | Claude's raw JSON format (Claude only) |
 
 ## Configuration
 
-Stored in `~/.zag/projects/<sanitized-path>/zag.toml` (or `~/.zag/zag.toml` globally when not in a git repo).
+Per-project config lives at `~/.zag/projects/<sanitized-path>/zag.toml`. Falls back to `~/.zag/zag.toml` outside of git repos.
+
+```bash
+zag config                          # Print current config
+zag config provider gemini          # Set default provider
+zag config model.claude=opus        # Set per-agent model default
+zag config auto_approve true        # Skip permission prompts by default
+```
 
 ```toml
 [defaults]
@@ -114,83 +170,68 @@ codex = "gpt-5.4"
 [auto]
 provider = "claude"
 model = "sonnet"
+
+[ollama]
+model = "qwen3.5"
+size = "9b"
 ```
 
 Settings priority: CLI flags > config file > agent defaults.
 
-## Features
+## Skills
 
-### Auto Provider/Model Selection
-
-Use `-p auto` and/or `-m auto` to let a lightweight LLM analyze your prompt and pick the best provider/model:
+`zag` supports provider-agnostic skills using the [Agent Skills](https://agentskills.io) open standard. Skills are stored in `~/.zag/skills/` and automatically synced to each provider's native skill directory via symlinks.
 
 ```bash
-zag exec -p auto -m auto "complex multi-file refactor"
+zag skills list                     # List all skills
+zag skills add commit               # Create a new skill
+zag skills import --from claude     # Import existing Claude skills
+zag skills sync                     # Sync to all providers
 ```
 
-### Worktree Mode
+## Programmatic API
 
-Isolate sessions in a git worktree so changes don't affect your working tree:
+The `zag-lib` crate exposes an `AgentBuilder` for driving agents from Rust code:
 
-```bash
-zag -w run                    # Auto-named worktree
-zag -w my-feature exec "..."  # Named worktree
+```rust
+use zag_lib::builder::AgentBuilder;
+
+let output = AgentBuilder::new()
+    .provider("claude")
+    .model("sonnet")
+    .auto_approve(true)
+    .exec("write a hello world program")
+    .await?;
+
+println!("{}", output.result.unwrap_or_default());
 ```
 
-After interactive sessions, you're prompted to keep or remove the worktree. `zag resume <id>` automatically restores the correct worktree.
-
-### Sandbox Mode
-
-Run agents inside Docker sandbox microVMs for stronger isolation with bidirectional file sync, network policies, and credential injection:
-
-```bash
-zag --sandbox run                    # Auto-named sandbox
-zag --sandbox my-name exec "..."     # Named sandbox
-zag -p codex --sandbox run           # Works with any provider
-```
-
-After interactive sessions, you're prompted to keep or remove the sandbox. `zag resume <id>` resumes inside the same sandbox. `--sandbox` and `--worktree` are mutually exclusive.
-
-### JSON Output
-
-```bash
-zag exec --json "list 3 colors"
-zag exec --json-schema '{"type":"object","required":["colors"]}' "list 3 colors"
-zag exec --json-stream "complex task"
-```
-
-On validation failure, the agent retries up to 3 times via session resume.
-
-### Output Formats
-
-With `exec -o <format>`:
-
-- **default** — Streamed beautiful text (Claude) or plain text (others)
-- **text** — Raw text, no JSON parsing
-- **json** — Compact unified JSON
-- **json-pretty** — Pretty-printed unified JSON
-- **stream-json** — NDJSON event stream
-- **native-json** — Claude's raw JSON (Claude only)
+See the [`zag-lib` crate](zag-lib/) for the full API including JSON schema validation, custom progress handlers, and interactive sessions.
 
 ## Architecture
 
 ```
-CLI (clap) → AgentFactory → Agent trait impl → subprocess (claude/codex/gemini/copilot)
+zag (binary crate)
+  CLI parsing (clap) → AgentFactory → Agent trait → subprocess
+  Session logs, worktree/sandbox lifecycle, JSON mode, auto-selection
+
+zag-lib (library crate)
+  Agent trait, provider implementations, AgentBuilder API
+  Config, output types, session logs, skills, process helpers
 ```
 
-- **`Agent` trait** (`src/agent.rs`): Common interface for all providers — run, resume, cleanup, model resolution
-- **`AgentFactory`** (`src/factory.rs`): Creates agents, resolves model aliases, validates models
-- **Provider implementations** (`src/claude/`, `src/codex.rs`, `src/gemini.rs`, `src/copilot.rs`): Each spawns its respective CLI tool
-- **`AgentOutput`** (`src/output.rs`): Unified output format across all providers
-- **`Config`** (`src/config.rs`): TOML config management with git-root detection
-- **Auto-selector** (`src/auto_selector.rs`): LLM-based provider/model routing
+Each provider implementation spawns the respective CLI tool as a subprocess. The `Agent` trait defines the common interface (run, resume, cleanup, model resolution). `AgentOutput` normalizes output from all providers into a unified event stream.
 
 ## Development
 
 ```bash
 make build          # Dev build
 make test           # Run tests
-make clippy         # Lint
+make clippy         # Lint (zero warnings)
 make fmt            # Format
 make release        # Release build
 ```
+
+## License
+
+[MIT](LICENSE)

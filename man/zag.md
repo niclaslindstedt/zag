@@ -8,9 +8,9 @@ A unified CLI for AI coding agents.
 
 ## Description
 
-`zag` provides a single interface for running multiple AI coding agents — Claude, Codex, Gemini, and Copilot. Instead of learning four different CLIs with different flags and model names, you use one consistent command with unified options.
+`zag` provides a single interface for running multiple AI coding agents — Claude, Codex, Gemini, Copilot, and Ollama. Instead of learning five different CLIs with different flags and model names, you use one consistent command with unified options.
 
-The CLI handles model resolution (size aliases like `small`/`medium`/`large`), configuration management, worktree isolation, structured JSON output with schema validation, and automatic provider/model selection.
+The CLI handles model resolution (size aliases like `small`/`medium`/`large`), configuration management, worktree isolation, Docker sandboxing, structured JSON output with schema validation, unified session logs, provider-agnostic skills, and automatic provider/model selection.
 
 ## Global Flags
 
@@ -33,16 +33,19 @@ These flags can be used with any subcommand.
         --json-schema <SCHEMA>  Validate JSON output against a schema (file or inline)
         --json-stream           Stream JSON events in NDJSON format
         --session <UUID>        Use a specific session ID instead of auto-generating one
-        --help-zag            Print AI-oriented reference for using this CLI
+        --help-agent              Print AI-oriented reference for using this CLI
 
 ## Commands
 
-    run       Start an interactive session
-    exec      Run non-interactively (print output and exit)
-    review    Review code changes (uses Codex)
-    config    View or set configuration values
-    logs      Historical session log utilities
-    man       Show manual pages for commands
+    run          Start an interactive session
+    exec         Run non-interactively (print output and exit)
+    review       Review code changes (uses Codex)
+    config       View or set configuration values
+    session      List and inspect sessions, import historical logs
+    listen       Tail a session's log events in real-time
+    capability   Show provider capability declarations
+    skills       Manage provider-agnostic skills
+    man          Show manual pages for commands
 
 Run `zag man <command>` for detailed help on each command.
 
@@ -50,7 +53,7 @@ Run `zag man <command>` for detailed help on each command.
 
     claude    Default. Models: haiku, sonnet, opus (default: opus)
     codex     Models: gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex-mini
-    gemini    Models: gemini-2.5-flash-lite, gemini-2.5-flash, gemini-2.5-pro, auto
+    gemini    Models: gemini-2.5-flash-lite, gemini-2.5-flash, gemini-2.5-pro, auto (default: auto)
     copilot   Models: claude-haiku-4.5, claude-sonnet-4.5, claude-opus-4.5, and more
     ollama    Local models via Ollama. Default: qwen3.5:9b. Use --size for parameter size
 
@@ -80,8 +83,10 @@ Settings priority: CLI flags > config file > agent defaults.
     zag run --resume abc-123                Resume a specific session
     zag -p ollama --size 35b exec "hello"   Ollama with large model size
     zag exec --json "list 3 colors"         Get structured JSON output
-    zag --help-zag                        Print AI-oriented CLI reference
-    zag logs import                         Import historical provider logs
+    zag listen --latest                     Tail the latest session's logs
+    zag session list                        List all tracked sessions
+    zag skills list                         List available skills
+    zag --help-agent                          Print AI-oriented CLI reference
 
 ## See Also
 
@@ -89,4 +94,7 @@ Settings priority: CLI flags > config file > agent defaults.
     zag man exec
     zag man review
     zag man config
-    zag man logs
+    zag man session
+    zag man listen
+    zag man capability
+    zag man skills

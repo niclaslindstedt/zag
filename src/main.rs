@@ -365,9 +365,9 @@ fn parse_json_schema(schema_str: &str) -> Result<serde_json::Value> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Handle --help-zag before clap parsing so it works without a subcommand.
-    if std::env::args().any(|a| a == "--help-zag") {
-        print!("{}", HELP_ZAG);
+    // Handle --help-agent before clap parsing so it works without a subcommand.
+    if std::env::args().any(|a| a == "--help-agent") {
+        print!("{}", HELP_AGENT);
         return Ok(());
     }
 
@@ -723,8 +723,8 @@ const MAN_LISTEN: &str = include_str!("../man/listen.md");
 const MAN_MAN: &str = include_str!("../man/man.md");
 const MAN_SKILLS: &str = include_str!("../man/skills.md");
 
-/// AI-oriented reference document for `--help-zag`.
-const HELP_ZAG: &str = include_str!("../man/help-zag.md");
+/// AI-oriented reference document for `--help-agent`.
+const HELP_AGENT: &str = include_str!("../man/help-agent.md");
 
 /// Print a manpage to stdout.
 fn print_manpage(command: Option<&str>) -> Result<()> {

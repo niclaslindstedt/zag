@@ -66,4 +66,4 @@ The `session_logs` feature has an additional field:
 
 ## See Also
 
-    zag man agent    Global flags and providers overview
+    zag man zag      Global flags and providers overview

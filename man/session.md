@@ -4,9 +4,7 @@ List and inspect sessions.
 
 ## Synopsis
 
-```
-agent session <command> [options]
-```
+    zag session <command> [options]
 
 ## Description
 
@@ -20,9 +18,7 @@ Sessions are automatically created when running agents with `zag run` or `zag ex
 
 List all sessions, sorted by creation time (newest first).
 
-```
-agent session list [--json] [-p provider] [-n limit]
-```
+    zag session list [--json] [-p provider] [-n limit]
 
 Options:
 - `--json` — Output as JSON array
@@ -33,9 +29,7 @@ Options:
 
 Show details of a specific session.
 
-```
-agent session show <id> [--json]
-```
+    zag session show <id> [--json]
 
 Options:
 - `--json` — Output as JSON object
@@ -46,39 +40,35 @@ The `<id>` can be either the wrapper session ID or the provider-native session I
 
 Import historical provider logs into the session store. Previously imported sessions are skipped.
 
-```
-agent session import
-```
+    zag session import
 
 Supported providers: Claude, Codex, Gemini, Copilot, Ollama (no-op today).
 
 ## Examples
 
-```bash
-# List all sessions
-agent session list
+    # List all sessions
+    zag session list
 
-# List sessions as JSON
-agent session list --json
+    # List sessions as JSON
+    zag session list --json
 
-# List only Claude sessions
-agent session list -p claude
+    # List only Claude sessions
+    zag session list -p claude
 
-# Show the 5 most recent sessions
-agent session list -n 5
+    # Show the 5 most recent sessions
+    zag session list -n 5
 
-# Show details of a specific session
-agent session show abc123-def456
+    # Show details of a specific session
+    zag session show abc123-def456
 
-# Show session details as JSON
-agent session show abc123-def456 --json
+    # Show session details as JSON
+    zag session show abc123-def456 --json
 
-# Import historical provider logs
-agent session import
-```
+    # Import historical provider logs
+    zag session import
 
 ## See Also
 
-- `zag listen` — Tail a session's log events in real-time
-- `zag run --resume` — Resume a specific session
-- `zag man` — Show all available manpages
+    zag man listen    Tail a session's log events in real-time
+    zag man run       Resume a specific session with --resume
+    zag man zag       Global flags and providers overview

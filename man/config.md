@@ -30,7 +30,7 @@ Values can be passed as two arguments (`key value`) or with equals syntax (`key=
 
 ## Available Keys
 
-    provider          Default provider: claude, codex, gemini, copilot, auto
+    provider          Default provider: claude, codex, gemini, copilot, ollama, auto
                       Default: "claude"
 
     model             Default model size for all agents: small, medium, large,
@@ -43,12 +43,22 @@ Values can be passed as two arguments (`key value`) or with equals syntax (`key=
     model.codex       Default model for Codex (overrides model)
     model.gemini      Default model for Gemini (overrides model)
     model.copilot     Default model for Copilot (overrides model)
+    model.ollama      Default model for Ollama (overrides model)
 
     auto.provider     Provider for the auto-selection LLM call
                       Default: "claude"
 
     auto.model        Model for the auto-selection LLM call
                       Default: "sonnet"
+
+    ollama.model      Default Ollama model name. Default: "qwen3.5"
+    ollama.size       Default Ollama parameter size. Default: "9b"
+    ollama.size_small  Size for small alias. Default: "2b"
+    ollama.size_medium Size for medium alias. Default: "9b"
+    ollama.size_large  Size for large alias. Default: "35b"
+
+    listen.format     Default output format for listen command: text, json, rich-text
+                      Default: "text"
 
 ## Configuration Priority
 
@@ -78,6 +88,13 @@ The `--provider` flag overrides `defaults.provider`, and `--auto-approve` overri
     provider = "claude"
     model = "sonnet"
 
+    [ollama]
+    model = "qwen3.5"
+    size = "9b"
+
+    [listen]
+    format = "text"
+
 ## Examples
 
     zag config                          Print full config file
@@ -88,7 +105,9 @@ The `--provider` flag overrides `defaults.provider`, and `--auto-approve` overri
     zag config model.claude=opus        Same (equals syntax)
     zag config auto_approve true        Enable auto-approve by default
     zag config auto.model haiku         Use haiku for auto-selection
+    zag config ollama.model llama3      Set default Ollama model
+    zag config listen.format rich-text  Set default listen output format
 
 ## See Also
 
-    zag man agent    Global flags and providers overview
+    zag man zag      Global flags and providers overview

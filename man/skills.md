@@ -4,9 +4,7 @@ Manage provider-agnostic skills stored in `~/.zag/skills/`.
 
 ## Synopsis
 
-```
-agent skills <command> [options]
-```
+    zag skills <command> [options]
 
 ## Description
 
@@ -43,13 +41,13 @@ Instructions for the agent...
 
 | Provider | Strategy | Location |
 |----------|----------|----------|
-| Claude   | Symlink  | `~/.claude/skills/agent-<name>/` |
-| Gemini   | Symlink  | `~/.gemini/skills/agent-<name>/` |
-| Copilot  | Symlink  | `~/.copilot/skills/agent-<name>/` |
-| Codex    | Symlink  | `~/.agents/skills/agent-<name>/` |
+| Claude   | Symlink  | `~/.claude/skills/zag-<name>/` |
+| Gemini   | Symlink  | `~/.gemini/skills/zag-<name>/` |
+| Copilot  | Symlink  | `~/.copilot/skills/zag-<name>/` |
+| Codex    | Symlink  | `~/.agents/skills/zag-<name>/` |
 | Ollama   | System prompt injection | N/A |
 
-Skill directories are symlinked with an `agent-` prefix to avoid collisions with provider-managed skills.
+Skill directories are symlinked with a `zag-` prefix to avoid collisions with provider-managed skills.
 
 ## Commands
 
@@ -57,44 +55,34 @@ Skill directories are symlinked with an `agent-` prefix to avoid collisions with
 
 List all available skills.
 
-```
-agent skills list [--json]
-```
+    zag skills list [--json]
 
 ### show
 
 Show details of a specific skill, including its full body content.
 
-```
-agent skills show <name> [--json]
-```
+    zag skills show <name> [--json]
 
 ### add
 
 Create a new skill skeleton.
 
-```
-agent skills add <name> [-d description]
-```
+    zag skills add <name> [--description <TEXT>]
 
 Options:
-- `-d, --description` — Short description of the skill
+- `--description` — Short description of the skill
 
 ### remove
 
 Remove a skill and all its provider symlinks.
 
-```
-agent skills remove <name>
-```
+    zag skills remove <name>
 
 ### sync
 
 Sync skills to all provider-specific locations. Runs automatically before each agent session.
 
-```
-agent skills sync [-p provider]
-```
+    zag skills sync [-p provider]
 
 Options:
 - `-p, --provider` — Only sync for this provider (claude, gemini, copilot, codex)
@@ -103,45 +91,41 @@ Options:
 
 Import existing skills from a provider's native skill directory into `~/.zag/skills/`.
 
-```
-agent skills import [--from <provider>]
-```
+    zag skills import [--from <provider>]
 
 Options:
-- `--from` — Provider to import from (default: claude). Skips directories prefixed with `agent-`.
+- `--from` — Provider to import from (default: claude). Skips directories prefixed with `zag-`.
 
 ## Examples
 
-```bash
-# Create a new skill
-agent skills add code-reviewer -d "Review code changes for quality and correctness"
+    # Create a new skill
+    zag skills add code-reviewer --description "Review code changes for quality and correctness"
 
-# List all skills
-agent skills list
+    # List all skills
+    zag skills list
 
-# List all skills as JSON
-agent skills list --json
+    # List all skills as JSON
+    zag skills list --json
 
-# Show a specific skill
-agent skills show code-reviewer
+    # Show a specific skill
+    zag skills show code-reviewer
 
-# Show a specific skill as JSON
-agent skills show code-reviewer --json
+    # Show a specific skill as JSON
+    zag skills show code-reviewer --json
 
-# Manually sync to all providers
-agent skills sync
+    # Manually sync to all providers
+    zag skills sync
 
-# Only sync to gemini
-agent skills sync -p gemini
+    # Only sync to gemini
+    zag skills sync -p gemini
 
-# Import your existing Claude skills
-agent skills import --from claude
+    # Import your existing Claude skills
+    zag skills import --from claude
 
-# Remove a skill
-agent skills remove code-reviewer
-```
+    # Remove a skill
+    zag skills remove code-reviewer
 
 ## See Also
 
-- `zag man` — Show all available manpages
-- `zag run` — Start an interactive session (skills are synced automatically)
+    zag man zag       Global flags and providers overview
+    zag man run       Start an interactive session (skills are synced automatically)

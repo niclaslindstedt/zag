@@ -21,7 +21,7 @@ At least one of `--uncommitted`, `--base`, or `--commit` must be provided.
 
 Global flags that apply: `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir`, `--debug`, `--quiet`.
 
-Flags that cannot be used with review: `--worktree`, `--json`, `--json-schema`, `--json-stream`, `-p auto`, `-m auto`.
+Flags that cannot be used with review: `--worktree`, `--sandbox`, `--json`, `--json-schema`, `--json-stream`, `-p auto`, `-m auto`.
 
 ## Notes
 

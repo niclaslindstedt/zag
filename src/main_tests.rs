@@ -1,4 +1,8 @@
 use super::*;
+use crate::json_mode::{
+    augment_system_prompt_for_json, build_correction_prompt, validate_json_output,
+    wrap_prompt_for_json,
+};
 
 // --- print_manpage ---
 

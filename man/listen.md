@@ -1,4 +1,4 @@
-# listen
+# zag listen
 
 Tail a session's log file and output parsed events in real-time.
 
@@ -38,7 +38,15 @@ Output events as human-readable plain text (default).
 
 ### `--rich-text`
 
-Output events as rich text with ANSI formatting (colors, bold, dim, italic).
+Output events as rich text with ANSI formatting (colors, bold, dim, italic). Assistant messages are rendered as styled markdown.
+
+### `--show-thinking`
+
+Show thinking/reasoning content. By default, reasoning blocks are hidden.
+
+### `-r, --root <PATH>`
+
+Root directory for session log resolution.
 
 ## Configuration
 
@@ -53,18 +61,20 @@ Config key: `listen.format`
 
 ## Event Formatting
 
-In text mode, events are formatted as:
+In text mode, events use Unicode icons:
 
-- `[session]` — Session start/end
-- `[user]` — User messages
-- `[assistant]` — Assistant messages
-- `[thinking]` — Reasoning/thinking blocks
-- `[tool]` — Tool calls
-- `[result]` — Tool results
-- `[permission]` — Permission grants/denials
-- `[status]` — Provider status messages
-- `[stderr]` — Stderr output
-- `[warning]` — Parse warnings
+- `●` — Session start/end
+- `❯` — User messages
+- `⏺` — Assistant messages
+- `…` — Reasoning/thinking blocks (hidden unless `--show-thinking`)
+- `⚡` — Tool calls (with summarized input)
+- `✓` / `✗` — Tool results (success/failure)
+- `🔓` / `🔒` — Permission grants/denials
+- `>` — Provider status messages
+- `!` — Stderr output
+- `?` — Parse warnings
+
+In rich-text mode, the same icons are used with ANSI colors and markdown rendering for assistant messages.
 
 ## Examples
 
@@ -80,9 +90,17 @@ In text mode, events are formatted as:
     # JSON output for piping
     zag listen --latest --json
 
-    # Rich text output (colors, bold, dim, italic)
+    # Rich text output (colors, markdown rendering)
     zag listen --active --rich-text
+
+    # Show reasoning/thinking content
+    zag listen --latest --show-thinking
 
 ## Exit Behavior
 
 The command exits when a `SessionEnded` event is received or when interrupted with Ctrl+C.
+
+## See Also
+
+    zag man session   List and inspect sessions
+    zag man run       Start an interactive session
