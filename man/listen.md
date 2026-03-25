@@ -4,15 +4,15 @@ Tail a session's log file and output parsed events in real-time.
 
 ## Synopsis
 
-    agent listen <session-id>
-    agent listen --latest
-    agent listen --active
+    zag listen <session-id>
+    zag listen --latest
+    zag listen --active
 
 ## Description
 
-`agent listen` tails a session's JSONL log file and outputs parsed events as they are written. This enables monitoring an active agent session from a separate terminal.
+`zag listen` tails a session's JSONL log file and outputs parsed events as they are written. This enables monitoring an active agent session from a separate terminal.
 
-Session logs are stored under `~/.agent/projects/<sanitized-path>/logs/sessions/<session-id>.jsonl`.
+Session logs are stored under `~/.zag/projects/<sanitized-path>/logs/sessions/<session-id>.jsonl`.
 
 ## Options
 
@@ -42,7 +42,7 @@ Output events as rich text with ANSI formatting (colors, bold, dim, italic).
 
 ## Configuration
 
-The default output format can be set in `agent.toml`:
+The default output format can be set in `zag.toml`:
 
 ```toml
 [listen]
@@ -69,19 +69,19 @@ In text mode, events are formatted as:
 ## Examples
 
     # Listen to a specific session
-    agent listen abc123-def456
+    zag listen abc123-def456
 
     # Listen to the latest session
-    agent listen --latest
+    zag listen --latest
 
     # Listen to the most active session
-    agent listen --active
+    zag listen --active
 
     # JSON output for piping
-    agent listen --latest --json
+    zag listen --latest --json
 
     # Rich text output (colors, bold, dim, italic)
-    agent listen --active --rich-text
+    zag listen --active --rich-text
 
 ## Exit Behavior
 

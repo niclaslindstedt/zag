@@ -301,7 +301,7 @@ fn test_config_serialization_roundtrip() {
 fn test_config_path_with_root() {
     let path = Config::config_path(Some("/tmp/test"));
     let home = dirs::home_dir().unwrap();
-    assert_eq!(path, home.join(".agent/projects/tmp-test/agent.toml"));
+    assert_eq!(path, home.join(".zag/projects/tmp-test/zag.toml"));
 }
 
 #[test]
@@ -396,7 +396,7 @@ model = "haiku"
 
 fn temp_root(suffix: &str) -> (String, impl Drop) {
     let dir = std::env::temp_dir().join(format!(
-        "agent-config-test-{}-{}",
+        "zag-config-test-{}-{}",
         std::process::id(),
         suffix
     ));
@@ -458,5 +458,5 @@ fn test_global_logs_dir_not_empty() {
 fn test_agent_dir_with_root() {
     let dir = Config::agent_dir(Some("/tmp/test"));
     let home = dirs::home_dir().unwrap();
-    assert_eq!(dir, home.join(".agent/projects/tmp-test"));
+    assert_eq!(dir, home.join(".zag/projects/tmp-test"));
 }

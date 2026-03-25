@@ -1,6 +1,6 @@
 /// Provider-agnostic skill management.
 ///
-/// Skills are stored at `~/.agent/skills/<skill-name>/` and symlinked into each
+/// Skills are stored at `~/.zag/skills/<skill-name>/` and symlinked into each
 /// provider's native skill location when running agents.
 ///
 /// Providers with native skill support (Claude, Gemini, Copilot) get directory symlinks.
@@ -15,7 +15,7 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const SKILL_PREFIX: &str = "agent-";
+const SKILL_PREFIX: &str = "zag-";
 const IMPORT_METADATA_FILE: &str = ".import-metadata.json";
 
 /// Metadata written when a skill is imported from a provider.
@@ -82,11 +82,11 @@ struct SkillFrontmatter {
     description: String,
 }
 
-/// Returns `~/.agent/skills/`.
+/// Returns `~/.zag/skills/`.
 pub fn skills_dir() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".agent")
+        .join(".zag")
         .join("skills")
 }
 
@@ -150,7 +150,7 @@ fn split_frontmatter(content: &str) -> Result<(String, String)> {
     Ok((frontmatter, body))
 }
 
-/// Load all skills from `~/.agent/skills/`.
+/// Load all skills from `~/.zag/skills/`.
 /// Silently skips directories without a valid `SKILL.md`.
 pub fn load_all_skills() -> Result<Vec<Skill>> {
     let dir = skills_dir();
@@ -180,7 +180,7 @@ pub fn load_all_skills() -> Result<Vec<Skill>> {
 }
 
 /// Sync skills for a provider that supports native skills (Claude, Gemini, Copilot).
-/// Creates `<provider_skills_dir>/agent-<name>` → `~/.agent/skills/<name>` symlinks.
+/// Creates `<provider_skills_dir>/zag-<name>` → `~/.zag/skills/<name>` symlinks.
 /// Removes stale symlinks for skills that no longer exist.
 /// Returns the number of skills skipped because the provider already has them natively.
 pub fn sync_skills_for_provider(provider: &str, skills: &[Skill]) -> Result<usize> {
@@ -379,7 +379,7 @@ pub fn list_skills() -> Result<Vec<Skill>> {
     load_all_skills()
 }
 
-/// Create a new skill skeleton at `~/.agent/skills/<name>/SKILL.md`.
+/// Create a new skill skeleton at `~/.zag/skills/<name>/SKILL.md`.
 /// Returns the path to the new skill directory.
 pub fn add_skill(name: &str, description: &str) -> Result<PathBuf> {
     let dir = skills_dir().join(name);
@@ -425,7 +425,7 @@ pub fn remove_skill(name: &str) -> Result<()> {
     Ok(())
 }
 
-/// Import skills from a provider's native skill directory into `~/.agent/skills/`.
+/// Import skills from a provider's native skill directory into `~/.zag/skills/`.
 /// Skips directories already prefixed with `agent-` (our own symlinks).
 /// Returns names of imported skills.
 pub fn import_skills(from_provider: &str) -> Result<Vec<String>> {
@@ -481,7 +481,7 @@ pub fn import_skills(from_provider: &str) -> Result<Vec<String>> {
                 let _ = write_import_metadata(&dest, from_provider, &source_hash);
                 log::info!("Backfilled import metadata for skill '{}'", name);
             }
-            log::debug!("Skipping '{}': already exists in ~/.agent/skills/", name);
+            log::debug!("Skipping '{}': already exists in ~/.zag/skills/", name);
             continue;
         }
 

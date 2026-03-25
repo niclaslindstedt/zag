@@ -74,7 +74,7 @@ fn test_parse_skill_unclosed_frontmatter() {
 #[test]
 fn test_load_all_skills_empty_dir() {
     let tmp = TempDir::new().unwrap();
-    // Simulate empty ~/.agent/skills/ by pointing skills_dir equivalent at tmp
+    // Simulate empty ~/.zag/skills/ by pointing skills_dir equivalent at tmp
     // Since we can't override skills_dir() easily, test load logic directly
     let skills = load_skills_from(tmp.path()).unwrap();
     assert!(skills.is_empty());
@@ -133,7 +133,7 @@ fn test_format_skills_for_system_prompt_with_skills() {
 #[test]
 fn test_sync_skills_for_provider_creates_symlinks() {
     let tmp = TempDir::new().unwrap();
-    let skills_src = tmp.path().join("agent-skills");
+    let skills_src = tmp.path().join("zag-skills");
     let provider_skills = tmp.path().join("provider-skills");
     fs::create_dir_all(&skills_src).unwrap();
     fs::create_dir_all(&provider_skills).unwrap();
@@ -143,7 +143,7 @@ fn test_sync_skills_for_provider_creates_symlinks() {
 
     sync_skills_for_provider_to(&provider_skills, &[skill]).unwrap();
 
-    let link = provider_skills.join("agent-my-skill");
+    let link = provider_skills.join("zag-my-skill");
     assert!(link.symlink_metadata().is_ok(), "symlink should exist");
     assert!(link.is_dir(), "symlink should resolve to a directory");
     assert!(
@@ -155,7 +155,7 @@ fn test_sync_skills_for_provider_creates_symlinks() {
 #[test]
 fn test_sync_skills_removes_stale_symlinks() {
     let tmp = TempDir::new().unwrap();
-    let skills_src = tmp.path().join("agent-skills");
+    let skills_src = tmp.path().join("zag-skills");
     let provider_skills = tmp.path().join("provider-skills");
     fs::create_dir_all(&skills_src).unwrap();
     fs::create_dir_all(&provider_skills).unwrap();
@@ -165,7 +165,7 @@ fn test_sync_skills_removes_stale_symlinks() {
     let skill = parse_skill(&skills_src.join("old-skill")).unwrap();
     sync_skills_for_provider_to(&provider_skills, &[skill]).unwrap();
 
-    let link = provider_skills.join("agent-old-skill");
+    let link = provider_skills.join("zag-old-skill");
     assert!(link.symlink_metadata().is_ok());
 
     // Re-sync with no skills — stale link should be removed
@@ -316,7 +316,7 @@ pub(crate) fn remove_skill_from(base: &Path, name: &str, provider_dirs: &[&Path]
 #[test]
 fn test_sync_skills_skips_native_duplicate() {
     let tmp = TempDir::new().unwrap();
-    let skills_src = tmp.path().join("agent-skills");
+    let skills_src = tmp.path().join("zag-skills");
     let provider_skills = tmp.path().join("provider-skills");
     fs::create_dir_all(&skills_src).unwrap();
     fs::create_dir_all(&provider_skills).unwrap();
@@ -331,7 +331,7 @@ fn test_sync_skills_skips_native_duplicate() {
     let skipped = sync_skills_for_provider_to(&provider_skills, &[skill]).unwrap();
 
     // agent-commit symlink should NOT be created
-    let link = provider_skills.join("agent-commit");
+    let link = provider_skills.join("zag-commit");
     assert!(
         link.symlink_metadata().is_err(),
         "should not create symlink when native dir exists"
@@ -342,7 +342,7 @@ fn test_sync_skills_skips_native_duplicate() {
 #[test]
 fn test_sync_removes_stale_symlink_when_native_exists() {
     let tmp = TempDir::new().unwrap();
-    let skills_src = tmp.path().join("agent-skills");
+    let skills_src = tmp.path().join("zag-skills");
     let provider_skills = tmp.path().join("provider-skills");
     fs::create_dir_all(&skills_src).unwrap();
     fs::create_dir_all(&provider_skills).unwrap();
@@ -352,7 +352,7 @@ fn test_sync_removes_stale_symlink_when_native_exists() {
     let skill = parse_skill(&skills_src.join("commit")).unwrap();
     sync_skills_for_provider_to(&provider_skills, &[skill.clone()]).unwrap();
 
-    let link = provider_skills.join("agent-commit");
+    let link = provider_skills.join("zag-commit");
     assert!(
         link.symlink_metadata().is_ok(),
         "symlink should exist initially"
@@ -374,7 +374,7 @@ fn test_sync_removes_stale_symlink_when_native_exists() {
 fn test_import_writes_metadata() {
     let tmp = TempDir::new().unwrap();
     let source_dir = tmp.path().join("claude-skills");
-    let dest_dir = tmp.path().join("agent-skills");
+    let dest_dir = tmp.path().join("zag-skills");
     fs::create_dir_all(&source_dir).unwrap();
     fs::create_dir_all(&dest_dir).unwrap();
 
@@ -419,7 +419,7 @@ fn test_hash_skill_md_different_content() {
 fn test_import_backfills_metadata_for_existing_skills() {
     let tmp = TempDir::new().unwrap();
     let source_dir = tmp.path().join("claude-skills");
-    let dest_dir = tmp.path().join("agent-skills");
+    let dest_dir = tmp.path().join("zag-skills");
     fs::create_dir_all(&source_dir).unwrap();
     fs::create_dir_all(&dest_dir).unwrap();
 

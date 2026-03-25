@@ -8,8 +8,8 @@ fn test_print_manpage_default() {
 }
 
 #[test]
-fn test_print_manpage_agent() {
-    assert!(print_manpage(Some("agent")).is_ok());
+fn test_print_manpage_zag() {
+    assert!(print_manpage(Some("zag")).is_ok());
 }
 
 #[test]
@@ -44,17 +44,17 @@ fn test_print_manpage_unknown_command() {
 #[test]
 fn test_manpage_content_has_headers() {
     // Verify embedded manpages aren't empty and have expected structure
-    assert!(MAN_AGENT.contains("# agent"));
-    assert!(MAN_RUN.contains("# agent run"));
-    assert!(MAN_EXEC.contains("# agent exec"));
-    assert!(MAN_REVIEW.contains("# agent review"));
-    assert!(MAN_CONFIG.contains("# agent config"));
-    assert!(MAN_MAN.contains("# agent man"));
+    assert!(MAN_ZAG.contains("# zag"));
+    assert!(MAN_RUN.contains("# zag run"));
+    assert!(MAN_EXEC.contains("# zag exec"));
+    assert!(MAN_REVIEW.contains("# zag review"));
+    assert!(MAN_CONFIG.contains("# zag config"));
+    assert!(MAN_MAN.contains("# zag man"));
 }
 
 #[test]
 fn test_run_resume_parses() {
-    let cli = Cli::try_parse_from(["agent", "run", "--resume", "sess-123"]).unwrap();
+    let cli = Cli::try_parse_from(["zag", "run", "--resume", "sess-123"]).unwrap();
     match cli.command {
         Commands::Run {
             resume,
@@ -72,7 +72,7 @@ fn test_run_resume_parses() {
 
 #[test]
 fn test_run_continue_parses() {
-    let cli = Cli::try_parse_from(["agent", "run", "--continue"]).unwrap();
+    let cli = Cli::try_parse_from(["zag", "run", "--continue"]).unwrap();
     match cli.command {
         Commands::Run {
             resume,
@@ -90,12 +90,12 @@ fn test_run_continue_parses() {
 
 #[test]
 fn test_run_resume_rejects_prompt() {
-    assert!(Cli::try_parse_from(["agent", "run", "--resume", "sess-123", "hello"]).is_err());
+    assert!(Cli::try_parse_from(["zag", "run", "--resume", "sess-123", "hello"]).is_err());
 }
 
 #[test]
 fn test_run_resume_rejects_continue() {
-    assert!(Cli::try_parse_from(["agent", "run", "--resume", "sess-123", "--continue"]).is_err());
+    assert!(Cli::try_parse_from(["zag", "run", "--resume", "sess-123", "--continue"]).is_err());
 }
 
 // --- wrap_prompt_for_json ---

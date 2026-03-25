@@ -20,8 +20,8 @@ Keep this file updated when making architectural changes to the codebase.
 ## Architecture
 
 Cargo workspace with two crates:
-- **`agent`** (binary) — Thin CLI wrapper (argument parsing, terminal logging)
-- **`agent-lib`** (library) — All core logic: agent trait, provider implementations, factory, config, builder API, output types, session logs, capabilities
+- **`zag`** (binary) — Thin CLI wrapper (argument parsing, terminal logging)
+- **`zag-lib`** (library) — All core logic: agent trait, provider implementations, factory, config, builder API, output types, session logs, capabilities
 
 ### Design
 
@@ -35,10 +35,10 @@ Cargo workspace with two crates:
 
 ### Programmatic API (AgentBuilder)
 
-`agent-lib` exposes an `AgentBuilder` for driving agents from Rust code without the CLI:
+`zag-lib` exposes an `AgentBuilder` for driving agents from Rust code without the CLI:
 
 ```rust
-use agent_lib::builder::AgentBuilder;
+use zag_lib::builder::AgentBuilder;
 
 // Non-interactive exec
 let output = AgentBuilder::new()
@@ -70,7 +70,7 @@ AgentBuilder::new()
 
 Custom progress reporting:
 ```rust
-use agent_lib::progress::ProgressHandler;
+use zag_lib::progress::ProgressHandler;
 
 struct MyProgress;
 impl ProgressHandler for MyProgress {
@@ -86,46 +86,46 @@ AgentBuilder::new()
 
 ### Key Files
 
-#### `agent-lib/` (library crate)
+#### `zag-lib/` (library crate)
 
 | File | Purpose |
 |------|---------|
-| `agent-lib/src/lib.rs` | Library root — re-exports all modules |
-| `agent-lib/src/builder.rs` | `AgentBuilder` — high-level programmatic API |
-| `agent-lib/src/progress.rs` | `ProgressHandler` trait and `SilentProgress` default |
-| `agent-lib/src/agent.rs` | `Agent` trait definition and `ModelSize` abstraction |
-| `agent-lib/src/factory.rs` | `AgentFactory` — creates and configures agents |
-| `agent-lib/src/config.rs` | Configuration management (`agent.toml`) |
-| `agent-lib/src/output.rs` | Unified `AgentOutput` format, `Event` types, and event formatting |
-| `agent-lib/src/session_log.rs` | Session log schema, writer, coordinator, backfill engine, and adapter traits |
-| `agent-lib/src/capability.rs` | Provider capability structs (`ProviderCapability`, `Features`, etc.) and format helpers |
-| `agent-lib/src/process.rs` | Subprocess helpers: stderr capture, exit status checking, output handling |
-| `agent-lib/src/sandbox.rs` | Docker sandbox configuration, command building, and removal |
-| `agent-lib/src/worktree.rs` | Git worktree creation, removal, and name generation |
-| `agent-lib/src/session.rs` | Session-worktree/sandbox mapping store (`sessions.json`) |
-| `agent-lib/src/json_validation.rs` | JSON and JSON Schema validation utilities |
-| `agent-lib/src/auto_selector.rs` | Auto provider/model selection via lightweight LLM call |
-| `agent-lib/src/skills.rs` | Provider-agnostic skill management |
-| `agent-lib/src/providers/claude/mod.rs` | Claude agent implementation |
-| `agent-lib/src/providers/claude/models.rs` | Claude JSON output models and conversion to unified format |
-| `agent-lib/src/providers/claude/logs.rs` | Claude session log adapter |
-| `agent-lib/src/providers/codex.rs` | Codex agent implementation |
-| `agent-lib/src/providers/gemini.rs` | Gemini agent implementation |
-| `agent-lib/src/providers/copilot.rs` | Copilot agent implementation |
-| `agent-lib/src/providers/ollama.rs` | Ollama agent implementation (local models) |
+| `zag-lib/src/lib.rs` | Library root — re-exports all modules |
+| `zag-lib/src/builder.rs` | `AgentBuilder` — high-level programmatic API |
+| `zag-lib/src/progress.rs` | `ProgressHandler` trait and `SilentProgress` default |
+| `zag-lib/src/agent.rs` | `Agent` trait definition and `ModelSize` abstraction |
+| `zag-lib/src/factory.rs` | `AgentFactory` — creates and configures agents |
+| `zag-lib/src/config.rs` | Configuration management (`zag.toml`) |
+| `zag-lib/src/output.rs` | Unified `AgentOutput` format, `Event` types, and event formatting |
+| `zag-lib/src/session_log.rs` | Session log schema, writer, coordinator, backfill engine, and adapter traits |
+| `zag-lib/src/capability.rs` | Provider capability structs (`ProviderCapability`, `Features`, etc.) and format helpers |
+| `zag-lib/src/process.rs` | Subprocess helpers: stderr capture, exit status checking, output handling |
+| `zag-lib/src/sandbox.rs` | Docker sandbox configuration, command building, and removal |
+| `zag-lib/src/worktree.rs` | Git worktree creation, removal, and name generation |
+| `zag-lib/src/session.rs` | Session-worktree/sandbox mapping store (`sessions.json`) |
+| `zag-lib/src/json_validation.rs` | JSON and JSON Schema validation utilities |
+| `zag-lib/src/auto_selector.rs` | Auto provider/model selection via lightweight LLM call |
+| `zag-lib/src/skills.rs` | Provider-agnostic skill management |
+| `zag-lib/src/providers/claude/mod.rs` | Claude agent implementation |
+| `zag-lib/src/providers/claude/models.rs` | Claude JSON output models and conversion to unified format |
+| `zag-lib/src/providers/claude/logs.rs` | Claude session log adapter |
+| `zag-lib/src/providers/codex.rs` | Codex agent implementation |
+| `zag-lib/src/providers/gemini.rs` | Gemini agent implementation |
+| `zag-lib/src/providers/copilot.rs` | Copilot agent implementation |
+| `zag-lib/src/providers/ollama.rs` | Ollama agent implementation (local models) |
 
 #### `src/` (binary crate)
 
-The binary crate is a thin CLI wrapper. It parses arguments with clap and delegates to `agent-lib` modules.
+The binary crate is a thin CLI wrapper. It parses arguments with clap and delegates to `zag-lib` modules.
 
 | File | Purpose |
 |------|---------|
-| `src/main.rs` | CLI entry point with clap — maps CLI args to agent-lib calls |
+| `src/main.rs` | CLI entry point with clap — maps CLI args to zag-lib calls |
 | `src/logging.rs` | Terminal logging, spinners, colored output (implements `ProgressHandler` pattern) |
 | `src/listen.rs` | Listen command: session log tailing, event formatting, session resolution |
-| `src/capability.rs` | Re-exports agent-lib capability types + provider-specific capability constructors |
-| `src/output.rs` | Re-exports agent-lib output types |
-| `src/session_log.rs` | Re-exports agent-lib session_log + provider-specific wiring |
+| `src/capability.rs` | Re-exports zag-lib capability types + provider-specific capability constructors |
+| `src/output.rs` | Re-exports zag-lib output types |
+| `src/session_log.rs` | Re-exports zag-lib session_log + provider-specific wiring |
 | `src/auto_selector.rs` | Auto provider/model selection via lightweight LLM call |
 | `src/sandbox.rs` | Docker sandbox configuration, command building, and removal |
 | `src/session.rs` | Session-worktree/sandbox mapping store (`sessions.json`) |
@@ -134,12 +134,12 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `src/listen.rs` | Listen command: session log tailing, event formatting, session resolution |
 | `src/skills.rs` | Provider-agnostic skill management: parsing, loading, syncing symlinks, system prompt injection |
 | `src/skills_tests.rs` | Unit tests for skills module |
-| `man/*.md` | Embedded manpages for the `agent man` command |
+| `man/*.md` | Embedded manpages for the `zag man` command |
 | `prompts/auto-selector/*.md` | Versioned prompt templates for auto-selection (latest: 3_1) |
 | `prompts/json-wrap/*.md` | Versioned prompt templates for wrapping user prompts with JSON instructions (latest: 1_0) |
-| `man/capability.md` | Manpage for the `agent capability` command |
-| `man/listen.md` | Manpage for the `agent listen` command |
-| `man/skills.md` | Manpage for the `agent skills` command |
+| `man/capability.md` | Manpage for the `zag capability` command |
+| `man/listen.md` | Manpage for the `zag listen` command |
+| `man/skills.md` | Manpage for the `zag skills` command |
 
 ## Model Size Abstraction
 
@@ -147,12 +147,12 @@ Instead of specifying agent-specific model names, you can use size aliases that 
 
 ```bash
 # Use size aliases
-agent --model large run              # Uses opus (default provider: claude)
-agent -p codex --model large run     # Uses gpt-5.4
-agent -p gemini --model small run    # Uses gemini-2.5-flash-lite
+zag --model large run              # Uses opus (default provider: claude)
+zag -p codex --model large run     # Uses gpt-5.4
+zag -p gemini --model small run    # Uses gemini-2.5-flash-lite
 
 # Or use specific model names (passthrough)
-agent --model sonnet run             # Uses sonnet directly
+zag --model sonnet run             # Uses sonnet directly
 ```
 
 ### Size Mappings
@@ -173,13 +173,13 @@ Use `-p auto` and/or `-m auto` to let a lightweight LLM call analyze your prompt
 
 ```bash
 # Auto-select provider (model uses provider's default)
-agent exec -p auto "say hello"
+zag exec -p auto "say hello"
 
 # Auto-select model (uses configured/default provider)
-agent exec -m auto "refactor the auth system"
+zag exec -m auto "refactor the auth system"
 
 # Auto-select both
-agent exec -p auto -m auto "complex multi-file refactor"
+zag exec -p auto -m auto "complex multi-file refactor"
 ```
 
 ### How it works
@@ -190,7 +190,7 @@ agent exec -p auto -m auto "complex multi-file refactor"
 
 ### Configuration
 
-The selector LLM is configurable in `agent.toml`:
+The selector LLM is configurable in `zag.toml`:
 
 ```toml
 [auto]
@@ -209,27 +209,27 @@ Config keys: `auto.provider`, `auto.model`
 
 ## Configuration
 
-All configuration and state is stored under `~/.agent/`, never in the repository.
+All configuration and state is stored under `~/.zag/`, never in the repository.
 
 ### Config File Location
 
 The config location is automatically determined using this priority:
 
-1. **Explicit `--root` flag**: `~/.agent/projects/<sanitized-root>/agent.toml`
-2. **Git repository root**: `~/.agent/projects/<sanitized-repo-path>/agent.toml`
-3. **Global config**: `~/.agent/agent.toml` (when not in a git repo)
+1. **Explicit `--root` flag**: `~/.zag/projects/<sanitized-root>/zag.toml`
+2. **Git repository root**: `~/.zag/projects/<sanitized-repo-path>/zag.toml`
+3. **Global config**: `~/.zag/zag.toml` (when not in a git repo)
 
 The sanitized path strips the leading `/` and replaces `/` with `-` (e.g., `/Users/me/Source/app` → `Users-me-Source-app`).
 
 This means:
-- Each git repository has its own config under `~/.agent/projects/`
+- Each git repository has its own config under `~/.zag/projects/`
 - No `.agent` folders in repository roots
 - Global fallback for non-repository usage
 
 ### Config File Format
 
 ```toml
-# Agent CLI Configuration
+# Zag CLI Configuration
 
 [defaults]
 # Default provider (claude, codex, gemini, copilot)
@@ -266,18 +266,18 @@ model = "medium"
 
 ### Config Subcommand
 
-View or set configuration values with `agent config`:
+View or set configuration values with `zag config`:
 
 ```bash
 # Print full config file
-agent config
+zag config
 
 # Set values (space or = syntax)
-agent config provider claude
-agent config provider=claude
-agent config model opus
-agent config model.claude=opus
-agent config auto_approve true
+zag config provider claude
+zag config provider=claude
+zag config model opus
+zag config model.claude=opus
+zag config auto_approve true
 ```
 
 ### Configuration Priority
@@ -285,7 +285,7 @@ agent config auto_approve true
 Settings are applied in this order (later overrides earlier):
 
 1. **Agent defaults**: Built-in defaults for each agent
-2. **Config file**: Settings from `agent.toml` (defaults.model, then models.<agent>)
+2. **Config file**: Settings from `zag.toml` (defaults.model, then models.<agent>)
 3. **CLI flags**: Command-line arguments (highest priority)
 
 ### Available Settings
@@ -310,12 +310,12 @@ Settings are applied in this order (later overrides earlier):
 
 ## Skills
 
-Provider-agnostic skills are stored at `~/.agent/skills/<skill-name>/` using the [Agent Skills](https://agentskills.io) open standard format (same `SKILL.md` format used by Claude, Gemini, Copilot, and Codex).
+Provider-agnostic skills are stored at `~/.zag/skills/<skill-name>/` using the [Agent Skills](https://agentskills.io) open standard format (same `SKILL.md` format used by Claude, Gemini, Copilot, and Codex).
 
 ### Storage Format
 
 ```
-~/.agent/skills/<skill-name>/
+~/.zag/skills/<skill-name>/
 ├── SKILL.md       (required) YAML frontmatter + markdown instructions
 ├── scripts/       (optional)
 ├── references/    (optional)
@@ -347,7 +347,7 @@ The CLI includes professional logging and progress indicators to provide clear f
 - **Progress indicators**: Animated spinner for long-running operations that clears on completion
 - **Success indicators**: Green checkmark (✓) for successful operations
 - **Model display**: Shows the actual model name being used
-- **File-based logging**: All log messages are written to session log files in `~/.agent/logs/` (always at debug level)
+- **File-based logging**: All log messages are written to session log files in `~/.zag/logs/` (always at debug level)
 - **Stderr capture**: In non-interactive (exec) mode, agent subprocess stderr is captured and logged to file. On failure, stderr is included in the error message. Interactive sessions pass stderr through unchanged.
 
 ### Harmonized Session Logs
@@ -355,7 +355,7 @@ The CLI includes professional logging and progress indicators to provide clear f
 There is a second logging layer, separate from the human/debug log in `src/logging.rs`, intended for machine consumption by other tools.
 
 - **Purpose**: One-way normalization of provider session activity into a stable per-session NDJSON format. This is not intended to reconstruct native provider logs.
-- **Storage**: Per-project under `~/.agent/projects/<sanitized-root>/logs/`.
+- **Storage**: Per-project under `~/.zag/projects/<sanitized-root>/logs/`.
 - **Primary file shape**:
   - `logs/sessions/<wrapper-session-id>.jsonl` — normalized events
   - `logs/index.json` — session metadata / lookup
@@ -431,7 +431,7 @@ Enable debug logging with the `--debug` (or `-d`) flag:
 
 ```bash
 # Enable debug logging
-agent --debug run "write a hello world program"
+zag --debug run "write a hello world program"
 
 # Debug logging shows:
 # - Configuration loading details
@@ -453,10 +453,10 @@ Enable detailed formatted output with the `--verbose` (or `-v`) flag. In `exec` 
 
 ```bash
 # Verbose exec - shows styled output with icons and status
-agent exec -v "write a hello world program"
+zag exec -v "write a hello world program"
 
 # Also works with interactive mode (no behavioral change since run always shows full output)
-agent -v run
+zag -v run
 ```
 
 ### Quiet Mode
@@ -465,7 +465,7 @@ Disable all logging except agent output with the `--quiet` (or `-q`) flag. This 
 
 ```bash
 # Quiet mode - only shows agent output
-agent -q exec "write a hello world program"
+zag -q exec "write a hello world program"
 
 # Useful for scripting
 result=$(agent -q exec "analyze this code")
@@ -529,7 +529,7 @@ $ agent --model sonnet -q exec "write a hello world program"
 
 ## Usage
 
-The CLI uses a subcommand structure: `agent [flags] <action> [options]`.
+The CLI uses a subcommand structure: `zag [flags] <action> [options]`.
 
 The provider is specified via the `--provider` (or `-p`) flag. If omitted, it defaults to the configured provider (fallback: claude).
 
@@ -544,156 +544,156 @@ The provider is specified via the `--provider` (or `-p`) flag. If omitted, it de
 - **`listen`** - Tail a session's log events in real-time
 - **`session`** - List and inspect sessions, import historical provider logs
 - **`man`** - Show manual pages for commands
-- **`skills`** - Manage provider-agnostic skills stored in `~/.agent/skills/`
+- **`skills`** - Manage provider-agnostic skills stored in `~/.zag/skills/`
 
 ```bash
 # Interactive mode (uses default provider, typically claude)
-agent run
-agent run "write a hello world program"
+zag run
+zag run "write a hello world program"
 
 # With explicit provider
-agent -p codex run
-agent -p gemini -m large run
+zag -p codex run
+zag -p gemini -m large run
 
 # Non-interactive mode (exec)
-agent exec "write a hello world program"
-agent exec "analyze this code" -o json
+zag exec "write a hello world program"
+zag exec "analyze this code" -o json
 
 # Non-interactive mode with streaming JSON events (NDJSON format)
-agent exec "complex task" -o stream-json
+zag exec "complex task" -o stream-json
 
 # Non-interactive mode with compact JSON output
-agent exec "write a hello world program" -o json
-agent -p gemini exec "analyze this code" --output json
+zag exec "write a hello world program" -o json
+zag -p gemini exec "analyze this code" --output json
 
 # Non-interactive mode with pretty-printed JSON output
-agent exec "write a hello world program" -o json-pretty
+zag exec "write a hello world program" -o json-pretty
 
 # Non-interactive mode with plain text output (no JSON parsing)
-agent exec "simple task" -o text
+zag exec "simple task" -o text
 
 # Non-interactive mode with native JSON output (Claude's raw JSON format)
-agent exec "write a hello world program" -o native-json
+zag exec "write a hello world program" -o native-json
 
 # Non-interactive mode with stream-json input format (Claude only)
 echo '{"type":"message","content":"hello"}' | agent exec -i stream-json "analyze"
 cat input.ndjson | agent exec --input-format stream-json "process"
 
 # Resume a session
-agent run --continue            # Resume the latest tracked session
-agent run --resume <session-id> # Resume a specific session
+zag run --continue            # Resume the latest tracked session
+zag run --resume <session-id> # Resume a specific session
 
 # With specific model
-agent --model opus exec "complex task"
-agent -p gemini --model small exec "simple task"
+zag --model opus exec "complex task"
+zag -p gemini --model small exec "simple task"
 
 # With custom system prompt
-agent --system-prompt "You are a Rust expert" exec "help with ownership"
+zag --system-prompt "You are a Rust expert" exec "help with ownership"
 
 # With root directory
-agent --root /path/to/project run
+zag --root /path/to/project run
 
 # Auto-approve all actions
-agent --auto-approve exec "write tests"
+zag --auto-approve exec "write tests"
 
 # Additional directories
-agent --add-dir ../other-repo run
-agent -p gemini --add-dir /path/to/docs --add-dir /path/to/specs exec "analyze"
+zag --add-dir ../other-repo run
+zag -p gemini --add-dir /path/to/docs --add-dir /path/to/specs exec "analyze"
 
 # Enable debug logging
-agent --debug exec "analyze this code"
+zag --debug exec "analyze this code"
 
 # Enable quiet mode (suppress all logging)
-agent -q exec "write tests"
+zag -q exec "write tests"
 
 # Enable verbose mode (show styled output with icons in exec)
-agent -v exec "write tests"
+zag -v exec "write tests"
 
 # Worktree mode (isolated git worktree per session)
-agent -w run                          # Auto-generated worktree name
-agent --worktree run                  # Same as above
-agent -w my-feature run               # Named worktree
-agent -p codex -w run                 # Works with any provider
+zag -w run                          # Auto-generated worktree name
+zag --worktree run                  # Same as above
+zag -w my-feature run               # Named worktree
+zag -p codex -w run                 # Works with any provider
 
 # Sandbox mode (Docker sandbox microVM isolation)
-agent --sandbox run                          # Auto-generated sandbox name
-agent --sandbox my-sandbox run               # Named sandbox
-agent --sandbox exec "write tests"           # Non-interactive in sandbox
-agent -p codex --sandbox run                 # Works with any provider
+zag --sandbox run                          # Auto-generated sandbox name
+zag --sandbox my-sandbox run               # Named sandbox
+zag --sandbox exec "write tests"           # Non-interactive in sandbox
+zag -p codex --sandbox run                 # Works with any provider
 
 # JSON output mode
-agent exec --json "list 3 colors"                                        # Request JSON output
-agent exec --json-schema '{"type":"object"}' "list 3 colors"             # With schema validation
-agent exec --json-schema schema.json "list 3 colors"                     # Schema from file
-agent exec --json-stream "list 3 colors"                                 # Stream JSON events (NDJSON)
+zag exec --json "list 3 colors"                                        # Request JSON output
+zag exec --json-schema '{"type":"object"}' "list 3 colors"             # With schema validation
+zag exec --json-schema schema.json "list 3 colors"                     # Schema from file
+zag exec --json-stream "list 3 colors"                                 # Stream JSON events (NDJSON)
 
 # Pre-set session ID (for agent listen)
-agent --session $(uuidgen) run                    # Know the session ID before it starts
-agent --session $(uuidgen) exec "complex task"    # Works with exec too
+zag --session $(uuidgen) run                    # Know the session ID before it starts
+zag --session $(uuidgen) exec "complex task"    # Works with exec too
 
 # Combine flags
-agent --debug --model opus -a exec "complex task"
-agent -q exec "simple task" -o json
-agent -v exec "complex task"          # Verbose exec with icons
+zag --debug --model opus -a exec "complex task"
+zag -q exec "simple task" -o json
+zag -v exec "complex task"          # Verbose exec with icons
 
 # Provider capabilities
-agent capability                              # Default provider capabilities (JSON)
-agent -p ollama capability                    # Ollama capabilities
-agent -p claude capability --pretty           # Pretty-printed JSON
-agent -p gemini capability -f yaml            # YAML format
-agent -p codex capability -f toml             # TOML format
+zag capability                              # Default provider capabilities (JSON)
+zag -p ollama capability                    # Ollama capabilities
+zag -p claude capability --pretty           # Pretty-printed JSON
+zag -p gemini capability -f yaml            # YAML format
+zag -p codex capability -f toml             # TOML format
 
 # Listen to session logs
-agent listen <session-id>             # Listen to a specific session
-agent listen --latest                 # Listen to the most recently created session
-agent listen --active                 # Listen to the most recently written-to session
-agent listen --latest --json          # JSON output (NDJSON)
-agent listen --latest --colors        # Text with ANSI colors
+zag listen <session-id>             # Listen to a specific session
+zag listen --latest                 # Listen to the most recently created session
+zag listen --active                 # Listen to the most recently written-to session
+zag listen --latest --json          # JSON output (NDJSON)
+zag listen --latest --colors        # Text with ANSI colors
 
 # Session management
-agent session list                    # List all sessions
-agent session list --json             # JSON output
-agent session list -p claude          # Filter by provider
-agent session list -n 5               # Show 5 most recent
-agent session show <session-id>       # Show session details
-agent session show <id> --json        # JSON output
-agent session import                  # Import historical provider logs
+zag session list                    # List all sessions
+zag session list --json             # JSON output
+zag session list -p claude          # Filter by provider
+zag session list -n 5               # Show 5 most recent
+zag session show <session-id>       # Show session details
+zag session show <id> --json        # JSON output
+zag session import                  # Import historical provider logs
 
 # Skills management
-agent skills list                     # List all skills in ~/.agent/skills/
-agent skills add commit               # Create a new skill skeleton
-agent skills add commit --description "Commit code changes"  # With description
-agent skills remove commit            # Remove skill and provider symlinks
-agent skills sync                     # Manually sync to all providers
-agent skills sync -p claude           # Sync only to Claude
-agent skills import                   # Import existing Claude skills
-agent skills import --from gemini     # Import from another provider
+zag skills list                     # List all skills in ~/.zag/skills/
+zag skills add commit               # Create a new skill skeleton
+zag skills add commit --description "Commit code changes"  # With description
+zag skills remove commit            # Remove skill and provider symlinks
+zag skills sync                     # Manually sync to all providers
+zag skills sync -p claude           # Sync only to Claude
+zag skills import                   # Import existing Claude skills
+zag skills import --from gemini     # Import from another provider
 
 # Configuration
-agent config                       # Print full config
-agent config provider gemini       # Set default provider
-agent config model.claude=opus     # Set claude-specific model
+zag config                       # Print full config
+zag config provider gemini       # Set default provider
+zag config model.claude=opus     # Set claude-specific model
 ```
 
 ### Review Command
 
-Top-level `agent review` command for code review (uses Codex under the hood):
+Top-level `zag review` command for code review (uses Codex under the hood):
 
 ```bash
 # Review uncommitted changes
-agent review --uncommitted
+zag review --uncommitted
 
 # Review against a base branch
-agent review --base main
+zag review --base main
 
 # Review a specific commit
-agent review --commit abc123
+zag review --commit abc123
 
 # With optional title
-agent review --uncommitted --title "Feature review"
+zag review --uncommitted --title "Feature review"
 
 # With shared flags
-agent review --uncommitted --model large --auto-approve
+zag review --uncommitted --model large --auto-approve
 ```
 
 ### Input Formats (Claude Only)
@@ -722,19 +722,19 @@ Use `--json` to request structured JSON output from the agent. Use `--json-schem
 
 ```bash
 # Request JSON output
-agent exec --json "list 3 colors"
+zag exec --json "list 3 colors"
 
 # Validate against inline schema
-agent exec --json-schema '{"type":"object","properties":{"colors":{"type":"array"}}}' "list 3 colors"
+zag exec --json-schema '{"type":"object","properties":{"colors":{"type":"array"}}}' "list 3 colors"
 
 # Validate against schema file
-agent exec --json-schema schema.json "list 3 colors"
+zag exec --json-schema schema.json "list 3 colors"
 
 # Stream JSON events (NDJSON) — convenience for -o stream-json
-agent exec --json-stream "list 3 colors"
+zag exec --json-stream "list 3 colors"
 
 # Also works with run (when a prompt is provided)
-agent run --json "list 3 colors"
+zag run --json "list 3 colors"
 ```
 
 ### Behavior
@@ -764,7 +764,7 @@ Size aliases (small, medium, large) are always valid and automatically resolve t
 
 ### Claude (default)
 ```bash
-agent [-p claude] <run|exec> [OPTIONS]
+zag [-p claude] <run|exec> [OPTIONS]
 ```
 
 **Available models**: sonnet, opus, haiku
@@ -772,7 +772,7 @@ agent [-p claude] <run|exec> [OPTIONS]
 
 ### Codex
 ```bash
-agent -p codex <run|exec> [OPTIONS]
+zag -p codex <run|exec> [OPTIONS]
 ```
 
 **Available models**: gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex-mini
@@ -780,7 +780,7 @@ agent -p codex <run|exec> [OPTIONS]
 
 ### Gemini
 ```bash
-agent -p gemini <run|exec> [OPTIONS]
+zag -p gemini <run|exec> [OPTIONS]
 ```
 
 **Available models**: auto, gemini-3-pro-preview, gemini-3-flash-preview, gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite
@@ -788,14 +788,14 @@ agent -p gemini <run|exec> [OPTIONS]
 
 ### Copilot
 ```bash
-agent -p copilot <run|exec> [OPTIONS]
+zag -p copilot <run|exec> [OPTIONS]
 ```
 
 **Models**: claude-sonnet-4.5 (default), claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.2, gpt-5.1, gpt-5, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1, gemini-3-pro-preview
 
 ### Ollama
 ```bash
-agent -p ollama <run|exec> [OPTIONS]
+zag -p ollama <run|exec> [OPTIONS]
 ```
 
 **Default model**: qwen3.5:9b
@@ -803,17 +803,17 @@ agent -p ollama <run|exec> [OPTIONS]
 **Accepts any model** from ollama.com — use `--model <name>` for the model and `--size <size>` for parameter size.
 
 ```bash
-agent -p ollama run                          # qwen3.5:9b (defaults)
-agent -p ollama --size 35b exec "hello"      # qwen3.5:35b
-agent -p ollama --model llama3 run           # llama3:9b (default size)
-agent -p ollama --model small run            # qwen3.5:2b (size alias)
+zag -p ollama run                          # qwen3.5:9b (defaults)
+zag -p ollama --size 35b exec "hello"      # qwen3.5:35b
+zag -p ollama --model llama3 run           # llama3:9b (default size)
+zag -p ollama --model small run            # qwen3.5:2b (size alias)
 ```
 
 Does not support `run --resume` or `run --continue`.
 
 ### Review
 ```bash
-agent review [--uncommitted] [--base <BRANCH>] [--commit <SHA>] [--title <TITLE>] [OPTIONS]
+zag review [--uncommitted] [--base <BRANCH>] [--commit <SHA>] [--title <TITLE>] [OPTIONS]
 ```
 
 Uses Codex under the hood for code review.
@@ -824,26 +824,26 @@ The `--worktree` (or `-w`) flag creates an isolated git worktree for the session
 
 ```bash
 # Auto-generated worktree name
-agent -w run
+zag -w run
 
 # Named worktree
-agent -w my-feature exec "implement feature X"
+zag -w my-feature exec "implement feature X"
 
 # Works with any provider
-agent -p codex -w run
-agent -p gemini -w my-task exec "analyze code"
+zag -p codex -w run
+zag -p gemini -w my-task exec "analyze code"
 ```
 
 ### Worktree Location
 
-All providers use the same worktree path: `~/.agent/worktrees/<sanitized-repo-path>/<name>/`. The wrapper creates the worktree via `git worktree add --detach` and sets the agent's root directory to the worktree path. The sanitized path uses the same scheme as config (`/Users/me/Source/app` → `Users-me-Source-app`).
+All providers use the same worktree path: `~/.zag/worktrees/<sanitized-repo-path>/<name>/`. The wrapper creates the worktree via `git worktree add --detach` and sets the agent's root directory to the worktree path. The sanitized path uses the same scheme as config (`/Users/me/Source/app` → `Users-me-Source-app`).
 
 ### Session Tracking & Resume
 
-Worktree sessions are tracked in `~/.agent/projects/<sanitized-path>/sessions.json`. Each session records the session ID, provider, worktree path, and creation timestamp.
+Worktree sessions are tracked in `~/.zag/projects/<sanitized-path>/sessions.json`. Each session records the session ID, provider, worktree path, and creation timestamp.
 
 - A UUID session ID is generated for each worktree session
-- `agent run --resume <session-id>` automatically resumes inside the correct worktree
+- `zag run --resume <session-id>` automatically resumes inside the correct worktree
 - If the worktree no longer exists, the stale mapping is removed and resume proceeds without it
 
 ### Cleanup Behavior
@@ -866,14 +866,14 @@ The `--sandbox` flag runs agents inside Docker sandbox microVMs for stronger iso
 
 ```bash
 # Auto-generated sandbox name
-agent --sandbox run
+zag --sandbox run
 
 # Named sandbox
-agent --sandbox my-sandbox exec "implement feature X"
+zag --sandbox my-sandbox exec "implement feature X"
 
 # Works with any provider
-agent -p codex --sandbox run
-agent -p gemini --sandbox my-task exec "analyze code"
+zag -p codex --sandbox run
+zag -p gemini --sandbox my-task exec "analyze code"
 ```
 
 ### How It Works
@@ -908,9 +908,9 @@ Each provider maps to a Docker sandbox template:
 
 ### Session Tracking & Resume
 
-Sandbox sessions are tracked in `~/.agent/projects/<sanitized-path>/sessions.json` with a `sandbox_name` field. Each session records the session ID, provider, workspace path, sandbox name, and creation timestamp.
+Sandbox sessions are tracked in `~/.zag/projects/<sanitized-path>/sessions.json` with a `sandbox_name` field. Each session records the session ID, provider, workspace path, sandbox name, and creation timestamp.
 
-- `agent run --resume <session-id>` looks up the sandbox name and re-configures the agent with `SandboxConfig`
+- `zag run --resume <session-id>` looks up the sandbox name and re-configures the agent with `SandboxConfig`
 - The sandbox is idempotent — `docker sandbox run` with the same name reuses the existing VM
 
 ### Cleanup Prompt
@@ -950,12 +950,12 @@ After interactive (`run`) sandbox sessions:
 
 Pattern for adding new features:
 
-1. **Core logic goes in `agent-lib`**: Agent trait changes, provider implementations, builder options, config — all in the library crate
+1. **Core logic goes in `zag-lib`**: Agent trait changes, provider implementations, builder options, config — all in the library crate
 2. **CLI-only changes go in `src/main.rs`**: New clap flags, terminal-specific formatting
-3. **For new builder options**: Add a setter to `AgentBuilder` in `agent-lib/src/builder.rs`, then wire it in `create_agent()` or the terminal methods
+3. **For new builder options**: Add a setter to `AgentBuilder` in `zag-lib/src/builder.rs`, then wire it in `create_agent()` or the terminal methods
 4. **For new CLI flags**: Add to `Cli` struct in `src/main.rs`, then map to the corresponding `AgentBuilder` setter or handle in `run_agent_action()`
-5. **For agent-specific features**: Add to `Agent` trait in `agent-lib/src/agent.rs` or use the downcast pattern via `as_any_mut()` (e.g., `input_format` for Claude)
-6. **For new provider support**: Add a new module under `agent-lib/src/providers/`, register in `agent-lib/src/factory.rs`
+5. **For agent-specific features**: Add to `Agent` trait in `zag-lib/src/agent.rs` or use the downcast pattern via `as_any_mut()` (e.g., `input_format` for Claude)
+6. **For new provider support**: Add a new module under `zag-lib/src/providers/`, register in `zag-lib/src/factory.rs`
 
 ## Development Process
 

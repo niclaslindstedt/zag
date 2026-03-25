@@ -6,7 +6,7 @@
 //! # Examples
 //!
 //! ```no_run
-//! use agent_lib::builder::AgentBuilder;
+//! use zag_lib::builder::AgentBuilder;
 //!
 //! # async fn example() -> anyhow::Result<()> {
 //! // Non-interactive exec — returns structured output

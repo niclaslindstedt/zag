@@ -1,6 +1,6 @@
 use super::*;
 use crate::session_log::{AgentLogEvent, LogCompleteness, LogEventKind, LogSourceKind, ToolKind};
-use agent_lib::session_log::{
+use zag_lib::session_log::{
     GlobalSessionEntry, GlobalSessionIndex, load_global_index, save_global_index,
 };
 
@@ -411,7 +411,7 @@ fn test_listen_format_from_flags_default() {
 fn test_lookup_global_index_by_id_exact_match() {
     // This tests the lookup_global_index_by_id function indirectly
     // by creating a global index file at the expected location
-    let dir = std::env::temp_dir().join(format!("agent-listen-global-test-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("zag-listen-global-test-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
 
@@ -449,7 +449,7 @@ fn test_lookup_global_index_by_id_exact_match() {
 #[test]
 fn test_global_index_serialization_roundtrip() {
     let dir = std::env::temp_dir().join(format!(
-        "agent-listen-global-roundtrip-{}",
+        "zag-listen-global-roundtrip-{}",
         std::process::id()
     ));
     let _ = std::fs::remove_dir_all(&dir);

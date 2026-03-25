@@ -1,20 +1,20 @@
-// Re-export core modules from agent-lib
-use agent_lib::agent;
-use agent_lib::auto_selector;
-use agent_lib::config;
-use agent_lib::factory;
-use agent_lib::json_validation;
-use agent_lib::sandbox;
-use agent_lib::session;
-use agent_lib::skills;
-use agent_lib::worktree;
+// Re-export core modules from zag-lib
+use zag_lib::agent;
+use zag_lib::auto_selector;
+use zag_lib::config;
+use zag_lib::factory;
+use zag_lib::json_validation;
+use zag_lib::sandbox;
+use zag_lib::session;
+use zag_lib::skills;
+use zag_lib::worktree;
 
 // Re-export provider modules
-use agent_lib::providers::claude;
-use agent_lib::providers::codex;
-use agent_lib::providers::copilot;
-use agent_lib::providers::gemini;
-use agent_lib::providers::ollama;
+use zag_lib::providers::claude;
+use zag_lib::providers::codex;
+use zag_lib::providers::copilot;
+use zag_lib::providers::gemini;
+use zag_lib::providers::ollama;
 
 // Modules that remain in the binary crate
 mod capability;
@@ -33,7 +33,7 @@ use factory::AgentFactory;
 use log::{debug, info};
 
 #[derive(Parser)]
-#[command(name = "agent")]
+#[command(name = "zag")]
 #[command(about = "A wrapper for different AI agents")]
 struct Cli {
     /// Enable debug logging
@@ -256,7 +256,7 @@ enum Commands {
         /// Command to show help for (run, exec, review, config, session, capability, listen, man, skills)
         command: Option<String>,
     },
-    /// Manage provider-agnostic skills stored in ~/.agent/skills/
+    /// Manage provider-agnostic skills stored in ~/.zag/skills/
     Skills {
         /// Output as JSON
         #[arg(long)]
@@ -365,9 +365,9 @@ fn parse_json_schema(schema_str: &str) -> Result<serde_json::Value> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Handle --help-agent before clap parsing so it works without a subcommand.
-    if std::env::args().any(|a| a == "--help-agent") {
-        print!("{}", HELP_AGENT);
+    // Handle --help-zag before clap parsing so it works without a subcommand.
+    if std::env::args().any(|a| a == "--help-zag") {
+        print!("{}", HELP_ZAG);
         return Ok(());
     }
 
@@ -712,7 +712,7 @@ struct AgentActionParams {
 }
 
 /// Embedded manpages.
-const MAN_AGENT: &str = include_str!("../man/agent.md");
+const MAN_ZAG: &str = include_str!("../man/zag.md");
 const MAN_RUN: &str = include_str!("../man/run.md");
 const MAN_EXEC: &str = include_str!("../man/exec.md");
 const MAN_REVIEW: &str = include_str!("../man/review.md");
@@ -723,13 +723,13 @@ const MAN_LISTEN: &str = include_str!("../man/listen.md");
 const MAN_MAN: &str = include_str!("../man/man.md");
 const MAN_SKILLS: &str = include_str!("../man/skills.md");
 
-/// AI-oriented reference document for `--help-agent`.
-const HELP_AGENT: &str = include_str!("../man/help-agent.md");
+/// AI-oriented reference document for `--help-zag`.
+const HELP_ZAG: &str = include_str!("../man/help-zag.md");
 
 /// Print a manpage to stdout.
 fn print_manpage(command: Option<&str>) -> Result<()> {
     let content = match command {
-        None | Some("agent") => MAN_AGENT,
+        None | Some("zag") => MAN_ZAG,
         Some("run") => MAN_RUN,
         Some("exec") => MAN_EXEC,
         Some("review") => MAN_REVIEW,
@@ -1033,7 +1033,7 @@ use resume::{
 };
 
 /// Set up worktree session state: generate IDs, create worktree.
-/// All providers get the same treatment — worktree at `~/.agent/worktrees/<project>/<name>`.
+/// All providers get the same treatment — worktree at `~/.zag/worktrees/<project>/<name>`.
 fn setup_worktree(
     worktree_flag: &Option<Option<String>>,
     action: &Commands,

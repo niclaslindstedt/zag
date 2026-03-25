@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 fn temp_logs_dir(name: &str) -> (std::path::PathBuf, impl Drop) {
     let dir = std::env::temp_dir().join(format!(
-        "agent-lib-session-log-test-{}-{}",
+        "zag-lib-session-log-test-{}-{}",
         std::process::id(),
         name
     ));
@@ -98,7 +98,7 @@ fn test_writer_emits_events_and_updates_index() {
 
 #[test]
 fn test_record_agent_output_maps_core_events() {
-    let (logs_dir, _guard) = temp_logs_dir("agent-output");
+    let (logs_dir, _guard) = temp_logs_dir("zag-output");
     let writer = SessionLogWriter::create(
         &logs_dir,
         SessionLogMetadata {
@@ -220,7 +220,7 @@ fn test_tool_kind_absent_in_old_events() {
 #[test]
 fn test_global_index_upsert_and_load() {
     let dir = std::env::temp_dir().join(format!(
-        "agent-lib-global-index-test-{}",
+        "zag-lib-global-index-test-{}",
         std::process::id()
     ));
     let _ = std::fs::remove_dir_all(&dir);
@@ -298,7 +298,7 @@ fn test_writer_populates_global_index_when_configured() {
     let (logs_dir, _guard) = temp_logs_dir("global-writer");
 
     let global_dir = std::env::temp_dir().join(format!(
-        "agent-lib-global-writer-test-{}",
+        "zag-lib-global-writer-test-{}",
         std::process::id()
     ));
     let _ = std::fs::remove_dir_all(&global_dir);

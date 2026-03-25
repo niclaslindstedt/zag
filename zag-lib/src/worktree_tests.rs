@@ -21,7 +21,7 @@ fn test_has_changes_invalid_path() {
 fn test_generate_name_has_prefix() {
     let name = generate_name();
     assert!(
-        name.starts_with("agent-"),
+        name.starts_with("zag-"),
         "name should start with 'agent-': {}",
         name
     );
@@ -30,7 +30,7 @@ fn test_generate_name_has_prefix() {
 #[test]
 fn test_generate_name_has_hex_suffix() {
     let name = generate_name();
-    let suffix = &name["agent-".len()..];
+    let suffix = &name["zag-".len()..];
     assert_eq!(suffix.len(), 8, "hex suffix should be 8 chars: {}", suffix);
     assert!(
         suffix.chars().all(|c| c.is_ascii_hexdigit()),
@@ -43,7 +43,7 @@ fn test_generate_name_has_hex_suffix() {
 fn test_generate_name_not_empty() {
     let name = generate_name();
     assert!(!name.is_empty());
-    assert!(name.len() > "agent-".len());
+    assert!(name.len() > "zag-".len());
 }
 
 #[test]

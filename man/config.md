@@ -1,21 +1,21 @@
-# agent config
+# zag config
 
 View or set configuration values.
 
 ## Synopsis
 
-    agent [flags] config [key] [value]
-    agent [flags] config key=value
+    zag [flags] config [key] [value]
+    zag [flags] config key=value
 
 ## Description
 
-Manages the `agent.toml` configuration file. When called with no arguments, prints the full config file. When called with a key and value, sets that configuration option.
+Manages the `zag.toml` configuration file. When called with no arguments, prints the full config file. When called with a key and value, sets that configuration option.
 
-All configuration is stored under `~/.agent/`:
+All configuration is stored under `~/.zag/`:
 
-1. If `--root` is specified: `~/.agent/projects/<sanitized-root>/agent.toml`
-2. If inside a git repo: `~/.agent/projects/<sanitized-repo-path>/agent.toml`
-3. Otherwise: `~/.agent/agent.toml` (global)
+1. If `--root` is specified: `~/.zag/projects/<sanitized-root>/zag.toml`
+2. If inside a git repo: `~/.zag/projects/<sanitized-repo-path>/zag.toml`
+3. Otherwise: `~/.zag/zag.toml` (global)
 
 The sanitized path is the absolute path with leading `/` stripped and `/` replaced with `-` (e.g., `/Users/me/Source/app` → `Users-me-Source-app`).
 
@@ -80,15 +80,15 @@ The `--provider` flag overrides `defaults.provider`, and `--auto-approve` overri
 
 ## Examples
 
-    agent config                          Print full config file
-    agent config provider gemini          Set default provider to Gemini
-    agent config provider=gemini          Same (equals syntax)
-    agent config model large              Set default model size
-    agent config model.claude opus        Set Claude-specific model
-    agent config model.claude=opus        Same (equals syntax)
-    agent config auto_approve true        Enable auto-approve by default
-    agent config auto.model haiku         Use haiku for auto-selection
+    zag config                          Print full config file
+    zag config provider gemini          Set default provider to Gemini
+    zag config provider=gemini          Same (equals syntax)
+    zag config model large              Set default model size
+    zag config model.claude opus        Set Claude-specific model
+    zag config model.claude=opus        Same (equals syntax)
+    zag config auto_approve true        Enable auto-approve by default
+    zag config auto.model haiku         Use haiku for auto-selection
 
 ## See Also
 
-    agent man agent    Global flags and providers overview
+    zag man agent    Global flags and providers overview

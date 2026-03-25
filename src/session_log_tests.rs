@@ -4,7 +4,7 @@ use serde_json::json;
 
 fn temp_logs(name: &str) -> (std::path::PathBuf, impl Drop) {
     let dir = std::env::temp_dir().join(format!(
-        "agent-session-log-test-{}-{}",
+        "zag-session-log-test-{}-{}",
         std::process::id(),
         name
     ));
@@ -97,7 +97,7 @@ fn test_writer_emits_events_and_updates_index() {
 
 #[test]
 fn test_record_agent_output_maps_core_events() {
-    let (logs_dir, _guard) = temp_logs("agent-output");
+    let (logs_dir, _guard) = temp_logs("zag-output");
     let writer = SessionLogWriter::create(
         &logs_dir,
         SessionLogMetadata {

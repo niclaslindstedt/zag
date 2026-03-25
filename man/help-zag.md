@@ -1,8 +1,8 @@
-# agent CLI — AI Agent Reference
+# zag CLI — AI Agent Reference
 
-`agent` is a unified CLI wrapper for AI coding agents: Claude, Codex, Gemini, Copilot, and Ollama (local). It provides a single consistent interface across all providers with unified flags, output formats, and configuration.
+`zag` is a unified CLI wrapper for AI coding agents: Claude, Codex, Gemini, Copilot, and Ollama (local). It provides a single consistent interface across all providers with unified flags, output formats, and configuration.
 
-This document is designed to be read by an AI agent. Use it when you need to invoke `agent` as a step in a larger workflow, script, or pipeline.
+This document is designed to be read by an AI agent. Use it when you need to invoke `zag` as a step in a larger workflow, script, or pipeline.
 
 ## Core Commands
 
@@ -120,7 +120,7 @@ agent exec "write unit tests for handler.go"
 ### Embed agent help in your own prompt
 ```sh
 # Include this reference so the agent knows how to use the CLI
-agent exec "Help me set up a pipeline. $(agent --help-agent)"
+agent exec "Help me set up a pipeline. $(agent --help-zag)"
 ```
 
 ### Use in CI/scripts
@@ -155,7 +155,7 @@ agent --sandbox my-sb run
 agent run --resume <session-id>
 ```
 
-`--worktree` and `--sandbox` are mutually exclusive. Both create resumable sessions tracked in `~/.agent/projects/<sanitized-path>/sessions.json`.
+`--worktree` and `--sandbox` are mutually exclusive. Both create resumable sessions tracked in `~/.zag/projects/<sanitized-path>/sessions.json`.
 
 ## Ollama (Local Models)
 
@@ -181,7 +181,7 @@ agent --system-prompt "You are a Rust expert" exec "help with lifetimes"
 
 ## Configuration
 
-Settings live in `~/.agent/projects/<sanitized-path>/agent.toml` (or `~/.agent/agent.toml` globally).
+Settings live in `~/.zag/projects/<sanitized-path>/zag.toml` (or `~/.zag/zag.toml` globally).
 
 ```sh
 agent config                           Print current config

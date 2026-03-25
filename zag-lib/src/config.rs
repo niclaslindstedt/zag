@@ -1,6 +1,6 @@
-//! Configuration management for the agent CLI.
+//! Configuration management for the zag CLI.
 //!
-//! Configuration is stored in `~/.agent/projects/<sanitized-path>/agent.toml`,
+//! Configuration is stored in `~/.zag/projects/<sanitized-path>/zag.toml`,
 //! where the sanitized path is derived from the git repository root or explicit `--root`.
 
 use anyhow::{Context, Result};
@@ -82,7 +82,7 @@ pub struct Config {
 }
 
 impl Config {
-    /// Load configuration from `~/.agent/projects/<id>/agent.toml`.
+    /// Load configuration from `~/.zag/projects/<id>/zag.toml`.
     ///
     /// The project ID is derived from the git repo root or explicit `--root`.
     /// Returns default config if file doesn't exist.
@@ -102,7 +102,7 @@ impl Config {
         Ok(config)
     }
 
-    /// Save configuration to `~/.agent/projects/<id>/agent.toml`.
+    /// Save configuration to `~/.zag/projects/<id>/zag.toml`.
     ///
     /// Creates the directory if it doesn't exist.
     pub fn save(&self, root: Option<&str>) -> Result<()> {
@@ -161,11 +161,11 @@ impl Config {
         }
     }
 
-    /// Get the global agent base directory (~/.agent).
+    /// Get the global base directory (~/.zag).
     pub fn global_base_dir() -> PathBuf {
         dirs::home_dir()
             .unwrap_or_else(|| PathBuf::from("."))
-            .join(".agent")
+            .join(".zag")
     }
 
     /// Sanitize an absolute path into a directory name.
@@ -176,9 +176,9 @@ impl Config {
 
     /// Resolve the project directory for config/session storage.
     ///
-    /// All state is stored under `~/.agent/`:
-    /// - Per-project: `~/.agent/projects/<sanitized-path>/`
-    /// - Global (no repo): `~/.agent/`
+    /// All state is stored under `~/.zag/`:
+    /// - Per-project: `~/.zag/projects/<sanitized-path>/`
+    /// - Global (no repo): `~/.zag/`
     fn resolve_project_dir(root: Option<&str>) -> PathBuf {
         let base = Self::global_base_dir();
 
@@ -204,7 +204,7 @@ impl Config {
 
     /// Get the path to the config file.
     pub fn config_path(root: Option<&str>) -> PathBuf {
-        Self::resolve_project_dir(root).join("agent.toml")
+        Self::resolve_project_dir(root).join("zag.toml")
     }
 
     /// Get the project directory path (for sessions, etc.).
@@ -381,8 +381,8 @@ impl Config {
 
     /// Generate default config content with comments.
     fn default_with_comments() -> String {
-        r#"# Agent CLI Configuration
-# This file configures default behavior for the agent CLI.
+        r#"# Zag CLI Configuration
+# This file configures default behavior for the zag CLI.
 # Settings here can be overridden by command-line flags.
 
 [defaults]

@@ -1,14 +1,14 @@
-# agent
+# zag
 
 A unified CLI for AI coding agents.
 
 ## Synopsis
 
-    agent [flags] <command> [options]
+    zag [flags] <command> [options]
 
 ## Description
 
-`agent` provides a single interface for running multiple AI coding agents — Claude, Codex, Gemini, and Copilot. Instead of learning four different CLIs with different flags and model names, you use one consistent command with unified options.
+`zag` provides a single interface for running multiple AI coding agents — Claude, Codex, Gemini, and Copilot. Instead of learning four different CLIs with different flags and model names, you use one consistent command with unified options.
 
 The CLI handles model resolution (size aliases like `small`/`medium`/`large`), configuration management, worktree isolation, structured JSON output with schema validation, and automatic provider/model selection.
 
@@ -33,7 +33,7 @@ These flags can be used with any subcommand.
         --json-schema <SCHEMA>  Validate JSON output against a schema (file or inline)
         --json-stream           Stream JSON events in NDJSON format
         --session <UUID>        Use a specific session ID instead of auto-generating one
-        --help-agent            Print AI-oriented reference for using this CLI
+        --help-zag            Print AI-oriented reference for using this CLI
 
 ## Commands
 
@@ -44,7 +44,7 @@ These flags can be used with any subcommand.
     logs      Historical session log utilities
     man       Show manual pages for commands
 
-Run `agent man <command>` for detailed help on each command.
+Run `zag man <command>` for detailed help on each command.
 
 ## Providers
 
@@ -64,29 +64,29 @@ Size aliases resolve to the appropriate model for the active provider:
 
 ## Configuration
 
-Settings are stored in `~/.agent/projects/<sanitized-path>/agent.toml`. Use `agent config` to view or modify. See `agent man config` for details.
+Settings are stored in `~/.zag/projects/<sanitized-path>/zag.toml`. Use `zag config` to view or modify. See `zag man config` for details.
 
 Settings priority: CLI flags > config file > agent defaults.
 
 ## Examples
 
-    agent run                                 Interactive session with default provider
-    agent -p codex exec "write tests"         Non-interactive with Codex
-    agent --model large run                   Use the largest model
-    agent -p auto -m auto exec "refactor"     Auto-select provider and model
-    agent -w run                              Run in isolated worktree
-    agent --sandbox run                       Run in Docker sandbox
-    agent run --continue                      Resume latest tracked interactive session
-    agent run --resume abc-123                Resume a specific session
-    agent -p ollama --size 35b exec "hello"   Ollama with large model size
-    agent exec --json "list 3 colors"         Get structured JSON output
-    agent --help-agent                        Print AI-oriented CLI reference
-    agent logs import                         Import historical provider logs
+    zag run                                 Interactive session with default provider
+    zag -p codex exec "write tests"         Non-interactive with Codex
+    zag --model large run                   Use the largest model
+    zag -p auto -m auto exec "refactor"     Auto-select provider and model
+    zag -w run                              Run in isolated worktree
+    zag --sandbox run                       Run in Docker sandbox
+    zag run --continue                      Resume latest tracked interactive session
+    zag run --resume abc-123                Resume a specific session
+    zag -p ollama --size 35b exec "hello"   Ollama with large model size
+    zag exec --json "list 3 colors"         Get structured JSON output
+    zag --help-zag                        Print AI-oriented CLI reference
+    zag logs import                         Import historical provider logs
 
 ## See Also
 
-    agent man run
-    agent man exec
-    agent man review
-    agent man config
-    agent man logs
+    zag man run
+    zag man exec
+    zag man review
+    zag man config
+    zag man logs

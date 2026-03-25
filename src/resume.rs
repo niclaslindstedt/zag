@@ -29,7 +29,7 @@ fn home_dir() -> Option<PathBuf> {
 }
 
 fn is_wrapper_worktree_path(path: &str) -> bool {
-    let Some(root) = home_dir().map(|h| h.join(".agent").join("worktrees")) else {
+    let Some(root) = home_dir().map(|h| h.join(".zag").join("worktrees")) else {
         return false;
     };
     std::path::Path::new(path).starts_with(root)

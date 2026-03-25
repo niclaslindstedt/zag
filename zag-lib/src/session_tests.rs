@@ -2,7 +2,7 @@ use super::*;
 
 fn temp_root(suffix: &str) -> (String, impl Drop) {
     let dir = std::env::temp_dir().join(format!(
-        "agent-session-test-{}-{}",
+        "zag-session-test-{}-{}",
         std::process::id(),
         suffix
     ));

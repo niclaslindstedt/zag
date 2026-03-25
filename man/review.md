@@ -1,10 +1,10 @@
-# agent review
+# zag review
 
 Review code changes.
 
 ## Synopsis
 
-    agent [flags] review [options]
+    zag [flags] review [options]
 
 ## Description
 
@@ -31,12 +31,12 @@ Flags that cannot be used with review: `--worktree`, `--json`, `--json-schema`, 
 
 ## Examples
 
-    agent review --uncommitted                          Review working changes
-    agent review --base main                            Review against main branch
-    agent review --commit abc123                        Review a specific commit
-    agent review --uncommitted --title "Auth refactor"  Review with a title
-    agent review --uncommitted --model large -a         Use max model, auto-approve
+    zag review --uncommitted                          Review working changes
+    zag review --base main                            Review against main branch
+    zag review --commit abc123                        Review a specific commit
+    zag review --uncommitted --title "Auth refactor"  Review with a title
+    zag review --uncommitted --model large -a         Use max model, auto-approve
 
 ## See Also
 
-    agent man exec    Non-interactive execution for custom review prompts
+    zag man exec    Non-interactive execution for custom review prompts

@@ -2,11 +2,11 @@
 
 use crate::config::Config;
 use crate::session_log::{AgentLogEvent, LogEventKind, SessionLogIndex};
-use agent_lib::session_log::load_global_index;
 use anyhow::{Context, Result, bail};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use zag_lib::session_log::load_global_index;
 
 /// Output format for listen command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

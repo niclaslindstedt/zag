@@ -1,10 +1,10 @@
-# agent man
+# zag man
 
 Show manual pages for agent commands.
 
 ## Synopsis
 
-    agent man [command]
+    zag man [command]
 
 ## Description
 
@@ -16,6 +16,6 @@ Displays detailed documentation for agent commands. When called without argument
 
 ## Examples
 
-    agent man             General agent overview
-    agent man exec        Manual for the exec command
-    agent man config      Manual for the config command
+    zag man             General agent overview
+    zag man exec        Manual for the exec command
+    zag man config      Manual for the config command

@@ -1,10 +1,10 @@
-# agent
+# zag
 
 A unified CLI for AI coding agents. Run Claude, Codex, Gemini, or Copilot through a single interface with consistent flags, model aliases, and output formats.
 
 ## Why
 
-Each AI coding agent has its own CLI with different flags, model names, and output formats. `agent` wraps them all behind one interface so you don't need to remember four different CLIs. It also adds features that work across all providers: size-based model aliases, auto provider/model selection, worktree isolation, and structured JSON output with schema validation.
+Each AI coding agent has its own CLI with different flags, model names, and output formats. `zag` wraps them all behind one interface so you don't need to remember four different CLIs. It also adds features that work across all providers: size-based model aliases, auto provider/model selection, worktree isolation, and structured JSON output with schema validation.
 
 ## Install
 
@@ -18,28 +18,28 @@ Requires the underlying agent CLIs to be installed separately (`claude`, `codex`
 
 ```bash
 # Interactive session (default: Claude)
-agent run
+zag run
 
 # Non-interactive
-agent exec "write a hello world program"
+zag exec "write a hello world program"
 
 # Use a different provider
-agent -p codex run
-agent -p gemini exec "analyze this code"
+zag -p codex run
+zag -p gemini exec "analyze this code"
 
 # Use model size aliases instead of provider-specific names
-agent --model small exec "quick question"
-agent --model large run "complex refactor"
+zag --model small exec "quick question"
+zag --model large run "complex refactor"
 
 # Auto-select provider and model based on task
-agent -p auto -m auto exec "refactor the auth system"
+zag -p auto -m auto exec "refactor the auth system"
 
 # Code review (uses Codex)
-agent review --uncommitted
+zag review --uncommitted
 
 # Configuration
-agent config provider claude
-agent config model.codex=gpt-5.4
+zag config provider claude
+zag config model.codex=gpt-5.4
 ```
 
 ## Supported Agents
@@ -75,7 +75,7 @@ For Ollama, size aliases map to parameter sizes (not model names): `small`=2b, `
 | `config [key] [value]` | View or set configuration |
 | `logs import` | Import historical provider logs into unified session logs |
 | `capability` | Show provider capability declarations (`--format json\|yaml\|toml`, `--pretty`) |
-| `man [command]` | Show manual pages (`agent man exec`, etc.) |
+| `man [command]` | Show manual pages (`zag man exec`, etc.) |
 
 ## Global Flags
 
@@ -99,7 +99,7 @@ For Ollama, size aliases map to parameter sizes (not model names): `small`=2b, `
 
 ## Configuration
 
-Stored in `~/.agent/projects/<sanitized-path>/agent.toml` (or `~/.agent/agent.toml` globally when not in a git repo).
+Stored in `~/.zag/projects/<sanitized-path>/zag.toml` (or `~/.zag/zag.toml` globally when not in a git repo).
 
 ```toml
 [defaults]
@@ -125,7 +125,7 @@ Settings priority: CLI flags > config file > agent defaults.
 Use `-p auto` and/or `-m auto` to let a lightweight LLM analyze your prompt and pick the best provider/model:
 
 ```bash
-agent exec -p auto -m auto "complex multi-file refactor"
+zag exec -p auto -m auto "complex multi-file refactor"
 ```
 
 ### Worktree Mode
@@ -133,30 +133,30 @@ agent exec -p auto -m auto "complex multi-file refactor"
 Isolate sessions in a git worktree so changes don't affect your working tree:
 
 ```bash
-agent -w run                    # Auto-named worktree
-agent -w my-feature exec "..."  # Named worktree
+zag -w run                    # Auto-named worktree
+zag -w my-feature exec "..."  # Named worktree
 ```
 
-After interactive sessions, you're prompted to keep or remove the worktree. `agent resume <id>` automatically restores the correct worktree.
+After interactive sessions, you're prompted to keep or remove the worktree. `zag resume <id>` automatically restores the correct worktree.
 
 ### Sandbox Mode
 
 Run agents inside Docker sandbox microVMs for stronger isolation with bidirectional file sync, network policies, and credential injection:
 
 ```bash
-agent --sandbox run                    # Auto-named sandbox
-agent --sandbox my-name exec "..."     # Named sandbox
-agent -p codex --sandbox run           # Works with any provider
+zag --sandbox run                    # Auto-named sandbox
+zag --sandbox my-name exec "..."     # Named sandbox
+zag -p codex --sandbox run           # Works with any provider
 ```
 
-After interactive sessions, you're prompted to keep or remove the sandbox. `agent resume <id>` resumes inside the same sandbox. `--sandbox` and `--worktree` are mutually exclusive.
+After interactive sessions, you're prompted to keep or remove the sandbox. `zag resume <id>` resumes inside the same sandbox. `--sandbox` and `--worktree` are mutually exclusive.
 
 ### JSON Output
 
 ```bash
-agent exec --json "list 3 colors"
-agent exec --json-schema '{"type":"object","required":["colors"]}' "list 3 colors"
-agent exec --json-stream "complex task"
+zag exec --json "list 3 colors"
+zag exec --json-schema '{"type":"object","required":["colors"]}' "list 3 colors"
+zag exec --json-stream "complex task"
 ```
 
 On validation failure, the agent retries up to 3 times via session resume.

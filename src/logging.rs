@@ -57,7 +57,7 @@ fn init_log_file() {
     }
 
     let timestamp = chrono::Local::now().format("%Y-%m-%dT%H-%M-%S");
-    let log_path = logs_dir.join(format!("agent-{}.log", timestamp));
+    let log_path = logs_dir.join(format!("zag-{}.log", timestamp));
 
     if let Ok(file) = OpenOptions::new().create(true).append(true).open(&log_path)
         && let Ok(mut guard) = LOG_FILE.lock()

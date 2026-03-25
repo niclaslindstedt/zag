@@ -1,10 +1,10 @@
-# agent capability
+# zag capability
 
 Show capability declarations for a provider.
 
 ## Synopsis
 
-    agent [-p PROVIDER] capability [--format FORMAT] [--pretty]
+    zag [-p PROVIDER] capability [--format FORMAT] [--pretty]
 
 ## Description
 
@@ -58,12 +58,12 @@ The `session_logs` feature has an additional field:
 
 ## Examples
 
-    agent capability                          Show capabilities for default provider
-    agent -p claude capability                Show Claude capabilities
-    agent -p ollama capability --pretty       Pretty-print Ollama capabilities
-    agent -p gemini capability -f yaml        Show Gemini capabilities as YAML
-    agent -p codex capability -f toml         Show Codex capabilities as TOML
+    zag capability                          Show capabilities for default provider
+    zag -p claude capability                Show Claude capabilities
+    zag -p ollama capability --pretty       Pretty-print Ollama capabilities
+    zag -p gemini capability -f yaml        Show Gemini capabilities as YAML
+    zag -p codex capability -f toml         Show Codex capabilities as TOML
 
 ## See Also
 
-    agent man agent    Global flags and providers overview
+    zag man agent    Global flags and providers overview

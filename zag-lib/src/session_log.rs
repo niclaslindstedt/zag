@@ -321,7 +321,7 @@ pub struct SessionLogCoordinator {
 impl SessionLogWriter {
     /// Create a new session log writer.
     ///
-    /// `logs_dir` is the base directory for session logs (e.g. `~/.agent/projects/<path>/logs`).
+    /// `logs_dir` is the base directory for session logs (e.g. `~/.zag/projects/<path>/logs`).
     /// The writer will create a `sessions/` subdirectory under it for JSONL log files
     /// and an `index.json` file for session metadata.
     pub fn create(logs_dir: &Path, metadata: SessionLogMetadata) -> Result<Self> {
@@ -360,7 +360,7 @@ impl SessionLogWriter {
     }
 
     /// Set the global index directory so that session entries are also
-    /// written to `~/.agent/sessions_index.json` for cross-project lookup.
+    /// written to `~/.zag/sessions_index.json` for cross-project lookup.
     pub fn set_global_index_dir(&self, dir: PathBuf) -> Result<()> {
         let mut state = self
             .state
@@ -542,7 +542,7 @@ impl SessionLogWriter {
 impl SessionLogCoordinator {
     /// Start a new session log coordinator.
     ///
-    /// `logs_dir` is the base directory for session logs (e.g. `~/.agent/projects/<path>/logs`).
+    /// `logs_dir` is the base directory for session logs (e.g. `~/.zag/projects/<path>/logs`).
     pub fn start(
         logs_dir: &Path,
         metadata: SessionLogMetadata,

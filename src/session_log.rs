@@ -1,4 +1,4 @@
-pub use agent_lib::session_log::*;
+pub use zag_lib::session_log::*;
 
 use crate::config::Config;
 use anyhow::Result;

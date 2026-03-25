@@ -1,10 +1,10 @@
 //! Session-to-worktree mapping store.
 //!
-//! Persists session-worktree mappings in `~/.agent/projects/<id>/sessions.json`
-//! so that `agent run --resume <id>` can resume inside the correct workspace.
+//! Persists session-worktree mappings in `~/.zag/projects/<id>/sessions.json`
+//! so that `zag run --resume <id>` can resume inside the correct workspace.
 
 use crate::config::Config;
-use agent_lib::session_log::{GlobalSessionEntry, upsert_global_entry};
+use zag_lib::session_log::{GlobalSessionEntry, upsert_global_entry};
 use anyhow::{Context, Result};
 use chrono::{DateTime, FixedOffset};
 use log::debug;

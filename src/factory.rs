@@ -14,7 +14,7 @@ impl AgentFactory {
     /// Create and configure an agent based on the provided parameters.
     ///
     /// This handles:
-    /// - Loading config from ~/.agent/projects/<id>/agent.toml
+    /// - Loading config from ~/.zag/projects/<id>/zag.toml
     /// - Creating the appropriate agent implementation
     /// - Resolving model size aliases (small/medium/large)
     /// - Merging CLI flags with config file settings
@@ -29,7 +29,7 @@ impl AgentFactory {
     ) -> Result<Box<dyn Agent + Send + Sync>> {
         debug!("Creating agent: {}", agent_name);
 
-        // Initialize .agent directory and config on first run
+        // Initialize .zag directory and config on first run
         let _ = Config::init(root.as_deref());
 
         // Load config for defaults

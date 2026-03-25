@@ -1,4 +1,4 @@
-# agent session
+# zag session
 
 List and inspect sessions.
 
@@ -10,9 +10,9 @@ agent session <command> [options]
 
 ## Description
 
-Manage and inspect agent sessions tracked in `~/.agent/projects/<sanitized-path>/sessions.json`.
+Manage and inspect agent sessions tracked in `~/.zag/projects/<sanitized-path>/sessions.json`.
 
-Sessions are automatically created when running agents with `agent run` or `agent exec`. This command provides read access to session history and the ability to import historical provider logs.
+Sessions are automatically created when running agents with `zag run` or `zag exec`. This command provides read access to session history and the ability to import historical provider logs.
 
 ## Commands
 
@@ -79,6 +79,6 @@ agent session import
 
 ## See Also
 
-- `agent listen` — Tail a session's log events in real-time
-- `agent run --resume` — Resume a specific session
-- `agent man` — Show all available manpages
+- `zag listen` — Tail a session's log events in real-time
+- `zag run --resume` — Resume a specific session
+- `zag man` — Show all available manpages

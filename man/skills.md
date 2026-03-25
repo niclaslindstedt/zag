@@ -1,6 +1,6 @@
-# agent skills
+# zag skills
 
-Manage provider-agnostic skills stored in `~/.agent/skills/`.
+Manage provider-agnostic skills stored in `~/.zag/skills/`.
 
 ## Synopsis
 
@@ -12,7 +12,7 @@ agent skills <command> [options]
 
 Skills are modular, self-contained packages that extend agent capabilities with specialized knowledge, workflows, and tool integrations. They use the [Agent Skills](https://agentskills.io) open standard format: a directory containing a `SKILL.md` file with YAML frontmatter and optional bundled resources.
 
-Skills are stored at `~/.agent/skills/` and automatically synced to each provider's native skill location when running an agent.
+Skills are stored at `~/.zag/skills/` and automatically synced to each provider's native skill location when running an agent.
 
 ## Skill Format
 
@@ -101,7 +101,7 @@ Options:
 
 ### import
 
-Import existing skills from a provider's native skill directory into `~/.agent/skills/`.
+Import existing skills from a provider's native skill directory into `~/.zag/skills/`.
 
 ```
 agent skills import [--from <provider>]
@@ -143,5 +143,5 @@ agent skills remove code-reviewer
 
 ## See Also
 
-- `agent man` — Show all available manpages
-- `agent run` — Start an interactive session (skills are synced automatically)
+- `zag man` — Show all available manpages
+- `zag run` — Start an interactive session (skills are synced automatically)

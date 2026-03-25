@@ -1,10 +1,10 @@
-# agent exec
+# zag exec
 
 Run an agent non-interactively.
 
 ## Synopsis
 
-    agent [flags] exec [options] <prompt>
+    zag [flags] exec [options] <prompt>
 
 ## Description
 
@@ -21,7 +21,7 @@ By default, exec mode suppresses wrapper UI (spinners, status messages, icons) s
     -o, --output <FORMAT>         Output format (see Output Formats below)
     -i, --input-format <FORMAT>   Input format: text (default), stream-json (Claude only)
 
-All global flags apply (see `agent man agent`).
+All global flags apply (see `zag man zag`).
 
 ## Output Formats
 
@@ -79,30 +79,30 @@ The difference between `-o json` and `--json`:
 
 ## Sandbox Mode
 
-The `--sandbox` flag runs the agent inside a Docker sandbox microVM for stronger isolation. See `agent man run` for full details.
+The `--sandbox` flag runs the agent inside a Docker sandbox microVM for stronger isolation. See `zag man run` for full details.
 
-    agent --sandbox exec "say hello"           Run in auto-named sandbox
-    agent --sandbox my-name exec "say hello"   Run in named sandbox
+    zag --sandbox exec "say hello"           Run in auto-named sandbox
+    zag --sandbox my-name exec "say hello"   Run in named sandbox
 
-In exec mode, the sandbox is kept after execution (no cleanup prompt). Resume with `agent run --resume <session-id>`.
+In exec mode, the sandbox is kept after execution (no cleanup prompt). Resume with `zag run --resume <session-id>`.
 
 ## Examples
 
-    agent exec "say hello"                              Simple prompt
-    agent exec "list files" -o json                     Full session as JSON
-    agent exec --json "list 3 colors"                   Raw JSON response
-    agent exec --json-schema schema.json "get users"    Validated against schema
-    agent exec -o stream-json "complex task"            Real-time NDJSON events
-    agent exec -o text "simple question"                Raw text, no parsing
-    agent -q exec "write tests" | less                  Pipe clean output
-    agent -v exec "analyze code"                        Verbose with icons
-    agent --sandbox exec "write tests"                  Run in Docker sandbox
-    agent --session $(uuidgen) exec "say hello"          Pre-set session ID
-    agent -p ollama exec "explain this code"            Ollama non-interactive
-    agent -p ollama --size 35b exec "complex task"      Ollama with large size
+    zag exec "say hello"                              Simple prompt
+    zag exec "list files" -o json                     Full session as JSON
+    zag exec --json "list 3 colors"                   Raw JSON response
+    zag exec --json-schema schema.json "get users"    Validated against schema
+    zag exec -o stream-json "complex task"            Real-time NDJSON events
+    zag exec -o text "simple question"                Raw text, no parsing
+    zag -q exec "write tests" | less                  Pipe clean output
+    zag -v exec "analyze code"                        Verbose with icons
+    zag --sandbox exec "write tests"                  Run in Docker sandbox
+    zag --session $(uuidgen) exec "say hello"          Pre-set session ID
+    zag -p ollama exec "explain this code"            Ollama non-interactive
+    zag -p ollama --size 35b exec "complex task"      Ollama with large size
 
     echo '{"data":"input"}' | agent exec -i stream-json "process"   Structured input
 
 ## See Also
 
-    agent man run       Interactive alternative
+    zag man run       Interactive alternative

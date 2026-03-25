@@ -7,12 +7,12 @@ use anyhow::{Context, Result, bail};
 use log::debug;
 use std::path::{Path, PathBuf};
 
-/// Compute the base directory for worktrees: `~/.agent/worktrees/<sanitized-repo-path>/`.
+/// Compute the base directory for worktrees: `~/.zag/worktrees/<sanitized-repo-path>/`.
 pub fn worktree_base_dir(repo_root: &Path) -> PathBuf {
     let sanitized = Config::sanitize_path(&repo_root.to_string_lossy());
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".agent")
+        .join(".zag")
         .join("worktrees")
         .join(sanitized)
 }
@@ -46,10 +46,10 @@ pub fn generate_name() -> String {
         .as_nanos();
     // Simple hash-like hex from timestamp + pid
     let hash = seed ^ (std::process::id() as u128);
-    format!("agent-{:08x}", (hash & 0xFFFF_FFFF) as u32)
+    format!("zag-{:08x}", (hash & 0xFFFF_FFFF) as u32)
 }
 
-/// Create a git worktree at `~/.agent/worktrees/<sanitized-repo-path>/<name>` using detached HEAD.
+/// Create a git worktree at `~/.zag/worktrees/<sanitized-repo-path>/<name>` using detached HEAD.
 /// Returns the path to the new worktree directory.
 pub fn create_worktree(repo_root: &Path, name: &str) -> Result<PathBuf> {
     let worktree_path = worktree_base_dir(repo_root).join(name);
