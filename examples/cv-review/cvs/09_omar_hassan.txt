@@ -1,0 +1,52 @@
+OMAR HASSAN
+Engineering Manager / Tech Lead
+omar.hassan@email.com | github.com/ohassan | San Jose, CA
+
+SUMMARY
+Engineering leader with 10 years of experience, transitioning back to individual
+contributor work. Deep expertise in JVM-based distributed systems. Currently
+learning Rust and rebuilding core services for my team. Looking for a senior IC
+role where I can apply systems thinking and grow Rust expertise.
+
+EXPERIENCE
+
+Engineering Manager — Enterprise Systems Corp (2021–Present)
+- Managed team of 12 engineers building payment processing platform handling
+  $2B+ annual transaction volume
+- Drove architectural migration from monolith to event-driven microservices
+- Established SLO/SLI framework, achieving 99.95% availability
+- Started team Rust adoption: rewrote latency-sensitive payment routing
+  service from Kotlin to Rust (p99 latency: 120ms to 8ms)
+- Grew team from 5 to 12 through 50+ technical interviews
+
+Tech Lead — FinTech Innovations (2018–2021)
+- Led backend team of 6 building real-time fraud detection platform
+- Designed event sourcing architecture using Kafka and Kotlin, processing
+  100k events/second
+- Built distributed caching layer reducing database load by 80%
+
+Senior Software Engineer — JavaSoft Corp (2015–2018)
+- Built high-throughput REST APIs in Java/Spring serving 200+ microservices
+- Designed custom connection pooling library adopted org-wide
+
+Software Engineer — StartupHub (2014–2015)
+- Full-stack development with Java backend and Angular frontend
+
+EDUCATION
+
+M.S. Computer Science — San Jose State University (2014)
+B.S. Computer Engineering — University of Michigan (2012)
+
+SKILLS
+
+Languages: Java, Kotlin, Rust (1 year production), Python, SQL, Go (basic)
+Frameworks: Spring Boot, Ktor, Tokio (learning), Actix-web (learning)
+Streaming: Apache Kafka, Kafka Streams, RabbitMQ
+Infrastructure: AWS (ECS, Lambda, SQS, SNS, DynamoDB, RDS), Terraform
+Databases: PostgreSQL, DynamoDB, Redis, Cassandra, Oracle
+Tools: Docker, Kubernetes, Datadog, PagerDuty, GitHub Actions
+
+LEADERSHIP
+
+- Established engineering career ladder framework for 50-person org
+- Speaker at QCon 2022: "Event Sourcing at Scale in Financial Systems"

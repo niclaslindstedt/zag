@@ -1,0 +1,47 @@
+DAVID KIM
+New Graduate — Software Engineer
+david.kim@email.com | github.com/davidkim-dev | Boston, MA
+
+SUMMARY
+Recent CS graduate with a passion for systems programming and Rust. Completed
+several personal projects and an undergraduate thesis on distributed consensus.
+Eager to start a career in backend engineering.
+
+EDUCATION
+
+B.S. Computer Science — Boston University (2024)
+GPA: 3.6/4.0
+Relevant coursework: Distributed Systems, Operating Systems, Computer Networks,
+Database Systems, Algorithms, Programming Language Theory
+
+EXPERIENCE
+
+Software Engineering Intern — TechCorp (Summer 2023)
+- Built a REST API endpoint for user analytics using Java and Spring Boot
+- Wrote integration tests improving coverage for the analytics module by 20%
+
+Teaching Assistant — Boston University CS Department (2022–2024)
+- TA for CS 350: Systems Programming (C and Assembly)
+- Led weekly lab sessions for 30 students
+
+PROJECTS
+
+Raft Consensus Implementation (Rust) — Undergraduate Thesis
+- Implemented Raft distributed consensus protocol in Rust from scratch
+- Achieved linearizable reads and leader election in under 500ms
+- Thesis received departmental honors
+
+Mini Redis Clone (Rust)
+- Built a Redis-compatible key-value store supporting GET, SET, EXPIRE
+- Implemented using Tokio for async I/O with connection pooling
+
+Contributor — Rust Clippy
+- Fixed 2 false-positive lint warnings (merged PRs)
+
+SKILLS
+
+Languages: Rust, C, C++, Java, Python, SQL
+Frameworks: Tokio, Actix-web, Spring Boot
+Infrastructure: Docker, basic AWS (EC2, S3), Linux
+Databases: PostgreSQL, SQLite, Redis
+Tools: Git, GitHub Actions, GDB

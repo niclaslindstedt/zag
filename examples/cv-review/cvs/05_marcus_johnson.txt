@@ -1,0 +1,51 @@
+MARCUS JOHNSON
+Senior DevOps / SRE Engineer
+marcus.johnson@email.com | github.com/marcusj | Denver, CO
+
+SUMMARY
+Experienced SRE and DevOps engineer with 8 years building and operating
+large-scale cloud infrastructure. Expert in Kubernetes, Terraform, and
+observability tooling. Recently started contributing to infrastructure tooling
+in Rust for performance-critical components.
+
+EXPERIENCE
+
+Senior SRE — MegaCloud Inc. (2020–Present)
+- Designed and operated Kubernetes clusters serving 10k+ pods across 3 regions
+  with 99.99% uptime SLA
+- Built custom Kubernetes operators in Go for automated database provisioning
+- Implemented comprehensive observability stack (Prometheus, Grafana, Loki, Tempo)
+  reducing MTTR from 45min to 8min
+- Wrote performance-critical log processing pipeline in Rust, handling 500k
+  lines/second (replaced Python implementation at 20k lines/second)
+- Led chaos engineering program, running 200+ game days over 2 years
+
+DevOps Engineer — ScaleUp Systems (2017–2020)
+- Migrated 50+ microservices from EC2 to EKS, reducing costs by 35%
+- Built Terraform modules for standardized AWS infrastructure provisioning
+- Implemented GitOps workflows with ArgoCD for 30+ services
+- Developed CLI tools in Go and Rust for internal developer experience
+
+Systems Administrator — DataCenter Corp (2016–2017)
+- Managed fleet of 500+ Linux servers across 2 data centers
+- Automated server provisioning with Ansible
+
+EDUCATION
+
+B.S. Information Technology — Colorado State University (2016)
+
+SKILLS
+
+Languages: Go, Rust (intermediate), Python, Bash, HCL
+Infrastructure: AWS (EKS, ECS, EC2, Lambda, S3, RDS, DynamoDB), GCP (GKE)
+Orchestration: Kubernetes, Docker, Helm, ArgoCD, Istio
+IaC: Terraform, Pulumi, Ansible, CloudFormation
+Observability: Prometheus, Grafana, Datadog, Loki, Tempo, OpenTelemetry
+Databases: PostgreSQL, Redis, DynamoDB, Elasticsearch
+CI/CD: GitHub Actions, Jenkins, CircleCI
+
+CERTIFICATIONS
+
+- AWS Solutions Architect – Professional (2021)
+- Certified Kubernetes Administrator (CKA) (2020)
+- Certified Kubernetes Security Specialist (CKS) (2022)

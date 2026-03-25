@@ -1,0 +1,48 @@
+LISA THOMPSON
+Senior Data Engineer
+lisa.thompson@email.com | github.com/lthompson | Chicago, IL
+
+SUMMARY
+Data engineer with 9 years of experience building large-scale data pipelines,
+real-time streaming systems, and analytics infrastructure. Expert in the Kafka
+ecosystem and distributed data processing. Strong Python and Scala background
+with growing interest in Rust for performance-critical data tooling.
+
+EXPERIENCE
+
+Senior Data Engineer — AnalyticsPro (2020–Present)
+- Architected real-time streaming pipeline ingesting 5B+ events/day from 200+
+  data sources using Kafka, Kafka Streams, and Flink
+- Built custom Kafka Connect connectors for proprietary data formats
+- Designed data lake architecture on AWS (S3, Glue, Athena) serving 500+ analysts
+- Led migration from batch ETL to streaming-first architecture, reducing data
+  latency from 6 hours to under 30 seconds
+- Mentored team of 5 data engineers
+
+Data Engineer — DataPipeline Inc. (2017–2020)
+- Built Apache Spark pipelines processing 2TB+ daily data
+- Implemented data quality framework catching 95% of issues pre-production
+- Optimized ClickHouse queries, reducing dashboard load from 12s to 1.5s
+
+Junior Data Engineer — BigData Solutions (2015–2017)
+- Built ETL pipelines using Python, Airflow, and PostgreSQL
+- Developed data validation scripts and monitoring dashboards
+
+EDUCATION
+
+M.S. Data Science — University of Chicago (2015)
+B.S. Mathematics — University of Illinois (2013)
+
+SKILLS
+
+Languages: Python, Scala, SQL, Java, Bash, Rust (learning)
+Streaming: Apache Kafka, Kafka Streams, Apache Flink, Kinesis
+Batch: Apache Spark, Apache Airflow, dbt
+Infrastructure: AWS (S3, Glue, Athena, EMR, Kinesis, Lambda), Terraform
+Databases: PostgreSQL, ClickHouse, Redshift, DynamoDB, Cassandra
+Tools: Docker, Kubernetes (basic), GitHub Actions
+
+CERTIFICATIONS
+
+- AWS Data Analytics – Specialty (2022)
+- Confluent Certified Developer for Apache Kafka (2021)

@@ -421,6 +421,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "cv-review"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tokio",
+ "toml",
+ "zag-lib",
+]
+
+[[package]]
 name = "derive_more"
 version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

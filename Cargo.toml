@@ -7,7 +7,7 @@ repository = "https://github.com/niclaslindstedt/zag"
 description = "A unified CLI for AI coding agents — Claude, Codex, Gemini, Copilot, and Ollama"
 
 [workspace]
-members = [".", "zag-lib"]
+members = [".", "zag-lib", "examples/cv-review"]
 
 [dependencies]
 zag-lib = { path = "zag-lib" }

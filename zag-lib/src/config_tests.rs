@@ -395,11 +395,8 @@ model = "haiku"
 // --- Init and file I/O ---
 
 fn temp_root(suffix: &str) -> (String, impl Drop) {
-    let dir = std::env::temp_dir().join(format!(
-        "zag-config-test-{}-{}",
-        std::process::id(),
-        suffix
-    ));
+    let dir =
+        std::env::temp_dir().join(format!("zag-config-test-{}-{}", std::process::id(), suffix));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let root = dir.to_str().unwrap().to_string();

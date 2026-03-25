@@ -1,0 +1,43 @@
+JAMES WILSON
+Software Engineer
+james.wilson@email.com | github.com/jwilson-dev | Austin, TX
+
+SUMMARY
+Full-stack developer with 3 years of experience building web applications.
+Comfortable across the entire stack from React frontends to Django backends.
+Looking to grow into more backend-focused roles.
+
+EXPERIENCE
+
+Software Engineer — WebApps Co. (2022–Present)
+- Developed and maintained a multi-tenant SaaS platform serving 10k+ users
+  using Python/Django and React
+- Built REST APIs and integrated third-party services (Stripe, SendGrid, Twilio)
+- Improved page load times by 60% through frontend optimization and CDN setup
+- Wrote unit and integration tests, maintaining 75% code coverage
+
+Junior Developer — StartupXYZ (2021–2022)
+- Built features for an e-commerce platform using Python/Flask and jQuery
+- Implemented basic CI/CD pipeline with GitHub Actions
+- Managed PostgreSQL database migrations and query optimization
+
+Intern — LocalTech Solutions (Summer 2020)
+- Built internal dashboard using React and Node.js
+
+EDUCATION
+
+B.S. Computer Science — University of Texas at Austin (2021)
+GPA: 3.4/4.0
+
+SKILLS
+
+Languages: Python, JavaScript, TypeScript, SQL, HTML/CSS
+Frameworks: Django, Flask, React, Next.js, Express
+Infrastructure: AWS (EC2, S3, RDS), Heroku, Docker (basic)
+Databases: PostgreSQL, MySQL, MongoDB, Redis
+Tools: Git, GitHub Actions, VS Code, Postman
+
+PROJECTS
+
+- Personal blog engine built with Rust + Actix-web (learning project)
+- Open-source Django REST framework plugin (200+ GitHub stars)

@@ -1,0 +1,55 @@
+ALEX CHEN
+Senior Software Engineer
+alex.chen@email.com | github.com/alexchen | San Francisco, CA
+
+SUMMARY
+Backend engineer with 7 years of experience building distributed systems and
+high-throughput data pipelines. Passionate about performance optimization and
+writing reliable, maintainable code. Currently focused on Rust and cloud-native
+architectures.
+
+EXPERIENCE
+
+Senior Software Engineer — Streamline Technologies (2021–Present)
+- Designed and implemented a real-time event processing pipeline handling 2M+
+  events/second using Rust and Apache Kafka
+- Led migration from monolithic Python service to microservices architecture,
+  reducing p99 latency from 800ms to 45ms
+- Mentored 4 junior engineers through code reviews and weekly 1:1s
+- Introduced property-based testing, catching 23 edge-case bugs before production
+
+Software Engineer — DataFlow Inc. (2018–2021)
+- Built a distributed task scheduler serving 500+ internal users using Python
+  and Redis, achieving 99.97% uptime
+- Developed REST APIs consumed by 12 client teams, handling 50k requests/minute
+- Implemented CI/CD pipelines with GitHub Actions, reducing deploy time from
+  2 hours to 15 minutes
+- Contributed to open-source Rust crates for async I/O (tokio ecosystem)
+
+Junior Software Engineer — WebCorp Solutions (2017–2018)
+- Developed full-stack features for a SaaS platform using TypeScript and React
+- Built ETL pipelines processing 10GB+ daily data using Python and PostgreSQL
+- Wrote comprehensive test suites, improving code coverage from 45% to 82%
+
+EDUCATION
+
+B.S. Computer Science — University of California, Berkeley (2017)
+GPA: 3.7/4.0
+
+SKILLS
+
+Languages: Rust, Python, TypeScript, Go, SQL
+Frameworks: Tokio, Actix-web, FastAPI, React
+Infrastructure: AWS (ECS, Lambda, S3, DynamoDB), Docker, Kubernetes, Terraform
+Databases: PostgreSQL, Redis, DynamoDB, ClickHouse
+Tools: Git, GitHub Actions, Prometheus, Grafana, Datadog
+
+CERTIFICATIONS
+
+- AWS Solutions Architect – Associate (2022)
+- Certified Kubernetes Administrator (CKA) (2023)
+
+PUBLICATIONS
+
+- "Optimizing Async Runtimes for Low-Latency Workloads" — RustConf 2023
+- "Practical Approaches to Distributed Tracing" — Blog series, 50k+ reads

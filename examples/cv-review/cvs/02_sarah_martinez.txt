@@ -1,0 +1,49 @@
+SARAH MARTINEZ
+Staff Software Engineer
+sarah.martinez@email.com | github.com/smartinez | Seattle, WA
+
+SUMMARY
+Staff engineer with 12 years of experience across infrastructure, distributed
+systems, and developer tooling. Track record of leading cross-team technical
+initiatives, defining architectural standards, and shipping systems that scale
+to millions of users. Transitioned from Go to Rust over the past 3 years.
+
+EXPERIENCE
+
+Staff Software Engineer — CloudScale Systems (2020–Present)
+- Architected a multi-region event streaming platform processing 50M events/day
+  using Rust, Kafka, and AWS Kinesis
+- Led a team of 8 engineers through a 12-month platform rewrite from Go to Rust,
+  achieving 40% reduction in infrastructure costs
+- Designed and implemented a custom service mesh handling 100k+ RPS with sub-ms
+  overhead using Tokio and Hyper
+- Established Rust adoption guidelines and training program adopted by 60+ engineers
+- Reduced on-call incident rate by 70% through improved observability
+
+Senior Software Engineer — InfraCore (2016–2020)
+- Built the core distributed storage layer in Go, serving 99.99% SLA
+- Designed a consensus protocol extension for multi-datacenter replication
+- Mentored 6 engineers to senior level through structured growth plans
+
+Software Engineer — TechStart Inc. (2012–2016)
+- Built microservices in Go and Python for a high-traffic ad-tech platform
+- Implemented real-time bidding pipeline handling 500k QPS
+
+EDUCATION
+
+M.S. Computer Science — Stanford University (2012)
+B.S. Computer Science — MIT (2010)
+
+SKILLS
+
+Languages: Rust, Go, Python, C, SQL
+Frameworks: Tokio, Hyper, Tonic (gRPC), Actix-web
+Infrastructure: AWS (ECS, EKS, Lambda, S3, DynamoDB, Kinesis), GCP, Terraform
+Databases: PostgreSQL, CockroachDB, Redis, ClickHouse, DynamoDB
+Tools: Kafka, Kubernetes, Docker, Prometheus, Grafana, Datadog, PagerDuty
+
+LEADERSHIP
+
+- Technical steering committee member for Rust adoption (company-wide)
+- Conference speaker: RustConf 2022, KubeCon 2021, GopherCon 2019
+- Maintainer of 3 open-source Rust crates (2k+ GitHub stars combined)

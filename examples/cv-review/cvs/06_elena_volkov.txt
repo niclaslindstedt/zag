@@ -1,0 +1,46 @@
+ELENA VOLKOV
+Systems Software Engineer
+elena.volkov@email.com | github.com/evolkov | Portland, OR
+
+SUMMARY
+Systems programmer with 5 years of experience in high-performance computing
+and low-level systems work. Transitioned from C++ to Rust and now writes
+production Rust full-time. Focused on performance-critical systems, lock-free
+data structures, and runtime optimization.
+
+EXPERIENCE
+
+Systems Engineer — HighFreq Trading Systems (2022–Present)
+- Built ultra-low-latency order matching engine in Rust with sub-microsecond
+  p99 latency, processing 10M+ orders/day
+- Implemented lock-free concurrent data structures for shared market data feeds
+- Designed custom memory allocator reducing allocation overhead by 60%
+
+Software Engineer — CompilerTech (2020–2022)
+- Contributed to production compiler toolchain written in Rust and C++
+- Implemented LLVM optimization passes improving code performance by 15%
+- Built distributed build system using Rust, gRPC, and S3 for artifact caching
+
+Research Assistant — Oregon State University HPC Lab (2019–2020)
+- Developed parallel algorithms for computational fluid dynamics in C++ and CUDA
+- Ported legacy Fortran simulation code to Rust with zero-cost abstractions
+
+EDUCATION
+
+M.S. Computer Science — Oregon State University (2020)
+  Focus: High-Performance Computing and Systems Programming
+B.S. Computer Science — University of Washington (2018)
+
+SKILLS
+
+Languages: Rust, C++, C, Python, x86 Assembly
+Systems: Linux kernel internals, LLVM, memory allocators, lock-free programming
+Frameworks: Tokio, Tonic (gRPC), criterion.rs, proptest
+Infrastructure: AWS (EC2, S3), Docker, bare-metal deployment
+Databases: PostgreSQL, Redis, RocksDB
+Tools: perf, valgrind, flamegraph, cargo-fuzz, miri
+
+OPEN SOURCE
+
+- Maintainer of lockfree-rs crate (800+ stars)
+- Contributor to Tokio runtime (12 merged PRs)

@@ -219,10 +219,8 @@ fn test_tool_kind_absent_in_old_events() {
 
 #[test]
 fn test_global_index_upsert_and_load() {
-    let dir = std::env::temp_dir().join(format!(
-        "zag-lib-global-index-test-{}",
-        std::process::id()
-    ));
+    let dir =
+        std::env::temp_dir().join(format!("zag-lib-global-index-test-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
 
@@ -297,10 +295,8 @@ fn test_global_index_upsert_and_load() {
 fn test_writer_populates_global_index_when_configured() {
     let (logs_dir, _guard) = temp_logs_dir("global-writer");
 
-    let global_dir = std::env::temp_dir().join(format!(
-        "zag-lib-global-writer-test-{}",
-        std::process::id()
-    ));
+    let global_dir =
+        std::env::temp_dir().join(format!("zag-lib-global-writer-test-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&global_dir);
     std::fs::create_dir_all(&global_dir).unwrap();
 

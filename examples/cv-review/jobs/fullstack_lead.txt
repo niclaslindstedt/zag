@@ -1,0 +1,31 @@
+FULLSTACK TECH LEAD — Productify
+
+About the Role
+We need a Fullstack Tech Lead to own our product engineering team. You will set
+technical direction for our customer-facing applications, mentor a team of 6
+engineers, and ship features that delight our 2M+ users.
+
+Requirements
+- 7+ years of software engineering experience
+- 2+ years of tech lead or senior IC experience
+- Expert-level React and TypeScript
+- Strong backend experience (Node.js, Python, or Go)
+- Experience with product-oriented development and A/B testing
+- Track record of mentoring engineers and driving technical decisions
+- Excellent written and verbal communication
+
+Nice to Have
+- Experience with Next.js and server-side rendering
+- Familiarity with design systems and accessibility standards
+- Experience with GraphQL
+- Background in performance optimization
+- Experience working with product managers and designers
+
+Tech Stack
+React, TypeScript, Next.js, Node.js, GraphQL, PostgreSQL, Redis,
+AWS (Lambda, DynamoDB, CloudFront), Vercel, GitHub Actions
+
+What We Offer
+- Competitive salary ($220k-$300k) + equity
+- Hybrid work (NYC office 2 days/week)
+- Strong product culture, small team, big impact

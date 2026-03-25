@@ -1,0 +1,51 @@
+RACHEL NGUYEN
+Senior Backend Engineer
+rachel.nguyen@email.com | github.com/rnguyen | Austin, TX
+
+SUMMARY
+Backend engineer with 6 years of experience building high-performance distributed
+systems in Rust. Core contributor to several widely-used Rust crates. Passionate
+about correctness, performance, and developer experience.
+
+EXPERIENCE
+
+Senior Backend Engineer — RustCloud Inc. (2021–Present)
+- Designed and built a distributed object storage service in Rust handling 1PB+
+  data with erasure coding, serving 100k+ requests/second
+- Implemented custom async runtime extensions for Tokio to support io_uring,
+  achieving 3x throughput improvement for I/O-bound workloads
+- Built real-time metrics aggregation pipeline using Rust and Kafka, processing
+  2M metrics/second with sub-second latency
+- Led design review process for team of 10, establishing ADR practice
+- Reduced cloud infrastructure costs by 25% through profiling-driven optimization
+
+Backend Engineer — StreamData Systems (2019–2021)
+- Built event processing engine in Rust handling complex event patterns across
+  distributed data streams
+- Implemented exactly-once delivery semantics using custom WAL and Kafka
+- Developed integration testing framework for distributed systems
+
+Software Engineer — WebScale Co. (2018–2019)
+- Built REST APIs and background workers in Rust (Actix-web) and Python (FastAPI)
+- Implemented rate limiting and circuit breaker middleware for API gateway
+
+EDUCATION
+
+B.S. Computer Science — University of Texas at Austin (2018)
+GPA: 3.9/4.0, Summa Cum Laude
+
+SKILLS
+
+Languages: Rust, Python, Go, C, SQL
+Frameworks: Tokio, Actix-web, Axum, Tonic (gRPC), Tower
+Infrastructure: AWS (ECS, S3, DynamoDB, Kinesis, SQS, Lambda), Terraform
+Streaming: Apache Kafka, Kafka Streams, AWS Kinesis
+Databases: PostgreSQL, DynamoDB, Redis, ClickHouse, ScyllaDB
+Tools: Docker, Kubernetes, Prometheus, Grafana, Jaeger, GitHub Actions
+
+OPEN SOURCE
+
+- Core contributor to axum web framework (40+ merged PRs)
+- Author of tower-ratelimit middleware crate (1.2k+ stars)
+- Contributor to Tokio runtime (8 merged PRs)
+- Speaker at RustConf 2023: "Building Storage Systems with Async Rust"

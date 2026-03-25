@@ -1,0 +1,33 @@
+ML PLATFORM ENGINEER — DeepScale AI
+
+About the Role
+Join our ML Platform team to build the infrastructure that powers model training,
+serving, and monitoring at scale. You will work at the intersection of systems
+engineering and machine learning, building tools that enable our research team
+to iterate faster.
+
+Requirements
+- 5+ years of software engineering experience
+- Strong Python skills with ML ecosystem experience (PyTorch, TensorFlow)
+- Experience building and operating ML pipelines at scale
+- Solid systems programming skills (Rust, C++, or Go)
+- Experience with Kubernetes and container orchestration
+- Understanding of ML model serving and optimization
+- Experience with cloud infrastructure (AWS or GCP)
+
+Nice to Have
+- Production Rust experience for performance-critical components
+- Experience with GPU programming (CUDA, ROCm)
+- Familiarity with ML experiment tracking (MLflow, W&B)
+- Experience with distributed training (Horovod, DeepSpeed)
+- Contributions to ML infrastructure open-source projects
+
+Tech Stack
+Python, Rust, PyTorch, Kubernetes, Docker, AWS (SageMaker, EKS, S3),
+Kafka, PostgreSQL, Redis, Prometheus, Grafana
+
+What We Offer
+- Competitive salary ($230k-$320k) + equity
+- Fully remote with quarterly offsites
+- GPU cluster access for personal projects
+- Conference and learning budget

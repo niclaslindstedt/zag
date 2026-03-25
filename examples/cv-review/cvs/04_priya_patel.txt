@@ -1,0 +1,44 @@
+PRIYA PATEL
+Senior Frontend Engineer
+priya.patel@email.com | github.com/priyapatel | New York, NY
+
+SUMMARY
+Frontend specialist with 6 years of experience building responsive, accessible
+web applications at scale. Deep expertise in React ecosystem, design systems,
+and frontend performance. Passionate about user experience and component-driven
+development.
+
+EXPERIENCE
+
+Senior Frontend Engineer — DesignTech Corp (2021–Present)
+- Led development of a component library used across 15 product teams
+- Architected micro-frontend solution for a platform serving 5M+ monthly users
+- Reduced bundle size by 45% through code splitting and lazy loading
+- Mentored 3 junior frontend engineers
+
+Frontend Engineer — UX Studios (2019–2021)
+- Built real-time collaborative editing features using React and WebSocket
+- Implemented comprehensive accessibility (WCAG 2.1 AA) across the product suite
+- Developed end-to-end testing framework with Playwright
+
+Junior Frontend Developer — PixelPerfect Agency (2018–2019)
+- Built responsive marketing sites for 20+ clients
+- Introduced TypeScript to the team, migrating 3 projects from JavaScript
+
+EDUCATION
+
+B.S. Computer Science — Columbia University (2018)
+GPA: 3.8/4.0
+
+SKILLS
+
+Languages: TypeScript, JavaScript, HTML, CSS/SASS, Python (basic), SQL
+Frameworks: React, Next.js, Vue.js, Svelte, Storybook, Tailwind CSS
+Testing: Jest, Playwright, Cypress, React Testing Library
+Infrastructure: Vercel, Netlify, AWS (CloudFront, S3), Docker (basic)
+Tools: Figma, Git, GitHub Actions, Webpack, Vite
+
+SPEAKING
+
+- Speaker at React Conf 2023: "Scaling Design Systems to 200+ Components"
+- Core contributor to popular React component library (5k+ GitHub stars)

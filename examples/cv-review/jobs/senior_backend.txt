@@ -1,0 +1,31 @@
+SENIOR BACKEND ENGINEER — Nexus Systems
+
+About the Role
+We are looking for a Senior Backend Engineer to join our Platform team. You will
+design and build the core infrastructure powering our real-time analytics
+platform, serving Fortune 500 customers processing billions of events daily.
+
+Requirements
+- 5+ years of backend engineering experience
+- Strong proficiency in Rust (production experience required)
+- Experience designing and operating distributed systems at scale
+- Solid understanding of cloud infrastructure (AWS preferred)
+- Experience with streaming/event processing (Kafka, Kinesis, or similar)
+- Strong testing practices and commitment to code quality
+- Excellent communication skills and ability to mentor others
+
+Nice to Have
+- Experience with Kubernetes and container orchestration
+- Familiarity with observability tools (Prometheus, Grafana, Datadog)
+- Contributions to open-source projects
+- Experience with ClickHouse or other columnar databases
+- Published technical writing or conference talks
+
+Tech Stack
+Rust, Tokio, Kafka, PostgreSQL, ClickHouse, AWS (ECS, S3, DynamoDB),
+Kubernetes, Terraform, GitHub Actions
+
+What We Offer
+- Competitive salary ($200k-$280k) + equity
+- Remote-friendly with offices in SF, NYC, and Austin
+- Generous PTO and learning budget

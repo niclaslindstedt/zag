@@ -1,0 +1,15 @@
+# Scoring rules for CV review pipeline
+# These thresholds determine pass/fail/review decisions
+
+min_overall_score = 7
+min_experience_years = 5
+min_relevance_score = 6
+required_skills = ["Rust", "distributed systems", "AWS", "Kafka"]
+recommendation_pass = ["strong_yes", "yes"]
+
+[weights]
+experience = 30
+skills = 35
+education = 10
+communication = 15
+culture_fit = 10
