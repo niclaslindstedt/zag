@@ -167,7 +167,9 @@ create_release() {
 
     # Check if tag already exists on remote
     if git ls-remote --tags origin "refs/tags/$tag" | grep -q "$tag"; then
-        die "tag $tag already exists on remote. Bump the version first:\n  $0 --bump patch\n  $0 --version X.Y.Z"
+        die "tag $tag already exists on remote. Bump the version first:
+  $0 --bump patch
+  $0 --version X.Y.Z"
     fi
 
     # Commit version changes if any files were modified

@@ -1027,10 +1027,7 @@ struct PlainSessionSetup {
 use cleanup::{
     print_resume_hint, print_session_resume_hint, prompt_sandbox_cleanup, prompt_worktree_cleanup,
 };
-use json_mode::{
-    augment_system_prompt_for_json, build_correction_prompt, handle_json_output,
-    validate_json_output, wrap_prompt_for_json,
-};
+use json_mode::{augment_system_prompt_for_json, handle_json_output, wrap_prompt_for_json};
 use resume::{
     current_workspace, discover_provider_session_id, resolve_continue_target, resolve_resume_target,
 };
@@ -1387,7 +1384,6 @@ struct ExecutionContext<'a> {
     output_fmt: Option<&'a str>,
     show_usage: bool,
     verbose: bool,
-    root: &'a Option<String>,
 }
 
 /// Execute the requested action.
@@ -1922,7 +1918,6 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         output_fmt: output_fmt_clone.as_deref(),
         show_usage,
         verbose,
-        root: &root,
     };
     let action_result = execute_action(
         action,

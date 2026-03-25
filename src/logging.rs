@@ -76,12 +76,6 @@ fn write_to_log_file(msg: &str) {
     }
 }
 
-/// Log a message directly to the log file (bypasses terminal output).
-/// Used for captured stderr and other internal diagnostics.
-pub fn log_to_file(msg: &str) {
-    write_to_log_file(msg);
-}
-
 /// Get the path to the current session's log directory.
 #[allow(dead_code)]
 pub fn logs_dir() -> PathBuf {
