@@ -5,6 +5,7 @@ pub mod capability;
 pub mod config;
 pub mod factory;
 pub mod json_validation;
+pub mod mcp;
 pub mod output;
 pub mod process;
 pub mod progress;

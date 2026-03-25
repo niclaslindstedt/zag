@@ -59,6 +59,7 @@ zag session list|show|import  List/inspect sessions, import historical logs
 zag listen <id>               Tail a session's log events in real-time
 zag capability                Show provider capability declarations
 zag skills list|add|remove|sync|import   Manage provider-agnostic skills
+zag mcp list|add|remove|sync|import     Manage MCP servers across providers
 zag man [command]             Built-in manual pages
 ```
 
@@ -188,6 +189,21 @@ zag skills add commit               # Create a new skill
 zag skills import --from claude     # Import existing Claude skills
 zag skills sync                     # Sync to all providers
 ```
+
+## MCP Servers
+
+Manage MCP (Model Context Protocol) servers across all providers from a single place. Each server is stored as an individual TOML file in `~/.zag/mcp/` (global) or `~/.zag/projects/<path>/mcp/` (project-scoped), and synced into each provider's native config format with a `zag-` prefix.
+
+```bash
+zag mcp add github --command npx --args -y @modelcontextprotocol/server-github
+zag mcp add sentry --transport http --url https://mcp.sentry.dev/sse
+zag mcp list                        # List all MCP servers
+zag mcp sync                        # Sync to all providers
+zag mcp import --from claude        # Import from provider config
+zag mcp remove github               # Remove + clean provider configs
+```
+
+Supported providers: Claude (`~/.claude.json`), Gemini (`~/.gemini/settings.json`), Copilot (`~/.copilot/mcp-config.json`), Codex (`~/.codex/config.toml`).
 
 ## Programmatic API
 

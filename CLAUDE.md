@@ -105,6 +105,7 @@ AgentBuilder::new()
 | `zag-lib/src/session.rs` | Session-worktree/sandbox mapping store (`sessions.json`) |
 | `zag-lib/src/json_validation.rs` | JSON and JSON Schema validation utilities |
 | `zag-lib/src/auto_selector.rs` | Auto provider/model selection via lightweight LLM call |
+| `zag-lib/src/mcp.rs` | MCP server management: per-server TOML configs, provider sync, import |
 | `zag-lib/src/skills.rs` | Provider-agnostic skill management |
 | `zag-lib/src/providers/claude/mod.rs` | Claude agent implementation |
 | `zag-lib/src/providers/claude/models.rs` | Claude JSON output models and conversion to unified format |
@@ -140,6 +141,7 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `man/capability.md` | Manpage for the `zag capability` command |
 | `man/listen.md` | Manpage for the `zag listen` command |
 | `man/skills.md` | Manpage for the `zag skills` command |
+| `man/mcp.md` | Manpage for the `zag mcp` command |
 
 #### `bindings/` (language SDKs)
 
@@ -350,6 +352,59 @@ Provider-agnostic skills are stored at `~/.zag/skills/<skill-name>/` using the [
 
 Skills are synced automatically in `run_agent_action()` (after `augment_system_prompt_for_json`, before `create_and_configure_agent`). Symlinks use `agent-` prefix to avoid collisions.
 
+## MCP Servers
+
+MCP (Model Context Protocol) servers are managed as individual TOML files and synced into each provider's native config format.
+
+### Storage
+
+- **Global**: `~/.zag/mcp/<server-name>.toml`
+- **Project-scoped**: `~/.zag/projects/<sanitized-path>/mcp/<server-name>.toml`
+
+Project-scoped servers override global servers with the same name.
+
+### Server Format
+
+```toml
+name = "github"
+description = "GitHub MCP server"
+transport = "stdio"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+
+[env]
+GITHUB_TOKEN = "${GITHUB_TOKEN}"
+```
+
+### Provider Integration
+
+Servers are injected with a `zag-` prefix into each provider's native config. User-managed entries are never touched.
+
+| Provider | Config File | Format |
+|----------|-----------|--------|
+| Claude   | `~/.claude.json` | JSON `mcpServers` |
+| Gemini   | `~/.gemini/settings.json` | JSON `mcpServers` |
+| Copilot  | `~/.copilot/mcp-config.json` | JSON `mcpServers` |
+| Codex    | `~/.codex/config.toml` | TOML `[mcp_servers]` |
+| Ollama   | N/A | Not supported |
+
+MCP servers are synced automatically in `run_agent_action()` (after skills setup, before `create_and_configure_agent`).
+
+### Commands
+
+```bash
+zag mcp list                          # List all MCP servers
+zag mcp show github                   # Show server details
+zag mcp add github --command npx --args -y @modelcontextprotocol/server-github
+zag mcp add sentry --transport http --url https://mcp.sentry.dev/sse
+zag mcp add my-db --command npx --args db-mcp --global   # Global instead of project-scoped
+zag mcp remove github                 # Remove server + clean provider configs
+zag mcp sync                          # Sync to all providers
+zag mcp sync -p claude                # Sync to specific provider
+zag mcp import --from claude          # Import from provider
+zag mcp import --from codex           # Import from Codex TOML config
+```
+
 ## Logging
 
 The CLI includes professional logging and progress indicators to provide clear feedback about operations.
@@ -559,6 +614,7 @@ The provider is specified via the `--provider` (or `-p`) flag. If omitted, it de
 - **`session`** - List and inspect sessions, import historical provider logs
 - **`man`** - Show manual pages for commands
 - **`skills`** - Manage provider-agnostic skills stored in `~/.zag/skills/`
+- **`mcp`** - Manage MCP servers across providers
 
 ```bash
 # Interactive mode (uses default provider, typically claude)
@@ -682,6 +738,17 @@ zag skills sync                     # Manually sync to all providers
 zag skills sync -p claude           # Sync only to Claude
 zag skills import                   # Import existing Claude skills
 zag skills import --from gemini     # Import from another provider
+
+# MCP server management
+zag mcp list                       # List all MCP servers
+zag mcp show github                # Show server details
+zag mcp add github --command npx --args -y @modelcontextprotocol/server-github
+zag mcp add sentry --transport http --url https://mcp.sentry.dev/sse
+zag mcp remove github              # Remove server + clean provider configs
+zag mcp sync                       # Sync to all providers
+zag mcp sync -p claude             # Sync only to Claude
+zag mcp import --from claude       # Import from Claude
+zag mcp import --from codex        # Import from Codex
 
 # Configuration
 zag config                       # Print full config
