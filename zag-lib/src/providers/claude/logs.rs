@@ -31,18 +31,75 @@ pub struct ClaudeLiveLogAdapter {
     session_path: Option<PathBuf>,
     offset: u64,
     seen_keys: HashSet<String>,
+    /// Track the current provider session ID so we can detect when it changes.
+    current_provider_session_id: Option<String>,
 }
 
 pub struct ClaudeHistoricalLogAdapter;
 
 impl ClaudeLiveLogAdapter {
     pub fn new(ctx: LiveLogContext) -> Self {
+        let current_provider_session_id = ctx.provider_session_id.clone();
         Self {
             ctx,
             session_path: None,
             offset: 0,
             seen_keys: HashSet::new(),
+            current_provider_session_id,
         }
+    }
+
+    /// Check if a newer session file has appeared for the same workspace.
+    /// Only called when `is_worktree` is true, since the unique workspace path
+    /// makes detection reliable.
+    fn detect_newer_session(&self) -> Option<PathBuf> {
+        let current_path = self.session_path.as_ref()?;
+        let current_modified = std::fs::metadata(current_path).ok()?.modified().ok()?;
+        let workspace = self.ctx.workspace_path.as_deref()?;
+        let projects_dir = claude_projects_dir()?;
+
+        let mut best: Option<(std::time::SystemTime, PathBuf)> = None;
+        let entries = std::fs::read_dir(projects_dir).ok()?;
+        for project in entries.flatten() {
+            let files = match std::fs::read_dir(project.path()) {
+                Ok(files) => files,
+                Err(_) => continue,
+            };
+            for file in files.flatten() {
+                let path = file.path();
+                if path.extension().and_then(|ext| ext.to_str()) != Some("jsonl") {
+                    continue;
+                }
+                // Skip the file we're already tailing
+                if path == *current_path {
+                    continue;
+                }
+                let metadata = match file.metadata() {
+                    Ok(m) => m,
+                    Err(_) => continue,
+                };
+                let modified = match metadata.modified() {
+                    Ok(m) => m,
+                    Err(_) => continue,
+                };
+                // Only consider files newer than the current session file
+                if modified <= current_modified {
+                    continue;
+                }
+                if !file_contains_workspace(&path, workspace) {
+                    continue;
+                }
+                if best
+                    .as_ref()
+                    .map(|(current, _)| modified > *current)
+                    .unwrap_or(true)
+                {
+                    best = Some((modified, path));
+                }
+            }
+        }
+
+        best.map(|(_, path)| path)
     }
 
     fn discover_session_path(&self) -> Option<PathBuf> {
@@ -113,6 +170,37 @@ impl LiveLogAdapter for ClaudeLiveLogAdapter {
             }
         }
 
+        // In worktree mode, check if a newer session file appeared (session clear/restart)
+        if self.ctx.is_worktree
+            && self.session_path.is_some()
+            && let Some(newer_path) = self.detect_newer_session()
+        {
+            let old_session_id = self.current_provider_session_id.clone();
+            log::info!(
+                "Session clear detected: new file {} (old: {})",
+                newer_path.display(),
+                self.session_path
+                    .as_ref()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_default()
+            );
+
+            // Reset state for the new session file
+            self.session_path = Some(newer_path.clone());
+            self.offset = 0;
+            self.seen_keys.clear();
+            self.current_provider_session_id = None;
+
+            writer.add_source_path(newer_path.to_string_lossy().to_string())?;
+            writer.emit(
+                LogSourceKind::ProviderFile,
+                LogEventKind::SessionCleared {
+                    old_session_id,
+                    new_session_id: None, // will be discovered when we read the new file
+                },
+            )?;
+        }
+
         let Some(path) = self.session_path.as_ref() else {
             return Ok(());
         };
@@ -155,6 +243,7 @@ impl LiveLogAdapter for ClaudeLiveLogAdapter {
                 .or_else(|| value.get("session_id"))
                 .and_then(|value| value.as_str())
             {
+                self.current_provider_session_id = Some(session_id.to_string());
                 writer.set_provider_session_id(Some(session_id.to_string()))?;
             }
         }

@@ -2116,6 +2116,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         provider_session_id: log_metadata.provider_session_id.clone(),
         workspace_path: log_metadata.workspace_path.clone(),
         started_at: chrono::Utc::now(),
+        is_worktree: wt.is_worktree_session,
     };
     let live_adapter = crate::session_log::live_adapter_for_provider(
         &provider,
@@ -2400,6 +2401,7 @@ async fn run_review(params: ReviewParams) -> Result<()> {
             provider_session_id: None,
             workspace_path: log_metadata.workspace_path.clone(),
             started_at: chrono::Utc::now(),
+            is_worktree: false,
         },
         true,
     );

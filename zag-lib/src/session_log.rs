@@ -150,6 +150,10 @@ pub enum LogEventKind {
         message: String,
         raw: Option<String>,
     },
+    SessionCleared {
+        old_session_id: Option<String>,
+        new_session_id: Option<String>,
+    },
     SessionEnded {
         success: bool,
         error: Option<String>,
@@ -275,6 +279,9 @@ pub struct LiveLogContext {
     pub provider_session_id: Option<String>,
     pub workspace_path: Option<String>,
     pub started_at: DateTime<Utc>,
+    /// When true, the session is running in a unique worktree and the adapter
+    /// can reliably detect session clears by watching for new files.
+    pub is_worktree: bool,
 }
 
 #[derive(Debug, Clone)]

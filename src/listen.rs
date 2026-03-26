@@ -329,6 +329,18 @@ pub fn format_event_text(event: &AgentLogEvent, show_thinking: bool) -> Option<S
         LogEventKind::ParseWarning { message, .. } => {
             Some(format!("  ? {}", truncate(message, 200)))
         }
+        LogEventKind::SessionCleared {
+            old_session_id,
+            new_session_id,
+        } => {
+            let old = old_session_id.as_deref().unwrap_or("unknown");
+            let new = new_session_id.as_deref().unwrap_or("pending");
+            Some(format!(
+                "\n\u{25cf} Session cleared (old: {}, new: {})",
+                truncate(old, 36),
+                truncate(new, 36)
+            ))
+        }
         LogEventKind::SessionEnded { success, error } => {
             let status = if *success { "completed" } else { "failed" };
             let error_info = error
@@ -496,6 +508,18 @@ pub fn format_event_rich(event: &AgentLogEvent, show_thinking: bool) -> Option<S
             "  \x1b[33m?\x1b[0m \x1b[2m{}\x1b[0m",
             truncate(message, 200)
         )),
+        LogEventKind::SessionCleared {
+            old_session_id,
+            new_session_id,
+        } => {
+            let old = old_session_id.as_deref().unwrap_or("unknown");
+            let new = new_session_id.as_deref().unwrap_or("pending");
+            Some(format!(
+                "\n\x1b[33m\u{25cf}\x1b[0m Session cleared \x1b[2m(old: {}, new: {})\x1b[0m",
+                truncate(old, 36),
+                truncate(new, 36)
+            ))
+        }
         LogEventKind::SessionEnded { success, error } => {
             let (status, color) = if *success {
                 ("completed", "32")
