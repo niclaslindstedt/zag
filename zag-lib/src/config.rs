@@ -59,6 +59,8 @@ pub struct AutoConfig {
 pub struct ListenConfig {
     /// Default output format: "text", "json", or "rich-text"
     pub format: Option<String>,
+    /// strftime-style format for timestamps (default: "%H:%M:%S")
+    pub timestamp_format: Option<String>,
 }
 
 /// Root configuration structure.
@@ -295,6 +297,14 @@ impl Config {
         self.listen.format.as_deref()
     }
 
+    /// Get the listen timestamp format (strftime-style, default: "%H:%M:%S").
+    pub fn listen_timestamp_format(&self) -> &str {
+        self.listen
+            .timestamp_format
+            .as_deref()
+            .unwrap_or("%H:%M:%S")
+    }
+
     /// Valid provider names (including "auto").
     pub const VALID_PROVIDERS: &'static [&'static str] =
         &["claude", "codex", "gemini", "copilot", "ollama", "auto"];
@@ -319,6 +329,7 @@ impl Config {
             "ollama.size_medium" => self.ollama.size_medium.clone(),
             "ollama.size_large" => self.ollama.size_large.clone(),
             "listen.format" => self.listen.format.clone(),
+            "listen.timestamp_format" => self.listen.timestamp_format.clone(),
             _ => None,
         }
     }
@@ -371,8 +382,11 @@ impl Config {
                 }
                 self.listen.format = Some(v);
             }
+            "listen.timestamp_format" => {
+                self.listen.timestamp_format = Some(value.to_string());
+            }
             _ => anyhow::bail!(
-                "Unknown config key '{}'. Available: provider, model, auto_approve, model.claude, model.codex, model.gemini, model.copilot, model.ollama, auto.provider, auto.model, ollama.model, ollama.size, ollama.size_small, ollama.size_medium, ollama.size_large, listen.format",
+                "Unknown config key '{}'. Available: provider, model, auto_approve, model.claude, model.codex, model.gemini, model.copilot, model.ollama, auto.provider, auto.model, ollama.model, ollama.size, ollama.size_small, ollama.size_medium, ollama.size_large, listen.format, listen.timestamp_format",
                 key
             ),
         }
@@ -420,6 +434,8 @@ model = "medium"
 [listen]
 # Default output format for listen command: "text", "json", or "rich-text"
 # format = "text"
+# Timestamp format for --timestamps flag (strftime-style, default: "%H:%M:%S")
+# timestamp_format = "%H:%M:%S"
 "#
         .to_string()
     }

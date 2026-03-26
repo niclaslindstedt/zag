@@ -3,6 +3,7 @@
 use crate::config::Config;
 use crate::session_log::{AgentLogEvent, LogEventKind, SessionLogIndex};
 use anyhow::{Context, Result, bail};
+use chrono::{DateTime, Local};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -204,9 +205,32 @@ fn resolve_active_session(sessions_dir: &Path) -> Result<PathBuf> {
         .ok_or_else(|| anyhow::anyhow!("No session log files found"))
 }
 
+/// Format an RFC3339 timestamp string using a strftime-style format, converted to local time.
+fn format_ts(ts: &str, fmt: &str) -> String {
+    DateTime::parse_from_rfc3339(ts)
+        .map(|dt| dt.with_timezone(&Local).format(fmt).to_string())
+        .unwrap_or_else(|_| ts[..ts.len().min(19)].to_string())
+}
+
+/// Prepend a timestamp prefix to a formatted event string, preserving any leading newline.
+fn with_timestamp(ts_str: &str, text: &str) -> String {
+    if let Some(rest) = text.strip_prefix('\n') {
+        format!("\n[{}] {}", ts_str, rest)
+    } else {
+        format!("[{}] {}", ts_str, text)
+    }
+}
+
 /// Tail a session log file, printing events as they arrive.
 /// Returns when a SessionEnded event is seen or the process is interrupted.
-pub fn tail_session_log(path: &Path, format: ListenFormat, show_thinking: bool) -> Result<()> {
+pub fn tail_session_log(
+    path: &Path,
+    format: ListenFormat,
+    show_thinking: bool,
+    show_timestamps: bool,
+    config: &Config,
+) -> Result<()> {
+    let ts_fmt = config.listen_timestamp_format().to_string();
     let file = File::open(path)
         .with_context(|| format!("Failed to open session log: {}", path.display()))?;
     let mut reader = BufReader::new(file);
@@ -224,7 +248,7 @@ pub fn tail_session_log(path: &Path, format: ListenFormat, show_thinking: bool) 
 
             match format {
                 ListenFormat::Json => {
-                    // Pass through raw JSON
+                    // Pass through raw JSON (timestamps already in each event)
                     println!("{}", trimmed);
                 }
                 ListenFormat::Text | ListenFormat::RichText => {
@@ -236,7 +260,16 @@ pub fn tail_session_log(path: &Path, format: ListenFormat, show_thinking: bool) 
                                 format_event_text(&event, show_thinking)
                             };
                             if let Some(text) = formatted {
-                                println!("{}", text);
+                                if show_timestamps {
+                                    let ts_str = if format == ListenFormat::RichText {
+                                        format!("\x1b[2m[{}]\x1b[0m", format_ts(&event.ts, &ts_fmt))
+                                    } else {
+                                        format!("[{}]", format_ts(&event.ts, &ts_fmt))
+                                    };
+                                    println!("{}", with_timestamp(&ts_str, &text));
+                                } else {
+                                    println!("{}", text);
+                                }
                             }
                         }
                         Err(e) => {

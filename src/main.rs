@@ -248,6 +248,10 @@ enum Commands {
         #[arg(long)]
         show_thinking: bool,
 
+        /// Show timestamps for each event
+        #[arg(long)]
+        timestamps: bool,
+
         /// Root directory for session log resolution
         #[arg(short, long)]
         root: Option<String>,
@@ -618,6 +622,7 @@ async fn main() -> Result<()> {
             text: listen_text,
             rich_text,
             show_thinking,
+            timestamps,
             root,
         } => {
             let config = Config::load(root.as_deref()).unwrap_or_default();
@@ -630,7 +635,7 @@ async fn main() -> Result<()> {
                 root.as_deref(),
             )?;
             debug!("Listening to session log: {}", log_path.display());
-            listen::tail_session_log(&log_path, format, show_thinking)?;
+            listen::tail_session_log(&log_path, format, show_thinking, timestamps, &config)?;
         }
         Commands::Review {
             uncommitted,
