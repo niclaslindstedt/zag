@@ -2177,6 +2177,11 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     // Fall back to post-session discovery only if the live adapter didn't find one
     // (or found one identical to the wrapper UUID, which is not a real native ID).
     let live_discovered_id = log_coordinator.writer().get_provider_session_id();
+    // Use the effective workspace path (worktree/sandbox path if applicable) for provider
+    // session discovery, not plain.workspace_path which is always the original repo root.
+    let discovery_workspace = effective_root
+        .as_deref()
+        .or(plain.workspace_path.as_deref());
     let native_session_id = live_discovered_id
         .filter(|id| wrapper_session_id.is_none_or(|wid| id != wid))
         .or_else(|| {
@@ -2184,7 +2189,7 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
                 &provider,
                 wrapper_session_id,
                 root.as_deref(),
-                plain.workspace_path.as_deref(),
+                discovery_workspace,
             )
         });
     if let Some(ref native_id) = native_session_id {
