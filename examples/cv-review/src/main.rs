@@ -292,6 +292,7 @@ async fn run_recruiter_screen(
     rules: &ScoringRules,
     provider: &str,
     model: &str,
+    debug: bool,
 ) -> Result<RecruiterReview> {
     let w = &rules.weights;
     let prompt = format!(
@@ -337,6 +338,7 @@ Score each category from 1-10 and provide your assessment."#,
         .provider(provider)
         .model(model)
         .auto_approve(true)
+        .verbose(debug)
         .system_prompt(
             "You are an expert technical recruiter. \
              Evaluate candidates objectively based on evidence from their CV. \
@@ -353,6 +355,10 @@ Score each category from 1-10 and provide your assessment."#,
         .as_deref()
         .context("No result from recruiter screen")?;
 
+    if debug {
+        eprintln!("  [debug] Raw agent output ({} bytes):\n{}", text.len(), text);
+    }
+
     let cleaned = text
         .trim()
         .trim_start_matches("```json")
@@ -367,6 +373,7 @@ async fn run_committee_review(
     recruiter: &RecruiterReview,
     provider: &str,
     model: &str,
+    debug: bool,
 ) -> Result<CommitteeReview> {
     let recruiter_json =
         serde_json::to_string_pretty(recruiter).context("Failed to serialize recruiter review")?;
@@ -403,6 +410,7 @@ Provide your committee review with any score adjustments and final recommendatio
         .provider(provider)
         .model(model)
         .auto_approve(true)
+        .verbose(debug)
         .system_prompt(
             "You are a senior hiring committee member. \
              You calibrate recruiter scores, catch biases, and ensure hiring quality. \
@@ -419,6 +427,10 @@ Provide your committee review with any score adjustments and final recommendatio
         .result
         .as_deref()
         .context("No result from committee review")?;
+
+    if debug {
+        eprintln!("  [debug] Raw agent output ({} bytes):\n{}", text.len(), text);
+    }
 
     let cleaned = text
         .trim()
@@ -816,6 +828,7 @@ struct Args {
     rules: Option<PathBuf>,
     provider: String,
     model: String,
+    debug: bool,
 }
 
 fn parse_args() -> Result<Args> {
@@ -826,6 +839,7 @@ fn parse_args() -> Result<Args> {
     let mut rules = None;
     let mut provider = "claude".to_string();
     let mut model = "sonnet".to_string();
+    let mut debug = false;
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -843,6 +857,7 @@ fn parse_args() -> Result<Args> {
             }
             "--provider" | "-p" => provider = args.next().context("--provider requires a value")?,
             "--model" | "-m" => model = args.next().context("--model requires a value")?,
+            "--debug" | "-d" => debug = true,
             "--help" | "-h" => {
                 eprintln!(
                     "Usage: cv-review [OPTIONS]\n\n\
@@ -853,6 +868,7 @@ fn parse_args() -> Result<Args> {
                        --rules <PATH>     Scoring rules TOML file [default: built-in rules]\n  \
                        --provider, -p     LLM provider [default: claude]\n  \
                        --model, -m        Model name [default: sonnet]\n  \
+                       --debug, -d        Enable verbose agent output and print raw responses\n  \
                        --help, -h         Show this help\n\n\
                      Examples:\n  \
                        cv-review --cv cvs/01_alex_chen.txt --job jobs/senior_backend.txt\n  \
@@ -876,6 +892,7 @@ fn parse_args() -> Result<Args> {
         rules,
         provider,
         model,
+        debug,
     })
 }
 
@@ -960,7 +977,17 @@ async fn main() -> Result<()> {
         // Pass 1: Recruiter Screen
         eprintln!("  Pass 1: Recruiter Screen");
         let recruiter =
-            run_recruiter_screen(&cv_text, &job, &rules, &args.provider, &args.model).await?;
+            run_recruiter_screen(&cv_text, &job, &rules, &args.provider, &args.model, args.debug)
+                .await
+                .map_err(|e| {
+                    if !args.debug {
+                        eprintln!(
+                            "  \x1b[33m!\x1b[0m Tip: re-run with --debug for verbose agent output"
+                        );
+                        eprintln!("  \x1b[33m!\x1b[0m Claude session logs: ~/.claude/projects/");
+                    }
+                    e
+                })?;
         eprintln!(
             "  \x1b[32m✓\x1b[0m Score: {}/10, Recommendation: {}",
             recruiter.overall_score, recruiter.recommendation
@@ -968,8 +995,24 @@ async fn main() -> Result<()> {
 
         // Pass 2: Hiring Committee
         eprintln!("  Pass 2: Hiring Committee Review");
-        let committee =
-            run_committee_review(&cv_text, &job, &recruiter, &args.provider, &args.model).await?;
+        let committee = run_committee_review(
+            &cv_text,
+            &job,
+            &recruiter,
+            &args.provider,
+            &args.model,
+            args.debug,
+        )
+        .await
+        .map_err(|e| {
+            if !args.debug {
+                eprintln!(
+                    "  \x1b[33m!\x1b[0m Tip: re-run with --debug for verbose agent output"
+                );
+                eprintln!("  \x1b[33m!\x1b[0m Claude session logs: ~/.claude/projects/");
+            }
+            e
+        })?;
         eprintln!(
             "  \x1b[32m✓\x1b[0m Adjusted: {}/10, Final: {}",
             committee.adjusted_overall_score, committee.final_recommendation
