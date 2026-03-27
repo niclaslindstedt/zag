@@ -1,4 +1,4 @@
-pub use zag_lib::capability::*;
+pub use zag::capability::*;
 
 use crate::agent::{Agent, ModelSize};
 use crate::claude::{self, Claude};

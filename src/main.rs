@@ -1,21 +1,21 @@
 // Re-export core modules from zag-lib
-use zag_lib::agent;
-use zag_lib::auto_selector;
-use zag_lib::config;
-use zag_lib::factory;
-use zag_lib::json_validation;
-use zag_lib::mcp;
-use zag_lib::sandbox;
-use zag_lib::session;
-use zag_lib::skills;
-use zag_lib::worktree;
+use zag::agent;
+use zag::auto_selector;
+use zag::config;
+use zag::factory;
+use zag::json_validation;
+use zag::mcp;
+use zag::sandbox;
+use zag::session;
+use zag::skills;
+use zag::worktree;
 
 // Re-export provider modules
-use zag_lib::providers::claude;
-use zag_lib::providers::codex;
-use zag_lib::providers::copilot;
-use zag_lib::providers::gemini;
-use zag_lib::providers::ollama;
+use zag::providers::claude;
+use zag::providers::codex;
+use zag::providers::copilot;
+use zag::providers::gemini;
+use zag::providers::ollama;
 
 // Modules that remain in the binary crate
 mod capability;

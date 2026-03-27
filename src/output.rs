@@ -1,1 +1,1 @@
-pub use zag_lib::output::*;
+pub use zag::output::*;

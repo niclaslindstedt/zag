@@ -429,7 +429,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "toml",
- "zag-lib",
+ "zag",
 ]
 
 [[package]]
@@ -2662,6 +2662,28 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "dirs",
+ "hex",
+ "jsonschema",
+ "log",
+ "nix",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "tempfile",
+ "tokio",
+ "toml",
+ "uuid",
+]
+
+[[package]]
+name = "zag-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
  "clap",
  "dirs",
  "env_logger",
@@ -2679,29 +2701,7 @@ dependencies = [
  "tokio",
  "toml",
  "uuid",
- "zag-lib",
-]
-
-[[package]]
-name = "zag-lib"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "dirs",
- "hex",
- "jsonschema",
- "log",
- "nix",
- "serde",
- "serde_json",
- "serde_yaml",
- "sha2",
- "tempfile",
- "tokio",
- "toml",
- "uuid",
+ "zag",
 ]
 
 [[package]]

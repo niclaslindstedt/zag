@@ -13,8 +13,8 @@
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use zag_lib::builder::AgentBuilder;
-use zag_lib::progress::ProgressHandler;
+use zag::builder::AgentBuilder;
+use zag::progress::ProgressHandler;
 
 // ---------------------------------------------------------------------------
 // Data types

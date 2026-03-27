@@ -1,8 +1,9 @@
 [package]
-name = "zag-lib"
+name = "zag"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
+repository = "https://github.com/niclaslindstedt/zag"
 description = "Core library for zag — a unified CLI for AI coding agents"
 
 [dependencies]

@@ -4,7 +4,7 @@
 //! so that `zag run --resume <id>` can resume inside the correct workspace.
 
 use crate::config::Config;
-use zag_lib::session_log::{GlobalSessionEntry, upsert_global_entry};
+use zag::session_log::{GlobalSessionEntry, upsert_global_entry};
 use anyhow::{Context, Result};
 use chrono::{DateTime, FixedOffset};
 use log::debug;
