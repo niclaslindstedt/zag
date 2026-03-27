@@ -56,6 +56,17 @@ Control the output format with `-o <format>`:
     text           Default. Plain text from stdin.
     stream-json    Streaming NDJSON input for structured/realtime input.
 
+## Streaming Input Flags (Claude Only)
+
+    --replay-user-messages        Re-emit user messages from stdin on stdout. When using
+                                  stream-json input, this causes user messages sent via
+                                  stdin to appear in the output stream, useful for
+                                  rendering the full conversation.
+
+    --include-partial-messages    Include partial message chunks in streaming output.
+                                  Provides finer-grained streaming events showing
+                                  incremental content as it is generated.
+
 ## JSON Output Mode
 
 The `--json`, `--json-schema`, and `--json-stream` global flags provide a higher-level JSON mode designed for getting structured data from agents:
@@ -102,6 +113,13 @@ In exec mode, the sandbox is kept after execution (no cleanup prompt). Resume wi
     zag -p ollama --size 35b exec "complex task"      Ollama with large size
 
     echo '{"data":"input"}' | zag exec -i stream-json "process"     Structured input
+
+    # Streaming input with replay (see user messages in output)
+    echo '{"type":"user_message","content":"hello"}' | \
+      zag exec -i stream-json --replay-user-messages -o stream-json "chat"
+
+    # Include partial message chunks for fine-grained streaming
+    zag exec -i stream-json --include-partial-messages -o stream-json "task"
 
 ## See Also
 

@@ -73,6 +73,30 @@ fn test_build_run_args_input_format_only_non_interactive() {
 }
 
 #[test]
+fn test_build_run_args_replay_user_messages_only_non_interactive() {
+    let mut claude = Claude::new();
+    claude.replay_user_messages = true;
+
+    let interactive_args = claude.build_run_args(true, None, &None);
+    assert!(!interactive_args.contains(&"--replay-user-messages".to_string()));
+
+    let non_interactive_args = claude.build_run_args(false, Some("hello"), &None);
+    assert!(non_interactive_args.contains(&"--replay-user-messages".to_string()));
+}
+
+#[test]
+fn test_build_run_args_include_partial_messages_only_non_interactive() {
+    let mut claude = Claude::new();
+    claude.include_partial_messages = true;
+
+    let interactive_args = claude.build_run_args(true, None, &None);
+    assert!(!interactive_args.contains(&"--include-partial-messages".to_string()));
+
+    let non_interactive_args = claude.build_run_args(false, Some("hello"), &None);
+    assert!(non_interactive_args.contains(&"--include-partial-messages".to_string()));
+}
+
+#[test]
 fn test_build_resume_args() {
     let mut claude = Claude::new();
     claude.model = "sonnet".to_string();

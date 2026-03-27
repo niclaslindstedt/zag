@@ -38,6 +38,7 @@ pub struct Features {
     pub stream_json: FeatureSupport,
     pub json_schema: FeatureSupport,
     pub input_format: FeatureSupport,
+    pub streaming_input: FeatureSupport,
     pub worktree: FeatureSupport,
     pub sandbox: FeatureSupport,
     pub system_prompt: FeatureSupport,

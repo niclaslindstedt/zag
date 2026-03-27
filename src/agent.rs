@@ -126,6 +126,9 @@ pub trait Agent {
     /// Set additional directories for the agent to include.
     fn set_add_dirs(&mut self, dirs: Vec<String>);
 
+    /// Get a reference to the concrete agent type (for downcasting).
+    fn as_any_ref(&self) -> &dyn std::any::Any;
+
     /// Get a mutable reference to the concrete agent type (for downcasting).
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 

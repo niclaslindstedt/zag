@@ -132,6 +132,15 @@ public record InitEvent : Event
     public Dictionary<string, JsonElement> Metadata { get; init; } = [];
 }
 
+/// <summary>User message (replayed via --replay-user-messages).</summary>
+public record UserMessageEvent : Event
+{
+    public override string Type => "user_message";
+
+    [JsonPropertyName("content")]
+    public List<ContentBlock> Content { get; init; } = [];
+}
+
 /// <summary>Message from the assistant.</summary>
 public record AssistantMessageEvent : Event
 {
@@ -224,6 +233,7 @@ public class EventConverter : JsonConverter<Event>
         return type switch
         {
             "init" => JsonSerializer.Deserialize<InitEvent>(raw, ConverterFreeOptions)!,
+            "user_message" => JsonSerializer.Deserialize<UserMessageEvent>(raw, ConverterFreeOptions)!,
             "assistant_message" => JsonSerializer.Deserialize<AssistantMessageEvent>(raw, ConverterFreeOptions)!,
             "tool_execution" => JsonSerializer.Deserialize<ToolExecutionEvent>(raw, ConverterFreeOptions)!,
             "result" => JsonSerializer.Deserialize<ResultEvent>(raw, ConverterFreeOptions)!,

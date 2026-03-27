@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 from collections.abc import AsyncGenerator
 
-from .process import default_bin, exec_zag, run_zag, stream_zag
+from .process import default_bin, exec_zag, run_zag, stream_zag, stream_with_input
 from .types import AgentOutput, Event
 
 
@@ -44,6 +44,8 @@ class ZagBuilder:
         self._session_id: str | None = None
         self._output_format: str | None = None
         self._input_format: str | None = None
+        self._replay_user_messages: bool = False
+        self._include_partial_messages: bool = False
 
     # -- Configuration methods -----------------------------------------------
 
@@ -138,6 +140,16 @@ class ZagBuilder:
         self._input_format = f
         return self
 
+    def replay_user_messages(self, r: bool = True) -> ZagBuilder:
+        """Re-emit user messages from stdin on stdout (Claude only)."""
+        self._replay_user_messages = r
+        return self
+
+    def include_partial_messages(self, i: bool = True) -> ZagBuilder:
+        """Include partial message chunks in streaming output (Claude only)."""
+        self._include_partial_messages = i
+        return self
+
     # -- Arg building --------------------------------------------------------
 
     def _global_args(self) -> list[str]:
@@ -185,6 +197,10 @@ class ZagBuilder:
             args.extend(["-o", self._output_format])
         if self._input_format:
             args.extend(["-i", self._input_format])
+        if self._replay_user_messages:
+            args.append("--replay-user-messages")
+        if self._include_partial_messages:
+            args.append("--include-partial-messages")
         # Default to json output for structured parsing
         if not streaming and not self._output_format and not self._json_stream:
             args.extend(["-o", "json"])
@@ -203,6 +219,31 @@ class ZagBuilder:
         """
         args = self._exec_args(prompt)
         return await exec_zag(self._bin, args)
+
+    async def exec_streaming(self, prompt: str) -> "StreamingSession":
+        """Run the agent with streaming input and output (Claude only).
+
+        Returns a StreamingSession for bidirectional communication.
+
+        Example::
+
+            session = await ZagBuilder().provider("claude").exec_streaming("hello")
+            await session.send_user_message("do something")
+            async for event in session.events():
+                print(event.type)
+            await session.wait()
+        """
+        from .process import StreamingSession as _StreamingSession
+
+        args = self._global_args()
+        args.append("exec")
+        args.extend(["-i", "stream-json"])
+        args.extend(["-o", "stream-json"])
+        args.append("--replay-user-messages")
+        if self._include_partial_messages:
+            args.append("--include-partial-messages")
+        args.append(prompt)
+        return await _StreamingSession.create(self._bin, args)
 
     async def stream(self, prompt: str) -> AsyncGenerator[Event, None]:
         """Run the agent in streaming mode, yielding events as they arrive.

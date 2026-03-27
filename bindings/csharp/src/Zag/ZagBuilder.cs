@@ -36,6 +36,8 @@ public class ZagBuilder
     private string? _sessionId;
     private string? _outputFormat;
     private string? _inputFormat;
+    private bool _replayUserMessages;
+    private bool _includePartialMessages;
 
     // -- Configuration methods -----------------------------------------------
 
@@ -93,6 +95,12 @@ public class ZagBuilder
     /// <summary>Set the input format (Claude only, e.g., "text", "stream-json").</summary>
     public ZagBuilder InputFormat(string f) { _inputFormat = f; return this; }
 
+    /// <summary>Re-emit user messages from stdin on stdout (Claude only).</summary>
+    public ZagBuilder ReplayUserMessages(bool r = true) { _replayUserMessages = r; return this; }
+
+    /// <summary>Include partial message chunks in streaming output (Claude only).</summary>
+    public ZagBuilder IncludePartialMessages(bool i = true) { _includePartialMessages = i; return this; }
+
     // -- Arg building --------------------------------------------------------
 
     internal List<string> BuildGlobalArgs()
@@ -128,6 +136,8 @@ public class ZagBuilder
         if (_jsonStream || streaming) args.Add("--json-stream");
         if (_outputFormat != null) { args.Add("-o"); args.Add(_outputFormat); }
         if (_inputFormat != null) { args.Add("-i"); args.Add(_inputFormat); }
+        if (_replayUserMessages) args.Add("--replay-user-messages");
+        if (_includePartialMessages) args.Add("--include-partial-messages");
         // Default to json output for structured parsing
         if (!streaming && _outputFormat == null && !_jsonStream)
         {
@@ -152,6 +162,19 @@ public class ZagBuilder
     {
         var args = BuildExecArgs(prompt, streaming: true);
         return ZagProcess.StreamAsync(_bin, [.. args], ct);
+    }
+
+    /// <summary>Run the agent with streaming input and output (Claude only).</summary>
+    public StreamingSession ExecStreaming(string prompt)
+    {
+        var args = BuildGlobalArgs();
+        args.Add("exec");
+        args.Add("-i"); args.Add("stream-json");
+        args.Add("-o"); args.Add("stream-json");
+        args.Add("--replay-user-messages");
+        if (_includePartialMessages) args.Add("--include-partial-messages");
+        args.Add(prompt);
+        return ZagProcess.StartStreamingProcess(_bin, [.. args]);
     }
 
     /// <summary>Start an interactive agent session (inherits stdio).</summary>

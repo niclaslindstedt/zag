@@ -712,6 +712,20 @@ pub fn record_agent_output(writer: &SessionLogWriter, output: &AgentOutput) -> R
                     },
                 )?;
             }
+            Event::UserMessage { content } => {
+                for block in content {
+                    if let ContentBlock::Text { text } = block {
+                        writer.emit(
+                            LogSourceKind::Wrapper,
+                            LogEventKind::UserMessage {
+                                role: "user".to_string(),
+                                content: text.clone(),
+                                message_id: None,
+                            },
+                        )?;
+                    }
+                }
+            }
             Event::Result {
                 success,
                 message,

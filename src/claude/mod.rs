@@ -41,6 +41,8 @@ pub struct Claude {
     verbose: bool,
     json_schema: Option<String>,
     sandbox: Option<SandboxConfig>,
+    replay_user_messages: bool,
+    include_partial_messages: bool,
 }
 
 impl Claude {
@@ -58,11 +60,21 @@ impl Claude {
             verbose: false,
             json_schema: None,
             sandbox: None,
+            replay_user_messages: false,
+            include_partial_messages: false,
         }
     }
 
     pub fn set_input_format(&mut self, format: Option<String>) {
         self.input_format = format;
+    }
+
+    pub fn set_replay_user_messages(&mut self, replay: bool) {
+        self.replay_user_messages = replay;
+    }
+
+    pub fn set_include_partial_messages(&mut self, include: bool) {
+        self.include_partial_messages = include;
     }
 
     pub fn set_session_id(&mut self, session_id: String) {
@@ -129,6 +141,14 @@ impl Claude {
 
         if !interactive && let Some(ref input_fmt) = self.input_format {
             args.extend(["--input-format".to_string(), input_fmt.clone()]);
+        }
+
+        if !interactive && self.replay_user_messages {
+            args.push("--replay-user-messages".to_string());
+        }
+
+        if !interactive && self.include_partial_messages {
+            args.push("--include-partial-messages".to_string());
         }
 
         if let Some(ref schema) = self.json_schema {
@@ -473,7 +493,26 @@ fn convert_claude_event_to_unified(event: &models::ClaudeEvent) -> Option<crate:
                     result: tool_result,
                 })
             } else {
-                None
+                // Check for text content (replayed user messages via --replay-user-messages)
+                let text_blocks: Vec<UnifiedContentBlock> = message
+                    .content
+                    .iter()
+                    .filter_map(|b| {
+                        if let models::UserContentBlock::Text { text } = b {
+                            Some(UnifiedContentBlock::Text { text: text.clone() })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                if !text_blocks.is_empty() {
+                    Some(UnifiedEvent::UserMessage {
+                        content: text_blocks,
+                    })
+                } else {
+                    None
+                }
             }
         }
 
@@ -567,6 +606,10 @@ impl Agent for Claude {
 
     fn set_add_dirs(&mut self, dirs: Vec<String>) {
         self.add_dirs = dirs;
+    }
+
+    fn as_any_ref(&self) -> &dyn std::any::Any {
+        self
     }
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {

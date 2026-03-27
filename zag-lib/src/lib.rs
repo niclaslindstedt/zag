@@ -14,4 +14,5 @@ pub mod sandbox;
 pub mod session;
 pub mod session_log;
 pub mod skills;
+pub mod streaming;
 pub mod worktree;

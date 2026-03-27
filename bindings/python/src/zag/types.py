@@ -137,6 +137,19 @@ class InitEvent:
 
 
 @dataclass
+class UserMessageEvent:
+    """User message (replayed via --replay-user-messages)."""
+
+    type: str = "user_message"
+    content: list[ContentBlock] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> UserMessageEvent:
+        content = [_parse_content_block(b) for b in data.get("content", [])]
+        return cls(content=content)
+
+
+@dataclass
 class AssistantMessageEvent:
     """Message from the assistant."""
 
@@ -228,6 +241,7 @@ class PermissionRequestEvent:
 
 Event = (
     InitEvent
+    | UserMessageEvent
     | AssistantMessageEvent
     | ToolExecutionEvent
     | ResultEvent
@@ -237,6 +251,7 @@ Event = (
 
 _EVENT_PARSERS: dict[str, type] = {
     "init": InitEvent,
+    "user_message": UserMessageEvent,
     "assistant_message": AssistantMessageEvent,
     "tool_execution": ToolExecutionEvent,
     "result": ResultEvent,

@@ -66,6 +66,21 @@ AgentBuilder::new()
     .provider("claude")
     .resume("session-id")
     .await?;
+
+// Streaming input/output (Claude only)
+let mut session = AgentBuilder::new()
+    .provider("claude")
+    .replay_user_messages(true)
+    .include_partial_messages(true)
+    .exec_streaming("initial prompt")
+    .await?;
+
+session.send_user_message("follow-up question").await?;
+while let Some(event) = session.next_event().await? {
+    println!("{:?}", event);
+}
+session.close_input();
+session.wait().await?;
 ```
 
 Custom progress reporting:
@@ -92,6 +107,7 @@ AgentBuilder::new()
 |------|---------|
 | `zag-lib/src/lib.rs` | Library root — re-exports all modules |
 | `zag-lib/src/builder.rs` | `AgentBuilder` — high-level programmatic API |
+| `zag-lib/src/streaming.rs` | `StreamingSession` — bidirectional streaming with agents (Claude only) |
 | `zag-lib/src/progress.rs` | `ProgressHandler` trait and `SilentProgress` default |
 | `zag-lib/src/agent.rs` | `Agent` trait definition and `ModelSize` abstraction |
 | `zag-lib/src/factory.rs` | `AgentFactory` — creates and configures agents |

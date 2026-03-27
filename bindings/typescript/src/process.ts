@@ -102,6 +102,86 @@ export async function* streamZag(
 }
 
 /**
+ * A live streaming session with piped stdin and stdout.
+ *
+ * Send NDJSON messages via `send()`, read events via `events()`,
+ * then call `wait()` when done.
+ */
+export interface StreamingSession {
+  /** Send a raw NDJSON line to the agent's stdin. */
+  send(message: string): void;
+
+  /** Send a user message to the agent. */
+  sendUserMessage(content: string): void;
+
+  /** Close stdin to signal no more input. */
+  closeInput(): void;
+
+  /** Async iterator over parsed Event objects from stdout. */
+  events(): AsyncGenerator<Event>;
+
+  /** Wait for the process to exit. Throws ZagError on non-zero exit. */
+  wait(): Promise<void>;
+}
+
+/**
+ * Spawn `zag` with piped stdin and stdout for bidirectional streaming.
+ */
+export function streamWithInput(
+  bin: string,
+  args: string[],
+): StreamingSession {
+  const child = spawn(bin, args, { stdio: ["pipe", "pipe", "pipe"] });
+
+  const stderrChunks: Buffer[] = [];
+  child.stderr.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
+
+  return {
+    send(message: string) {
+      child.stdin.write(message + "\n");
+    },
+
+    sendUserMessage(content: string) {
+      const msg = JSON.stringify({ type: "user_message", content });
+      child.stdin.write(msg + "\n");
+    },
+
+    closeInput() {
+      child.stdin.end();
+    },
+
+    async *events(): AsyncGenerator<Event> {
+      const rl = createInterface({ input: child.stdout });
+      for await (const line of rl) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          const event: Event = JSON.parse(trimmed);
+          yield event;
+        } catch {
+          // Skip unparseable lines
+        }
+      }
+    },
+
+    wait(): Promise<void> {
+      return new Promise((resolve, reject) => {
+        child.on("close", (code) => {
+          if (code !== 0) {
+            const stderr = Buffer.concat(stderrChunks).toString();
+            reject(
+              new ZagError(`zag exited with code ${code}`, code, stderr),
+            );
+          } else {
+            resolve();
+          }
+        });
+      });
+    },
+  };
+}
+
+/**
  * Run `zag` interactively with inherited stdio.
  * Returns when the process exits.
  */

@@ -86,6 +86,80 @@ async def stream_zag(bin: str, args: list[str]) -> AsyncGenerator[Event, None]:
         )
 
 
+class StreamingSession:
+    """A live streaming session with piped stdin and stdout.
+
+    Send NDJSON messages via :meth:`send`, read events via :meth:`events`,
+    then call :meth:`wait` when done.
+    """
+
+    def __init__(self, proc: asyncio.subprocess.Process) -> None:
+        self._proc = proc
+
+    @classmethod
+    async def create(cls, bin: str, args: list[str]) -> "StreamingSession":
+        proc = await asyncio.create_subprocess_exec(
+            bin,
+            *args,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        return cls(proc)
+
+    async def send(self, message: str) -> None:
+        """Send a raw NDJSON line to the agent's stdin."""
+        assert self._proc.stdin is not None
+        self._proc.stdin.write((message + "\n").encode())
+        await self._proc.stdin.drain()
+
+    async def send_user_message(self, content: str) -> None:
+        """Send a user message to the agent."""
+        msg = json.dumps({"type": "user_message", "content": content})
+        await self.send(msg)
+
+    def close_input(self) -> None:
+        """Close stdin to signal no more input."""
+        if self._proc.stdin is not None:
+            self._proc.stdin.close()
+
+    async def events(self) -> AsyncGenerator[Event, None]:
+        """Async iterator over parsed Event objects from stdout."""
+        assert self._proc.stdout is not None
+        while True:
+            line = await self._proc.stdout.readline()
+            if not line:
+                break
+            text = line.decode().strip()
+            if not text:
+                continue
+            try:
+                data = json.loads(text)
+                yield parse_event(data)
+            except (json.JSONDecodeError, ValueError):
+                continue
+
+    async def wait(self) -> None:
+        """Wait for the process to exit. Raises ZagError on non-zero exit."""
+        self.close_input()
+        assert self._proc.stderr is not None
+        stderr_bytes = await self._proc.stderr.read()
+        await self._proc.wait()
+        if self._proc.returncode != 0:
+            stderr = stderr_bytes.decode()
+            raise ZagError(
+                f"zag exited with code {self._proc.returncode}",
+                self._proc.returncode,
+                stderr,
+            )
+
+
+def stream_with_input(bin: str, args: list[str]) -> StreamingSession:
+    """Create a StreamingSession (alias for StreamingSession.create)."""
+    # This is a sync wrapper that returns the coroutine; callers should await it
+    raise NotImplementedError("Use StreamingSession.create() directly")
+
+
 async def run_zag(bin: str, args: list[str]) -> None:
     """Run ``zag`` interactively with inherited stdio.
 

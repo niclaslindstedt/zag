@@ -37,6 +37,7 @@ use crate::progress::{ProgressHandler, SilentProgress};
 use crate::providers::claude::Claude;
 use crate::providers::ollama::Ollama;
 use crate::sandbox::SandboxConfig;
+use crate::streaming::StreamingSession;
 use crate::worktree;
 use anyhow::{Result, bail};
 use log::debug;
@@ -61,6 +62,8 @@ pub struct AgentBuilder {
     session_id: Option<String>,
     output_format: Option<String>,
     input_format: Option<String>,
+    replay_user_messages: bool,
+    include_partial_messages: bool,
     verbose: bool,
     quiet: bool,
     show_usage: bool,
@@ -92,6 +95,8 @@ impl AgentBuilder {
             session_id: None,
             output_format: None,
             input_format: None,
+            replay_user_messages: false,
+            include_partial_messages: false,
             verbose: false,
             quiet: false,
             show_usage: false,
@@ -188,6 +193,22 @@ impl AgentBuilder {
     /// Set the input format (Claude only, e.g., "text", "stream-json").
     pub fn input_format(mut self, format: &str) -> Self {
         self.input_format = Some(format.to_string());
+        self
+    }
+
+    /// Re-emit user messages from stdin on stdout (Claude only).
+    ///
+    /// Only works with `--input-format stream-json` and `--output-format stream-json`.
+    pub fn replay_user_messages(mut self, replay: bool) -> Self {
+        self.replay_user_messages = replay;
+        self
+    }
+
+    /// Include partial message chunks in streaming output (Claude only).
+    ///
+    /// Only works with `--output-format stream-json`.
+    pub fn include_partial_messages(mut self, include: bool) -> Self {
+        self.include_partial_messages = include;
         self
     }
 
@@ -293,6 +314,12 @@ impl AgentBuilder {
             if let Some(ref input_fmt) = self.input_format {
                 claude_agent.set_input_format(Some(input_fmt.clone()));
             }
+            if self.replay_user_messages {
+                claude_agent.set_replay_user_messages(true);
+            }
+            if self.include_partial_messages {
+                claude_agent.set_include_partial_messages(true);
+            }
             if self.json_mode
                 && let Some(ref schema) = self.json_schema
             {
@@ -395,6 +422,52 @@ impl AgentBuilder {
             // Agent returned no structured output — create a minimal one
             Ok(AgentOutput::from_text(&provider, ""))
         }
+    }
+
+    /// Run the agent with streaming input and output (Claude only).
+    ///
+    /// Returns a `StreamingSession` that allows sending NDJSON messages to
+    /// the agent's stdin and reading events from stdout. Automatically
+    /// configures `--input-format stream-json` and `--replay-user-messages`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use zag_lib::builder::AgentBuilder;
+    ///
+    /// # async fn example() -> anyhow::Result<()> {
+    /// let mut session = AgentBuilder::new()
+    ///     .provider("claude")
+    ///     .exec_streaming("initial prompt")
+    ///     .await?;
+    ///
+    /// session.send_user_message("do something").await?;
+    ///
+    /// while let Some(event) = session.next_event().await? {
+    ///     println!("{:?}", event);
+    /// }
+    ///
+    /// session.wait().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn exec_streaming(self, prompt: &str) -> Result<StreamingSession> {
+        let provider = self.resolve_provider()?;
+        debug!("exec_streaming: provider={}", provider);
+
+        if provider != "claude" {
+            bail!("Streaming input is only supported by the Claude provider");
+        }
+
+        let agent = self.create_agent(&provider)?;
+
+        // Downcast to Claude to call execute_streaming
+        let claude_agent = agent
+            .as_any_ref()
+            .downcast_ref::<Claude>()
+            .ok_or_else(|| anyhow::anyhow!("Failed to downcast agent to Claude"))?;
+
+        claude_agent.execute_streaming(Some(prompt))
     }
 
     /// Start an interactive agent session.
@@ -501,6 +574,17 @@ mod tests {
     fn test_resolve_provider_invalid() {
         let builder = AgentBuilder::new().provider("invalid");
         assert!(builder.resolve_provider().is_err());
+    }
+
+    #[test]
+    fn test_builder_streaming_flags() {
+        let builder = AgentBuilder::new()
+            .provider("claude")
+            .replay_user_messages(true)
+            .include_partial_messages(true);
+
+        assert!(builder.replay_user_messages);
+        assert!(builder.include_partial_messages);
     }
 
     #[test]

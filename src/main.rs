@@ -152,6 +152,14 @@ enum Commands {
         #[arg(short = 'i', long)]
         input_format: Option<String>,
 
+        /// Re-emit user messages from stdin on stdout (Claude only, requires -i stream-json -o stream-json)
+        #[arg(long)]
+        replay_user_messages: bool,
+
+        /// Include partial message chunks in streaming output (Claude only, requires -o stream-json)
+        #[arg(long)]
+        include_partial_messages: bool,
+
         #[command(flatten)]
         agent: AgentArgs,
 
@@ -1401,6 +1409,8 @@ struct AgentSetupParams {
     add_dirs: Vec<String>,
     output_format: Option<String>,
     input_format: Option<String>,
+    replay_user_messages: bool,
+    include_partial_messages: bool,
     verbose: bool,
     json_mode: bool,
     json_stream: bool,
@@ -1442,6 +1452,12 @@ fn create_and_configure_agent(
         }
         if let Some(input_fmt) = p.input_format {
             claude_agent.set_input_format(Some(input_fmt));
+        }
+        if p.replay_user_messages {
+            claude_agent.set_replay_user_messages(true);
+        }
+        if p.include_partial_messages {
+            claude_agent.set_include_partial_messages(true);
         }
         if p.json_mode
             && let Some(schema) = json_schema
@@ -1953,15 +1969,23 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
             .or_else(|| plain.workspace_path.clone())
     };
 
-    // Extract output/input format from exec action
-    let (output_format, input_format) = match &action {
-        Commands::Exec {
-            output,
-            input_format,
-            ..
-        } => (output.clone(), input_format.clone()),
-        _ => (None, None),
-    };
+    // Extract output/input format and streaming flags from exec action
+    let (output_format, input_format, replay_user_messages, include_partial_messages) =
+        match &action {
+            Commands::Exec {
+                output,
+                input_format,
+                replay_user_messages,
+                include_partial_messages,
+                ..
+            } => (
+                output.clone(),
+                input_format.clone(),
+                *replay_user_messages,
+                *include_partial_messages,
+            ),
+            _ => (None, None, false, false),
+        };
 
     if let Some(ref o) = output_format {
         debug!("Output format: {}", o);
@@ -1982,6 +2006,8 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
             add_dirs,
             output_format,
             input_format,
+            replay_user_messages,
+            include_partial_messages,
             verbose,
             json_mode,
             json_stream,

@@ -22,6 +22,7 @@ export interface Usage {
 /** A single event in an agent session (tagged union on `type`). */
 export type Event =
   | InitEvent
+  | UserMessageEvent
   | AssistantMessageEvent
   | ToolExecutionEvent
   | ResultEvent
@@ -34,6 +35,11 @@ export interface InitEvent {
   tools: string[];
   working_directory: string | null;
   metadata: Record<string, unknown>;
+}
+
+export interface UserMessageEvent {
+  type: "user_message";
+  content: ContentBlock[];
 }
 
 export interface AssistantMessageEvent {

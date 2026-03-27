@@ -100,6 +100,24 @@ public static class ZagProcess
         }
     }
 
+    /// <summary>Start a streaming process with piped stdin and stdout.</summary>
+    public static StreamingSession StartStreamingProcess(string bin, string[] args)
+    {
+        var psi = new ProcessStartInfo(bin)
+        {
+            UseShellExecute = false,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        foreach (var arg in args) psi.ArgumentList.Add(arg);
+
+        var process = Process.Start(psi)
+            ?? throw new ZagException($"Failed to start '{bin}'", null, "");
+
+        return new StreamingSession(process);
+    }
+
     /// <summary>Run zag interactively with inherited stdio.</summary>
     public static async Task RunAsync(string bin, string[] args, CancellationToken ct = default)
     {
@@ -123,6 +141,11 @@ public static class ZagProcess
         }
     }
 
+    private static readonly JsonSerializerOptions StreamJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
     private static Process StartProcess(string bin, string[] args, bool captureStdout)
     {
         var psi = new ProcessStartInfo(bin)
@@ -136,5 +159,96 @@ public static class ZagProcess
 
         return Process.Start(psi)
             ?? throw new ZagException($"Failed to start '{bin}'", null, "");
+    }
+}
+
+/// <summary>A live streaming session with piped stdin and stdout.</summary>
+public sealed class StreamingSession : IDisposable
+{
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
+    private readonly Process _process;
+
+    internal StreamingSession(Process process)
+    {
+        _process = process;
+    }
+
+    /// <summary>Send a raw NDJSON line to the agent's stdin.</summary>
+    public void Send(string message)
+    {
+        _process.StandardInput.WriteLine(message);
+        _process.StandardInput.Flush();
+    }
+
+    /// <summary>Send a user message to the agent.</summary>
+    public void SendUserMessage(string content)
+    {
+        var msg = JsonSerializer.Serialize(new { type = "user_message", content });
+        Send(msg);
+    }
+
+    /// <summary>Close stdin to signal no more input.</summary>
+    public void CloseInput()
+    {
+        _process.StandardInput.Close();
+    }
+
+    /// <summary>Async iterator over parsed Event objects from stdout.</summary>
+    public async IAsyncEnumerable<Event> Events(
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            var line = await _process.StandardOutput.ReadLineAsync(ct);
+            if (line == null) break;
+
+            var trimmed = line.Trim();
+            if (string.IsNullOrEmpty(trimmed)) continue;
+
+            Event? evt;
+            try
+            {
+                evt = JsonSerializer.Deserialize<Event>(trimmed, JsonOptions);
+            }
+            catch (JsonException)
+            {
+                continue;
+            }
+
+            if (evt != null)
+                yield return evt;
+        }
+    }
+
+    /// <summary>Wait for the process to exit. Throws ZagException on non-zero exit.</summary>
+    public async Task WaitAsync(CancellationToken ct = default)
+    {
+        CloseInput();
+
+        var stderrBuilder = new StringBuilder();
+        _process.ErrorDataReceived += (_, e) =>
+        {
+            if (e.Data != null) stderrBuilder.AppendLine(e.Data);
+        };
+        _process.BeginErrorReadLine();
+
+        await _process.WaitForExitAsync(ct);
+
+        if (_process.ExitCode != 0)
+        {
+            throw new ZagException(
+                $"zag exited with code {_process.ExitCode}",
+                _process.ExitCode,
+                stderrBuilder.ToString());
+        }
+    }
+
+    public void Dispose()
+    {
+        _process.Dispose();
     }
 }

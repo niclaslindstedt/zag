@@ -51,6 +51,9 @@ pub enum Event {
         metadata: HashMap<String, serde_json::Value>,
     },
 
+    /// Message from the user (replayed via --replay-user-messages)
+    UserMessage { content: Vec<ContentBlock> },
+
     /// Message from the assistant
     AssistantMessage {
         content: Vec<ContentBlock>,
@@ -360,6 +363,29 @@ fn event_to_log_entry(event: &Event) -> Option<LogEntry> {
                 timestamp: None,
             })
         }
+
+        Event::UserMessage { content } => {
+            let texts: Vec<String> = content
+                .iter()
+                .filter_map(|b| {
+                    if let ContentBlock::Text { text } = b {
+                        Some(text.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            if texts.is_empty() {
+                None
+            } else {
+                Some(LogEntry {
+                    level: LogLevel::Info,
+                    message: texts.join("\n"),
+                    data: None,
+                    timestamp: None,
+                })
+            }
+        }
     }
 }
 
@@ -415,6 +441,24 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
     match event {
         Event::Init { model, .. } => {
             Some(format!("\x1b[32m✓\x1b[0m Initialized with model {}", model))
+        }
+
+        Event::UserMessage { content } => {
+            let texts: Vec<String> = content
+                .iter()
+                .filter_map(|block| {
+                    if let ContentBlock::Text { text } = block {
+                        Some(format!("{}> {}{}", DIM, text, RESET))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            if texts.is_empty() {
+                None
+            } else {
+                Some(texts.join("\n"))
+            }
         }
 
         Event::AssistantMessage { content, .. } => {

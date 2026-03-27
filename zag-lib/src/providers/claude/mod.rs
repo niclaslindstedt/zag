@@ -51,6 +51,8 @@ pub struct Claude {
     json_schema: Option<String>,
     sandbox: Option<SandboxConfig>,
     event_handler: Option<EventHandler>,
+    replay_user_messages: bool,
+    include_partial_messages: bool,
 }
 
 impl Claude {
@@ -69,6 +71,8 @@ impl Claude {
             json_schema: None,
             sandbox: None,
             event_handler: None,
+            replay_user_messages: false,
+            include_partial_messages: false,
         }
     }
 
@@ -86,6 +90,14 @@ impl Claude {
 
     pub fn set_json_schema(&mut self, schema: Option<String>) {
         self.json_schema = schema;
+    }
+
+    pub fn set_replay_user_messages(&mut self, replay: bool) {
+        self.replay_user_messages = replay;
+    }
+
+    pub fn set_include_partial_messages(&mut self, include: bool) {
+        self.include_partial_messages = include;
     }
 
     /// Set a callback to receive streaming events during non-interactive execution.
@@ -150,6 +162,14 @@ impl Claude {
             args.extend(["--input-format".to_string(), input_fmt.clone()]);
         }
 
+        if !interactive && self.replay_user_messages {
+            args.push("--replay-user-messages".to_string());
+        }
+
+        if !interactive && self.include_partial_messages {
+            args.push("--include-partial-messages".to_string());
+        }
+
         if let Some(ref schema) = self.json_schema {
             args.extend(["--json-schema".to_string(), schema.clone()]);
         }
@@ -198,6 +218,65 @@ impl Claude {
             cmd.args(&agent_args);
             cmd
         }
+    }
+
+    /// Spawn a streaming session with piped stdin/stdout.
+    ///
+    /// Automatically configures `--input-format stream-json`, `--output-format stream-json`,
+    /// and `--replay-user-messages`. Returns a `StreamingSession` for bidirectional
+    /// communication with the agent.
+    pub fn execute_streaming(
+        &self,
+        prompt: Option<&str>,
+    ) -> Result<crate::streaming::StreamingSession> {
+        // Build args for non-interactive streaming mode
+        let mut args = Vec::new();
+        let in_sandbox = self.sandbox.is_some();
+
+        args.push("--print".to_string());
+        args.extend(["--verbose", "--output-format", "stream-json"].map(String::from));
+
+        if self.skip_permissions && !in_sandbox {
+            args.push("--dangerously-skip-permissions".to_string());
+        }
+
+        args.extend(["--model".to_string(), self.model.clone()]);
+
+        for dir in &self.add_dirs {
+            args.extend(["--add-dir".to_string(), dir.clone()]);
+        }
+
+        if !self.system_prompt.is_empty() {
+            args.extend([
+                "--append-system-prompt".to_string(),
+                self.system_prompt.clone(),
+            ]);
+        }
+
+        args.extend(["--input-format".to_string(), "stream-json".to_string()]);
+        args.push("--replay-user-messages".to_string());
+
+        if self.include_partial_messages {
+            args.push("--include-partial-messages".to_string());
+        }
+
+        if let Some(ref schema) = self.json_schema {
+            args.extend(["--json-schema".to_string(), schema.clone()]);
+        }
+
+        if let Some(p) = prompt {
+            args.push(p.to_string());
+        }
+
+        log::debug!("Claude streaming command: claude {}", args.join(" "));
+
+        let mut cmd = self.make_command(args);
+        cmd.stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        let child = cmd.spawn()?;
+        crate::streaming::StreamingSession::new(child)
     }
 
     async fn execute(
@@ -469,7 +548,26 @@ fn convert_claude_event_to_unified(event: &models::ClaudeEvent) -> Option<crate:
                     result: tool_result,
                 })
             } else {
-                None
+                // Check for text content (replayed user messages via --replay-user-messages)
+                let text_blocks: Vec<UnifiedContentBlock> = message
+                    .content
+                    .iter()
+                    .filter_map(|b| {
+                        if let models::UserContentBlock::Text { text } = b {
+                            Some(UnifiedContentBlock::Text { text: text.clone() })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                if !text_blocks.is_empty() {
+                    Some(UnifiedEvent::UserMessage {
+                        content: text_blocks,
+                    })
+                } else {
+                    None
+                }
             }
         }
 
@@ -563,6 +661,10 @@ impl Agent for Claude {
 
     fn set_add_dirs(&mut self, dirs: Vec<String>) {
         self.add_dirs = dirs;
+    }
+
+    fn as_any_ref(&self) -> &dyn std::any::Any {
+        self
     }
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {

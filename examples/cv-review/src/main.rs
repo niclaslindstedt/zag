@@ -356,7 +356,11 @@ Score each category from 1-10 and provide your assessment."#,
         .context("No result from recruiter screen")?;
 
     if debug {
-        eprintln!("  [debug] Raw agent output ({} bytes):\n{}", text.len(), text);
+        eprintln!(
+            "  [debug] Raw agent output ({} bytes):\n{}",
+            text.len(),
+            text
+        );
     }
 
     let cleaned = text
@@ -429,7 +433,11 @@ Provide your committee review with any score adjustments and final recommendatio
         .context("No result from committee review")?;
 
     if debug {
-        eprintln!("  [debug] Raw agent output ({} bytes):\n{}", text.len(), text);
+        eprintln!(
+            "  [debug] Raw agent output ({} bytes):\n{}",
+            text.len(),
+            text
+        );
     }
 
     let cleaned = text
@@ -976,18 +984,22 @@ async fn main() -> Result<()> {
 
         // Pass 1: Recruiter Screen
         eprintln!("  Pass 1: Recruiter Screen");
-        let recruiter =
-            run_recruiter_screen(&cv_text, &job, &rules, &args.provider, &args.model, args.debug)
-                .await
-                .map_err(|e| {
-                    if !args.debug {
-                        eprintln!(
-                            "  \x1b[33m!\x1b[0m Tip: re-run with --debug for verbose agent output"
-                        );
-                        eprintln!("  \x1b[33m!\x1b[0m Claude session logs: ~/.claude/projects/");
-                    }
-                    e
-                })?;
+        let recruiter = run_recruiter_screen(
+            &cv_text,
+            &job,
+            &rules,
+            &args.provider,
+            &args.model,
+            args.debug,
+        )
+        .await
+        .map_err(|e| {
+            if !args.debug {
+                eprintln!("  \x1b[33m!\x1b[0m Tip: re-run with --debug for verbose agent output");
+                eprintln!("  \x1b[33m!\x1b[0m Claude session logs: ~/.claude/projects/");
+            }
+            e
+        })?;
         eprintln!(
             "  \x1b[32m✓\x1b[0m Score: {}/10, Recommendation: {}",
             recruiter.overall_score, recruiter.recommendation
@@ -1006,9 +1018,7 @@ async fn main() -> Result<()> {
         .await
         .map_err(|e| {
             if !args.debug {
-                eprintln!(
-                    "  \x1b[33m!\x1b[0m Tip: re-run with --debug for verbose agent output"
-                );
+                eprintln!("  \x1b[33m!\x1b[0m Tip: re-run with --debug for verbose agent output");
                 eprintln!("  \x1b[33m!\x1b[0m Claude session logs: ~/.claude/projects/");
             }
             e

@@ -1,5 +1,12 @@
 import type { AgentOutput, Event } from "./types.js";
-import { defaultBin, execZag, runZag, streamZag } from "./process.js";
+import {
+  defaultBin,
+  execZag,
+  runZag,
+  streamZag,
+  streamWithInput,
+} from "./process.js";
+import type { StreamingSession } from "./process.js";
 
 /**
  * Fluent builder for configuring and running zag agent sessions.
@@ -36,6 +43,8 @@ export class ZagBuilder {
   private _sessionId?: string;
   private _outputFormat?: string;
   private _inputFormat?: string;
+  private _replayUserMessages = false;
+  private _includePartialMessages = false;
 
   /** Override the zag binary path (default: `ZAG_BIN` env or `"zag"`). */
   bin(path: string): this {
@@ -146,6 +155,18 @@ export class ZagBuilder {
     return this;
   }
 
+  /** Re-emit user messages from stdin on stdout (Claude only). */
+  replayUserMessages(r = true): this {
+    this._replayUserMessages = r;
+    return this;
+  }
+
+  /** Include partial message chunks in streaming output (Claude only). */
+  includePartialMessages(i = true): this {
+    this._includePartialMessages = i;
+    return this;
+  }
+
   /** Build the shared CLI flags (before the subcommand). */
   private buildGlobalArgs(): string[] {
     const args: string[] = [];
@@ -183,6 +204,8 @@ export class ZagBuilder {
     if (this._jsonStream || streaming) args.push("--json-stream");
     if (this._outputFormat) args.push("-o", this._outputFormat);
     if (this._inputFormat) args.push("-i", this._inputFormat);
+    if (this._replayUserMessages) args.push("--replay-user-messages");
+    if (this._includePartialMessages) args.push("--include-partial-messages");
     // For non-streaming exec, default to json output for structured parsing
     if (!streaming && !this._outputFormat && !this._jsonStream) {
       args.push("-o", "json");
@@ -222,6 +245,41 @@ export class ZagBuilder {
   async *stream(prompt: string): AsyncGenerator<Event> {
     const args = this.buildExecArgs(prompt, true);
     yield* streamZag(this._bin, args);
+  }
+
+  /**
+   * Run the agent with streaming input and output (Claude only).
+   *
+   * Returns a StreamingSession with piped stdin for sending NDJSON messages
+   * and an async iterator for reading events. Automatically enables
+   * `--input-format stream-json`, `--replay-user-messages`, and
+   * `-o stream-json`.
+   *
+   * @example
+   * ```ts
+   * const session = new ZagBuilder()
+   *   .provider("claude")
+   *   .execStreaming("initial prompt");
+   *
+   * session.send('{"type":"user_message","content":"hello"}');
+   *
+   * for await (const event of session.events()) {
+   *   console.log(event.type);
+   * }
+   *
+   * await session.wait();
+   * ```
+   */
+  execStreaming(prompt: string): StreamingSession {
+    const args = this.buildGlobalArgs();
+    args.push("exec");
+    args.push("-i", "stream-json");
+    args.push("-o", "stream-json");
+    args.push("--replay-user-messages");
+    if (this._includePartialMessages) args.push("--include-partial-messages");
+    if (this._outputFormat) args.push("-o", this._outputFormat);
+    args.push(prompt);
+    return streamWithInput(this._bin, args);
   }
 
   /**
