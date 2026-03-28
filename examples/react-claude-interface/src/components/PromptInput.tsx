@@ -19,6 +19,9 @@ export function PromptInput({ onSubmit, disabled, placeholder }: Props) {
     if (!trimmed || disabled) return;
     onSubmit(trimmed);
     setValue("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -29,11 +32,11 @@ export function PromptInput({ onSubmit, disabled, placeholder }: Props) {
   };
 
   return (
-    <div className="prompt-input-container">
-      <div className="prompt-input-wrapper">
+    <div className="px-6 py-4 border-t border-zinc-800/80 bg-zinc-900/60 backdrop-blur-sm">
+      <div className="flex items-end gap-3 bg-zinc-800/40 border border-zinc-700/50 rounded-xl px-4 py-3 transition-all focus-within:border-amber-700/40 focus-within:ring-1 focus-within:ring-amber-700/20">
         <textarea
           ref={textareaRef}
-          className="prompt-input"
+          className="flex-1 bg-transparent border-none outline-none text-zinc-100 text-sm font-sans resize-none min-h-[21px] max-h-[200px] placeholder:text-zinc-600 disabled:opacity-40"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -47,21 +50,18 @@ export function PromptInput({ onSubmit, disabled, placeholder }: Props) {
           }}
         />
         <button
-          className="prompt-send"
+          className="bg-amber-600 hover:bg-amber-500 disabled:opacity-25 disabled:cursor-not-allowed text-zinc-950 rounded-lg w-8 h-8 flex items-center justify-center flex-shrink-0 transition-colors"
           onClick={handleSubmit}
           disabled={disabled || !value.trim()}
           title="Send (Enter)"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path
-              d="M3 13L13 8L3 3V7L9 8L3 9V13Z"
-              fill="currentColor"
-            />
+            <path d="M3 13L13 8L3 3V7L9 8L3 9V13Z" fill="currentColor" />
           </svg>
         </button>
       </div>
-      <div className="prompt-hint">
-        Press <kbd>Enter</kbd> to send, <kbd>Shift+Enter</kbd> for new line
+      <div className="text-zinc-600 text-xs text-center mt-2">
+        Press <kbd className="font-mono text-[10px] px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded">Enter</kbd> to send, <kbd className="font-mono text-[10px] px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded">Shift+Enter</kbd> for new line
       </div>
     </div>
   );

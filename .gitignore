@@ -18,3 +18,8 @@ bindings/python/.pytest_cache/
 bindings/python/src/*.egg-info/
 bindings/csharp/**/bin/
 bindings/csharp/**/obj/
+
+# Example app build artifacts
+examples/react-claude-interface/node_modules/
+examples/react-claude-interface/dist/
+examples/react-claude-interface/package-lock.json

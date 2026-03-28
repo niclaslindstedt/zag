@@ -6,16 +6,11 @@ import { ThinkingBlock } from "./ThinkingBlock";
 
 interface Props {
   events: AgentLogEvent[];
+  isStreaming?: boolean;
 }
 
-/**
- * Build a map of tool_id -> ToolResult for pairing calls with results.
- */
 function buildToolResultMap(events: AgentLogEvent[]) {
-  const map = new Map<
-    string,
-    ToolResultEvent & { seq: number; ts: string }
-  >();
+  const map = new Map<string, ToolResultEvent & { seq: number; ts: string }>();
   for (const e of events) {
     if (e.type === "tool_result" && e.tool_id) {
       map.set(e.tool_id, e as ToolResultEvent & { seq: number; ts: string });
@@ -24,33 +19,50 @@ function buildToolResultMap(events: AgentLogEvent[]) {
   return map;
 }
 
-export function MessageList({ events }: Props) {
+function StreamingDots() {
+  return (
+    <div className="flex items-center gap-1.5 py-3 pl-6">
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+    </div>
+  );
+}
+
+export function MessageList({ events, isStreaming }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const toolResults = buildToolResultMap(events);
 
-  // Auto-scroll to bottom on new events
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [events.length]);
 
-  // Track which tool_ids we've already rendered (via their call)
   const renderedToolResults = new Set<string>();
 
+  // Check if the last event suggests we're waiting for more
+  const lastEvent = events[events.length - 1];
+  const showStreamingDots =
+    isStreaming &&
+    lastEvent &&
+    lastEvent.type !== "assistant_message" &&
+    lastEvent.type !== "session_ended";
+
   return (
-    <div className="message-list">
+    <div className="flex flex-col gap-0.5">
       {events.map((event) => {
         switch (event.type) {
           case "session_started":
             return (
-              <div key={event.seq} className="system-message">
-                <span className="system-icon">{"\u25CF"}</span>
-                Session started
-                {event.model && (
-                  <span className="system-detail"> — {event.model}</span>
-                )}
-                {event.cwd && (
-                  <span className="system-detail"> in {event.cwd}</span>
-                )}
+              <div key={event.seq} className="flex items-center gap-3 py-2 my-2">
+                <div className="flex-1 h-px bg-zinc-800" />
+                <span className="text-xs text-zinc-600 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Session started
+                  {event.model && (
+                    <span className="font-mono text-zinc-500">{event.model}</span>
+                  )}
+                </span>
+                <div className="flex-1 h-px bg-zinc-800" />
               </div>
             );
 
@@ -84,10 +96,7 @@ export function MessageList({ events }: Props) {
             );
 
           case "tool_call": {
-            const call = event as ToolCallEvent & {
-              seq: number;
-              ts: string;
-            };
+            const call = event as ToolCallEvent & { seq: number; ts: string };
             const result = call.tool_id
               ? toolResults.get(call.tool_id)
               : undefined;
@@ -115,11 +124,8 @@ export function MessageList({ events }: Props) {
           }
 
           case "tool_result": {
-            // Skip if already rendered with its call
             const tr = event as ToolResultEvent & { seq: number };
             if (tr.tool_id && renderedToolResults.has(tr.tool_id)) return null;
-
-            // Orphaned result (no matching call)
             return (
               <ToolBlock
                 key={event.seq}
@@ -137,44 +143,44 @@ export function MessageList({ events }: Props) {
 
           case "permission":
             return (
-              <div key={event.seq} className="system-message permission">
-                <span className="system-icon">
-                  {event.granted ? "\u{1F513}" : "\u{1F512}"}
+              <div key={event.seq} className="flex items-center gap-2 py-1 text-xs text-yellow-500/80">
+                <span>{event.granted ? "\u{1F513}" : "\u{1F512}"}</span>
+                <span className="font-medium">
+                  {event.granted ? "Allowed" : "Denied"}:
                 </span>
-                <span>
-                  {event.granted ? "Allowed" : "Denied"}: {event.tool_name}
-                </span>
-                <span className="system-detail"> — {event.description}</span>
+                <span className="font-mono text-yellow-400/60">{event.tool_name}</span>
+                <span className="text-zinc-600">{event.description}</span>
               </div>
             );
 
           case "session_ended":
             return (
-              <div
-                key={event.seq}
-                className={`system-message ${event.success ? "" : "system-message--error"}`}
-              >
-                <span className="system-icon">{"\u25CF"}</span>
-                Session ended
-                {event.error && (
-                  <span className="system-detail"> — {event.error}</span>
-                )}
+              <div key={event.seq} className="flex items-center gap-3 py-2 my-2">
+                <div className="flex-1 h-px bg-zinc-800" />
+                <span className={`text-xs flex items-center gap-2 ${event.success ? "text-zinc-600" : "text-red-400"}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${event.success ? "bg-zinc-600" : "bg-red-500"}`} />
+                  Session ended
+                  {event.error && (
+                    <span className="text-red-400/70">{event.error}</span>
+                  )}
+                </span>
+                <div className="flex-1 h-px bg-zinc-800" />
               </div>
             );
 
           case "provider_status":
             return (
-              <div key={event.seq} className="system-message status">
-                <span className="system-icon">{">"}</span>
+              <div key={event.seq} className="flex items-center gap-2 py-0.5 text-xs text-zinc-600 italic">
+                <span className="text-zinc-700">{">"}</span>
                 {event.message}
               </div>
             );
 
           case "stderr":
             return (
-              <div key={event.seq} className="system-message stderr">
-                <span className="system-icon">!</span>
-                {event.message}
+              <div key={event.seq} className="flex items-center gap-2 py-0.5 text-xs text-red-400/60">
+                <span className="text-red-500/50">!</span>
+                <span className="font-mono">{event.message}</span>
               </div>
             );
 
@@ -182,6 +188,8 @@ export function MessageList({ events }: Props) {
             return null;
         }
       })}
+
+      {showStreamingDots && <StreamingDots />}
       <div ref={bottomRef} />
     </div>
   );

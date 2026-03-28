@@ -18,28 +18,28 @@ export default function App() {
   };
 
   return (
-    <div className="app">
-      <StatusBar
-        status={status}
-        sessionId={sessionId}
-        model={model}
-      />
+    <div className="flex flex-col h-screen max-w-4xl mx-auto">
+      <StatusBar status={status} sessionId={sessionId} model={model} />
 
-      <div className="main">
+      <div className="flex-1 overflow-y-auto px-6 py-4 scrollbar-thin">
         {events.length === 0 && status === "idle" ? (
-          <div className="empty-state">
-            <div className="empty-logo">zag</div>
-            <p className="empty-text">
+          <div className="flex flex-col items-center justify-center h-full gap-4 animate-fade-in">
+            <div className="font-mono text-6xl font-semibold bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent opacity-80">
+              zag
+            </div>
+            <p className="text-zinc-500 text-sm">
               Send a prompt to start a session with Claude.
             </p>
           </div>
         ) : (
-          <MessageList events={events} />
+          <MessageList events={events} isStreaming={isStreaming} />
         )}
       </div>
 
       {error && status === "error" && (
-        <div className="error-banner">{error}</div>
+        <div className="px-6 py-3 bg-red-950/50 text-red-400 text-sm border-t border-red-900/50">
+          {error}
+        </div>
       )}
 
       <PromptInput
