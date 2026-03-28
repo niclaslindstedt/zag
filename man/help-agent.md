@@ -14,6 +14,7 @@ zag run --resume <id>          Resume a specific session
 zag review --uncommitted       Code review (uses Codex)
 zag config [key] [value]       View or set configuration
 zag session list               List all tracked sessions
+zag search "<query>"           Search through session logs
 zag listen <id>                Tail a session's log events in real-time
 zag capability [-p provider]   Show provider capability declarations
 zag skills list                List provider-agnostic skills
@@ -242,4 +243,5 @@ zag man session      Session management
 zag man listen       Real-time session log tailing
 zag man capability   Provider capability declarations
 zag man skills       Provider-agnostic skill management
+zag man search       Search through session logs
 ```

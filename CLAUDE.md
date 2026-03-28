@@ -123,6 +123,7 @@ AgentBuilder::new()
 | `zag-lib/src/json_validation.rs` | JSON and JSON Schema validation utilities |
 | `zag-lib/src/auto_selector.rs` | Auto provider/model selection via lightweight LLM call |
 | `zag-lib/src/mcp.rs` | MCP server management: per-server TOML configs, provider sync, import |
+| `zag-lib/src/search.rs` | Session log search: `SearchQuery`, `SearchMatch`, `search()`, `parse_date_arg()` |
 | `zag-lib/src/skills.rs` | Provider-agnostic skill management |
 | `zag-lib/src/providers/claude/mod.rs` | Claude agent implementation |
 | `zag-lib/src/providers/claude/models.rs` | Claude JSON output models and conversion to unified format |
@@ -142,6 +143,7 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `src/logging.rs` | Terminal logging, spinners, colored output (implements `ProgressHandler` pattern) |
 | `src/listen.rs` | Listen command: session log tailing, event formatting, session resolution |
 | `src/ps.rs` | `zag ps` command: list/show/kill agent processes via `ProcessStore` |
+| `src/search.rs` | `zag search` command: CLI argument wiring, human-readable and JSON output |
 | `src/capability.rs` | Re-exports zag-lib capability types + provider-specific capability constructors |
 | `src/output.rs` | Re-exports zag-lib output types |
 | `src/session_log.rs` | Re-exports zag-lib session_log + provider-specific wiring |
@@ -635,6 +637,7 @@ The provider is specified via the `--provider` (or `-p`) flag. If omitted, it de
 - **`skills`** - Manage provider-agnostic skills stored in `~/.zag/skills/`
 - **`mcp`** - Manage MCP servers across providers
 - **`ps`** - List, inspect, and kill agent processes started by zag
+- **`search`** - Search through session logs (full-text + filters)
 
 ```bash
 # Interactive mode (uses default provider, typically claude)
@@ -780,6 +783,18 @@ zag ps show <id>                 # Show process details
 zag ps show <id> --json          # JSON output
 zag ps stop <id>                 # Send SIGHUP to a running process (graceful stop)
 zag ps kill <id>                 # Send SIGTERM to a running process (forceful)
+
+# Search session logs
+zag search "login"                         # Search current project (and sub-projects)
+zag search --global "authentication"       # Search all projects
+zag search --role user "refactor"          # Only user messages
+zag search --tool bash --from 7d           # Bash tool calls in last 7 days
+zag search --tool-kind shell "cargo test"  # By tool kind
+zag search --provider claude "error"       # Filter by provider
+zag search --count "TODO"                  # Count matches only
+zag search --json "api key" | jq .snippet  # JSON output
+zag search --regex "fn\s+\w+_handler"      # Regex search
+zag search --from 2024-01-01 "deploy"      # Date range filter
 
 # Configuration
 zag config                       # Print full config

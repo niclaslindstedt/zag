@@ -26,6 +26,7 @@ mod logging;
 mod output;
 mod ps;
 mod resume;
+mod search;
 mod session_log;
 
 use anyhow::{Result, bail};
@@ -300,6 +301,67 @@ enum Commands {
         #[command(subcommand)]
         command: Option<ps::PsCommand>,
     },
+    /// Search through session logs
+    Search {
+        /// Text to search for (literal substring by default; use --regex for patterns)
+        query: Option<String>,
+
+        /// Treat the query as a regular expression
+        #[arg(long)]
+        regex: bool,
+
+        /// Case-sensitive search (default is case-insensitive)
+        #[arg(long)]
+        case_sensitive: bool,
+
+        /// Filter by provider (claude, codex, gemini, copilot, ollama)
+        #[arg(short = 'p', long)]
+        provider: Option<String>,
+
+        /// Filter by message role (user, assistant)
+        #[arg(long)]
+        role: Option<String>,
+
+        /// Filter by tool name (case-insensitive substring)
+        #[arg(long)]
+        tool: Option<String>,
+
+        /// Filter by tool kind
+        #[arg(long, value_enum)]
+        tool_kind: Option<ToolKindArg>,
+
+        /// Show only events at or after this time (ISO 8601 or relative: 1h, 2d, 3w, 1m)
+        #[arg(long)]
+        from: Option<String>,
+
+        /// Show only events at or before this time
+        #[arg(long)]
+        to: Option<String>,
+
+        /// Restrict search to a specific session ID (prefix match)
+        #[arg(long, value_name = "SESSION_ID")]
+        session: Option<String>,
+
+        /// Search all sessions across all projects (default: current project and sub-projects)
+        #[arg(long)]
+        global: bool,
+
+        /// Output results as NDJSON (one JSON object per match)
+        #[arg(long, short = 'j')]
+        json: bool,
+
+        /// Output only the count of matches
+        #[arg(long, short = 'c')]
+        count: bool,
+
+        /// Maximum number of matches to return
+        #[arg(long, short = 'n')]
+        limit: Option<usize>,
+
+        /// Root directory for project scope resolution (overrides cwd)
+        #[arg(long)]
+        root: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -407,6 +469,37 @@ enum McpCommand {
         #[arg(long, default_value = "claude")]
         from: String,
     },
+}
+
+/// Bridge enum for `ToolKind` that derives `clap::ValueEnum` (kept in the binary crate
+/// so `zag-lib` does not need a clap dependency).
+#[derive(clap::ValueEnum, Clone, Debug)]
+enum ToolKindArg {
+    Shell,
+    FileRead,
+    FileWrite,
+    FileEdit,
+    Search,
+    SubAgent,
+    Web,
+    Notebook,
+    Other,
+}
+
+impl From<ToolKindArg> for zag::session_log::ToolKind {
+    fn from(a: ToolKindArg) -> Self {
+        match a {
+            ToolKindArg::Shell => zag::session_log::ToolKind::Shell,
+            ToolKindArg::FileRead => zag::session_log::ToolKind::FileRead,
+            ToolKindArg::FileWrite => zag::session_log::ToolKind::FileWrite,
+            ToolKindArg::FileEdit => zag::session_log::ToolKind::FileEdit,
+            ToolKindArg::Search => zag::session_log::ToolKind::Search,
+            ToolKindArg::SubAgent => zag::session_log::ToolKind::SubAgent,
+            ToolKindArg::Web => zag::session_log::ToolKind::Web,
+            ToolKindArg::Notebook => zag::session_log::ToolKind::Notebook,
+            ToolKindArg::Other => zag::session_log::ToolKind::Other,
+        }
+    }
 }
 
 /// Extract AgentArgs from a command, if it has them.
@@ -627,6 +720,44 @@ async fn main() -> Result<()> {
             });
             ps::run_ps(cmd, json)?;
         }
+        Commands::Search {
+            query,
+            regex,
+            case_sensitive,
+            provider,
+            role,
+            tool,
+            tool_kind,
+            from,
+            to,
+            session,
+            global,
+            json: search_json,
+            count,
+            limit,
+            root,
+        } => {
+            search::run_search_command(
+                search::SearchCommandArgs {
+                    query,
+                    use_regex: regex,
+                    case_sensitive,
+                    provider,
+                    role,
+                    tool,
+                    tool_kind: tool_kind.map(zag::session_log::ToolKind::from),
+                    from,
+                    to,
+                    session,
+                    global,
+                    json: search_json,
+                    count,
+                    limit,
+                    root,
+                },
+                quiet,
+            )?;
+        }
         Commands::Capability {
             format,
             pretty,
@@ -830,6 +961,7 @@ const MAN_MAN: &str = include_str!("../man/man.md");
 const MAN_SKILLS: &str = include_str!("../man/skills.md");
 const MAN_MCP: &str = include_str!("../man/mcp.md");
 const MAN_PS: &str = include_str!("../man/ps.md");
+const MAN_SEARCH: &str = include_str!("../man/search.md");
 
 /// AI-oriented reference document for `--help-agent`.
 const HELP_AGENT: &str = include_str!("../man/help-agent.md");
@@ -849,8 +981,9 @@ fn print_manpage(command: Option<&str>) -> Result<()> {
         Some("skills") => MAN_SKILLS,
         Some("mcp") => MAN_MCP,
         Some("ps") => MAN_PS,
+        Some("search") => MAN_SEARCH,
         Some(other) => bail!(
-            "No manual entry for '{}'. Available: run, exec, review, config, session, capability, listen, man, skills, mcp, ps",
+            "No manual entry for '{}'. Available: run, exec, review, config, session, capability, listen, man, skills, mcp, ps, search",
             other
         ),
     };
@@ -1816,6 +1949,7 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Skills { .. } => "skills",
         Commands::Mcp { .. } => "mcp",
         Commands::Ps { .. } => "ps",
+        Commands::Search { .. } => "search",
     }
 }
 
