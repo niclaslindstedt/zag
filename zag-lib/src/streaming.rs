@@ -7,7 +7,7 @@
 //! # Examples
 //!
 //! ```no_run
-//! use zag_lib::builder::AgentBuilder;
+//! use zag::builder::AgentBuilder;
 //!
 //! # async fn example() -> anyhow::Result<()> {
 //! let mut session = AgentBuilder::new()

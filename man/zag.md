@@ -45,6 +45,9 @@ These flags can be used with any subcommand.
     listen       Tail a session's log events in real-time
     capability   Show provider capability declarations
     skills       Manage provider-agnostic skills
+    mcp          Manage MCP servers across providers
+    ps           List, inspect, and manage agent processes
+    search       Search through session logs
     man          Show manual pages for commands
 
 Run `zag man <command>` for detailed help on each command.
@@ -53,7 +56,7 @@ Run `zag man <command>` for detailed help on each command.
 
     claude    Default. Models: haiku, sonnet, opus (default: opus)
     codex     Models: gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex-mini
-    gemini    Models: gemini-2.5-flash-lite, gemini-2.5-flash, gemini-2.5-pro, auto (default: auto)
+    gemini    Models: gemini-3-pro-preview, gemini-3-flash-preview, gemini-2.5-flash-lite, gemini-2.5-flash, gemini-2.5-pro, auto (default: auto)
     copilot   Models: claude-haiku-4.5, claude-sonnet-4.5, claude-opus-4.5, and more
     ollama    Local models via Ollama. Default: qwen3.5:9b. Use --size for parameter size
 
@@ -98,3 +101,6 @@ Settings priority: CLI flags > config file > agent defaults.
     zag man listen
     zag man capability
     zag man skills
+    zag man mcp
+    zag man ps
+    zag man search

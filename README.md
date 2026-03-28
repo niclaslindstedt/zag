@@ -7,6 +7,13 @@ One CLI for all your AI coding agents.
 ## Install
 
 ```bash
+# Install the CLI
+cargo install zag-cli
+
+# Or add the library to your project
+cargo add zag
+
+# Or build from source
 cargo install --path .
 ```
 
@@ -57,6 +64,8 @@ zag review                    Code review (--uncommitted, --base, --commit)
 zag config [key] [value]      View or set configuration
 zag session list|show|import  List/inspect sessions, import historical logs
 zag listen <id>               Tail a session's log events in real-time
+zag ps list|show|stop|kill    List, inspect, and manage agent processes
+zag search <query>            Search through session logs
 zag capability                Show provider capability declarations
 zag skills list|add|remove|sync|import   Manage provider-agnostic skills
 zag mcp list|add|remove|sync|import     Manage MCP servers across providers
@@ -211,7 +220,7 @@ Supported providers: Claude (`~/.claude.json`), Gemini (`~/.gemini/settings.json
 The `zag-lib` crate exposes an `AgentBuilder` for driving agents from Rust code:
 
 ```rust
-use zag_lib::builder::AgentBuilder;
+use zag::builder::AgentBuilder;
 
 let output = AgentBuilder::new()
     .provider("claude")

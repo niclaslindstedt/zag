@@ -796,12 +796,8 @@ async fn main() -> Result<()> {
                 .map(listen::resolve_session_from_ps)
                 .transpose()?;
             let resolved_session_id = ps_session_id.as_deref().or(session_id.as_deref());
-            let log_path = listen::resolve_session_log(
-                resolved_session_id,
-                latest,
-                active,
-                root.as_deref(),
-            )?;
+            let log_path =
+                listen::resolve_session_log(resolved_session_id, latest, active, root.as_deref())?;
             debug!("Listening to session log: {}", log_path.display());
             listen::tail_session_log(&log_path, format, show_thinking, timestamps, &config)?;
         }

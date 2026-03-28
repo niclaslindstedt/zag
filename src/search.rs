@@ -1,10 +1,10 @@
 use crate::config::Config;
 use anyhow::Result;
-use zag::search::{SearchMatch, SearchQuery, SearchResults, parse_date_arg, search as lib_search};
-use zag::session_log::{AgentLogEvent, LogEventKind};
 use std::collections::BTreeMap;
 use std::env;
 use std::path::PathBuf;
+use zag::search::{SearchMatch, SearchQuery, SearchResults, parse_date_arg, search as lib_search};
+use zag::session_log::{AgentLogEvent, LogEventKind};
 
 pub struct SearchCommandArgs {
     pub query: Option<String>,
@@ -26,16 +26,8 @@ pub struct SearchCommandArgs {
 
 pub fn run_search_command(args: SearchCommandArgs, quiet: bool) -> Result<()> {
     // Parse date arguments early so errors surface before scanning.
-    let from = args
-        .from
-        .as_deref()
-        .map(parse_date_arg)
-        .transpose()?;
-    let to = args
-        .to
-        .as_deref()
-        .map(parse_date_arg)
-        .transpose()?;
+    let from = args.from.as_deref().map(parse_date_arg).transpose()?;
+    let to = args.to.as_deref().map(parse_date_arg).transpose()?;
 
     let query = SearchQuery {
         text: args.query,
@@ -105,10 +97,7 @@ fn print_human_readable(results: &SearchResults, quiet: bool) {
         // Session header
         let short_id = &session_id[..session_id.len().min(8)];
         let started = format_timestamp(&first.started_at);
-        let workspace = first
-            .workspace_path
-            .as_deref()
-            .unwrap_or("(unknown)");
+        let workspace = first.workspace_path.as_deref().unwrap_or("(unknown)");
 
         if use_color {
             println!(
@@ -138,7 +127,8 @@ fn print_human_readable(results: &SearchResults, quiet: bool) {
             print_event_match(m, use_color);
         }
 
-        let sep = format!("{} {} match{} {}",
+        let sep = format!(
+            "{} {} match{} {}",
             "\u{2500}".repeat(3),
             matches.len(),
             if matches.len() == 1 { "" } else { "es" },
@@ -155,16 +145,28 @@ fn print_human_readable(results: &SearchResults, quiet: bool) {
         session_order.len(),
         if session_order.len() == 1 { "" } else { "s" },
         results.total_sessions_scanned,
-        if results.total_sessions_scanned == 1 { "" } else { "s" },
+        if results.total_sessions_scanned == 1 {
+            ""
+        } else {
+            "s"
+        },
         results.total_events_scanned,
-        if results.total_events_scanned == 1 { "" } else { "s" },
+        if results.total_events_scanned == 1 {
+            ""
+        } else {
+            "s"
+        },
     );
 
     if results.total_files_missing > 0 {
         println!(
             "  ({} log file{} referenced but not found on disk)",
             results.total_files_missing,
-            if results.total_files_missing == 1 { "" } else { "s" },
+            if results.total_files_missing == 1 {
+                ""
+            } else {
+                "s"
+            },
         );
     }
 }

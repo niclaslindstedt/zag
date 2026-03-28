@@ -1,4 +1,6 @@
-use crate::session_log::{AgentLogEvent, LogEventKind, SessionLogIndex, SessionLogIndexEntry, ToolKind};
+use crate::session_log::{
+    AgentLogEvent, LogEventKind, SessionLogIndex, SessionLogIndexEntry, ToolKind,
+};
 use anyhow::{Context, Result, bail};
 use chrono::{DateTime, Duration, NaiveDate, Utc};
 use regex::Regex;
@@ -400,8 +402,12 @@ fn event_matches_query(event: &AgentLogEvent, query: &SearchQuery, matcher: &Tex
                     }
                 }
                 if let Some(ref tk) = query.tool_kind {
-                    let kind = tool_kind
-                        .unwrap_or_else(|| tool_name.as_deref().map(ToolKind::infer).unwrap_or(ToolKind::Other));
+                    let kind = tool_kind.unwrap_or_else(|| {
+                        tool_name
+                            .as_deref()
+                            .map(ToolKind::infer)
+                            .unwrap_or(ToolKind::Other)
+                    });
                     if kind != *tk {
                         return false;
                     }
@@ -459,7 +465,8 @@ fn scan_session(log_path: &Path, query: &SearchQuery, matcher: &TextMatcher) -> 
     };
 
     for line in reader.lines() {
-        let line = line.with_context(|| format!("Failed to read line in {}", log_path.display()))?;
+        let line =
+            line.with_context(|| format!("Failed to read line in {}", log_path.display()))?;
         let line = line.trim();
         if line.is_empty() {
             continue;
@@ -468,7 +475,11 @@ fn scan_session(log_path: &Path, query: &SearchQuery, matcher: &TextMatcher) -> 
         let event: AgentLogEvent = match serde_json::from_str(line) {
             Ok(e) => e,
             Err(e) => {
-                log::debug!("Skipping malformed JSONL line in {}: {}", log_path.display(), e);
+                log::debug!(
+                    "Skipping malformed JSONL line in {}: {}",
+                    log_path.display(),
+                    e
+                );
                 continue;
             }
         };

@@ -2,9 +2,14 @@
 name = "zag-cli"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85"
 license = "MIT"
 repository = "https://github.com/niclaslindstedt/zag"
+homepage = "https://github.com/niclaslindstedt/zag"
 description = "A unified CLI for AI coding agents — Claude, Codex, Gemini, Copilot, and Ollama"
+readme = "README.md"
+keywords = ["ai", "agent", "cli", "llm", "coding"]
+categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
 name = "zag"
@@ -14,7 +19,7 @@ path = "src/main.rs"
 members = [".", "zag-lib", "examples/cv-review"]
 
 [dependencies]
-zag = { path = "zag-lib" }
+zag = { version = "0.1.0", path = "zag-lib" }
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 async-trait = "0.1"

@@ -38,7 +38,7 @@ Cargo workspace with two crates:
 `zag-lib` exposes an `AgentBuilder` for driving agents from Rust code without the CLI:
 
 ```rust
-use zag_lib::builder::AgentBuilder;
+use zag::builder::AgentBuilder;
 
 // Non-interactive exec
 let output = AgentBuilder::new()
@@ -85,7 +85,7 @@ session.wait().await?;
 
 Custom progress reporting:
 ```rust
-use zag_lib::progress::ProgressHandler;
+use zag::progress::ProgressHandler;
 
 struct MyProgress;
 impl ProgressHandler for MyProgress {
