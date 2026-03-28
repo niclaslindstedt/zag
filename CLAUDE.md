@@ -559,7 +559,7 @@ Disable all logging except agent output with the `--quiet` (or `-q`) flag. This 
 zag -q exec "write a hello world program"
 
 # Useful for scripting
-result=$(agent -q exec "analyze this code")
+result=$(zag -q exec "analyze this code")
 
 # Quiet mode suppresses:
 # - Spinner animations
@@ -575,16 +575,16 @@ result=$(agent -q exec "analyze this code")
 
 ```bash
 # Exec mode (default: clean output)
-$ agent exec "say hello"
+$ zag exec "say hello"
 Hello!
 
 # Exec mode with verbose
-$ agent exec -v "say hello"
+$ zag exec -v "say hello"
 ✓ Claude initialized with model opus
     ⏺ Hello!
 
 # Interactive mode
-$ agent --model sonnet run
+$ zag --model sonnet run
 ⠋ Initializing Claude agent
 ✓ Claude initialized with model sonnet
 > Starting interactive session
@@ -592,7 +592,7 @@ $ agent --model sonnet run
 > Session terminated
 
 # Debug mode
-$ agent --model medium --debug run
+$ zag --model medium --debug run
 [DEBUG] Debug logging enabled
 [DEBUG] Model specified: medium
 [DEBUG] Creating agent: claude
@@ -607,14 +607,14 @@ $ agent --model medium --debug run
 > Session terminated
 
 # With auto-approve
-$ agent --model haiku -a run
+$ zag --model haiku -a run
 ✓ Claude initialized with model haiku (auto approve)
 > Starting interactive session
 [Agent output...]
 > Session terminated
 
 # Quiet mode (only agent output, no logging)
-$ agent --model sonnet -q exec "write a hello world program"
+$ zag --model sonnet -q exec "write a hello world program"
 [Agent output only...]
 ```
 
@@ -671,8 +671,8 @@ zag exec "simple task" -o text
 zag exec "write a hello world program" -o native-json
 
 # Non-interactive mode with stream-json input format (Claude only)
-echo '{"type":"message","content":"hello"}' | agent exec -i stream-json "analyze"
-cat input.ndjson | agent exec --input-format stream-json "process"
+echo '{"type":"message","content":"hello"}' | zag exec -i stream-json "analyze"
+cat input.ndjson | zag exec --input-format stream-json "process"
 
 # Resume a session
 zag run --continue            # Resume the latest tracked session
@@ -894,7 +894,7 @@ zag run --json "list 3 colors"
 The CLI validates model names to catch typos and provide helpful error messages. If you specify an invalid model, you'll get a clear error with the available options:
 
 ```bash
-$ agent --model gpt-5 run
+$ zag --model gpt-5 run
 Error: Invalid model 'gpt-5' for Claude. Available models: sonnet, opus, haiku
 ```
 
