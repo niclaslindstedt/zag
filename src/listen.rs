@@ -7,6 +7,7 @@ use chrono::{DateTime, Local};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use zag::process_store::ProcessStore;
 use zag::session_log::load_global_index;
 
 /// Output format for listen command.
@@ -35,6 +36,48 @@ impl ListenFormat {
             _ => Self::Text,
         }
     }
+}
+
+/// Resolve a session ID from a process reference (OS PID or zag process UUID).
+///
+/// Accepts either a numeric OS PID or a zag process UUID (the `id` field).
+/// If multiple entries match the same PID (OS PIDs are recycled), the most
+/// recently started process is used.
+pub fn resolve_session_from_ps(value: &str) -> Result<String> {
+    let store = ProcessStore::load().context("Failed to load process store")?;
+
+    // Try to match by zag UUID first (exact string match on `id`)
+    let by_id: Vec<_> = store
+        .processes
+        .iter()
+        .filter(|e| e.id == value || e.id.starts_with(value))
+        .collect();
+
+    let entry = if !by_id.is_empty() {
+        // Pick the most recent among UUID matches
+        by_id
+            .into_iter()
+            .max_by(|a, b| a.started_at.cmp(&b.started_at))
+    } else {
+        // Try numeric OS PID
+        let pid: u32 = value
+            .parse()
+            .with_context(|| format!("'{}' is not a valid PID or process UUID", value))?;
+        let by_pid: Vec<_> = store.processes.iter().filter(|e| e.pid == pid).collect();
+        by_pid
+            .into_iter()
+            .max_by(|a, b| a.started_at.cmp(&b.started_at))
+    };
+
+    let entry = entry.ok_or_else(|| anyhow::anyhow!("No process found for '{}'", value))?;
+
+    entry.session_id.clone().ok_or_else(|| {
+        anyhow::anyhow!(
+            "Process '{}' (pid {}) has no associated session",
+            entry.id,
+            entry.pid
+        )
+    })
 }
 
 /// Resolve the log file path for a session.

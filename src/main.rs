@@ -232,15 +232,20 @@ enum Commands {
     /// Listen to a session's log events in real-time
     Listen {
         /// Session ID to listen to
+        #[arg(conflicts_with_all = ["latest", "active", "ps"])]
         session_id: Option<String>,
 
         /// Listen to the latest session (most recently created)
-        #[arg(long)]
+        #[arg(long, conflicts_with_all = ["active", "ps"])]
         latest: bool,
 
         /// Listen to the active session (most recently written-to log file)
-        #[arg(long)]
+        #[arg(long, conflicts_with_all = ["latest", "ps"])]
         active: bool,
+
+        /// Listen to the session of a process by OS PID or zag process UUID
+        #[arg(long, value_name = "PID", conflicts_with_all = ["session_id", "latest", "active"])]
+        ps: Option<String>,
 
         /// Output as JSON (NDJSON)
         #[arg(long)]
@@ -774,6 +779,7 @@ async fn main() -> Result<()> {
             session_id,
             latest,
             active,
+            ps,
             json: listen_json,
             text: listen_text,
             rich_text,
@@ -784,8 +790,14 @@ async fn main() -> Result<()> {
             let config = Config::load(root.as_deref()).unwrap_or_default();
             let format =
                 listen::ListenFormat::from_flags(listen_json, rich_text, listen_text, &config);
+            // Resolve --ps to a session_id if provided
+            let ps_session_id = ps
+                .as_deref()
+                .map(listen::resolve_session_from_ps)
+                .transpose()?;
+            let resolved_session_id = ps_session_id.as_deref().or(session_id.as_deref());
             let log_path = listen::resolve_session_log(
-                session_id.as_deref(),
+                resolved_session_id,
                 latest,
                 active,
                 root.as_deref(),
