@@ -116,6 +116,7 @@ AgentBuilder::new()
 | `zag-lib/src/session_log.rs` | Session log schema, writer, coordinator, backfill engine, and adapter traits |
 | `zag-lib/src/capability.rs` | Provider capability structs (`ProviderCapability`, `Features`, etc.) and format helpers |
 | `zag-lib/src/process.rs` | Subprocess helpers: stderr capture, exit status checking, output handling |
+| `zag-lib/src/process_store.rs` | Process tracking store: `ProcessEntry`, `ProcessStore`, load/save/kill helpers |
 | `zag-lib/src/sandbox.rs` | Docker sandbox configuration, command building, and removal |
 | `zag-lib/src/worktree.rs` | Git worktree creation, removal, and name generation |
 | `zag-lib/src/session.rs` | Session-worktree/sandbox mapping store (`sessions.json`) |
@@ -140,6 +141,7 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `src/main.rs` | CLI entry point with clap — maps CLI args to zag-lib calls |
 | `src/logging.rs` | Terminal logging, spinners, colored output (implements `ProgressHandler` pattern) |
 | `src/listen.rs` | Listen command: session log tailing, event formatting, session resolution |
+| `src/ps.rs` | `zag ps` command: list/show/kill agent processes via `ProcessStore` |
 | `src/capability.rs` | Re-exports zag-lib capability types + provider-specific capability constructors |
 | `src/output.rs` | Re-exports zag-lib output types |
 | `src/session_log.rs` | Re-exports zag-lib session_log + provider-specific wiring |
@@ -158,6 +160,7 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `man/listen.md` | Manpage for the `zag listen` command |
 | `man/skills.md` | Manpage for the `zag skills` command |
 | `man/mcp.md` | Manpage for the `zag mcp` command |
+| `man/ps.md` | Manpage for the `zag ps` command |
 
 #### `bindings/` (language SDKs)
 
@@ -631,6 +634,7 @@ The provider is specified via the `--provider` (or `-p`) flag. If omitted, it de
 - **`man`** - Show manual pages for commands
 - **`skills`** - Manage provider-agnostic skills stored in `~/.zag/skills/`
 - **`mcp`** - Manage MCP servers across providers
+- **`ps`** - List, inspect, and kill agent processes started by zag
 
 ```bash
 # Interactive mode (uses default provider, typically claude)
@@ -765,6 +769,17 @@ zag mcp sync                       # Sync to all providers
 zag mcp sync -p claude             # Sync only to Claude
 zag mcp import --from claude       # Import from Claude
 zag mcp import --from codex        # Import from Codex
+
+# Process management
+zag ps                           # List all processes (default: all)
+zag ps list                      # List all processes
+zag ps list --running            # Only running processes
+zag ps list -n 5                 # Show 5 most recent
+zag ps list --json               # JSON output
+zag ps show <id>                 # Show process details
+zag ps show <id> --json          # JSON output
+zag ps stop <id>                 # Send SIGHUP to a running process (graceful stop)
+zag ps kill <id>                 # Send SIGTERM to a running process (forceful)
 
 # Configuration
 zag config                       # Print full config

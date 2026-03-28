@@ -8,6 +8,7 @@ pub mod json_validation;
 pub mod mcp;
 pub mod output;
 pub mod process;
+pub mod process_store;
 pub mod progress;
 pub mod providers;
 pub mod sandbox;

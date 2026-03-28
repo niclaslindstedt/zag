@@ -24,6 +24,7 @@ mod json_mode;
 mod listen;
 mod logging;
 mod output;
+mod ps;
 mod resume;
 mod session_log;
 
@@ -266,7 +267,7 @@ enum Commands {
     },
     /// Show manual pages for commands
     Man {
-        /// Command to show help for (run, exec, review, config, session, capability, listen, man, skills, mcp)
+        /// Command to show help for (run, exec, review, config, session, capability, listen, man, skills, mcp, ps)
         command: Option<String>,
     },
     /// Manage provider-agnostic skills stored in ~/.zag/skills/
@@ -289,6 +290,15 @@ enum Commands {
 
         #[command(subcommand)]
         command: McpCommand,
+    },
+    /// List, inspect, and kill agent processes started by zag
+    Ps {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        #[command(subcommand)]
+        command: Option<ps::PsCommand>,
     },
 }
 
@@ -610,6 +620,13 @@ async fn main() -> Result<()> {
             );
             run_mcp(command, json, root.as_deref())?;
         }
+        Commands::Ps { command, json } => {
+            let cmd = command.unwrap_or(ps::PsCommand::List {
+                running: false,
+                limit: None,
+            });
+            ps::run_ps(cmd, json)?;
+        }
         Commands::Capability {
             format,
             pretty,
@@ -812,6 +829,7 @@ const MAN_LISTEN: &str = include_str!("../man/listen.md");
 const MAN_MAN: &str = include_str!("../man/man.md");
 const MAN_SKILLS: &str = include_str!("../man/skills.md");
 const MAN_MCP: &str = include_str!("../man/mcp.md");
+const MAN_PS: &str = include_str!("../man/ps.md");
 
 /// AI-oriented reference document for `--help-agent`.
 const HELP_AGENT: &str = include_str!("../man/help-agent.md");
@@ -830,8 +848,9 @@ fn print_manpage(command: Option<&str>) -> Result<()> {
         Some("man") => MAN_MAN,
         Some("skills") => MAN_SKILLS,
         Some("mcp") => MAN_MCP,
+        Some("ps") => MAN_PS,
         Some(other) => bail!(
-            "No manual entry for '{}'. Available: run, exec, review, config, session, capability, listen, man, skills, mcp",
+            "No manual entry for '{}'. Available: run, exec, review, config, session, capability, listen, man, skills, mcp, ps",
             other
         ),
     };
@@ -1796,6 +1815,7 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Man { .. } => "man",
         Commands::Skills { .. } => "skills",
         Commands::Mcp { .. } => "mcp",
+        Commands::Ps { .. } => "ps",
     }
 }
 
@@ -2106,6 +2126,33 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         root.as_deref(),
     );
 
+    // Register process entry before execution so `zag ps` can see it while running.
+    let proc_id = uuid::Uuid::new_v4().to_string();
+    let proc_session_id = wt
+        .session_id
+        .clone()
+        .or_else(|| sb.session_id.clone())
+        .or_else(|| plain.session_id.clone());
+    let proc_prompt = action_prompt(&action).map(|p| p.chars().take(100).collect::<String>());
+    let proc_cmd = command_name(&action).to_string();
+    if let Ok(mut pstore) = zag::process_store::ProcessStore::load() {
+        pstore.add(zag::process_store::ProcessEntry {
+            id: proc_id.clone(),
+            pid: std::process::id(),
+            session_id: proc_session_id,
+            provider: provider.clone(),
+            model: persisted_model.clone(),
+            command: proc_cmd,
+            prompt: proc_prompt,
+            started_at: chrono::Utc::now().to_rfc3339(),
+            status: "running".to_string(),
+            exit_code: None,
+            exited_at: None,
+            root: root.clone(),
+        });
+        let _ = pstore.save();
+    }
+
     // Echo session ID for `agent listen` usage
     if show_wrapper {
         let display_session_id = wt
@@ -2196,6 +2243,10 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     )
     .await;
     if let Err(err) = &action_result {
+        if let Ok(mut pstore) = zag::process_store::ProcessStore::load() {
+            pstore.update_status(&proc_id, "killed", Some(1));
+            let _ = pstore.save();
+        }
         log_coordinator.finish(false, Some(err.to_string())).await?;
         return Err(anyhow::anyhow!(err.to_string()));
     }
@@ -2241,6 +2292,11 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
         root.as_deref(),
     );
     log_coordinator.finish(true, None).await?;
+
+    if let Ok(mut pstore) = zag::process_store::ProcessStore::load() {
+        pstore.update_status(&proc_id, "exited", Some(0));
+        let _ = pstore.save();
+    }
 
     // Cleanup
     debug!("Cleaning up agent resources");
@@ -2450,6 +2506,26 @@ async fn run_review(params: ReviewParams) -> Result<()> {
     );
     crate::session_log::record_prompt(log_coordinator.writer(), Some(&review_prompt))?;
 
+    // Register process entry before execution.
+    let review_proc_id = uuid::Uuid::new_v4().to_string();
+    if let Ok(mut pstore) = zag::process_store::ProcessStore::load() {
+        pstore.add(zag::process_store::ProcessEntry {
+            id: review_proc_id.clone(),
+            pid: std::process::id(),
+            session_id: None,
+            provider: "codex".to_string(),
+            model: model_name.clone(),
+            command: "review".to_string(),
+            prompt: Some(review_prompt.chars().take(100).collect()),
+            started_at: chrono::Utc::now().to_rfc3339(),
+            status: "running".to_string(),
+            exit_code: None,
+            exited_at: None,
+            root: root.clone(),
+        });
+        let _ = pstore.save();
+    }
+
     let review_result = codex
         .review(
             uncommitted,
@@ -2464,10 +2540,19 @@ async fn run_review(params: ReviewParams) -> Result<()> {
             Ok(())
         }
         Err(err) => {
+            if let Ok(mut pstore) = zag::process_store::ProcessStore::load() {
+                pstore.update_status(&review_proc_id, "killed", Some(1));
+                let _ = pstore.save();
+            }
             log_coordinator.finish(false, Some(err.to_string())).await?;
             Err(err)
         }
     }?;
+
+    if let Ok(mut pstore) = zag::process_store::ProcessStore::load() {
+        pstore.update_status(&review_proc_id, "exited", Some(0));
+        let _ = pstore.save();
+    }
 
     Ok(())
 }
