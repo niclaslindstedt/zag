@@ -1,6 +1,6 @@
 # React Claude Interface
 
-A single-page React app that provides a Claude Code-like interface using `zag exec -o stream-json`.
+A single-page React app that provides a Claude Code-like interface with multi-turn conversation support using `zag exec` and `zag input`.
 
 ## How it works
 
@@ -8,6 +8,8 @@ A single-page React app that provides a Claude Code-like interface using `zag ex
 2. The Express backend spawns `zag exec -o stream-json --session <uuid> "<prompt>"`
 3. NDJSON events stream back to the browser via Server-Sent Events (SSE)
 4. Events render in real-time as a chat interface with collapsible tool calls and thinking blocks
+5. After the first response completes, you can send follow-up messages
+6. Follow-ups use `zag input <session-id> "<message>" -o stream-json` to continue the same session
 
 ## Prerequisites
 
@@ -37,11 +39,14 @@ Open http://localhost:5173 in your browser.
 
 ```
 server.ts               Express backend — spawns zag, streams NDJSON as SSE
+                        POST /api/session  — start a new session (zag exec)
+                        POST /api/input    — send follow-up message (zag input)
+                        GET  /api/listen   — attach to running session (zag listen)
 src/
   App.tsx               Main layout: status bar + message list + prompt input
   App.css               Dark theme styles (Claude Code aesthetic)
   types.ts              AgentLogEvent types matching zag's session log format
-  hooks/useSession.ts   SSE connection + event state management
+  hooks/useSession.ts   SSE connection + event state management + multi-turn
   components/
     StatusBar.tsx        Connection status, model name, session ID
     MessageList.tsx      Routes events to the right component

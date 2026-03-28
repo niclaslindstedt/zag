@@ -12,7 +12,7 @@ export function StatusBar({ status, sessionId, model }: Props) {
     idle: "#6b7280",
     connecting: "#f59e0b",
     streaming: "#10b981",
-    ended: "#6b7280",
+    ready: "#10b981",
     error: "#ef4444",
   }[status];
 
@@ -20,7 +20,7 @@ export function StatusBar({ status, sessionId, model }: Props) {
     idle: "Ready",
     connecting: "Connecting...",
     streaming: "Streaming",
-    ended: "Session ended",
+    ready: "Ready",
     error: "Error",
   }[status];
 

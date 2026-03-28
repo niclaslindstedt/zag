@@ -4,10 +4,18 @@ import { MessageList } from "./components/MessageList";
 import { PromptInput } from "./components/PromptInput";
 
 export default function App() {
-  const { events, status, sessionId, model, error, startSession } =
+  const { events, status, sessionId, model, error, startSession, sendMessage } =
     useSession();
 
   const isStreaming = status === "streaming" || status === "connecting";
+
+  const handleSubmit = (prompt: string) => {
+    if (sessionId) {
+      sendMessage(prompt);
+    } else {
+      startSession(prompt);
+    }
+  };
 
   return (
     <div className="app">
@@ -35,10 +43,14 @@ export default function App() {
       )}
 
       <PromptInput
-        onSubmit={(prompt) => startSession(prompt)}
+        onSubmit={handleSubmit}
         disabled={isStreaming}
         placeholder={
-          isStreaming ? "Waiting for response..." : "Send a message..."
+          isStreaming
+            ? "Waiting for response..."
+            : sessionId
+              ? "Send a follow-up message..."
+              : "Send a message..."
         }
       />
     </div>
