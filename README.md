@@ -100,6 +100,7 @@ zag session list
 # Tail a session's logs in real-time (from another terminal)
 zag listen <session-id>
 zag listen --latest --rich-text
+zag listen --ps <pid>             # by OS PID or zag process UUID
 ```
 
 ## Worktree and sandbox isolation

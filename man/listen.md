@@ -7,6 +7,7 @@ Tail a session's log file and output parsed events in real-time.
     zag listen <session-id>
     zag listen --latest
     zag listen --active
+    zag listen --ps <pid>
 
 ## Description
 
@@ -27,6 +28,10 @@ Listen to the most recently created session (by `started_at` in the index).
 ### `--active`
 
 Listen to the most recently written-to session log file (by file modification time).
+
+### `--ps <PID>`
+
+Listen to the session belonging to a process, specified by OS PID (integer) or zag process UUID (from `zag ps list`). If multiple entries share the same PID (OS PIDs are recycled), the most recently started process is used. Mutually exclusive with `<session-id>`, `--latest`, and `--active`.
 
 ### `--json`
 
@@ -95,6 +100,12 @@ In rich-text mode, the same icons are used with ANSI colors and markdown renderi
 
     # Show reasoning/thinking content
     zag listen --latest --show-thinking
+
+    # Listen to a session by OS PID
+    zag listen --ps 12345
+
+    # Listen to a session by zag process UUID
+    zag listen --ps a1b2c3d4-...
 
 ## Exit Behavior
 

@@ -742,6 +742,8 @@ zag listen --latest                 # Listen to the most recently created sessio
 zag listen --active                 # Listen to the most recently written-to session
 zag listen --latest --json          # JSON output (NDJSON)
 zag listen --latest --colors        # Text with ANSI colors
+zag listen --ps <pid>               # Listen by OS PID (resolves to latest session for that PID)
+zag listen --ps <zag-uuid>          # Listen by zag process UUID (from `zag ps list`)
 
 # Session management
 zag session list                    # List all sessions
