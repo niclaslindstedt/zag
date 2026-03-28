@@ -279,6 +279,57 @@ impl Claude {
         crate::streaming::StreamingSession::new(child)
     }
 
+    /// Build argument list for a streaming resume invocation.
+    fn build_streaming_resume_args(&self, session_id: &str) -> Vec<String> {
+        let mut args = Vec::new();
+        let in_sandbox = self.sandbox.is_some();
+
+        args.push("--print".to_string());
+        args.extend(["--resume".to_string(), session_id.to_string()]);
+        args.extend(["--verbose", "--output-format", "stream-json"].map(String::from));
+
+        if self.skip_permissions && !in_sandbox {
+            args.push("--dangerously-skip-permissions".to_string());
+        }
+
+        args.extend(["--model".to_string(), self.model.clone()]);
+
+        for dir in &self.add_dirs {
+            args.extend(["--add-dir".to_string(), dir.clone()]);
+        }
+
+        args.extend(["--input-format".to_string(), "stream-json".to_string()]);
+        args.push("--replay-user-messages".to_string());
+
+        if self.include_partial_messages {
+            args.push("--include-partial-messages".to_string());
+        }
+
+        args
+    }
+
+    /// Spawn a streaming session that resumes an existing session.
+    ///
+    /// Combines `--resume` with `--input-format stream-json`, `--output-format stream-json`,
+    /// and `--replay-user-messages`. Returns a `StreamingSession` for bidirectional
+    /// communication with the resumed session.
+    pub fn execute_streaming_resume(
+        &self,
+        session_id: &str,
+    ) -> Result<crate::streaming::StreamingSession> {
+        let args = self.build_streaming_resume_args(session_id);
+
+        log::debug!("Claude streaming resume command: claude {}", args.join(" "));
+
+        let mut cmd = self.make_command(args);
+        cmd.stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        let child = cmd.spawn()?;
+        crate::streaming::StreamingSession::new(child)
+    }
+
     async fn execute(
         &self,
         interactive: bool,

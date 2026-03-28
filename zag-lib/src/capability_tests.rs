@@ -20,6 +20,7 @@ fn make_test_capability() -> ProviderCapability {
             stream_json: FeatureSupport::unsupported(),
             json_schema: FeatureSupport::wrapper(),
             input_format: FeatureSupport::unsupported(),
+            streaming_input: FeatureSupport::unsupported(),
             worktree: FeatureSupport::wrapper(),
             sandbox: FeatureSupport::wrapper(),
             system_prompt: FeatureSupport::native(),

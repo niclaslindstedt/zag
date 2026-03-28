@@ -66,6 +66,7 @@ zag session list|show|import  List/inspect sessions, import historical logs
 zag listen <id>               Tail a session's log events in real-time
 zag ps list|show|stop|kill    List, inspect, and manage agent processes
 zag search <query>            Search through session logs
+zag input <id> [message]      Send a user message to a session
 zag capability                Show provider capability declarations
 zag skills list|add|remove|sync|import   Manage provider-agnostic skills
 zag mcp list|add|remove|sync|import     Manage MCP servers across providers

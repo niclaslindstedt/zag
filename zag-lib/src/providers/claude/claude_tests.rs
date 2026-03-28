@@ -131,6 +131,51 @@ fn test_build_resume_args_sandbox_skips_permissions() {
 }
 
 #[test]
+fn test_build_streaming_resume_args() {
+    let mut claude = Claude::new();
+    claude.model = "sonnet".to_string();
+
+    let args = claude.build_streaming_resume_args("session-456");
+    assert!(args.contains(&"--print".to_string()));
+    assert!(args.contains(&"--resume".to_string()));
+    assert!(args.contains(&"session-456".to_string()));
+    assert!(args.contains(&"--output-format".to_string()));
+    assert!(args.contains(&"stream-json".to_string()));
+    assert!(args.contains(&"--input-format".to_string()));
+    assert!(args.contains(&"--replay-user-messages".to_string()));
+    assert!(args.contains(&"--model".to_string()));
+    assert!(args.contains(&"sonnet".to_string()));
+    assert!(!args.contains(&"--include-partial-messages".to_string()));
+}
+
+#[test]
+fn test_build_streaming_resume_args_with_partial_messages() {
+    let mut claude = Claude::new();
+    claude.model = "opus".to_string();
+    claude.include_partial_messages = true;
+
+    let args = claude.build_streaming_resume_args("session-789");
+    assert!(args.contains(&"--include-partial-messages".to_string()));
+    assert!(args.contains(&"--replay-user-messages".to_string()));
+}
+
+#[test]
+fn test_build_streaming_resume_args_sandbox_skips_permissions() {
+    let mut claude = Claude::new();
+    claude.skip_permissions = true;
+    claude.sandbox = Some(SandboxConfig {
+        name: "test".to_string(),
+        template: "docker/sandbox-templates:claude-code".to_string(),
+        workspace: "/workspace".to_string(),
+    });
+
+    let args = claude.build_streaming_resume_args("sid");
+    assert!(!args.contains(&"--dangerously-skip-permissions".to_string()));
+    assert!(args.contains(&"--resume".to_string()));
+    assert!(args.contains(&"--replay-user-messages".to_string()));
+}
+
+#[test]
 fn test_make_command_without_sandbox() {
     let mut claude = Claude::new();
     claude.root = Some("/project".to_string());

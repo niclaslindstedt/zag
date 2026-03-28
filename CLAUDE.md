@@ -163,6 +163,7 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `man/skills.md` | Manpage for the `zag skills` command |
 | `man/mcp.md` | Manpage for the `zag mcp` command |
 | `man/ps.md` | Manpage for the `zag ps` command |
+| `man/input.md` | Manpage for the `zag input` command |
 
 #### `bindings/` (language SDKs)
 
@@ -638,6 +639,7 @@ The provider is specified via the `--provider` (or `-p`) flag. If omitted, it de
 - **`mcp`** - Manage MCP servers across providers
 - **`ps`** - List, inspect, and kill agent processes started by zag
 - **`search`** - Search through session logs (full-text + filters)
+- **`input`** - Send a user message to a running or resumable session
 
 ```bash
 # Interactive mode (uses default provider, typically claude)
@@ -797,6 +799,15 @@ zag search --count "TODO"                  # Count matches only
 zag search --json "api key" | jq .snippet  # JSON output
 zag search --regex "fn\s+\w+_handler"      # Regex search
 zag search --from 2024-01-01 "deploy"      # Date range filter
+
+# Send input to a session
+zag input <session-id> "hello"             # Send a message to a specific session
+zag input --latest "continue"              # Send to the most recent session
+zag input --active "run tests"             # Send to the most active session
+zag input --ps 12345 "status"              # Send by PID
+echo "message" | zag input --latest        # Pipe message from stdin
+zag input --stream --latest                # Stream messages interactively (Claude only)
+zag input --latest "task" -o stream-json   # NDJSON event output (Claude only)
 
 # Configuration
 zag config                       # Print full config

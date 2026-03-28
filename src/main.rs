@@ -273,7 +273,7 @@ enum Commands {
     },
     /// Show manual pages for commands
     Man {
-        /// Command to show help for (run, exec, review, config, session, capability, listen, man, skills, mcp, ps)
+        /// Command to show help for (run, exec, review, config, session, capability, listen, input, man, skills, mcp, ps)
         command: Option<String>,
     },
     /// Manage provider-agnostic skills stored in ~/.zag/skills/
@@ -365,6 +365,39 @@ enum Commands {
 
         /// Root directory for project scope resolution (overrides cwd)
         #[arg(long)]
+        root: Option<String>,
+    },
+    /// Send a user message to a running or resumable session
+    Input {
+        /// Session ID to send input to
+        #[arg(conflicts_with_all = ["latest", "active", "ps"])]
+        session_id: Option<String>,
+
+        /// Message to send (reads from stdin if omitted and not --stream)
+        message: Option<String>,
+
+        /// Send to the most recently created session
+        #[arg(long, conflicts_with_all = ["active", "ps"])]
+        latest: bool,
+
+        /// Send to the most recently active session
+        #[arg(long, conflicts_with_all = ["latest", "ps"])]
+        active: bool,
+
+        /// Send to a session by PID or zag process UUID
+        #[arg(long, value_name = "PID", conflicts_with_all = ["session_id", "latest", "active"])]
+        ps: Option<String>,
+
+        /// Stream multiple messages from stdin (Claude only)
+        #[arg(long)]
+        stream: bool,
+
+        /// Output format (text, json, stream-json)
+        #[arg(short = 'o', long)]
+        output: Option<String>,
+
+        /// Root directory for session resolution
+        #[arg(short, long)]
         root: Option<String>,
     },
 }
@@ -801,6 +834,29 @@ async fn main() -> Result<()> {
             debug!("Listening to session log: {}", log_path.display());
             listen::tail_session_log(&log_path, format, show_thinking, timestamps, &config)?;
         }
+        Commands::Input {
+            session_id,
+            message,
+            latest,
+            active,
+            ps,
+            stream,
+            output,
+            root,
+        } => {
+            run_input(InputParams {
+                session_id,
+                message,
+                latest,
+                active,
+                ps,
+                stream,
+                output,
+                root,
+                quiet,
+            })
+            .await?;
+        }
         Commands::Review {
             uncommitted,
             base,
@@ -970,6 +1026,7 @@ const MAN_SKILLS: &str = include_str!("../man/skills.md");
 const MAN_MCP: &str = include_str!("../man/mcp.md");
 const MAN_PS: &str = include_str!("../man/ps.md");
 const MAN_SEARCH: &str = include_str!("../man/search.md");
+const MAN_INPUT: &str = include_str!("../man/input.md");
 
 /// AI-oriented reference document for `--help-agent`.
 const HELP_AGENT: &str = include_str!("../man/help-agent.md");
@@ -990,8 +1047,9 @@ fn print_manpage(command: Option<&str>) -> Result<()> {
         Some("mcp") => MAN_MCP,
         Some("ps") => MAN_PS,
         Some("search") => MAN_SEARCH,
+        Some("input") => MAN_INPUT,
         Some(other) => bail!(
-            "No manual entry for '{}'. Available: run, exec, review, config, session, capability, listen, man, skills, mcp, ps, search",
+            "No manual entry for '{}'. Available: run, exec, review, config, session, capability, listen, man, skills, mcp, ps, search, input",
             other
         ),
     };
@@ -1958,6 +2016,7 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Mcp { .. } => "mcp",
         Commands::Ps { .. } => "ps",
         Commands::Search { .. } => "search",
+        Commands::Input { .. } => "input",
     }
 }
 
@@ -2542,6 +2601,234 @@ async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
             .find_by_session_id(sid)
             .and_then(|entry| entry.provider_session_id.clone());
         print_session_resume_hint(sid, provider_session_id.as_deref());
+    }
+
+    Ok(())
+}
+
+struct InputParams {
+    session_id: Option<String>,
+    message: Option<String>,
+    latest: bool,
+    active: bool,
+    ps: Option<String>,
+    stream: bool,
+    output: Option<String>,
+    root: Option<String>,
+    quiet: bool,
+}
+
+/// Resolve the session ID for the input command from the various targeting flags.
+fn resolve_input_session_id(
+    session_id: Option<&str>,
+    latest: bool,
+    active: bool,
+    ps: Option<&str>,
+    root: Option<&str>,
+) -> Result<String> {
+    // --ps resolves via process store
+    if let Some(ps_value) = ps {
+        return listen::resolve_session_from_ps(ps_value);
+    }
+
+    // Direct session ID
+    if let Some(id) = session_id {
+        return Ok(id.to_string());
+    }
+
+    // --latest or --active: resolve via log path and extract session ID from filename
+    if latest || active {
+        let log_path = listen::resolve_session_log(None, latest, active, root)?;
+        if let Some(stem) = log_path.file_stem().and_then(|s| s.to_str()) {
+            return Ok(stem.to_string());
+        }
+        bail!(
+            "Could not extract session ID from log path: {}",
+            log_path.display()
+        );
+    }
+
+    bail!("Specify a session ID, --latest, --active, or --ps");
+}
+
+async fn run_input(params: InputParams) -> Result<()> {
+    let InputParams {
+        session_id,
+        message,
+        latest,
+        active,
+        ps,
+        stream,
+        output,
+        root,
+        quiet,
+    } = params;
+
+    // Resolve the target session
+    let resolved_id = resolve_input_session_id(
+        session_id.as_deref(),
+        latest,
+        active,
+        ps.as_deref(),
+        root.as_deref(),
+    )?;
+    debug!("Input command: resolved session ID = {}", resolved_id);
+
+    // Resolve the resume target to get provider, provider_session_id, model
+    let target = resume::resolve_resume_target(&resolved_id, root.as_deref())
+        .ok_or_else(|| anyhow::anyhow!("No session found for '{}'", resolved_id))?;
+
+    let provider = &target.entry.provider;
+    let provider_session_id = target
+        .entry
+        .provider_session_id
+        .as_deref()
+        .unwrap_or(&resolved_id);
+    let model = if target.entry.model.is_empty() {
+        None
+    } else {
+        Some(target.entry.model.clone())
+    };
+
+    debug!(
+        "Input command: provider={}, provider_session_id={}, model={:?}",
+        provider, provider_session_id, model
+    );
+
+    if stream {
+        // Streaming mode: Claude only
+        if provider != "claude" {
+            bail!("Streaming input (--stream) is only supported for Claude sessions");
+        }
+
+        let mut agent = AgentFactory::create(provider, None, model, root.clone(), false, vec![])?;
+        let claude_agent = agent
+            .as_any_mut()
+            .downcast_mut::<crate::claude::Claude>()
+            .expect("Failed to get Claude agent");
+
+        let mut session = claude_agent.execute_streaming_resume(provider_session_id)?;
+
+        // Read lines from stdin and send as user messages, while streaming output events
+        let stdin_task = {
+            let stdin = tokio::io::stdin();
+            let reader = tokio::io::BufReader::new(stdin);
+            tokio::spawn(async move {
+                use tokio::io::AsyncBufReadExt;
+                let mut lines = reader.lines();
+                let mut messages = Vec::new();
+                while let Ok(Some(line)) = lines.next_line().await {
+                    if !line.is_empty() {
+                        messages.push(line);
+                    }
+                }
+                messages
+            })
+        };
+
+        // Send messages and read events concurrently
+        let messages = stdin_task.await?;
+        for msg in messages {
+            session.send_user_message(&msg).await?;
+        }
+        session.close_input();
+
+        // Read all events from the session
+        let output_format = output.as_deref().unwrap_or("text");
+        while let Some(event) = session.next_event().await? {
+            match output_format {
+                "json" | "stream-json" => {
+                    println!("{}", serde_json::to_string(&event)?);
+                }
+                _ => {
+                    // Text output: print assistant messages
+                    if let zag::output::Event::AssistantMessage { ref content, .. } = event {
+                        for block in content {
+                            if let zag::output::ContentBlock::Text { text } = block {
+                                print!("{}", text);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        session.wait().await?;
+    } else {
+        // Single message mode: resolve the message
+        let msg = if let Some(m) = message {
+            m
+        } else {
+            // Read from stdin
+            let mut buf = String::new();
+            std::io::Read::read_to_string(&mut std::io::stdin(), &mut buf)?;
+            let trimmed = buf.trim().to_string();
+            if trimmed.is_empty() {
+                bail!("No message provided. Pass a message argument or pipe to stdin.");
+            }
+            trimmed
+        };
+
+        debug!("Input command: sending message ({} bytes)", msg.len());
+
+        let mut agent = AgentFactory::create(provider, None, model, root.clone(), false, vec![])?;
+
+        if !quiet {
+            info!(
+                "Sending input to {} session {}",
+                capitalize(provider),
+                &provider_session_id[..provider_session_id.len().min(8)]
+            );
+        }
+
+        let output_format = output.as_deref();
+
+        // For Claude with stream-json output, use streaming resume
+        if provider == "claude" && output_format == Some("stream-json") {
+            let claude_agent = agent
+                .as_any_mut()
+                .downcast_mut::<crate::claude::Claude>()
+                .expect("Failed to get Claude agent");
+
+            let mut session = claude_agent.execute_streaming_resume(provider_session_id)?;
+            session.send_user_message(&msg).await?;
+            session.close_input();
+
+            while let Some(event) = session.next_event().await? {
+                println!("{}", serde_json::to_string(&event)?);
+            }
+
+            session.wait().await?;
+        } else {
+            // Use run_resume_with_prompt for all providers
+            match agent
+                .run_resume_with_prompt(provider_session_id, &msg)
+                .await?
+            {
+                Some(agent_output) => {
+                    let format = output_format.unwrap_or("text");
+                    match format {
+                        "json" => {
+                            println!("{}", serde_json::to_string(&agent_output)?);
+                        }
+                        "json-pretty" => {
+                            println!("{}", serde_json::to_string_pretty(&agent_output)?);
+                        }
+                        _ => {
+                            // Text output: print the final result
+                            if let Some(text) = agent_output.final_result() {
+                                println!("{}", text);
+                            }
+                        }
+                    }
+                }
+                None => {
+                    if !quiet {
+                        eprintln!("Agent produced no output");
+                    }
+                }
+            }
+        }
     }
 
     Ok(())
