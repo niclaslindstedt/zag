@@ -21,6 +21,7 @@ pub struct Ollama {
     output_format: Option<String>,
     add_dirs: Vec<String>,
     capture_output: bool,
+    max_turns: Option<u32>,
     sandbox: Option<SandboxConfig>,
 }
 
@@ -37,6 +38,7 @@ impl Ollama {
             output_format: None,
             add_dirs: Vec::new(),
             capture_output: false,
+            max_turns: None,
             sandbox: None,
         }
     }
@@ -279,6 +281,10 @@ impl Agent for Ollama {
 
     fn set_capture_output(&mut self, capture: bool) {
         self.capture_output = capture;
+    }
+
+    fn set_max_turns(&mut self, turns: u32) {
+        self.max_turns = Some(turns);
     }
 
     fn set_sandbox(&mut self, config: SandboxConfig) {

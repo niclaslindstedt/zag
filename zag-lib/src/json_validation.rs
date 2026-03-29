@@ -251,6 +251,31 @@ mod tests {
     }
 
     #[test]
+    fn test_validate_json_empty_string() {
+        let result = validate_json("");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_json_whitespace_only() {
+        let result = validate_json("   \n\t  ");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_json_schema_additional_properties() {
+        let schema: serde_json::Value = serde_json::json!({
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"}
+            },
+            "additionalProperties": false
+        });
+        let result = validate_json_schema(r#"{"name": "test", "extra": true}"#, &schema);
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn test_strip_markdown_fences_with_whitespace() {
         assert_eq!(
             strip_markdown_fences("  ```json\n{\"key\": \"value\"}\n```  "),

@@ -617,3 +617,196 @@ fn test_unset_value_unknown_key() {
             .contains("Unknown config key")
     );
 }
+
+// --- Ollama config ---
+
+#[test]
+fn test_set_and_get_ollama_config() {
+    let mut config = Config::default();
+    config.set_value("ollama.model", "llama3").unwrap();
+    assert_eq!(config.get_value("ollama.model"), Some("llama3".to_string()));
+    config.set_value("ollama.size", "70b").unwrap();
+    assert_eq!(config.get_value("ollama.size"), Some("70b".to_string()));
+    config.set_value("ollama.size_small", "1b").unwrap();
+    assert_eq!(
+        config.get_value("ollama.size_small"),
+        Some("1b".to_string())
+    );
+    config.set_value("ollama.size_medium", "14b").unwrap();
+    assert_eq!(
+        config.get_value("ollama.size_medium"),
+        Some("14b".to_string())
+    );
+    config.set_value("ollama.size_large", "70b").unwrap();
+    assert_eq!(
+        config.get_value("ollama.size_large"),
+        Some("70b".to_string())
+    );
+}
+
+#[test]
+fn test_unset_ollama_config() {
+    let mut config = Config::default();
+    config.set_value("ollama.model", "llama3").unwrap();
+    config.unset_value("ollama.model").unwrap();
+    assert_eq!(config.get_value("ollama.model"), None);
+    config.set_value("ollama.size", "70b").unwrap();
+    config.unset_value("ollama.size").unwrap();
+    assert_eq!(config.get_value("ollama.size"), None);
+}
+
+#[test]
+fn test_ollama_model_getter() {
+    let config = Config::default();
+    assert_eq!(config.ollama_model(), "qwen3.5");
+
+    let config = Config {
+        ollama: OllamaConfig {
+            model: Some("llama3".to_string()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(config.ollama_model(), "llama3");
+}
+
+#[test]
+fn test_ollama_size_getter() {
+    let config = Config::default();
+    assert_eq!(config.ollama_size(), "9b");
+
+    let config = Config {
+        ollama: OllamaConfig {
+            size: Some("70b".to_string()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(config.ollama_size(), "70b");
+}
+
+#[test]
+fn test_ollama_size_for() {
+    let config = Config::default();
+    assert_eq!(config.ollama_size_for("small"), "2b");
+    assert_eq!(config.ollama_size_for("s"), "2b");
+    assert_eq!(config.ollama_size_for("medium"), "9b");
+    assert_eq!(config.ollama_size_for("m"), "9b");
+    assert_eq!(config.ollama_size_for("default"), "9b");
+    assert_eq!(config.ollama_size_for("large"), "35b");
+    assert_eq!(config.ollama_size_for("l"), "35b");
+    assert_eq!(config.ollama_size_for("max"), "35b");
+    assert_eq!(config.ollama_size_for("27b"), "27b"); // passthrough
+}
+
+#[test]
+fn test_ollama_size_for_with_overrides() {
+    let config = Config {
+        ollama: OllamaConfig {
+            size_small: Some("0.8b".to_string()),
+            size_medium: Some("4b".to_string()),
+            size_large: Some("122b".to_string()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(config.ollama_size_for("small"), "0.8b");
+    assert_eq!(config.ollama_size_for("medium"), "4b");
+    assert_eq!(config.ollama_size_for("large"), "122b");
+}
+
+// --- Listen config ---
+
+#[test]
+fn test_set_and_get_listen_config() {
+    let mut config = Config::default();
+    config.set_value("listen.format", "json").unwrap();
+    assert_eq!(config.get_value("listen.format"), Some("json".to_string()));
+    config
+        .set_value("listen.timestamp_format", "%Y-%m-%d")
+        .unwrap();
+    assert_eq!(
+        config.get_value("listen.timestamp_format"),
+        Some("%Y-%m-%d".to_string())
+    );
+}
+
+#[test]
+fn test_listen_format_validation() {
+    let mut config = Config::default();
+    assert!(config.set_value("listen.format", "text").is_ok());
+    assert!(config.set_value("listen.format", "json").is_ok());
+    assert!(config.set_value("listen.format", "rich-text").is_ok());
+    let result = config.set_value("listen.format", "xml");
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid listen format")
+    );
+}
+
+#[test]
+fn test_listen_format_getter() {
+    let config = Config::default();
+    assert_eq!(config.listen_format(), None);
+
+    let config = Config {
+        listen: ListenConfig {
+            format: Some("json".to_string()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(config.listen_format(), Some("json"));
+}
+
+#[test]
+fn test_listen_timestamp_format_getter() {
+    let config = Config::default();
+    assert_eq!(config.listen_timestamp_format(), "%H:%M:%S");
+
+    let config = Config {
+        listen: ListenConfig {
+            timestamp_format: Some("%Y-%m-%d %H:%M".to_string()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(config.listen_timestamp_format(), "%Y-%m-%d %H:%M");
+}
+
+#[test]
+fn test_unset_listen_config() {
+    let mut config = Config::default();
+    config.set_value("listen.format", "json").unwrap();
+    config.unset_value("listen.format").unwrap();
+    assert_eq!(config.get_value("listen.format"), None);
+    config
+        .set_value("listen.timestamp_format", "%H:%M")
+        .unwrap();
+    config.unset_value("listen.timestamp_format").unwrap();
+    assert_eq!(config.get_value("listen.timestamp_format"), None);
+}
+
+#[test]
+fn test_parse_ollama_and_listen_config() {
+    let toml = r#"
+[ollama]
+model = "llama3"
+size = "70b"
+size_small = "1b"
+size_medium = "14b"
+size_large = "70b"
+
+[listen]
+format = "json"
+timestamp_format = "%Y-%m-%d"
+"#;
+    let config: Config = toml::from_str(toml).unwrap();
+    assert_eq!(config.ollama_model(), "llama3");
+    assert_eq!(config.ollama_size(), "70b");
+    assert_eq!(config.listen_format(), Some("json"));
+    assert_eq!(config.listen_timestamp_format(), "%Y-%m-%d");
+}

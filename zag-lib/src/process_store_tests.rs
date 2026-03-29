@@ -82,3 +82,24 @@ fn save_and_load_roundtrip() {
     assert_eq!(loaded.processes.len(), 1);
     assert_eq!(loaded.find("id-1").unwrap().pid, 42);
 }
+
+#[test]
+fn update_status_nonexistent_id() {
+    let mut store = ProcessStore::default();
+    // Should be a no-op, not panic
+    store.update_status("nonexistent", "exited", Some(1));
+    assert!(store.find("nonexistent").is_none());
+}
+
+#[test]
+fn list_recent_empty_store() {
+    let store = ProcessStore::default();
+    let list = store.list_recent(None);
+    assert!(list.is_empty());
+}
+
+#[test]
+fn find_empty_store() {
+    let store = ProcessStore::default();
+    assert!(store.find("any-id").is_none());
+}

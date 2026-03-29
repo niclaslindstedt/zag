@@ -20,7 +20,7 @@ impl std::str::FromStr for ModelSize {
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "small" | "s" => Ok(ModelSize::Small),
-            "medium" | "m" => Ok(ModelSize::Medium),
+            "medium" | "m" | "default" => Ok(ModelSize::Medium),
             "large" | "l" | "max" => Ok(ModelSize::Large),
             _ => Err(()),
         }

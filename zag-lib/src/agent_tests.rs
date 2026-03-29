@@ -3,6 +3,7 @@ use crate::providers::claude::Claude;
 use crate::providers::codex::Codex;
 use crate::providers::copilot::Copilot;
 use crate::providers::gemini::Gemini;
+use crate::providers::ollama::Ollama;
 
 #[test]
 fn test_model_size_from_str() {
@@ -109,4 +110,24 @@ fn test_available_models() {
     assert!(Codex::available_models().contains(&"gpt-5.4"));
     assert!(Gemini::available_models().contains(&"auto"));
     assert!(Copilot::available_models().contains(&"claude-sonnet-4.5"));
+}
+
+#[test]
+fn test_ollama_validate_model() {
+    // Ollama accepts any model name
+    assert!(Ollama::validate_model("anything", "Ollama").is_ok());
+    assert!(Ollama::validate_model("", "Ollama").is_ok());
+}
+
+#[test]
+fn test_ollama_default_model() {
+    assert_eq!(Ollama::default_model(), "qwen3.5");
+}
+
+#[test]
+fn test_ollama_available_models() {
+    let models = Ollama::available_models();
+    assert!(models.contains(&"9b"));
+    assert!(models.contains(&"2b"));
+    assert!(models.contains(&"35b"));
 }

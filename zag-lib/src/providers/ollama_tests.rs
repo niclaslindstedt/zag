@@ -137,3 +137,57 @@ fn test_shell_escape_spaces() {
 fn test_shell_escape_quotes() {
     assert_eq!(shell_escape("it's"), "'it'\\''s'");
 }
+
+#[test]
+fn test_set_model() {
+    let mut ollama = Ollama::new();
+    ollama.set_model("llama3".to_string());
+    assert_eq!(ollama.get_model(), "llama3");
+}
+
+#[test]
+fn test_display_model() {
+    let ollama = Ollama::new();
+    assert_eq!(ollama.display_model(), "qwen3.5:9b");
+}
+
+#[test]
+fn test_default_model_trait() {
+    assert_eq!(Ollama::default_model(), "qwen3.5");
+}
+
+#[test]
+fn test_set_system_prompt_and_getter() {
+    let mut ollama = Ollama::new();
+    assert_eq!(ollama.system_prompt(), "");
+    ollama.set_system_prompt("You are a coding assistant".to_string());
+    assert_eq!(ollama.system_prompt(), "You are a coding assistant");
+}
+
+#[test]
+fn test_set_output_format() {
+    let mut ollama = Ollama::new();
+    ollama.set_output_format(Some("json".to_string()));
+    let args = ollama.build_run_args(false, Some("test"));
+    assert!(args.contains(&"--format".to_string()));
+
+    ollama.set_output_format(None);
+    let args = ollama.build_run_args(false, Some("test"));
+    assert!(!args.contains(&"--format".to_string()));
+}
+
+#[test]
+fn test_set_capture_output() {
+    let mut ollama = Ollama::new();
+    assert!(!ollama.capture_output);
+    ollama.set_capture_output(true);
+    assert!(ollama.capture_output);
+}
+
+#[test]
+fn test_set_max_turns() {
+    let mut ollama = Ollama::new();
+    assert!(ollama.max_turns.is_none());
+    ollama.set_max_turns(5);
+    assert_eq!(ollama.max_turns, Some(5));
+}
