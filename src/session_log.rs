@@ -8,11 +8,6 @@ pub fn logs_dir(root: Option<&str>) -> PathBuf {
     Config::agent_dir(root).join("logs")
 }
 
-#[allow(dead_code)]
-pub fn backfill_state_path(root: Option<&str>) -> PathBuf {
-    logs_dir(root).join("backfill_state.json")
-}
-
 pub fn run_default_backfill(root: Option<&str>) -> Result<usize> {
     let claude = crate::claude::logs::ClaudeHistoricalLogAdapter;
     let codex = crate::codex::CodexHistoricalLogAdapter;

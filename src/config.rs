@@ -208,7 +208,6 @@ impl Config {
     }
 
     /// Get the project directory path (for sessions, etc.).
-    #[allow(dead_code)]
     pub fn agent_dir(root: Option<&str>) -> PathBuf {
         Self::resolve_project_dir(root)
     }
@@ -216,15 +215,6 @@ impl Config {
     /// Get the global logs directory path.
     pub fn global_logs_dir() -> PathBuf {
         Self::global_base_dir().join("logs")
-    }
-
-    /// Ensure the project directory exists.
-    #[allow(dead_code)]
-    pub fn ensure_agent_dir(root: Option<&str>) -> Result<PathBuf> {
-        let dir = Self::agent_dir(root);
-        std::fs::create_dir_all(&dir)
-            .with_context(|| format!("Failed to create project directory: {}", dir.display()))?;
-        Ok(dir)
     }
 
     /// Get the default model for a specific agent, if configured.

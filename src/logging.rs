@@ -4,7 +4,6 @@ use indicatif::{ProgressBar, ProgressStyle};
 use log::LevelFilter;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
-use std::path::PathBuf;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -74,12 +73,6 @@ fn write_to_log_file(msg: &str) {
         let timestamp = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%.3f");
         let _ = writeln!(file, "{} {}", timestamp, msg);
     }
-}
-
-/// Get the path to the current session's log directory.
-#[allow(dead_code)]
-pub fn logs_dir() -> PathBuf {
-    Config::global_logs_dir()
 }
 
 /// Check if quiet mode is enabled
