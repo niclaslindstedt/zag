@@ -9,8 +9,13 @@ use crate::cleanup::{
 };
 use crate::cli::Commands;
 use crate::json_mode::{augment_system_prompt_for_json, handle_json_output, wrap_prompt_for_json};
+use crate::output::print_agent_output;
 use crate::resume::{
     current_workspace, discover_provider_session_id, resolve_continue_target, resolve_resume_target,
+};
+use crate::session_setup::{
+    save_session_mapping, setup_plain_session, setup_sandbox, setup_worktree,
+    update_provider_session_id, update_session_log_metadata,
 };
 
 pub(crate) struct AgentActionParams {
@@ -127,140 +132,6 @@ async fn resolve_auto_selection(params: &mut AgentActionParams) -> Result<()> {
     }
 
     Ok(())
-}
-
-/// Worktree setup state computed before agent creation.
-pub(crate) struct WorktreeSetup {
-    pub(crate) is_worktree_session: bool,
-    pub(crate) session_id: Option<String>,
-    pub(crate) worktree_name: Option<String>,
-    pub(crate) effective_root: Option<String>,
-    pub(crate) worktree_path: Option<String>,
-}
-
-pub(crate) struct PlainSessionSetup {
-    pub(crate) session_id: Option<String>,
-    pub(crate) workspace_path: Option<String>,
-}
-
-/// Set up worktree session state: generate IDs, create worktree.
-/// All providers get the same treatment — worktree at `~/.zag/worktrees/<project>/<name>`.
-fn setup_worktree(
-    worktree_flag: &Option<Option<String>>,
-    action: &Commands,
-    root: &Option<String>,
-    show_wrapper: bool,
-    session_id: Option<String>,
-) -> Result<WorktreeSetup> {
-    let is_worktree_session = worktree_flag.is_some() && !is_resume_run(action);
-
-    if !is_worktree_session {
-        return Ok(WorktreeSetup {
-            is_worktree_session: false,
-            session_id: None,
-            worktree_name: None,
-            effective_root: root.clone(),
-            worktree_path: None,
-        });
-    }
-
-    let worktree_name = Some(
-        worktree_flag
-            .as_ref()
-            .unwrap()
-            .as_deref()
-            .map(String::from)
-            .unwrap_or_else(worktree::generate_name),
-    );
-
-    let repo_root = worktree::git_repo_root(root.as_deref())?;
-    let name = worktree_name.as_deref().unwrap();
-    let wt_path = worktree::create_worktree(&repo_root, name)?;
-    if show_wrapper {
-        println!("\x1b[32m✓\x1b[0m Worktree created at {}", wt_path.display());
-    }
-    let path_str = wt_path.to_string_lossy().to_string();
-
-    Ok(WorktreeSetup {
-        is_worktree_session: true,
-        session_id,
-        worktree_name,
-        effective_root: Some(path_str.clone()),
-        worktree_path: Some(path_str),
-    })
-}
-
-/// Sandbox setup state computed before agent creation.
-pub(crate) struct SandboxSetup {
-    pub(crate) is_sandbox_session: bool,
-    pub(crate) sandbox_name: Option<String>,
-    pub(crate) session_id: Option<String>,
-    pub(crate) workspace: Option<String>,
-}
-
-/// Set up sandbox session state: generate name, session ID, determine workspace.
-fn setup_sandbox(
-    sandbox_flag: &Option<Option<String>>,
-    action: &Commands,
-    root: &Option<String>,
-    session_id: Option<String>,
-) -> Result<SandboxSetup> {
-    let is_sandbox_session = sandbox_flag.is_some() && !is_resume_run(action);
-
-    if !is_sandbox_session {
-        return Ok(SandboxSetup {
-            is_sandbox_session: false,
-            sandbox_name: None,
-            session_id: None,
-            workspace: None,
-        });
-    }
-
-    let sandbox_name = Some(
-        sandbox_flag
-            .as_ref()
-            .unwrap()
-            .as_deref()
-            .map(String::from)
-            .unwrap_or_else(sandbox::generate_name),
-    );
-
-    // Determine workspace: root flag > git repo root > current dir
-    let workspace = current_workspace(root.as_deref());
-
-    Ok(SandboxSetup {
-        is_sandbox_session: true,
-        sandbox_name,
-        session_id,
-        workspace: Some(workspace),
-    })
-}
-
-fn setup_plain_session(
-    action: &Commands,
-    json_mode: bool,
-    root: &Option<String>,
-    explicit_session: &Option<String>,
-) -> PlainSessionSetup {
-    // If an explicit --session was provided, always use it
-    if let Some(session_id) = explicit_session {
-        return PlainSessionSetup {
-            session_id: Some(session_id.clone()),
-            workspace_path: Some(current_workspace(root.as_deref())),
-        };
-    }
-
-    if !is_new_interactive_run(action, json_mode) {
-        return PlainSessionSetup {
-            session_id: None,
-            workspace_path: None,
-        };
-    }
-
-    PlainSessionSetup {
-        session_id: Some(uuid::Uuid::new_v4().to_string()),
-        workspace_path: Some(current_workspace(root.as_deref())),
-    }
 }
 
 /// Parameters for creating and configuring an agent.
@@ -389,112 +260,6 @@ fn create_and_configure_agent(
     Ok((agent, output_fmt_clone))
 }
 
-/// Save the session-worktree/sandbox mapping to disk.
-fn save_session_mapping(
-    plain: &PlainSessionSetup,
-    wt: &WorktreeSetup,
-    sb: &SandboxSetup,
-    provider: &str,
-    model: &str,
-    root: Option<&str>,
-) {
-    if plain.session_id.is_some() && !wt.is_worktree_session && !sb.is_sandbox_session {
-        let mut store = session::SessionStore::load(root).unwrap_or_default();
-        store.add(session::SessionEntry {
-            session_id: plain.session_id.clone().unwrap_or_default(),
-            provider: provider.to_string(),
-            model: model.to_string(),
-            worktree_path: plain.workspace_path.clone().unwrap_or_default(),
-            worktree_name: String::new(),
-            created_at: chrono::Utc::now().to_rfc3339(),
-            provider_session_id: None,
-            sandbox_name: None,
-            is_worktree: false,
-            discovered: false,
-            discovery_source: None,
-            log_path: None,
-            log_completeness: "partial".to_string(),
-        });
-        if let Err(e) = store.save(root) {
-            log::warn!("Failed to save session mapping: {}", e);
-        }
-        debug!(
-            "Saved plain session mapping: id={}, model='{}'",
-            plain.session_id.as_deref().unwrap_or(""),
-            model
-        );
-    }
-
-    // Save worktree session mapping
-    if let (Some(sid), Some(wt_path), Some(wt_name)) =
-        (&wt.session_id, &wt.worktree_path, &wt.worktree_name)
-    {
-        let mut store = session::SessionStore::load(root).unwrap_or_default();
-        store.add(session::SessionEntry {
-            session_id: sid.clone(),
-            provider: provider.to_string(),
-            model: model.to_string(),
-            worktree_path: wt_path.clone(),
-            worktree_name: wt_name.clone(),
-            created_at: chrono::Utc::now().to_rfc3339(),
-            provider_session_id: None,
-            sandbox_name: None,
-            is_worktree: true,
-            discovered: false,
-            discovery_source: None,
-            log_path: None,
-            log_completeness: "partial".to_string(),
-        });
-        if let Err(e) = store.save(root) {
-            log::warn!("Failed to save session mapping: {}", e);
-        }
-        debug!("Saved session mapping: {} -> {}", sid, wt_path);
-    }
-
-    // Save sandbox session mapping
-    if let (Some(sid), Some(sandbox_name)) = (&sb.session_id, &sb.sandbox_name) {
-        let workspace = sb.workspace.clone().unwrap_or_default();
-        let mut store = session::SessionStore::load(root).unwrap_or_default();
-        store.add(session::SessionEntry {
-            session_id: sid.clone(),
-            provider: provider.to_string(),
-            model: model.to_string(),
-            worktree_path: workspace.clone(),
-            worktree_name: sandbox_name.clone(),
-            created_at: chrono::Utc::now().to_rfc3339(),
-            provider_session_id: None,
-            sandbox_name: Some(sandbox_name.clone()),
-            is_worktree: false,
-            discovered: false,
-            discovery_source: None,
-            log_path: None,
-            log_completeness: "partial".to_string(),
-        });
-        if let Err(e) = store.save(root) {
-            log::warn!("Failed to save sandbox session mapping: {}", e);
-        }
-        debug!("Saved sandbox session mapping: {} -> {}", sid, sandbox_name);
-    }
-}
-
-fn update_provider_session_id(
-    wrapper_session_id: Option<&str>,
-    provider_session_id: Option<String>,
-    root: Option<&str>,
-) {
-    let (Some(wrapper_session_id), Some(provider_session_id)) =
-        (wrapper_session_id, provider_session_id)
-    else {
-        return;
-    };
-
-    let mut store = session::SessionStore::load(root).unwrap_or_default();
-    store.set_provider_session_id(wrapper_session_id, provider_session_id);
-    if let Err(e) = store.save(root) {
-        log::warn!("Failed to update provider session id: {}", e);
-    }
-}
-
 /// Context for executing an action.
 struct ExecutionContext<'a> {
     provider: &'a str,
@@ -593,35 +358,6 @@ async fn execute_action(
     Ok(())
 }
 
-/// Print agent output in the requested format.
-fn print_agent_output(
-    agent_out: &crate::output::AgentOutput,
-    output_fmt: Option<&str>,
-    show_usage: bool,
-    verbose: bool,
-) -> Result<()> {
-    match output_fmt {
-        Some("json") => {
-            let json = serde_json::to_string(agent_out)?;
-            println!("{}", json);
-        }
-        Some("json-pretty") => {
-            let json = serde_json::to_string_pretty(agent_out)?;
-            println!("{}", json);
-        }
-        Some("stream-json") => {
-            for event in &agent_out.events {
-                let json = serde_json::to_string(event)?;
-                println!("{}", json);
-            }
-        }
-        _ => {
-            process_agent_output(agent_out, show_usage, verbose)?;
-        }
-    }
-    Ok(())
-}
-
 /// Log configuration details at debug level.
 fn log_config_details(params: &AgentActionParams) {
     if let Some(ref m) = params.model {
@@ -678,27 +414,6 @@ fn action_prompt(action: &Commands) -> Option<&str> {
 
 fn should_enable_live_session_logs(action: &Commands, json_mode: bool) -> bool {
     matches!(action, Commands::Run { .. }) && !json_mode
-}
-
-fn update_session_log_metadata(
-    session_id: Option<&str>,
-    log_path: Option<String>,
-    completeness: &str,
-    root: Option<&str>,
-) {
-    let Some(session_id) = session_id else {
-        return;
-    };
-    let mut store = session::SessionStore::load(root).unwrap_or_default();
-    if let Some(entry) = store
-        .sessions
-        .iter_mut()
-        .find(|entry| entry.session_id == session_id)
-    {
-        entry.log_path = log_path;
-        entry.log_completeness = completeness.to_string();
-        let _ = store.save(root);
-    }
 }
 
 pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
@@ -794,7 +509,8 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         }
     }
 
-    let plain = setup_plain_session(&action, json_mode, &root, &session);
+    let is_resume = is_resume_run(&action);
+    let plain = setup_plain_session(is_new_interactive_run(&action, json_mode), &root, &session);
     let wrapper_session_id = plain.session_id.clone();
     let log_session_id = wrapper_session_id
         .clone()
@@ -807,12 +523,12 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
 
     let wt = setup_worktree(
         &worktree_flag,
-        &action,
+        is_resume,
         &root,
         show_wrapper,
         wrapper_session_id.clone(),
     )?;
-    let sb = setup_sandbox(&sandbox_flag, &action, &root, wrapper_session_id.clone())?;
+    let sb = setup_sandbox(&sandbox_flag, is_resume, &root, wrapper_session_id.clone())?;
 
     let effective_root = if let Some(target) = &resume_target {
         if target.entry.is_worktree {
@@ -1249,97 +965,6 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             .find_by_session_id(sid)
             .and_then(|entry| entry.provider_session_id.clone());
         print_session_resume_hint(sid, provider_session_id.as_deref());
-    }
-
-    Ok(())
-}
-
-/// Process and display structured agent output
-fn process_agent_output(
-    output: &crate::output::AgentOutput,
-    show_usage: bool,
-    verbose: bool,
-) -> Result<()> {
-    use crate::output::{Event, LogLevel};
-
-    // Show decorations only when verbose is enabled (or not in quiet mode for non-exec paths)
-    let show_decorations = verbose && !crate::logging::is_quiet();
-
-    if show_decorations {
-        let min_level = LogLevel::Info;
-
-        let log_entries = output.to_log_entries(min_level);
-        for entry in log_entries {
-            match entry.level {
-                LogLevel::Debug => debug!("{}", entry.message),
-                LogLevel::Info => info!("{}", entry.message),
-                LogLevel::Warn => log::warn!("{}", entry.message),
-                LogLevel::Error => log::error!("{}", entry.message),
-            }
-        }
-
-        for event in &output.events {
-            if let Event::ToolExecution {
-                tool_name, result, ..
-            } = event
-            {
-                if result.success {
-                    info!("✓ Tool '{}' executed successfully", tool_name);
-                } else {
-                    log::warn!(
-                        "✗ Tool '{}' failed: {}",
-                        tool_name,
-                        result.error.as_deref().unwrap_or("unknown error")
-                    );
-                }
-            }
-        }
-    }
-
-    // Display final result if available (always shown)
-    if let Some(result) = output.final_result() {
-        if show_decorations {
-            println!("\n{}", result);
-        } else {
-            println!("{}", result);
-        }
-    }
-
-    if show_decorations {
-        if let Some(cost) = output.total_cost_usd {
-            info!("Total cost: ${:.4}", cost);
-        }
-
-        if show_usage && let Some(usage) = &output.usage {
-            info!(
-                "Token usage - Input: {}, Output: {}",
-                usage.input_tokens, usage.output_tokens
-            );
-
-            if let Some(cache_read) = usage.cache_read_tokens
-                && cache_read > 0
-            {
-                info!("Cache read: {} tokens", cache_read);
-            }
-
-            if let Some(cache_creation) = usage.cache_creation_tokens
-                && cache_creation > 0
-            {
-                info!("Cache created: {} tokens", cache_creation);
-            }
-
-            if let Some(web_search) = usage.web_search_requests
-                && web_search > 0
-            {
-                info!("Web search requests: {}", web_search);
-            }
-
-            if let Some(web_fetch) = usage.web_fetch_requests
-                && web_fetch > 0
-            {
-                info!("Web fetch requests: {}", web_fetch);
-            }
-        }
     }
 
     Ok(())

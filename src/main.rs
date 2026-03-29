@@ -31,6 +31,7 @@ mod resume;
 mod review;
 mod search;
 mod session_log;
+mod session_setup;
 
 // Re-export from sub-modules so main_tests.rs can use `super::*`
 pub(crate) use agent_action::{AgentActionParams, run_agent_action};
