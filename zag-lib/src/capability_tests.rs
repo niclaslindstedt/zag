@@ -27,6 +27,7 @@ fn make_test_capability() -> ProviderCapability {
             auto_approve: FeatureSupport::native(),
             review: FeatureSupport::unsupported(),
             add_dirs: FeatureSupport::native(),
+            max_turns: FeatureSupport::native(),
         },
     }
 }

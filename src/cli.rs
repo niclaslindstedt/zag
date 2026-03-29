@@ -58,7 +58,7 @@ pub(crate) struct AgentArgs {
     #[arg(long)]
     pub(crate) show_usage: bool,
 
-    /// Maximum number of agentic turns (passed to Claude --max-turns)
+    /// Maximum number of agentic turns
     #[arg(long)]
     pub(crate) max_turns: Option<u32>,
 }

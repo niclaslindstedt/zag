@@ -232,7 +232,7 @@ impl AgentBuilder {
         self
     }
 
-    /// Set the maximum number of agentic turns (Claude only).
+    /// Set the maximum number of agentic turns.
     pub fn max_turns(mut self, turns: u32) -> Self {
         self.max_turns = Some(turns);
         self

@@ -61,6 +61,7 @@ pub struct Copilot {
     add_dirs: Vec<String>,
     capture_output: bool,
     sandbox: Option<SandboxConfig>,
+    max_turns: Option<u32>,
 }
 
 pub struct CopilotLiveLogAdapter {
@@ -83,6 +84,7 @@ impl Copilot {
             add_dirs: Vec::new(),
             capture_output: false,
             sandbox: None,
+            max_turns: None,
         }
     }
 
@@ -118,6 +120,10 @@ impl Copilot {
 
         for dir in &self.add_dirs {
             args.extend(["--add-dir".to_string(), dir.clone()]);
+        }
+
+        if let Some(turns) = self.max_turns {
+            args.extend(["--max-turns".to_string(), turns.to_string()]);
         }
 
         match (interactive, prompt) {
@@ -753,6 +759,10 @@ impl Agent for Copilot {
 
     fn set_sandbox(&mut self, config: SandboxConfig) {
         self.sandbox = Some(config);
+    }
+
+    fn set_max_turns(&mut self, turns: u32) {
+        self.max_turns = Some(turns);
     }
 
     fn as_any_ref(&self) -> &dyn std::any::Any {

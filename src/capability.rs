@@ -82,7 +82,7 @@ fn codex_capability() -> ProviderCapability {
             auto_approve: FeatureSupport::native(),
             review: FeatureSupport::native(),
             add_dirs: FeatureSupport::native(),
-            max_turns: FeatureSupport::unsupported(),
+            max_turns: FeatureSupport::native(),
         },
     }
 }
@@ -114,7 +114,7 @@ fn gemini_capability() -> ProviderCapability {
             auto_approve: FeatureSupport::native(),
             review: FeatureSupport::unsupported(),
             add_dirs: FeatureSupport::native(),
-            max_turns: FeatureSupport::unsupported(),
+            max_turns: FeatureSupport::native(),
         },
     }
 }
@@ -146,7 +146,7 @@ fn copilot_capability() -> ProviderCapability {
             auto_approve: FeatureSupport::native(),
             review: FeatureSupport::unsupported(),
             add_dirs: FeatureSupport::native(),
-            max_turns: FeatureSupport::unsupported(),
+            max_turns: FeatureSupport::native(),
         },
     }
 }

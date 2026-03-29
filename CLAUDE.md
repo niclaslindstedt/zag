@@ -365,6 +365,7 @@ Settings are applied in this order (later overrides earlier):
 | `ollama.size_medium` | Size for medium alias (default: "9b") |
 | `ollama.size_large` | Size for large alias (default: "35b") |
 | `listen.format` | Default output format for listen command (default: "text") |
+| `listen.timestamp_format` | Strftime-style timestamp format for listen output (default: "%H:%M:%S") |
 
 ## Skills
 
@@ -747,7 +748,7 @@ zag exec --json-stream "list 3 colors"                                 # Stream 
 zag --session $(uuidgen) run                    # Know the session ID before it starts
 zag --session $(uuidgen) exec "complex task"    # Works with exec too
 
-# Limit agentic turns (Claude only)
+# Limit agentic turns
 zag exec --max-turns 5 "fix the bug"
 zag run --max-turns 10 "refactor auth"
 

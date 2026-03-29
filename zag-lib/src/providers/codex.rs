@@ -62,6 +62,7 @@ pub struct Codex {
     add_dirs: Vec<String>,
     capture_output: bool,
     sandbox: Option<SandboxConfig>,
+    max_turns: Option<u32>,
 }
 
 pub struct CodexLiveLogAdapter {
@@ -85,6 +86,7 @@ impl Codex {
             add_dirs: Vec::new(),
             capture_output: false,
             sandbox: None,
+            max_turns: None,
         }
     }
 
@@ -243,6 +245,10 @@ impl Codex {
                 ]
                 .map(String::from),
             );
+        }
+
+        if let Some(turns) = self.max_turns {
+            args.extend(["--max-turns".to_string(), turns.to_string()]);
         }
 
         if let Some(p) = prompt {
@@ -624,6 +630,10 @@ impl Agent for Codex {
         self.sandbox = Some(config);
     }
 
+    fn set_max_turns(&mut self, turns: u32) {
+        self.max_turns = Some(turns);
+    }
+
     fn as_any_ref(&self) -> &dyn std::any::Any {
         self
     }
@@ -681,6 +691,10 @@ impl Agent for Codex {
                 ]
                 .map(String::from),
             );
+        }
+
+        if let Some(turns) = self.max_turns {
+            args.extend(["--max-turns".to_string(), turns.to_string()]);
         }
 
         args.extend(["--resume".to_string(), session_id.to_string()]);

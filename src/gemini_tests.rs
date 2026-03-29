@@ -75,3 +75,20 @@ fn test_make_command_with_sandbox() {
     assert!(args.contains(&"sandbox-gem"));
     assert!(args.contains(&"hello"));
 }
+
+#[test]
+fn test_build_run_args_max_turns() {
+    let mut gemini = Gemini::new();
+    gemini.max_turns = Some(10);
+
+    let args = gemini.build_run_args(false, Some("hello"));
+    assert!(args.contains(&"--max-turns".to_string()));
+    assert!(args.contains(&"10".to_string()));
+}
+
+#[test]
+fn test_build_run_args_no_max_turns_by_default() {
+    let gemini = Gemini::new();
+    let args = gemini.build_run_args(false, Some("hello"));
+    assert!(!args.contains(&"--max-turns".to_string()));
+}

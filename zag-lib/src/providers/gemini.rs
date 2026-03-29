@@ -39,6 +39,7 @@ pub struct Gemini {
     add_dirs: Vec<String>,
     capture_output: bool,
     sandbox: Option<SandboxConfig>,
+    max_turns: Option<u32>,
 }
 
 pub struct GeminiLiveLogAdapter {
@@ -60,6 +61,7 @@ impl Gemini {
             add_dirs: Vec::new(),
             capture_output: false,
             sandbox: None,
+            max_turns: None,
         }
     }
 
@@ -94,6 +96,10 @@ impl Gemini {
 
         if !interactive && let Some(ref format) = self.output_format {
             args.extend(["--output-format".to_string(), format.clone()]);
+        }
+
+        if let Some(turns) = self.max_turns {
+            args.extend(["--max-turns".to_string(), turns.to_string()]);
         }
 
         if let Some(p) = prompt {
@@ -484,6 +490,10 @@ impl Agent for Gemini {
 
     fn set_sandbox(&mut self, config: SandboxConfig) {
         self.sandbox = Some(config);
+    }
+
+    fn set_max_turns(&mut self, turns: u32) {
+        self.max_turns = Some(turns);
     }
 
     fn as_any_ref(&self) -> &dyn std::any::Any {

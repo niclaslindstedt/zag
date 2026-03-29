@@ -27,7 +27,7 @@ All global flags apply (see `zag man zag`).
     --resume <session-id>    Resume a specific interactive session
     --continue               Resume the latest tracked interactive session
     --session <UUID>         Use a specific session ID (cannot combine with --resume/--continue)
-    --max-turns <N>          Maximum number of agentic turns (Claude only)
+    --max-turns <N>          Maximum number of agentic turns
 
 ## Behavior
 

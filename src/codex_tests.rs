@@ -178,3 +178,20 @@ fn test_make_command_with_sandbox() {
     assert!(args.contains(&"exec"));
     assert!(args.contains(&"hello"));
 }
+
+#[test]
+fn test_build_run_args_max_turns() {
+    let mut codex = Codex::new();
+    codex.max_turns = Some(5);
+
+    let args = codex.build_run_args(false, Some("hello"));
+    assert!(args.contains(&"--max-turns".to_string()));
+    assert!(args.contains(&"5".to_string()));
+}
+
+#[test]
+fn test_build_run_args_no_max_turns_by_default() {
+    let codex = Codex::new();
+    let args = codex.build_run_args(false, Some("hello"));
+    assert!(!args.contains(&"--max-turns".to_string()));
+}

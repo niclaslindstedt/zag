@@ -67,6 +67,10 @@ Values can be passed as two arguments (`key value`) or with equals syntax (`key=
     listen.format     Default output format for listen command: text, json, rich-text
                       Default: "text"
 
+    listen.timestamp_format
+                      Strftime-style format for timestamps in listen output.
+                      Default: "%H:%M:%S"
+
 ## Configuration Priority
 
 Settings are resolved in this order (later overrides earlier):
@@ -101,6 +105,7 @@ The `--provider` flag overrides `defaults.provider`, and `--auto-approve` overri
 
     [listen]
     format = "text"
+    timestamp_format = "%H:%M:%S"
 
 ## Subcommands
 
@@ -135,6 +140,7 @@ The `--provider` flag overrides `defaults.provider`, and `--auto-approve` overri
     zag config auto.model haiku         Use haiku for auto-selection
     zag config ollama.model llama3      Set default Ollama model
     zag config listen.format rich-text  Set default listen output format
+    zag config listen.timestamp_format "%Y-%m-%d %H:%M:%S"  Set timestamp format
 
 ## See Also
 

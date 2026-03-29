@@ -178,3 +178,20 @@ fn test_parse_copilot_event_dedupes_ids() {
     assert!(parse_copilot_event_line(line, &mut seen).is_some());
     assert!(parse_copilot_event_line(line, &mut seen).is_none());
 }
+
+#[test]
+fn test_build_run_args_max_turns() {
+    let mut copilot = Copilot::new();
+    copilot.max_turns = Some(3);
+
+    let args = copilot.build_run_args(false, Some("hello"));
+    assert!(args.contains(&"--max-turns".to_string()));
+    assert!(args.contains(&"3".to_string()));
+}
+
+#[test]
+fn test_build_run_args_no_max_turns_by_default() {
+    let copilot = Copilot::new();
+    let args = copilot.build_run_args(false, Some("hello"));
+    assert!(!args.contains(&"--max-turns".to_string()));
+}
