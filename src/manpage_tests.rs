@@ -21,6 +21,11 @@ fn test_print_manpage_all_commands() {
         "capability",
         "listen",
         "man",
+        "skills",
+        "mcp",
+        "ps",
+        "search",
+        "input",
     ] {
         assert!(
             print_manpage(Some(cmd)).is_ok(),
@@ -47,4 +52,9 @@ fn test_manpage_content_has_headers() {
     assert!(MAN_REVIEW.contains("# zag review"));
     assert!(MAN_CONFIG.contains("# zag config"));
     assert!(MAN_MAN.contains("# zag man"));
+    assert!(MAN_SKILLS.contains("# zag skills"));
+    assert!(MAN_MCP.contains("# zag mcp"));
+    assert!(MAN_PS.contains("# zag ps"));
+    assert!(MAN_SEARCH.contains("# zag search"));
+    assert!(MAN_INPUT.contains("# zag input"));
 }

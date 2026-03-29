@@ -538,3 +538,7 @@ fn file_contains_workspace(path: &Path, workspace: &str) -> bool {
 fn system_time_from_utc(ts: chrono::DateTime<chrono::Utc>) -> std::time::SystemTime {
     std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(ts.timestamp().max(0) as u64)
 }
+
+#[cfg(test)]
+#[path = "logs_tests.rs"]
+mod tests;

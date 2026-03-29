@@ -228,3 +228,97 @@ fn format_time_only(ts: &str) -> String {
         ts.to_string()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_format_timestamp_valid() {
+        let result = format_timestamp("2024-06-15T10:30:00Z");
+        assert!(result.contains("2024"));
+        assert!(result.contains("06"));
+        assert!(result.contains("15"));
+    }
+
+    #[test]
+    fn test_format_timestamp_invalid() {
+        let result = format_timestamp("not-a-date");
+        assert_eq!(result, "not-a-date");
+    }
+
+    #[test]
+    fn test_format_time_only_valid() {
+        let result = format_time_only("2024-06-15T10:30:45Z");
+        assert!(result.contains("30"));
+        assert!(result.contains("45"));
+    }
+
+    #[test]
+    fn test_format_time_only_invalid() {
+        let result = format_time_only("invalid");
+        assert_eq!(result, "invalid");
+    }
+
+    #[test]
+    fn test_event_kind_label_user_message() {
+        let event = AgentLogEvent {
+            seq: 1,
+            ts: "2026-01-01T00:00:00Z".to_string(),
+            provider: "claude".to_string(),
+            wrapper_session_id: "s1".to_string(),
+            provider_session_id: None,
+            source_kind: zag::session_log::LogSourceKind::Wrapper,
+            completeness: zag::session_log::LogCompleteness::Full,
+            kind: LogEventKind::UserMessage {
+                role: "user".to_string(),
+                content: "hello".to_string(),
+                message_id: None,
+            },
+        };
+        assert_eq!(event_kind_label(&event), "UserMessage");
+    }
+
+    #[test]
+    fn test_event_kind_label_tool_call() {
+        let event = AgentLogEvent {
+            seq: 1,
+            ts: "2026-01-01T00:00:00Z".to_string(),
+            provider: "claude".to_string(),
+            wrapper_session_id: "s1".to_string(),
+            provider_session_id: None,
+            source_kind: zag::session_log::LogSourceKind::Wrapper,
+            completeness: zag::session_log::LogCompleteness::Full,
+            kind: LogEventKind::ToolCall {
+                tool_name: "Bash".to_string(),
+                tool_kind: None,
+                tool_id: None,
+                input: None,
+            },
+        };
+        let label = event_kind_label(&event);
+        assert!(label.contains("ToolCall"));
+        assert!(label.contains("Bash"));
+    }
+
+    #[test]
+    fn test_event_kind_label_session_started() {
+        let event = AgentLogEvent {
+            seq: 1,
+            ts: "2026-01-01T00:00:00Z".to_string(),
+            provider: "claude".to_string(),
+            wrapper_session_id: "s1".to_string(),
+            provider_session_id: None,
+            source_kind: zag::session_log::LogSourceKind::Wrapper,
+            completeness: zag::session_log::LogCompleteness::Full,
+            kind: LogEventKind::SessionStarted {
+                command: "run".to_string(),
+                model: None,
+                cwd: None,
+                resumed: false,
+                backfilled: false,
+            },
+        };
+        assert_eq!(event_kind_label(&event), "SessionStarted");
+    }
+}

@@ -640,3 +640,7 @@ pub fn search(query: &SearchQuery, zag_home: &Path, cwd: &Path) -> Result<Search
 
     Ok(results)
 }
+
+#[cfg(test)]
+#[path = "search_tests.rs"]
+mod tests;

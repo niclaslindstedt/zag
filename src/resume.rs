@@ -384,3 +384,35 @@ pub fn discover_provider_session_id(
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_worktree_name_from_path() {
+        assert_eq!(worktree_name_from_path("/a/b/c/my-feature"), "my-feature");
+        assert_eq!(worktree_name_from_path("/single"), "single");
+        assert_eq!(worktree_name_from_path("relative"), "relative");
+    }
+
+    #[test]
+    fn test_is_wrapper_worktree_path_non_worktree() {
+        assert!(!is_wrapper_worktree_path("/home/user/project"));
+        assert!(!is_wrapper_worktree_path("/tmp/something"));
+    }
+
+    #[test]
+    fn test_is_wrapper_worktree_path_worktree() {
+        // This test depends on the home directory. Construct a path that
+        // matches the expected pattern: ~/.zag/worktrees/...
+        if let Some(home) = dirs::home_dir() {
+            let path = home
+                .join(".zag")
+                .join("worktrees")
+                .join("test-repo")
+                .join("my-feature");
+            assert!(is_wrapper_worktree_path(path.to_str().unwrap()));
+        }
+    }
+}

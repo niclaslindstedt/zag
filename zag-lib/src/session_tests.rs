@@ -150,3 +150,56 @@ fn test_remove() {
     store.remove("nonexistent");
     assert_eq!(store.sessions.len(), 1);
 }
+
+#[test]
+fn test_list_returns_all_sorted() {
+    let mut store = SessionStore::default();
+    let mut e1 = sample_entry("aaa");
+    e1.created_at = "2026-03-10T00:00:00Z".to_string();
+    let mut e2 = sample_entry("bbb");
+    e2.created_at = "2026-03-15T00:00:00Z".to_string();
+    let mut e3 = sample_entry("ccc");
+    e3.created_at = "2026-03-12T00:00:00Z".to_string();
+    store.add(e1);
+    store.add(e2);
+    store.add(e3);
+
+    let infos = store.list();
+    assert_eq!(infos.len(), 3);
+    // Should be sorted by created_at descending (newest first)
+    assert_eq!(infos[0].session_id, "bbb");
+    assert_eq!(infos[1].session_id, "ccc");
+    assert_eq!(infos[2].session_id, "aaa");
+}
+
+#[test]
+fn test_list_empty_store() {
+    let store = SessionStore::default();
+    let infos = store.list();
+    assert!(infos.is_empty());
+}
+
+#[test]
+fn test_get_by_session_id() {
+    let mut store = SessionStore::default();
+    store.add(sample_entry("abc-123"));
+    store.add(sample_entry("def-456"));
+
+    let info = store.get("abc-123");
+    assert!(info.is_some());
+    assert_eq!(info.unwrap().session_id, "abc-123");
+
+    assert!(store.get("nonexistent").is_none());
+}
+
+#[test]
+fn test_get_by_provider_session_id() {
+    let mut store = SessionStore::default();
+    let mut entry = sample_entry("wrapper-1");
+    entry.provider_session_id = Some("native-abc".to_string());
+    store.add(entry);
+
+    let info = store.get("native-abc");
+    assert!(info.is_some());
+    assert_eq!(info.unwrap().session_id, "wrapper-1");
+}
