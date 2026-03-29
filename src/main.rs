@@ -372,12 +372,12 @@ enum Commands {
     },
     /// Send a user message to a running or resumable session
     Input {
-        /// Session ID to send input to
-        #[arg(conflicts_with_all = ["latest", "active", "ps"])]
-        session_id: Option<String>,
-
         /// Message to send (reads from stdin if omitted and not --stream)
         message: Option<String>,
+
+        /// Target a specific session by ID
+        #[arg(long, value_name = "SESSION_ID", conflicts_with_all = ["latest", "active", "ps"])]
+        session: Option<String>,
 
         /// Send to the most recently created session
         #[arg(long, conflicts_with_all = ["active", "ps"])]
@@ -388,8 +388,12 @@ enum Commands {
         active: bool,
 
         /// Send to a session by PID or zag process UUID
-        #[arg(long, value_name = "PID", conflicts_with_all = ["session_id", "latest", "active"])]
+        #[arg(long, value_name = "PID", conflicts_with_all = ["session", "latest", "active"])]
         ps: Option<String>,
+
+        /// Search across all projects when auto-resolving the session
+        #[arg(long)]
+        global: bool,
 
         /// Stream multiple messages from stdin (Claude only)
         #[arg(long)]
@@ -838,21 +842,23 @@ async fn main() -> Result<()> {
             listen::tail_session_log(&log_path, format, show_thinking, timestamps, &config)?;
         }
         Commands::Input {
-            session_id,
+            session,
             message,
             latest,
             active,
             ps,
+            global,
             stream,
             output,
             root,
         } => {
             run_input(InputParams {
-                session_id,
+                session,
                 message,
                 latest,
                 active,
                 ps,
+                global,
                 stream,
                 output,
                 root,

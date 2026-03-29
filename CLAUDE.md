@@ -801,11 +801,13 @@ zag search --regex "fn\s+\w+_handler"      # Regex search
 zag search --from 2024-01-01 "deploy"      # Date range filter
 
 # Send input to a session
-zag input <session-id> "hello"             # Send a message to a specific session
+zag input "hello"                          # Auto-resolve to most recent session in this project
+zag input --session <session-id> "hello"   # Send a message to a specific session
 zag input --latest "continue"              # Send to the most recent session
 zag input --active "run tests"             # Send to the most active session
 zag input --ps 12345 "status"              # Send by PID
-echo "message" | zag input --latest        # Pipe message from stdin
+zag input --global "hello"                 # Auto-resolve across all projects
+echo "message" | zag input                 # Pipe message from stdin
 zag input --stream --latest                # Stream messages interactively (Claude only)
 zag input --latest "task" -o stream-json   # NDJSON event output (Claude only)
 

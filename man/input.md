@@ -4,12 +4,14 @@ Send a user message to a running or resumable session.
 
 ## Synopsis
 
-    zag input <session-id> "message"
+    zag input "message"
+    zag input --session <session-id> "message"
     zag input --latest "message"
     zag input --active "message"
     zag input --ps <pid> "message"
-    echo "message" | zag input <session-id>
-    zag input --stream <session-id>
+    zag input --global "message"
+    echo "message" | zag input
+    zag input --stream --latest
 
 ## Description
 
@@ -17,15 +19,17 @@ Send a user message to a running or resumable session.
 
 The command resolves the target session, looks up the provider-native session ID, and uses the provider's resume mechanism to deliver the message. For Claude, this uses `--resume --print` with `--replay-user-messages`.
 
+If no session selector is given, `zag input` automatically resolves to the most recently created session in the current project. Use `--global` to search across all projects instead.
+
 ## Options
-
-### `<session-id>`
-
-The session ID to send input to. Supports both wrapper session IDs and provider-native session IDs. Prefix matching is supported if the prefix is unambiguous.
 
 ### `<message>`
 
 The message text to send. If omitted (and `--stream` is not set), the message is read from stdin.
+
+### `--session <SESSION_ID>`
+
+Target a specific session by ID. Supports both wrapper session IDs and provider-native session IDs. Mutually exclusive with `--latest`, `--active`, and `--ps`.
 
 ### `--latest`
 
@@ -37,7 +41,11 @@ Send to the most recently active session (by log file modification time).
 
 ### `--ps <PID>`
 
-Send to the session belonging to a process, specified by OS PID (integer) or zag process UUID (from `zag ps list`). Mutually exclusive with `<session-id>`, `--latest`, and `--active`.
+Send to the session belonging to a process, specified by OS PID (integer) or zag process UUID (from `zag ps list`). Mutually exclusive with `--session`, `--latest`, and `--active`.
+
+### `--global`
+
+When auto-resolving (no explicit session selector), search across all projects instead of only the current project.
 
 ### `--stream`
 
@@ -58,8 +66,14 @@ Root directory for session resolution.
 
 ## Examples
 
-    # Send a message to a specific session
-    zag input abc123-def456 "What files did you change?"
+    # Send a message (auto-resolves to the most recent session in this project)
+    zag input "What files did you change?"
+
+    # Send a message to the latest session globally
+    zag input --global "What files did you change?"
+
+    # Send to a specific session by ID
+    zag input --session abc123-def456 "What files did you change?"
 
     # Send to the latest session
     zag input --latest "Continue with the next step"
@@ -68,7 +82,7 @@ Root directory for session resolution.
     zag input --active "Run the tests"
 
     # Pipe a message from stdin
-    echo "Explain this error" | zag input --latest
+    echo "Explain this error" | zag input
 
     # Get JSON output
     zag input --latest "list 3 colors" -o json

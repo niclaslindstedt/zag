@@ -6,11 +6,12 @@ use crate::listen;
 use crate::resume;
 
 pub(crate) struct InputParams {
-    pub session_id: Option<String>,
+    pub session: Option<String>,
     pub message: Option<String>,
     pub latest: bool,
     pub active: bool,
     pub ps: Option<String>,
+    pub global: bool,
     pub stream: bool,
     pub output: Option<String>,
     pub root: Option<String>,
@@ -19,10 +20,11 @@ pub(crate) struct InputParams {
 
 /// Resolve the session ID for the input command from the various targeting flags.
 fn resolve_input_session_id(
-    session_id: Option<&str>,
+    session: Option<&str>,
     latest: bool,
     active: bool,
     ps: Option<&str>,
+    global: bool,
     root: Option<&str>,
 ) -> Result<String> {
     // --ps resolves via process store
@@ -31,7 +33,7 @@ fn resolve_input_session_id(
     }
 
     // Direct session ID
-    if let Some(id) = session_id {
+    if let Some(id) = session {
         return Ok(id.to_string());
     }
 
@@ -47,16 +49,38 @@ fn resolve_input_session_id(
         );
     }
 
-    bail!("Specify a session ID, --latest, --active, or --ps");
+    // Auto-resolve: no selector given — find the most recent session
+    if global {
+        // Search across all projects via global index
+        let global_dir = crate::config::Config::global_base_dir();
+        if let Ok(index) = zag::session_log::load_global_index(&global_dir) {
+            if let Some(entry) = index
+                .sessions
+                .iter()
+                .max_by(|a, b| a.started_at.cmp(&b.started_at))
+            {
+                return Ok(entry.session_id.clone());
+            }
+        }
+        bail!("No sessions found globally. Use --session, --latest, --active, or --ps to specify one.");
+    } else {
+        // Search current project's session store
+        let store = zag::session::SessionStore::load(root).unwrap_or_default();
+        if let Some(entry) = store.latest() {
+            return Ok(entry.session_id.clone());
+        }
+        bail!("No sessions found. Use --session, --latest, --active, --ps, or --global to specify one.");
+    }
 }
 
 pub(crate) async fn run_input(params: InputParams) -> Result<()> {
     let InputParams {
-        session_id,
+        session,
         message,
         latest,
         active,
         ps,
+        global,
         stream,
         output,
         root,
@@ -65,10 +89,11 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
 
     // Resolve the target session
     let resolved_id = resolve_input_session_id(
-        session_id.as_deref(),
+        session.as_deref(),
         latest,
         active,
         ps.as_deref(),
+        global,
         root.as_deref(),
     )?;
     debug!("Input command: resolved session ID = {}", resolved_id);
@@ -93,6 +118,14 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
         "Input command: provider={}, provider_session_id={}, model={:?}",
         provider, provider_session_id, model
     );
+
+    if !quiet {
+        log::info!(
+            "Sending to {} session {}",
+            crate::capitalize(provider),
+            &resolved_id[..resolved_id.len().min(8)]
+        );
+    }
 
     if stream {
         // Streaming mode: Claude only
@@ -171,14 +204,6 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
         debug!("Input command: sending message ({} bytes)", msg.len());
 
         let mut agent = AgentFactory::create(provider, None, model, root.clone(), false, vec![])?;
-
-        if !quiet {
-            log::info!(
-                "Sending input to {} session {}",
-                crate::capitalize(provider),
-                &provider_session_id[..provider_session_id.len().min(8)]
-            );
-        }
 
         let output_format = output.as_deref();
 
