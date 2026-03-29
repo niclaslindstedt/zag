@@ -139,7 +139,10 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 
 | File | Purpose |
 |------|---------|
-| `src/main.rs` | CLI entry point with clap — maps CLI args to zag-lib calls |
+| `src/main.rs` | CLI entry point — `main()`, `resolve_provider`, `capitalize`, re-exports |
+| `src/cli.rs` | Clap CLI definitions: `Cli`, `Commands`, `AgentArgs`, `SessionIsolationArgs`, all subcommand enums, parsing helpers |
+| `src/commands.rs` | Management command handlers: `run_config`, `run_session`, `run_skills`, `run_mcp` |
+| `src/agent_action.rs` | Core agent orchestration: `run_agent_action`, session setup, agent creation, execution |
 | `src/logging.rs` | Terminal logging, spinners, colored output (implements `ProgressHandler` pattern) |
 | `src/listen.rs` | Listen command: session log tailing, event formatting, session resolution |
 | `src/ps.rs` | `zag ps` command: list/show/kill agent processes via `ProcessStore` |
@@ -152,7 +155,6 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `src/session.rs` | Session-worktree/sandbox mapping store (`sessions.json`) |
 | `src/worktree.rs` | Git worktree creation, removal, and name generation |
 | `src/json_validation.rs` | JSON and JSON Schema validation utilities |
-| `src/listen.rs` | Listen command: session log tailing, event formatting, session resolution |
 | `src/skills.rs` | Provider-agnostic skill management: parsing, loading, syncing symlinks, system prompt injection |
 | `src/skills_tests.rs` | Unit tests for skills module |
 | `man/*.md` | Embedded manpages for the `zag man` command |
