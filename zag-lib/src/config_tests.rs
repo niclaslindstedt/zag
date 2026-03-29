@@ -137,6 +137,7 @@ fn test_get_value() {
             provider: Some("codex".to_string()),
             model: Some("large".to_string()),
             auto_approve: Some(true),
+            ..Default::default()
         },
         models: AgentModels {
             claude: Some("opus".to_string()),
@@ -281,6 +282,8 @@ fn test_config_serialization_roundtrip() {
             provider: Some("claude".to_string()),
             model: Some("medium".to_string()),
             auto_approve: Some(true),
+            max_turns: Some(10),
+            system_prompt: Some("Be helpful".to_string()),
         },
         models: AgentModels {
             claude: Some("opus".to_string()),
@@ -456,4 +459,161 @@ fn test_agent_dir_with_root() {
     let dir = Config::agent_dir(Some("/tmp/test"));
     let home = dirs::home_dir().unwrap();
     assert_eq!(dir, home.join(".zag/projects/tmp-test"));
+}
+
+// --- max_turns config ---
+
+#[test]
+fn test_max_turns_getter() {
+    let config = Config::default();
+    assert_eq!(config.max_turns(), None);
+
+    let config = Config {
+        defaults: Defaults {
+            max_turns: Some(10),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(config.max_turns(), Some(10));
+}
+
+#[test]
+fn test_set_value_max_turns() {
+    let mut config = Config::default();
+    config.set_value("max_turns", "5").unwrap();
+    assert_eq!(config.defaults.max_turns, Some(5));
+}
+
+#[test]
+fn test_set_value_max_turns_invalid() {
+    let mut config = Config::default();
+    let result = config.set_value("max_turns", "abc");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("positive integer"));
+}
+
+#[test]
+fn test_get_value_max_turns() {
+    let config = Config {
+        defaults: Defaults {
+            max_turns: Some(15),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(config.get_value("max_turns"), Some("15".to_string()));
+}
+
+#[test]
+fn test_parse_max_turns_config() {
+    let toml = r#"
+[defaults]
+max_turns = 20
+"#;
+    let config: Config = toml::from_str(toml).unwrap();
+    assert_eq!(config.max_turns(), Some(20));
+}
+
+// --- system_prompt config ---
+
+#[test]
+fn test_system_prompt_getter() {
+    let config = Config::default();
+    assert_eq!(config.system_prompt(), None);
+
+    let config = Config {
+        defaults: Defaults {
+            system_prompt: Some("You are a Rust expert".to_string()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(config.system_prompt(), Some("You are a Rust expert"));
+}
+
+#[test]
+fn test_set_value_system_prompt() {
+    let mut config = Config::default();
+    config.set_value("system_prompt", "Be concise").unwrap();
+    assert_eq!(
+        config.defaults.system_prompt,
+        Some("Be concise".to_string())
+    );
+}
+
+#[test]
+fn test_get_value_system_prompt() {
+    let config = Config {
+        defaults: Defaults {
+            system_prompt: Some("Test prompt".to_string()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        config.get_value("system_prompt"),
+        Some("Test prompt".to_string())
+    );
+}
+
+#[test]
+fn test_parse_system_prompt_config() {
+    let toml = r#"
+[defaults]
+system_prompt = "You are helpful"
+"#;
+    let config: Config = toml::from_str(toml).unwrap();
+    assert_eq!(config.system_prompt(), Some("You are helpful"));
+}
+
+// --- unset_value ---
+
+#[test]
+fn test_unset_value() {
+    let mut config = Config {
+        defaults: Defaults {
+            provider: Some("codex".to_string()),
+            model: Some("large".to_string()),
+            auto_approve: Some(true),
+            max_turns: Some(10),
+            system_prompt: Some("test".to_string()),
+        },
+        models: AgentModels {
+            claude: Some("opus".to_string()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    config.unset_value("provider").unwrap();
+    assert!(config.defaults.provider.is_none());
+
+    config.unset_value("model").unwrap();
+    assert!(config.defaults.model.is_none());
+
+    config.unset_value("auto_approve").unwrap();
+    assert!(config.defaults.auto_approve.is_none());
+
+    config.unset_value("max_turns").unwrap();
+    assert!(config.defaults.max_turns.is_none());
+
+    config.unset_value("system_prompt").unwrap();
+    assert!(config.defaults.system_prompt.is_none());
+
+    config.unset_value("model.claude").unwrap();
+    assert!(config.models.claude.is_none());
+}
+
+#[test]
+fn test_unset_value_unknown_key() {
+    let mut config = Config::default();
+    let result = config.unset_value("nonexistent");
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("Unknown config key")
+    );
 }

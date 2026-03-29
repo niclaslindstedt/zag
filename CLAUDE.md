@@ -284,6 +284,12 @@ This means:
 # Can be overridden per-agent in [models] section
 model = "medium"
 
+# Default maximum number of agentic turns
+# max_turns = 10
+
+# Default system prompt for all agents
+# system_prompt = ""
+
 [models]
 # Default models for each agent (overrides defaults.model)
 # Use size aliases (small, medium, large) or specific model names
@@ -325,6 +331,10 @@ zag config model opus
 zag config model.claude=opus
 zag config auto_approve true
 
+# Unset a single config key (revert to default)
+zag config unset provider
+zag config unset model.claude
+
 # Initialize default config file
 zag config init
 
@@ -353,6 +363,8 @@ Settings are applied in this order (later overrides earlier):
 | `provider` | Default provider (default: "claude") |
 | `auto_approve` | Skip permission prompts (default: false) |
 | `model` | Default model size for all agents (default: "medium") |
+| `max_turns` | Default maximum number of agentic turns |
+| `system_prompt` | Default system prompt for all agents |
 | `model.claude` | Default model for Claude agent (overrides model) |
 | `model.codex` | Default model for Codex agent (overrides model) |
 | `model.gemini` | Default model for Gemini agent (overrides model) |
@@ -778,6 +790,7 @@ zag session list                    # List all sessions
 zag session list --json             # JSON output
 zag session list -p claude          # Filter by provider
 zag session list -n 5               # Show 5 most recent
+zag session list --global           # List sessions across all projects
 zag session show <session-id>       # Show session details
 zag session show <id> --json        # JSON output
 zag session delete <session-id>     # Delete a session from the store
@@ -809,6 +822,7 @@ zag ps                           # List all processes (default: all)
 zag ps list                      # List all processes
 zag ps list --running            # Only running processes
 zag ps list -n 5                 # Show 5 most recent
+zag ps list -p claude            # Filter by provider
 zag ps list --json               # JSON output
 zag ps show <id>                 # Show process details
 zag ps show <id> --json          # JSON output
@@ -844,6 +858,7 @@ zag config provider              # Read a single value
 zag config get model.claude      # Read a value (explicit get)
 zag config provider gemini       # Set default provider
 zag config model.claude=opus     # Set claude-specific model
+zag config unset provider        # Unset a config key (revert to default)
 zag config init                  # Create default config file
 zag config reset                 # Reset config to defaults
 zag config list                  # List all keys and current values

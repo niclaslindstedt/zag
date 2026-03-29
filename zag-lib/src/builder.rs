@@ -266,9 +266,17 @@ impl AgentBuilder {
 
     /// Create and configure the agent.
     fn create_agent(&self, provider: &str) -> Result<Box<dyn Agent + Send + Sync>> {
+        // Apply system_prompt config fallback
+        let base_system_prompt = self.system_prompt.clone().or_else(|| {
+            Config::load(self.root.as_deref())
+                .unwrap_or_default()
+                .system_prompt()
+                .map(String::from)
+        });
+
         // Augment system prompt with JSON instructions for non-Claude agents
         let system_prompt = if self.json_mode && provider != "claude" {
-            let mut prompt = self.system_prompt.clone().unwrap_or_default();
+            let mut prompt = base_system_prompt.unwrap_or_default();
             if let Some(ref schema) = self.json_schema {
                 let schema_str = serde_json::to_string_pretty(schema).unwrap_or_default();
                 prompt.push_str(&format!(
@@ -283,7 +291,7 @@ impl AgentBuilder {
             }
             Some(prompt)
         } else {
-            self.system_prompt.clone()
+            base_system_prompt
         };
 
         self.progress
@@ -298,7 +306,13 @@ impl AgentBuilder {
             self.add_dirs.clone(),
         )?;
 
-        if let Some(turns) = self.max_turns {
+        // Apply max_turns: explicit > config > none
+        let effective_max_turns = self.max_turns.or_else(|| {
+            Config::load(self.root.as_deref())
+                .unwrap_or_default()
+                .max_turns()
+        });
+        if let Some(turns) = effective_max_turns {
             agent.set_max_turns(turns);
         }
 

@@ -255,6 +255,7 @@ async fn main() -> Result<()> {
             let cmd = command.unwrap_or(ps::PsCommand::List {
                 running: false,
                 limit: None,
+                provider: None,
             });
             ps::run_ps(cmd, json)?;
         }

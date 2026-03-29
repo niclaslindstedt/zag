@@ -109,6 +109,38 @@ impl SessionStore {
         Ok(())
     }
 
+    /// Load all session stores across all projects under `~/.zag/projects/`.
+    pub fn load_all() -> Result<Self> {
+        let projects_dir = Config::global_base_dir().join("projects");
+        debug!("Loading all session stores from {}", projects_dir.display());
+        let mut all_sessions = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(&projects_dir) {
+            for entry in entries.flatten() {
+                let sessions_path = entry.path().join("sessions.json");
+                if sessions_path.exists() {
+                    if let Ok(content) = std::fs::read_to_string(&sessions_path) {
+                        if let Ok(store) = serde_json::from_str::<SessionStore>(&content) {
+                            all_sessions.extend(store.sessions);
+                        }
+                    }
+                }
+            }
+        }
+        // Also load the global base directory sessions (non-repo usage)
+        let global_sessions = Config::global_base_dir().join("sessions.json");
+        if global_sessions.exists() {
+            if let Ok(content) = std::fs::read_to_string(&global_sessions) {
+                if let Ok(store) = serde_json::from_str::<SessionStore>(&content) {
+                    all_sessions.extend(store.sessions);
+                }
+            }
+        }
+        debug!("Loaded {} sessions across all projects", all_sessions.len());
+        Ok(Self {
+            sessions: all_sessions,
+        })
+    }
+
     /// Add a session entry.
     pub fn add(&mut self, entry: SessionEntry) {
         self.sessions.retain(|existing| {

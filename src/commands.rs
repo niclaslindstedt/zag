@@ -48,6 +48,14 @@ pub(crate) fn run_config(args: Vec<String>, root: Option<&str>) -> Result<()> {
         return Ok(());
     }
 
+    if args.len() == 2 && args[0] == "unset" {
+        let mut config = Config::load(root).unwrap_or_default();
+        config.unset_value(&args[1])?;
+        config.save(root)?;
+        println!("{} (unset)", args[1]);
+        return Ok(());
+    }
+
     if args.len() == 1 && args[0] == "list" {
         let config = Config::load(root).unwrap_or_default();
         println!("{:<25} VALUE", "KEY");
@@ -99,8 +107,16 @@ pub(crate) fn run_config(args: Vec<String>, root: Option<&str>) -> Result<()> {
 
 pub(crate) fn run_session(command: SessionCommand, json: bool, root: Option<&str>) -> Result<()> {
     match command {
-        SessionCommand::List { provider, limit } => {
-            let store = session::SessionStore::load(root)?;
+        SessionCommand::List {
+            provider,
+            limit,
+            global,
+        } => {
+            let store = if global {
+                session::SessionStore::load_all()?
+            } else {
+                session::SessionStore::load(root)?
+            };
             let mut sessions = store.list();
             if let Some(ref p) = provider {
                 sessions.retain(|s| s.provider == *p);

@@ -9,6 +9,7 @@ View or set configuration values.
     zag [flags] config get <key>          Get a config value (explicit)
     zag [flags] config <key> <value>      Set a config value
     zag [flags] config key=value          Set a config value (equals syntax)
+    zag [flags] config unset <key>        Unset a config value (revert to default)
     zag [flags] config init               Create default config file
     zag [flags] config reset              Reset config to defaults
     zag [flags] config list               List all config keys and values
@@ -45,6 +46,12 @@ Values can be passed as two arguments (`key value`) or with equals syntax (`key=
 
     auto_approve      Skip permission prompts by default: true, false, yes, no, 1, 0
                       Default: false
+
+    max_turns         Default maximum number of agentic turns.
+                      Must be a positive integer. No default (unlimited).
+
+    system_prompt     Default system prompt for all agents.
+                      No default (empty).
 
     model.claude      Default model for Claude (overrides model)
     model.codex       Default model for Codex (overrides model)
@@ -88,6 +95,8 @@ The `--provider` flag overrides `defaults.provider`, and `--auto-approve` overri
     provider = "claude"
     model = "medium"
     auto_approve = false
+    # max_turns = 10
+    # system_prompt = ""
 
     [models]
     claude = "opus"
@@ -114,6 +123,9 @@ The `--provider` flag overrides `defaults.provider`, and `--auto-approve` overri
 
     reset    Delete the existing config and create a fresh default config file.
 
+    unset    Unset a single config key, reverting it to its default value.
+             The key is removed from the config file on next save.
+
     list     List all available config keys and their current values.
              Shows "(not set)" for unset keys.
 
@@ -137,6 +149,10 @@ The `--provider` flag overrides `defaults.provider`, and `--auto-approve` overri
     zag config model.claude opus        Set Claude-specific model
     zag config model.claude=opus        Same (equals syntax)
     zag config auto_approve true        Enable auto-approve by default
+    zag config max_turns 10             Set default max agentic turns
+    zag config system_prompt "Be helpful"  Set default system prompt
+    zag config unset provider           Unset default provider (revert to default)
+    zag config unset model.claude       Unset Claude-specific model
     zag config auto.model haiku         Use haiku for auto-selection
     zag config ollama.model llama3      Set default Ollama model
     zag config listen.format rich-text  Set default listen output format

@@ -18,12 +18,13 @@ Sessions are automatically created when running agents with `zag run` or `zag ex
 
 List all sessions, sorted by creation time (newest first).
 
-    zag session list [--json] [-p provider] [-n limit]
+    zag session list [--json] [-p provider] [-n limit] [--global]
 
 Options:
 - `--json` — Output as JSON array
 - `-p, --provider` — Filter by provider name (e.g., claude, codex, gemini)
 - `-n, --limit` — Show only the N most recent sessions
+- `--global` — List sessions across all projects (not just the current one)
 
 ### show
 
@@ -68,6 +69,9 @@ Supported providers: Claude, Codex, Gemini, Copilot, Ollama (no-op today).
 
     # Show the 5 most recent sessions
     zag session list -n 5
+
+    # List sessions across all projects
+    zag session list --global
 
     # Show details of a specific session
     zag session show abc123-def456

@@ -5,7 +5,7 @@ List, inspect, stop, and kill agent processes started by zag.
 ## Synopsis
 
     zag ps
-    zag ps list [--running] [-n <N>] [--json]
+    zag ps list [--running] [-p <provider>] [-n <N>] [--json]
     zag ps show <id> [--json]
     zag ps stop <id>
     zag ps kill <id>
@@ -26,11 +26,16 @@ List process entries, newest first.
 
     zag ps list
     zag ps list --running
+    zag ps list -p claude
     zag ps list -n 5
 
 #### `--running`
 
 Show only processes that are currently alive in the OS.
+
+#### `-p, --provider <provider>`
+
+Filter by provider name (e.g., claude, codex, gemini, copilot, ollama).
 
 #### `-n, --limit <N>`
 
@@ -94,6 +99,9 @@ Process entries are stored in `~/.zag/processes.json`. Entries accumulate over t
 
     # Show only running processes
     zag ps list --running
+
+    # Filter by provider
+    zag ps list -p claude
 
     # Inspect a specific process
     zag ps show a1b2c3d4-...

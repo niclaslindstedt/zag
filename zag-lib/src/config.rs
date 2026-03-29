@@ -43,6 +43,10 @@ pub struct Defaults {
     pub model: Option<String>,
     /// Default provider (claude, codex, gemini, copilot)
     pub provider: Option<String>,
+    /// Default maximum number of agentic turns
+    pub max_turns: Option<u32>,
+    /// Default system prompt for all agents
+    pub system_prompt: Option<String>,
 }
 
 /// Auto-selection configuration.
@@ -268,6 +272,16 @@ impl Config {
         self.defaults.auto_approve.unwrap_or(false)
     }
 
+    /// Get the default max turns, if configured.
+    pub fn max_turns(&self) -> Option<u32> {
+        self.defaults.max_turns
+    }
+
+    /// Get the default system prompt, if configured.
+    pub fn system_prompt(&self) -> Option<&str> {
+        self.defaults.system_prompt.as_deref()
+    }
+
     /// Get the default provider, if configured.
     pub fn provider(&self) -> Option<&str> {
         self.defaults.provider.as_deref()
@@ -305,6 +319,8 @@ impl Config {
         "provider",
         "model",
         "auto_approve",
+        "max_turns",
+        "system_prompt",
         "model.claude",
         "model.codex",
         "model.gemini",
@@ -328,6 +344,8 @@ impl Config {
             "provider" => self.defaults.provider.clone(),
             "model" => self.defaults.model.clone(),
             "auto_approve" => self.defaults.auto_approve.map(|v| v.to_string()),
+            "max_turns" => self.defaults.max_turns.map(|v| v.to_string()),
+            "system_prompt" => self.defaults.system_prompt.clone(),
             "model.claude" => self.models.claude.clone(),
             "model.codex" => self.models.codex.clone(),
             "model.gemini" => self.models.gemini.clone(),
@@ -364,6 +382,18 @@ impl Config {
             "model" => {
                 self.defaults.model = Some(value.to_string());
             }
+            "max_turns" => {
+                let turns: u32 = value.parse().map_err(|_| {
+                    anyhow::anyhow!(
+                        "Invalid value '{}' for max_turns. Must be a positive integer.",
+                        value
+                    )
+                })?;
+                self.defaults.max_turns = Some(turns);
+            }
+            "system_prompt" => {
+                self.defaults.system_prompt = Some(value.to_string());
+            }
             "auto_approve" => match value.to_lowercase().as_str() {
                 "true" | "1" | "yes" => self.defaults.auto_approve = Some(true),
                 "false" | "0" | "no" => self.defaults.auto_approve = Some(false),
@@ -398,7 +428,38 @@ impl Config {
                 self.listen.timestamp_format = Some(value.to_string());
             }
             _ => anyhow::bail!(
-                "Unknown config key '{}'. Available: provider, model, auto_approve, model.claude, model.codex, model.gemini, model.copilot, model.ollama, auto.provider, auto.model, ollama.model, ollama.size, ollama.size_small, ollama.size_medium, ollama.size_large, listen.format, listen.timestamp_format",
+                "Unknown config key '{}'. Available: provider, model, auto_approve, max_turns, system_prompt, model.claude, model.codex, model.gemini, model.copilot, model.ollama, auto.provider, auto.model, ollama.model, ollama.size, ollama.size_small, ollama.size_medium, ollama.size_large, listen.format, listen.timestamp_format",
+                key
+            ),
+        }
+        Ok(())
+    }
+
+    /// Unset a config value by dot-notation key (revert to default).
+    pub fn unset_value(&mut self, key: &str) -> Result<()> {
+        debug!("Unsetting config: {}", key);
+        match key {
+            "provider" => self.defaults.provider = None,
+            "model" => self.defaults.model = None,
+            "auto_approve" => self.defaults.auto_approve = None,
+            "max_turns" => self.defaults.max_turns = None,
+            "system_prompt" => self.defaults.system_prompt = None,
+            "model.claude" => self.models.claude = None,
+            "model.codex" => self.models.codex = None,
+            "model.gemini" => self.models.gemini = None,
+            "model.copilot" => self.models.copilot = None,
+            "model.ollama" => self.models.ollama = None,
+            "auto.provider" => self.auto.provider = None,
+            "auto.model" => self.auto.model = None,
+            "ollama.model" => self.ollama.model = None,
+            "ollama.size" => self.ollama.size = None,
+            "ollama.size_small" => self.ollama.size_small = None,
+            "ollama.size_medium" => self.ollama.size_medium = None,
+            "ollama.size_large" => self.ollama.size_large = None,
+            "listen.format" => self.listen.format = None,
+            "listen.timestamp_format" => self.listen.timestamp_format = None,
+            _ => anyhow::bail!(
+                "Unknown config key '{}'. Run 'zag config list' to see available keys.",
                 key
             ),
         }
@@ -421,6 +482,12 @@ impl Config {
 # Default model size for all agents (small, medium, large)
 # Can be overridden per-agent in [models] section
 model = "medium"
+
+# Default maximum number of agentic turns
+# max_turns = 10
+
+# Default system prompt for all agents
+# system_prompt = ""
 
 [models]
 # Default models for each agent (overrides defaults.model)

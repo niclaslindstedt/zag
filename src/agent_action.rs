@@ -449,6 +449,11 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         max_turns,
     } = params;
 
+    // Apply config fallbacks for max_turns and system_prompt
+    let config = Config::load(root.as_deref()).unwrap_or_default();
+    let max_turns = max_turns.or(config.max_turns());
+    let system_prompt = system_prompt.or_else(|| config.system_prompt().map(String::from));
+
     let is_exec = matches!(action, Commands::Exec { .. });
     let show_wrapper = !quiet && (!is_exec || verbose);
 

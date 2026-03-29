@@ -23,11 +23,18 @@ pub fn resolve_live_status(entry: &ProcessEntry) -> &'static str {
 
 pub fn run_ps(command: PsCommand, json: bool) -> Result<()> {
     match command {
-        PsCommand::List { running, limit } => {
+        PsCommand::List {
+            running,
+            limit,
+            provider,
+        } => {
             let store = ProcessStore::load()?;
             let mut entries: Vec<&ProcessEntry> = store.list_recent(limit);
             if running {
                 entries.retain(|e| resolve_live_status(e) == "running");
+            }
+            if let Some(ref p) = provider {
+                entries.retain(|e| e.provider == *p);
             }
             if json {
                 let with_live: Vec<serde_json::Value> = entries
@@ -174,6 +181,9 @@ pub enum PsCommand {
         /// Show only the N most recent processes
         #[arg(short = 'n', long)]
         limit: Option<usize>,
+        /// Filter by provider
+        #[arg(short = 'p', long)]
+        provider: Option<String>,
     },
     /// Show details of a specific process
     Show {

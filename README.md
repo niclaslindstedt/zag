@@ -167,6 +167,9 @@ zag config                          # Print current config
 zag config provider gemini          # Set default provider
 zag config model.claude=opus        # Set per-agent model default
 zag config auto_approve true        # Skip permission prompts by default
+zag config max_turns 10             # Set default max agentic turns
+zag config system_prompt "Be concise" # Set default system prompt
+zag config unset provider           # Unset a config key (revert to default)
 ```
 
 ```toml
@@ -174,6 +177,8 @@ zag config auto_approve true        # Skip permission prompts by default
 provider = "claude"
 model = "medium"
 auto_approve = false
+# max_turns = 10
+# system_prompt = ""
 
 [models]
 claude = "opus"

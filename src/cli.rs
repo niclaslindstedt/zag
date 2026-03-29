@@ -388,6 +388,9 @@ pub(crate) enum SessionCommand {
         /// Show only the N most recent sessions
         #[arg(short = 'n', long)]
         limit: Option<usize>,
+        /// List sessions across all projects
+        #[arg(long)]
+        global: bool,
     },
     /// Show details of a specific session
     Show {
