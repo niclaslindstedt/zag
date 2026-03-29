@@ -5,7 +5,7 @@ use zag::json_validation;
 
 #[derive(Parser)]
 #[command(name = "zag")]
-#[command(about = "A wrapper for different AI agents")]
+#[command(version, about = "A wrapper for different AI agents")]
 pub struct Cli {
     /// Enable debug logging
     #[arg(short, long, global = true)]
@@ -57,6 +57,10 @@ pub(crate) struct AgentArgs {
     /// Show token usage statistics (only applies to JSON output mode)
     #[arg(long)]
     pub(crate) show_usage: bool,
+
+    /// Maximum number of agentic turns (passed to Claude --max-turns)
+    #[arg(long)]
+    pub(crate) max_turns: Option<u32>,
 }
 
 /// Arguments for session isolation (worktree, sandbox, session ID, JSON output)
@@ -460,6 +464,9 @@ pub(crate) enum McpCommand {
         /// URL endpoint (http transport)
         #[arg(long)]
         url: Option<String>,
+        /// Environment variables (KEY=VALUE pairs, repeatable)
+        #[arg(long, value_name = "KEY=VALUE")]
+        env: Vec<String>,
         /// Short description
         #[arg(long)]
         description: Option<String>,

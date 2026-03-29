@@ -79,6 +79,7 @@ Options:
 - `--command` — Command to start the server (stdio)
 - `--args` — Arguments for the command
 - `--url` — URL endpoint (http)
+- `--env KEY=VALUE` — Environment variables (repeatable)
 - `--description` — Short description
 - `--global` — Store in global directory (`~/.zag/mcp/`) instead of project-scoped
 
@@ -110,6 +111,9 @@ Options:
 
     # Add a stdio MCP server
     zag mcp add github --command npx --args -y @modelcontextprotocol/server-github
+
+    # Add with environment variables
+    zag mcp add github --command npx --args -y @modelcontextprotocol/server-github --env GITHUB_TOKEN='${GITHUB_TOKEN}'
 
     # Add an HTTP MCP server
     zag mcp add sentry --transport http --url https://mcp.sentry.dev/sse

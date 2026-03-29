@@ -38,6 +38,7 @@ pub(crate) struct AgentActionParams {
     pub(crate) json_schema: Option<serde_json::Value>,
     pub(crate) json_stream: bool,
     pub(crate) session: Option<String>,
+    pub(crate) max_turns: Option<u32>,
 }
 
 pub(crate) fn run_resume_id(action: &Commands) -> Option<&str> {
@@ -151,6 +152,7 @@ struct AgentSetupParams {
     verbose: bool,
     json_mode: bool,
     json_stream: bool,
+    max_turns: Option<u32>,
 }
 
 /// Create and configure the agent with all settings.
@@ -178,6 +180,10 @@ fn create_and_configure_agent(
 
     let output_fmt_clone = p.output_format.clone();
     agent.set_output_format(p.output_format);
+
+    if let Some(turns) = p.max_turns {
+        agent.set_max_turns(turns);
+    }
 
     // Configure Claude-specific options in a single downcast
     if p.provider == "claude"
@@ -440,6 +446,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         json_schema,
         json_stream,
         session,
+        max_turns,
     } = params;
 
     let is_exec = matches!(action, Commands::Exec { .. });
@@ -596,6 +603,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             verbose,
             json_mode,
             json_stream,
+            max_turns,
         },
         &json_schema,
         show_wrapper,

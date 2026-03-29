@@ -300,6 +300,27 @@ impl Config {
     pub const VALID_PROVIDERS: &'static [&'static str] =
         &["claude", "codex", "gemini", "copilot", "ollama", "auto"];
 
+    /// All valid config keys for listing/discovery.
+    pub const VALID_KEYS: &'static [&'static str] = &[
+        "provider",
+        "model",
+        "auto_approve",
+        "model.claude",
+        "model.codex",
+        "model.gemini",
+        "model.copilot",
+        "model.ollama",
+        "auto.provider",
+        "auto.model",
+        "ollama.model",
+        "ollama.size",
+        "ollama.size_small",
+        "ollama.size_medium",
+        "ollama.size_large",
+        "listen.format",
+        "listen.timestamp_format",
+    ];
+
     /// Get a config value by dot-notation key.
     /// Get a config value by dot-notation key.
     pub fn get_value(&self, key: &str) -> Option<String> {

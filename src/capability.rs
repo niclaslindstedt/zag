@@ -50,6 +50,7 @@ fn claude_capability() -> ProviderCapability {
             auto_approve: FeatureSupport::native(),
             review: FeatureSupport::unsupported(),
             add_dirs: FeatureSupport::native(),
+            max_turns: FeatureSupport::native(),
         },
     }
 }
@@ -81,6 +82,7 @@ fn codex_capability() -> ProviderCapability {
             auto_approve: FeatureSupport::native(),
             review: FeatureSupport::native(),
             add_dirs: FeatureSupport::native(),
+            max_turns: FeatureSupport::unsupported(),
         },
     }
 }
@@ -112,6 +114,7 @@ fn gemini_capability() -> ProviderCapability {
             auto_approve: FeatureSupport::native(),
             review: FeatureSupport::unsupported(),
             add_dirs: FeatureSupport::native(),
+            max_turns: FeatureSupport::unsupported(),
         },
     }
 }
@@ -143,6 +146,7 @@ fn copilot_capability() -> ProviderCapability {
             auto_approve: FeatureSupport::native(),
             review: FeatureSupport::unsupported(),
             add_dirs: FeatureSupport::native(),
+            max_turns: FeatureSupport::unsupported(),
         },
     }
 }
@@ -174,6 +178,7 @@ fn ollama_capability() -> ProviderCapability {
             auto_approve: FeatureSupport::native(),
             review: FeatureSupport::unsupported(),
             add_dirs: FeatureSupport::unsupported(),
+            max_turns: FeatureSupport::unsupported(),
         },
     }
 }

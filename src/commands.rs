@@ -32,9 +32,32 @@ pub(crate) fn run_config(args: Vec<String>, root: Option<&str>) -> Result<()> {
         return Ok(());
     }
 
+    if args.len() == 1 && args[0] == "reset" {
+        let path = Config::config_path(root);
+        if path.exists() {
+            std::fs::remove_file(&path)?;
+        }
+        Config::init(root)?;
+        println!("Config reset to defaults at {}", path.display());
+        return Ok(());
+    }
+
     if args.len() == 1 && args[0] == "path" {
         let path = Config::config_path(root);
         println!("{}", path.display());
+        return Ok(());
+    }
+
+    if args.len() == 1 && args[0] == "list" {
+        let config = Config::load(root).unwrap_or_default();
+        println!("{:<25} VALUE", "KEY");
+        println!("{}", "-".repeat(55));
+        for key in Config::VALID_KEYS {
+            let value = config
+                .get_value(key)
+                .unwrap_or_else(|| "(not set)".to_string());
+            println!("{:<25} {}", key, value);
+        }
         return Ok(());
     }
 
@@ -339,10 +362,19 @@ pub(crate) fn run_mcp(command: McpCommand, json: bool, root: Option<&str>) -> Re
             command,
             args,
             url,
+            env,
             description,
             global,
         } => {
             let project = !global;
+            let mut env_map = std::collections::BTreeMap::new();
+            for pair in &env {
+                if let Some((k, v)) = pair.split_once('=') {
+                    env_map.insert(k.to_string(), v.to_string());
+                } else {
+                    bail!("Invalid --env format '{}'. Expected KEY=VALUE", pair);
+                }
+            }
             let server = mcp::McpServer {
                 name: name.clone(),
                 description: description.unwrap_or_default(),
@@ -352,7 +384,7 @@ pub(crate) fn run_mcp(command: McpCommand, json: bool, root: Option<&str>) -> Re
                 url,
                 bearer_token_env_var: None,
                 headers: std::collections::BTreeMap::new(),
-                env: std::collections::BTreeMap::new(),
+                env: env_map,
             };
             let path = mcp::add_server(&server, project, root)?;
             println!(

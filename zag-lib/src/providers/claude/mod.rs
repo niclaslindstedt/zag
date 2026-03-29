@@ -53,6 +53,7 @@ pub struct Claude {
     event_handler: Option<EventHandler>,
     replay_user_messages: bool,
     include_partial_messages: bool,
+    max_turns: Option<u32>,
 }
 
 impl Claude {
@@ -73,6 +74,7 @@ impl Claude {
             event_handler: None,
             replay_user_messages: false,
             include_partial_messages: false,
+            max_turns: None,
         }
     }
 
@@ -172,6 +174,10 @@ impl Claude {
 
         if let Some(ref schema) = self.json_schema {
             args.extend(["--json-schema".to_string(), schema.clone()]);
+        }
+
+        if let Some(turns) = self.max_turns {
+            args.extend(["--max-turns".to_string(), turns.to_string()]);
         }
 
         if let Some(p) = prompt {
@@ -711,6 +717,10 @@ impl Agent for Claude {
 
     fn set_capture_output(&mut self, capture: bool) {
         self.capture_output = capture;
+    }
+
+    fn set_max_turns(&mut self, turns: u32) {
+        self.max_turns = Some(turns);
     }
 
     fn set_sandbox(&mut self, config: SandboxConfig) {

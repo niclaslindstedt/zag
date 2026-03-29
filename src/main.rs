@@ -414,6 +414,7 @@ async fn main() -> Result<()> {
                 json_schema,
                 json_stream,
                 session: session_isolation.session,
+                max_turns: agent_args.max_turns,
             })
             .await?;
         }

@@ -45,6 +45,7 @@ pub struct Features {
     pub auto_approve: FeatureSupport,
     pub review: FeatureSupport,
     pub add_dirs: FeatureSupport,
+    pub max_turns: FeatureSupport,
 }
 
 /// Full capability declaration for a provider.

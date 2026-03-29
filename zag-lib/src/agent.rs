@@ -120,6 +120,9 @@ pub trait Agent {
     /// Claude handles capture via output_format, so the default is a no-op.
     fn set_capture_output(&mut self, _capture: bool) {}
 
+    /// Set the maximum number of agentic turns.
+    fn set_max_turns(&mut self, _turns: u32) {}
+
     /// Set sandbox configuration for running inside a Docker sandbox.
     fn set_sandbox(&mut self, _config: SandboxConfig) {}
 

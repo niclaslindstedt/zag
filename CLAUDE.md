@@ -328,6 +328,12 @@ zag config auto_approve true
 # Initialize default config file
 zag config init
 
+# Reset config to defaults
+zag config reset
+
+# List all config keys and current values
+zag config list
+
 # Show config file path
 zag config path
 ```
@@ -432,6 +438,7 @@ MCP servers are synced automatically in `run_agent_action()` (after skills setup
 zag mcp list                          # List all MCP servers
 zag mcp show github                   # Show server details
 zag mcp add github --command npx --args -y @modelcontextprotocol/server-github
+zag mcp add github --command npx --args -y @modelcontextprotocol/server-github --env GITHUB_TOKEN='${GITHUB_TOKEN}'
 zag mcp add sentry --transport http --url https://mcp.sentry.dev/sse
 zag mcp add my-db --command npx --args db-mcp --global   # Global instead of project-scoped
 zag mcp remove github                 # Remove server + clean provider configs
@@ -740,6 +747,10 @@ zag exec --json-stream "list 3 colors"                                 # Stream 
 zag --session $(uuidgen) run                    # Know the session ID before it starts
 zag --session $(uuidgen) exec "complex task"    # Works with exec too
 
+# Limit agentic turns (Claude only)
+zag exec --max-turns 5 "fix the bug"
+zag run --max-turns 10 "refactor auth"
+
 # Combine flags
 zag --debug --model opus -a exec "complex task"
 zag -q exec "simple task" -o json
@@ -833,6 +844,8 @@ zag config get model.claude      # Read a value (explicit get)
 zag config provider gemini       # Set default provider
 zag config model.claude=opus     # Set claude-specific model
 zag config init                  # Create default config file
+zag config reset                 # Reset config to defaults
+zag config list                  # List all keys and current values
 zag config path                  # Show config file path
 ```
 

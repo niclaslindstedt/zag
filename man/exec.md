@@ -20,6 +20,7 @@ By default, exec mode suppresses wrapper UI (spinners, status messages, icons) s
 
     -o, --output <FORMAT>         Output format (see Output Formats below)
     -i, --input-format <FORMAT>   Input format: text (default), stream-json (Claude only)
+    --max-turns <N>               Maximum number of agentic turns (Claude only)
 
 All global flags apply (see `zag man zag`).
 

@@ -10,6 +10,8 @@ View or set configuration values.
     zag [flags] config <key> <value>      Set a config value
     zag [flags] config key=value          Set a config value (equals syntax)
     zag [flags] config init               Create default config file
+    zag [flags] config reset              Reset config to defaults
+    zag [flags] config list               List all config keys and values
     zag [flags] config path               Show config file path
 
 ## Description
@@ -105,6 +107,11 @@ The `--provider` flag overrides `defaults.provider`, and `--auto-approve` overri
     init     Create a default config file with commented-out settings.
              If the file already exists, prints its location without overwriting.
 
+    reset    Delete the existing config and create a fresh default config file.
+
+    list     List all available config keys and their current values.
+             Shows "(not set)" for unset keys.
+
     path     Print the resolved config file path for the current project.
 
     get      Read a single config value by key. Prints "(not set)" if unset.
@@ -114,6 +121,8 @@ The `--provider` flag overrides `defaults.provider`, and `--auto-approve` overri
 
     zag config                          Print full config file
     zag config init                     Create default config file
+    zag config reset                    Reset config to defaults
+    zag config list                     List all keys and current values
     zag config path                     Show config file location
     zag config provider                 Read default provider value
     zag config get model.claude         Read Claude-specific model

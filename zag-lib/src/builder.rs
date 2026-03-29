@@ -67,6 +67,7 @@ pub struct AgentBuilder {
     verbose: bool,
     quiet: bool,
     show_usage: bool,
+    max_turns: Option<u32>,
     progress: Box<dyn ProgressHandler>,
 }
 
@@ -100,6 +101,7 @@ impl AgentBuilder {
             verbose: false,
             quiet: false,
             show_usage: false,
+            max_turns: None,
             progress: Box::new(SilentProgress),
         }
     }
@@ -230,6 +232,12 @@ impl AgentBuilder {
         self
     }
 
+    /// Set the maximum number of agentic turns (Claude only).
+    pub fn max_turns(mut self, turns: u32) -> Self {
+        self.max_turns = Some(turns);
+        self
+    }
+
     /// Set a custom progress handler for status reporting.
     pub fn on_progress(mut self, handler: Box<dyn ProgressHandler>) -> Self {
         self.progress = handler;
@@ -289,6 +297,10 @@ impl AgentBuilder {
             self.auto_approve,
             self.add_dirs.clone(),
         )?;
+
+        if let Some(turns) = self.max_turns {
+            agent.set_max_turns(turns);
+        }
 
         // Set output format
         let mut output_format = self.output_format.clone();
