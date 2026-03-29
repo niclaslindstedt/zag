@@ -47,17 +47,15 @@ pub(crate) fn setup_worktree(
         });
     }
 
-    let worktree_name = Some(
-        worktree_flag
-            .as_ref()
-            .unwrap()
-            .as_deref()
-            .map(String::from)
-            .unwrap_or_else(worktree::generate_name),
-    );
+    let worktree_name = worktree_flag
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("internal error: worktree flag missing"))?
+        .as_deref()
+        .map(String::from)
+        .unwrap_or_else(worktree::generate_name);
 
     let repo_root = worktree::git_repo_root(root.as_deref())?;
-    let name = worktree_name.as_deref().unwrap();
+    let name = &worktree_name;
     let wt_path = worktree::create_worktree(&repo_root, name)?;
     if show_wrapper {
         println!("\x1b[32m✓\x1b[0m Worktree created at {}", wt_path.display());
@@ -67,7 +65,7 @@ pub(crate) fn setup_worktree(
     Ok(WorktreeSetup {
         is_worktree_session: true,
         session_id,
-        worktree_name,
+        worktree_name: Some(worktree_name),
         effective_root: Some(path_str.clone()),
         worktree_path: Some(path_str),
     })
@@ -94,7 +92,7 @@ pub(crate) fn setup_sandbox(
     let sandbox_name = Some(
         sandbox_flag
             .as_ref()
-            .unwrap()
+            .ok_or_else(|| anyhow::anyhow!("internal error: sandbox flag missing"))?
             .as_deref()
             .map(String::from)
             .unwrap_or_else(sandbox::generate_name),

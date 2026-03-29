@@ -29,6 +29,9 @@ impl AgentFactory {
     ) -> Result<Box<dyn Agent + Send + Sync>> {
         debug!("Creating agent: {}", agent_name);
 
+        // Pre-flight: verify the agent CLI binary is available in PATH
+        crate::preflight::check_binary(agent_name)?;
+
         // Initialize .agent directory and config on first run
         let _ = Config::init(root.as_deref());
 

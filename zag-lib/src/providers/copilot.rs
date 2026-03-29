@@ -175,7 +175,10 @@ impl Copilot {
             cmd.stdin(Stdio::inherit())
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit());
-            let status = cmd.status().await?;
+            let status = cmd
+                .status()
+                .await
+                .context("Failed to execute 'copilot' CLI. Is it installed and in PATH?")?;
             if !status.success() {
                 anyhow::bail!("Copilot command failed with status: {}", status);
             }
@@ -796,7 +799,10 @@ impl Agent for Copilot {
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
 
-        let status = cmd.status().await?;
+        let status = cmd
+            .status()
+            .await
+            .context("Failed to execute 'copilot' CLI. Is it installed and in PATH?")?;
         if !status.success() {
             anyhow::bail!("Copilot resume failed with status: {}", status);
         }

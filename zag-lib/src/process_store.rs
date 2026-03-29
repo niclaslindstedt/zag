@@ -72,7 +72,7 @@ impl ProcessStore {
         }
         let content =
             serde_json::to_string_pretty(self).context("Failed to serialize process store")?;
-        std::fs::write(&path, content)
+        crate::file_util::atomic_write_str(&path, &content)
             .with_context(|| format!("Failed to write process store: {}", path.display()))?;
         debug!("Process store saved ({} entries)", self.processes.len());
         Ok(())

@@ -15,7 +15,7 @@ pub fn projects_dir() -> Option<std::path::PathBuf> {
 }
 use crate::output::AgentOutput;
 use crate::sandbox::SandboxConfig;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -275,7 +275,9 @@ impl Claude {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        let child = cmd.spawn()?;
+        let child = cmd
+            .spawn()
+            .context("Failed to execute 'claude' CLI. Is it installed and in PATH?")?;
         crate::streaming::StreamingSession::new(child)
     }
 
@@ -326,7 +328,9 @@ impl Claude {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        let child = cmd.spawn()?;
+        let child = cmd
+            .spawn()
+            .context("Failed to execute 'claude' CLI. Is it installed and in PATH?")?;
         crate::streaming::StreamingSession::new(child)
     }
 
@@ -375,7 +379,10 @@ impl Claude {
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit());
 
-            let status = cmd.status().await?;
+            let status = cmd
+                .status()
+                .await
+                .context("Failed to execute 'claude' CLI. Is it installed and in PATH?")?;
             if !status.success() {
                 anyhow::bail!("Claude command failed with status: {}", status);
             }
@@ -739,7 +746,10 @@ impl Agent for Claude {
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
 
-        let status = cmd.status().await?;
+        let status = cmd
+            .status()
+            .await
+            .context("Failed to execute 'claude' CLI. Is it installed and in PATH?")?;
         if !status.success() {
             anyhow::bail!("Claude resume failed with status: {}", status);
         }

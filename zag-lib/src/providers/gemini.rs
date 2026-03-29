@@ -5,7 +5,7 @@ use crate::session_log::{
     BackfilledSession, HistoricalLogAdapter, LiveLogAdapter, LiveLogContext, LogCompleteness,
     LogEventKind, LogSourceKind, SessionLogMetadata, SessionLogWriter,
 };
-use anyhow::Result;
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use log::info;
 use std::collections::HashSet;
@@ -146,7 +146,10 @@ impl Gemini {
             cmd.stdin(Stdio::inherit())
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit());
-            let status = cmd.status().await?;
+            let status = cmd
+                .status()
+                .await
+                .context("Failed to execute 'gemini' CLI. Is it installed and in PATH?")?;
             if !status.success() {
                 anyhow::bail!("Gemini command failed with status: {}", status);
             }
@@ -527,7 +530,10 @@ impl Agent for Gemini {
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
 
-        let status = cmd.status().await?;
+        let status = cmd
+            .status()
+            .await
+            .context("Failed to execute 'gemini' CLI. Is it installed and in PATH?")?;
         if !status.success() {
             anyhow::bail!("Gemini resume failed with status: {}", status);
         }

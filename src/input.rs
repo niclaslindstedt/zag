@@ -62,14 +62,18 @@ fn resolve_input_session_id(
                 return Ok(entry.session_id.clone());
             }
         }
-        bail!("No sessions found globally. Use --session, --latest, --active, or --ps to specify one.");
+        bail!(
+            "No sessions found globally. Use --session, --latest, --active, or --ps to specify one."
+        );
     } else {
         // Search current project's session store
         let store = zag::session::SessionStore::load(root).unwrap_or_default();
         if let Some(entry) = store.latest() {
             return Ok(entry.session_id.clone());
         }
-        bail!("No sessions found. Use --session, --latest, --active, --ps, or --global to specify one.");
+        bail!(
+            "No sessions found. Use --session, --latest, --active, --ps, or --global to specify one."
+        );
     }
 }
 

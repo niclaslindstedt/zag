@@ -95,6 +95,9 @@ fn test_validate_model_unknown_agent_skips() {
 
 #[test]
 fn test_create_with_model_resolution() {
+    if crate::preflight::check_binary("claude").is_err() {
+        return; // Skip if claude CLI not available
+    }
     let agent = AgentFactory::create(
         "claude",
         None,
@@ -109,6 +112,9 @@ fn test_create_with_model_resolution() {
 
 #[test]
 fn test_create_with_specific_model() {
+    if crate::preflight::check_binary("claude").is_err() {
+        return;
+    }
     let agent = AgentFactory::create(
         "claude",
         None,
@@ -123,6 +129,9 @@ fn test_create_with_specific_model() {
 
 #[test]
 fn test_create_with_invalid_model() {
+    if crate::preflight::check_binary("claude").is_err() {
+        return;
+    }
     let result = AgentFactory::create(
         "claude",
         None,
@@ -136,6 +145,9 @@ fn test_create_with_invalid_model() {
 
 #[test]
 fn test_create_with_system_prompt() {
+    if crate::preflight::check_binary("claude").is_err() {
+        return;
+    }
     let agent = AgentFactory::create(
         "claude",
         Some("test prompt".to_string()),
@@ -150,6 +162,9 @@ fn test_create_with_system_prompt() {
 
 #[test]
 fn test_create_default_uses_config_or_agent_default() {
+    if crate::preflight::check_binary("claude").is_err() {
+        return;
+    }
     // When no model is specified, the factory uses config > agent default
     // The actual model depends on the config file in the current repo
     let agent = AgentFactory::create("claude", None, None, None, false, vec![]).unwrap();
@@ -163,9 +178,21 @@ fn test_create_default_uses_config_or_agent_default() {
 }
 
 #[test]
+fn test_create_missing_binary_gives_actionable_error() {
+    let result = AgentFactory::create("zag-nonexistent-agent-xyz", None, None, None, false, vec![]);
+    assert!(result.is_err());
+    let err = result.err().unwrap().to_string();
+    assert!(err.contains("not found in PATH"));
+}
+
+#[test]
 fn test_create_all_agents_default() {
+    // Only test agents whose CLI binary is available in PATH.
+    // The preflight check in create() validates binary availability.
     for name in &["claude", "codex", "gemini", "copilot"] {
-        let agent = AgentFactory::create(name, None, None, None, false, vec![]).unwrap();
-        assert_eq!(agent.name(), *name);
+        if crate::preflight::check_binary(name).is_ok() {
+            let agent = AgentFactory::create(name, None, None, None, false, vec![]).unwrap();
+            assert_eq!(agent.name(), *name);
+        }
     }
 }

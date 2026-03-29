@@ -80,7 +80,7 @@ impl SessionStore {
                 .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
         }
         let content = serde_json::to_string_pretty(self).context("Failed to serialize sessions")?;
-        std::fs::write(&path, content)
+        crate::file_util::atomic_write_str(&path, &content)
             .with_context(|| format!("Failed to write sessions file: {}", path.display()))?;
         debug!("Session store saved to {}", path.display());
 

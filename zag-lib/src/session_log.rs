@@ -228,11 +228,8 @@ pub fn load_global_index(base_dir: &Path) -> Result<GlobalSessionIndex> {
 
 pub fn save_global_index(base_dir: &Path, index: &GlobalSessionIndex) -> Result<()> {
     let path = base_dir.join("sessions_index.json");
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .with_context(|| format!("Failed to create {}", parent.display()))?;
-    }
-    std::fs::write(&path, serde_json::to_string_pretty(index)?)
+    let content = serde_json::to_string_pretty(index)?;
+    crate::file_util::atomic_write_str(&path, &content)
         .with_context(|| format!("Failed to write {}", path.display()))
 }
 
@@ -872,11 +869,8 @@ fn load_index(path: &Path) -> Result<SessionLogIndex> {
 }
 
 fn save_index(path: &Path, index: &SessionLogIndex) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .with_context(|| format!("Failed to create {}", parent.display()))?;
-    }
-    std::fs::write(path, serde_json::to_string_pretty(index)?)
+    let content = serde_json::to_string_pretty(index)?;
+    crate::file_util::atomic_write_str(path, &content)
         .with_context(|| format!("Failed to write {}", path.display()))
 }
 
@@ -890,11 +884,8 @@ fn load_backfill_state(path: &Path) -> Result<BackfillState> {
 }
 
 fn save_backfill_state(path: &Path, state: &BackfillState) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .with_context(|| format!("Failed to create {}", parent.display()))?;
-    }
-    std::fs::write(path, serde_json::to_string_pretty(state)?)
+    let content = serde_json::to_string_pretty(state)?;
+    crate::file_util::atomic_write_str(path, &content)
         .with_context(|| format!("Failed to write {}", path.display()))
 }
 

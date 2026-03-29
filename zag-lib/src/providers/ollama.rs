@@ -2,7 +2,7 @@ use crate::agent::{Agent, ModelSize};
 use crate::output::AgentOutput;
 use crate::sandbox::SandboxConfig;
 use crate::session_log::HistoricalLogAdapter;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use std::process::Stdio;
 use tokio::process::Command;
@@ -150,7 +150,10 @@ impl Ollama {
             cmd.stdin(Stdio::inherit())
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit());
-            let status = cmd.status().await?;
+            let status = cmd
+                .status()
+                .await
+                .context("Failed to execute 'ollama' CLI. Is it installed and in PATH?")?;
             if !status.success() {
                 anyhow::bail!("Ollama command failed with status: {}", status);
             }

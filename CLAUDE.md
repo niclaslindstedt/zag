@@ -110,7 +110,9 @@ AgentBuilder::new()
 | `zag-lib/src/streaming.rs` | `StreamingSession` — bidirectional streaming with agents (Claude only) |
 | `zag-lib/src/progress.rs` | `ProgressHandler` trait and `SilentProgress` default |
 | `zag-lib/src/agent.rs` | `Agent` trait definition and `ModelSize` abstraction |
-| `zag-lib/src/factory.rs` | `AgentFactory` — creates and configures agents |
+| `zag-lib/src/factory.rs` | `AgentFactory` — creates and configures agents (with pre-flight binary checks) |
+| `zag-lib/src/file_util.rs` | Atomic file write utilities (write-to-tmp-then-rename) |
+| `zag-lib/src/preflight.rs` | CLI binary pre-flight validation: PATH scanning, install hints |
 | `zag-lib/src/config.rs` | Configuration management (`zag.toml`) |
 | `zag-lib/src/output.rs` | Unified `AgentOutput` format, `Event` types, and event formatting |
 | `zag-lib/src/session_log.rs` | Session log schema, writer, coordinator, backfill engine, and adapter traits |

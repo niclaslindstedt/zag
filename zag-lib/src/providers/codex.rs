@@ -5,7 +5,7 @@ use crate::session_log::{
     BackfilledSession, HistoricalLogAdapter, LiveLogAdapter, LiveLogContext, LogCompleteness,
     LogEventKind, LogSourceKind, SessionLogMetadata, SessionLogWriter, ToolKind,
 };
-use anyhow::Result;
+use anyhow::{Context, Result};
 use log::debug;
 
 /// Classify a Codex tool name into a normalized ToolKind.
@@ -288,7 +288,10 @@ impl Codex {
             cmd.stdin(Stdio::inherit())
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit());
-            let status = cmd.status().await?;
+            let status = cmd
+                .status()
+                .await
+                .context("Failed to execute 'codex' CLI. Is it installed and in PATH?")?;
             if !status.success() {
                 anyhow::bail!("Codex command failed with status: {}", status);
             }
@@ -725,7 +728,10 @@ impl Agent for Codex {
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
 
-        let status = cmd.status().await?;
+        let status = cmd
+            .status()
+            .await
+            .context("Failed to execute 'codex' CLI. Is it installed and in PATH?")?;
         if !status.success() {
             anyhow::bail!("Codex resume failed with status: {}", status);
         }

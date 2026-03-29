@@ -807,12 +807,22 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         Some(log_coordinator.writer()),
     )
     .await;
+
+    // Always run agent cleanup regardless of action result to prevent resource leaks.
+    debug!("Cleaning up agent resources");
+    if let Err(cleanup_err) = agent.cleanup().await {
+        log::warn!("Agent cleanup failed: {}", cleanup_err);
+    }
+
     if let Err(err) = &action_result {
         if let Ok(mut pstore) = zag::process_store::ProcessStore::load() {
             pstore.update_status(&proc_id, "killed", Some(1));
             let _ = pstore.save();
         }
-        log_coordinator.finish(false, Some(err.to_string())).await?;
+        // Use ok() to avoid masking the original error if log finishing also fails
+        if let Err(log_err) = log_coordinator.finish(false, Some(err.to_string())).await {
+            log::warn!("Failed to finish session log: {}", log_err);
+        }
         return Err(anyhow::anyhow!(err.to_string()));
     }
 
@@ -863,9 +873,6 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         let _ = pstore.save();
     }
 
-    // Cleanup
-    debug!("Cleaning up agent resources");
-    agent.cleanup().await?;
     if show_wrapper {
         println!("\x1b[32m✓\x1b[0m Session terminated");
     }
