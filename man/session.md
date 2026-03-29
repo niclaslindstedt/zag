@@ -36,6 +36,17 @@ Options:
 
 The `<id>` can be either the wrapper session ID or the provider-native session ID.
 
+### delete
+
+Delete a session from the store.
+
+    zag session delete <id> [--json]
+
+Options:
+- `--json` — Output as JSON object
+
+The session entry is removed from the store. Associated log files on disk are not deleted.
+
 ### import
 
 Import historical provider logs into the session store. Previously imported sessions are skipped.
@@ -63,6 +74,9 @@ Supported providers: Claude, Codex, Gemini, Copilot, Ollama (no-op today).
 
     # Show session details as JSON
     zag session show abc123-def456 --json
+
+    # Delete a session
+    zag session delete abc123-def456
 
     # Import historical provider logs
     zag session import

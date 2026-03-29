@@ -308,11 +308,15 @@ model = "medium"
 
 ### Config Subcommand
 
-View or set configuration values with `zag config`:
+View, set, or initialize configuration values with `zag config`:
 
 ```bash
 # Print full config file
 zag config
+
+# Read a single value
+zag config provider
+zag config get model.claude
 
 # Set values (space or = syntax)
 zag config provider claude
@@ -320,6 +324,12 @@ zag config provider=claude
 zag config model opus
 zag config model.claude=opus
 zag config auto_approve true
+
+# Initialize default config file
+zag config init
+
+# Show config file path
+zag config path
 ```
 
 ### Configuration Priority
@@ -758,6 +768,7 @@ zag session list -p claude          # Filter by provider
 zag session list -n 5               # Show 5 most recent
 zag session show <session-id>       # Show session details
 zag session show <id> --json        # JSON output
+zag session delete <session-id>     # Delete a session from the store
 zag session import                  # Import historical provider logs
 
 # Skills management
@@ -817,8 +828,12 @@ zag input --latest "task" -o stream-json   # NDJSON event output (Claude only)
 
 # Configuration
 zag config                       # Print full config
+zag config provider              # Read a single value
+zag config get model.claude      # Read a value (explicit get)
 zag config provider gemini       # Set default provider
 zag config model.claude=opus     # Set claude-specific model
+zag config init                  # Create default config file
+zag config path                  # Show config file path
 ```
 
 ### Review Command

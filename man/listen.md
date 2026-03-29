@@ -41,7 +41,7 @@ Output each event as a raw JSON line (NDJSON format).
 
 Output events as human-readable plain text (default).
 
-### `--rich-text`
+### `--rich-text` (alias: `--colors`)
 
 Output events as rich text with ANSI formatting (colors, bold, dim, italic). Assistant messages are rendered as styled markdown.
 

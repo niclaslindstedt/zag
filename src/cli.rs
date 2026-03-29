@@ -224,7 +224,7 @@ pub enum Commands {
         text: bool,
 
         /// Enable rich text output (ANSI colors, bold, dim, italic)
-        #[arg(long)]
+        #[arg(long, visible_alias = "colors")]
         rich_text: bool,
 
         /// Show thinking/reasoning content
@@ -392,6 +392,11 @@ pub(crate) enum SessionCommand {
     },
     /// Import historical provider logs into the session store
     Import,
+    /// Delete a session from the store
+    Delete {
+        /// Session ID to delete
+        id: String,
+    },
 }
 
 #[derive(Subcommand)]

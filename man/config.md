@@ -4,12 +4,17 @@ View or set configuration values.
 
 ## Synopsis
 
-    zag [flags] config [key] [value]
-    zag [flags] config key=value
+    zag [flags] config                    Print full config file
+    zag [flags] config <key>              Get a config value
+    zag [flags] config get <key>          Get a config value (explicit)
+    zag [flags] config <key> <value>      Set a config value
+    zag [flags] config key=value          Set a config value (equals syntax)
+    zag [flags] config init               Create default config file
+    zag [flags] config path               Show config file path
 
 ## Description
 
-Manages the `zag.toml` configuration file. When called with no arguments, prints the full config file. When called with a key and value, sets that configuration option.
+Manages the `zag.toml` configuration file. When called with no arguments, prints the full config file. When called with a single key, reads and prints that value. When called with a key and value, sets that configuration option.
 
 All configuration is stored under `~/.zag/`:
 
@@ -95,9 +100,23 @@ The `--provider` flag overrides `defaults.provider`, and `--auto-approve` overri
     [listen]
     format = "text"
 
+## Subcommands
+
+    init     Create a default config file with commented-out settings.
+             If the file already exists, prints its location without overwriting.
+
+    path     Print the resolved config file path for the current project.
+
+    get      Read a single config value by key. Prints "(not set)" if unset.
+             Equivalent to `zag config <key>` (without `get`).
+
 ## Examples
 
     zag config                          Print full config file
+    zag config init                     Create default config file
+    zag config path                     Show config file location
+    zag config provider                 Read default provider value
+    zag config get model.claude         Read Claude-specific model
     zag config provider gemini          Set default provider to Gemini
     zag config provider=gemini          Same (equals syntax)
     zag config model large              Set default model size

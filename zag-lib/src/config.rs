@@ -301,7 +301,7 @@ impl Config {
         &["claude", "codex", "gemini", "copilot", "ollama", "auto"];
 
     /// Get a config value by dot-notation key.
-    #[allow(dead_code)]
+    /// Get a config value by dot-notation key.
     pub fn get_value(&self, key: &str) -> Option<String> {
         match key {
             "provider" => self.defaults.provider.clone(),

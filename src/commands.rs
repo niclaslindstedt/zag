@@ -20,17 +20,47 @@ pub(crate) fn run_config(args: Vec<String>, root: Option<&str>) -> Result<()> {
         return Ok(());
     }
 
+    // Handle special subcommands: init, path, get
+    if args.len() == 1 && args[0] == "init" {
+        let created = Config::init(root)?;
+        let path = Config::config_path(root);
+        if created {
+            println!("Created default config at {}", path.display());
+        } else {
+            println!("Config already exists at {}", path.display());
+        }
+        return Ok(());
+    }
+
+    if args.len() == 1 && args[0] == "path" {
+        let path = Config::config_path(root);
+        println!("{}", path.display());
+        return Ok(());
+    }
+
+    // Explicit `config get <key>` syntax
+    if args.len() == 2 && args[0] == "get" {
+        let config = Config::load(root).unwrap_or_default();
+        match config.get_value(&args[1]) {
+            Some(val) => println!("{}", val),
+            None => println!("(not set)"),
+        }
+        return Ok(());
+    }
+
     // Parse key=value or key value
     let (key, value) = if args.len() == 1 {
-        // Single arg — check for key=value
+        // Single arg — check for key=value, otherwise treat as key lookup
         if let Some((k, v)) = args[0].split_once('=') {
             (k.to_string(), v.to_string())
         } else {
-            bail!(
-                "Missing value. Usage: agent config {}=<value> or agent config {} <value>",
-                args[0],
-                args[0]
-            );
+            // Implicit get: `config <key>` reads the value
+            let config = Config::load(root).unwrap_or_default();
+            match config.get_value(&args[0]) {
+                Some(val) => println!("{}", val),
+                None => println!("(not set)"),
+            }
+            return Ok(());
         }
     } else {
         // Two args: key value
@@ -106,6 +136,19 @@ pub(crate) fn run_session(command: SessionCommand, json: bool, root: Option<&str
         SessionCommand::Import => {
             let imported = session_log::run_default_backfill(root)?;
             println!("Imported {} historical session log(s)", imported);
+        }
+        SessionCommand::Delete { id } => {
+            let mut store = session::SessionStore::load(root)?;
+            if store.get(&id).is_none() {
+                bail!("Session not found: {}", id);
+            }
+            store.remove(&id);
+            store.save(root)?;
+            if json {
+                println!(r#"{{"deleted":"{}"}}"#, id);
+            } else {
+                println!("Deleted session: {}", id);
+            }
         }
     }
     Ok(())
