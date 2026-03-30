@@ -132,3 +132,47 @@ fn capability_roundtrip() {
     assert_eq!(parsed.available_models.len(), 2);
     assert!(parsed.features.interactive.supported);
 }
+
+#[test]
+fn session_log_partial_serialization() {
+    let partial = SessionLogSupport::partial();
+    let json = serde_json::to_string(&partial).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed["supported"], true);
+    assert_eq!(parsed["native"], true);
+    assert_eq!(parsed["completeness"], "partial");
+}
+
+#[test]
+fn session_log_full_serialization() {
+    let full = SessionLogSupport::full();
+    let json = serde_json::to_string(&full).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed["supported"], true);
+    assert_eq!(parsed["native"], true);
+    assert_eq!(parsed["completeness"], "full");
+}
+
+#[test]
+fn session_log_unsupported_deserialize_roundtrip() {
+    let unsupported = SessionLogSupport::unsupported();
+    let json = serde_json::to_string(&unsupported).unwrap();
+    let parsed: SessionLogSupport = serde_json::from_str(&json).unwrap();
+    assert!(!parsed.supported);
+    assert!(!parsed.native);
+    assert!(parsed.completeness.is_none());
+}
+
+#[test]
+fn feature_support_serialization_roundtrip() {
+    for support in [
+        FeatureSupport::native(),
+        FeatureSupport::wrapper(),
+        FeatureSupport::unsupported(),
+    ] {
+        let json = serde_json::to_string(&support).unwrap();
+        let parsed: FeatureSupport = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.supported, support.supported);
+        assert_eq!(parsed.native, support.native);
+    }
+}

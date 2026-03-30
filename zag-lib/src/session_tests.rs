@@ -203,3 +203,74 @@ fn test_get_by_provider_session_id() {
     assert!(info.is_some());
     assert_eq!(info.unwrap().session_id, "wrapper-1");
 }
+
+// --- SessionInfo conversion tests ---
+
+#[test]
+fn test_session_info_empty_worktree_becomes_none() {
+    let mut entry = sample_entry("abc-123");
+    entry.worktree_path = "".to_string();
+    let info = SessionInfo::from(&entry);
+    assert!(info.worktree_path.is_none());
+}
+
+#[test]
+fn test_session_info_nonempty_worktree_becomes_some() {
+    let entry = sample_entry("abc-123");
+    let info = SessionInfo::from(&entry);
+    assert_eq!(info.worktree_path, Some("/tmp/test-wt".to_string()));
+}
+
+#[test]
+fn test_session_info_serialization_roundtrip() {
+    let entry = sample_entry("abc-123");
+    let info = SessionInfo::from(&entry);
+    let json = serde_json::to_string(&info).unwrap();
+    let parsed: SessionInfo = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed.session_id, "abc-123");
+    assert_eq!(parsed.provider, "claude");
+    assert_eq!(parsed.model, "opus");
+}
+
+#[test]
+fn test_session_info_preserves_optional_fields() {
+    let mut entry = sample_entry("abc-123");
+    entry.provider_session_id = Some("native-1".to_string());
+    entry.sandbox_name = Some("sandbox-abc".to_string());
+    entry.log_completeness = "full".to_string();
+
+    let info = SessionInfo::from(&entry);
+    assert_eq!(info.provider_session_id, Some("native-1".to_string()));
+    assert_eq!(info.sandbox_name, Some("sandbox-abc".to_string()));
+    assert_eq!(info.log_completeness, "full");
+}
+
+#[test]
+fn test_add_replaces_by_session_id() {
+    let mut store = SessionStore::default();
+    store.add(sample_entry("abc-123"));
+    store.add(sample_entry("abc-123"));
+    assert_eq!(store.sessions.len(), 1);
+}
+
+#[test]
+fn test_add_replaces_by_provider_session_id() {
+    let mut store = SessionStore::default();
+    let mut e1 = sample_entry("wrapper-1");
+    e1.provider_session_id = Some("native-1".to_string());
+    store.add(e1);
+
+    let mut e2 = sample_entry("wrapper-2");
+    e2.provider_session_id = Some("native-1".to_string());
+    store.add(e2);
+
+    // Should replace the entry with the same provider_session_id
+    assert_eq!(store.sessions.len(), 1);
+    assert_eq!(store.sessions[0].session_id, "wrapper-2");
+}
+
+#[test]
+fn test_latest_empty_store() {
+    let store = SessionStore::default();
+    assert!(store.latest().is_none());
+}

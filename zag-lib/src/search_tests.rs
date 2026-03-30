@@ -1085,3 +1085,134 @@ fn test_search_query_new_defaults() {
     assert!(q.limit.is_none());
     assert!(!q.global);
 }
+
+// ---------------------------------------------------------------------------
+// make_snippet unit tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_make_snippet_short_text_no_ellipsis() {
+    let query = SearchQuery {
+        text: None,
+        ..SearchQuery::new()
+    };
+    let matcher = TextMatcher::build(&query).unwrap();
+    let snippet = make_snippet("short text", &matcher, 200);
+    assert_eq!(snippet, "short text");
+}
+
+#[test]
+fn test_make_snippet_long_text_with_match() {
+    let query = SearchQuery {
+        text: Some("needle".to_string()),
+        case_insensitive: true,
+        ..SearchQuery::new()
+    };
+    let matcher = TextMatcher::build(&query).unwrap();
+    // Create a long string with "needle" buried in the middle
+    let prefix = "x".repeat(200);
+    let suffix = "y".repeat(200);
+    let text = format!("{}needle{}", prefix, suffix);
+    let snippet = make_snippet(&text, &matcher, 50);
+    assert!(snippet.contains("needle"));
+    assert!(snippet.contains("[...]"));
+}
+
+#[test]
+fn test_make_snippet_match_at_start() {
+    let query = SearchQuery {
+        text: Some("hello".to_string()),
+        case_insensitive: true,
+        ..SearchQuery::new()
+    };
+    let matcher = TextMatcher::build(&query).unwrap();
+    let text = format!("hello{}", "z".repeat(300));
+    let snippet = make_snippet(&text, &matcher, 50);
+    assert!(snippet.contains("hello"));
+    // Should have trailing ellipsis but no leading one
+    assert!(snippet.contains("[...]"));
+    assert!(!snippet.starts_with("[...]"));
+}
+
+#[test]
+fn test_make_snippet_match_at_end() {
+    let query = SearchQuery {
+        text: Some("world".to_string()),
+        case_insensitive: true,
+        ..SearchQuery::new()
+    };
+    let matcher = TextMatcher::build(&query).unwrap();
+    let text = format!("{}world", "a".repeat(300));
+    let snippet = make_snippet(&text, &matcher, 50);
+    assert!(snippet.contains("world"));
+    // Should have leading ellipsis
+    assert!(snippet.starts_with("[...]"));
+}
+
+#[test]
+fn test_make_snippet_no_filter_long_text() {
+    let query = SearchQuery {
+        text: None,
+        ..SearchQuery::new()
+    };
+    let matcher = TextMatcher::build(&query).unwrap();
+    let text = "b".repeat(500);
+    let snippet = make_snippet(&text, &matcher, 50);
+    // Snippet should be truncated and have trailing ellipsis
+    assert!(snippet.len() < text.len());
+    assert!(snippet.contains("[...]"));
+}
+
+// ---------------------------------------------------------------------------
+// TextMatcher unit tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_text_matcher_none_has_no_filter() {
+    let query = SearchQuery {
+        text: None,
+        ..SearchQuery::new()
+    };
+    let matcher = TextMatcher::build(&query).unwrap();
+    assert!(matcher.is_match("anything"));
+    assert!(matcher.is_match(""));
+    assert!(!matcher.has_filter());
+}
+
+#[test]
+fn test_text_matcher_literal_case_insensitive_match() {
+    let query = SearchQuery {
+        text: Some("Hello".to_string()),
+        case_insensitive: true,
+        ..SearchQuery::new()
+    };
+    let matcher = TextMatcher::build(&query).unwrap();
+    assert!(matcher.is_match("hello world"));
+    assert!(matcher.is_match("HELLO WORLD"));
+    assert!(!matcher.is_match("goodbye"));
+    assert!(matcher.has_filter());
+}
+
+#[test]
+fn test_text_matcher_regex_pattern() {
+    let query = SearchQuery {
+        text: Some(r"fn\s+\w+".to_string()),
+        use_regex: true,
+        case_insensitive: false,
+        ..SearchQuery::new()
+    };
+    let matcher = TextMatcher::build(&query).unwrap();
+    assert!(matcher.is_match("fn hello_world"));
+    assert!(!matcher.is_match("function hello"));
+}
+
+#[test]
+fn test_text_matcher_invalid_regex_errors() {
+    let query = SearchQuery {
+        text: Some("[invalid".to_string()),
+        use_regex: true,
+        ..SearchQuery::new()
+    };
+    let result = TextMatcher::build(&query);
+    assert!(result.is_err());
+}

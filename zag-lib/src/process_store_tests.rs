@@ -103,3 +103,55 @@ fn find_empty_store() {
     let store = ProcessStore::default();
     assert!(store.find("any-id").is_none());
 }
+
+#[test]
+fn process_entry_full_serialization_roundtrip() {
+    let entry = ProcessEntry {
+        id: "id-full".to_string(),
+        pid: 12345,
+        session_id: Some("sess-abc".to_string()),
+        provider: "claude".to_string(),
+        model: "opus".to_string(),
+        command: "exec".to_string(),
+        prompt: Some("write a hello world program".to_string()),
+        started_at: "2026-03-28T10:00:00Z".to_string(),
+        status: "exited".to_string(),
+        exit_code: Some(0),
+        exited_at: Some("2026-03-28T10:05:00Z".to_string()),
+        root: Some("/home/user/project".to_string()),
+    };
+    let json = serde_json::to_string(&entry).unwrap();
+    let parsed: ProcessEntry = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed.id, "id-full");
+    assert_eq!(parsed.pid, 12345);
+    assert_eq!(parsed.session_id, Some("sess-abc".to_string()));
+    assert_eq!(parsed.exit_code, Some(0));
+    assert_eq!(parsed.exited_at, Some("2026-03-28T10:05:00Z".to_string()));
+    assert_eq!(parsed.root, Some("/home/user/project".to_string()));
+}
+
+#[test]
+fn process_entry_minimal_serialization_roundtrip() {
+    let entry = ProcessEntry {
+        id: "id-min".to_string(),
+        pid: 1,
+        session_id: None,
+        provider: "codex".to_string(),
+        model: "gpt-5.4".to_string(),
+        command: "run".to_string(),
+        prompt: None,
+        started_at: "2026-03-28T10:00:00Z".to_string(),
+        status: "running".to_string(),
+        exit_code: None,
+        exited_at: None,
+        root: None,
+    };
+    let json = serde_json::to_string(&entry).unwrap();
+    let parsed: ProcessEntry = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed.id, "id-min");
+    assert!(parsed.session_id.is_none());
+    assert!(parsed.prompt.is_none());
+    assert!(parsed.exit_code.is_none());
+    assert!(parsed.exited_at.is_none());
+    assert!(parsed.root.is_none());
+}

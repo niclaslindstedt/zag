@@ -612,3 +612,90 @@ fn test_format_event_long_string_truncation() {
     let text = format_event_as_text(&event).unwrap();
     assert!(text.contains("..."));
 }
+
+// --- UserMessage event tests ---
+
+#[test]
+fn test_event_to_log_entry_user_message() {
+    let event = Event::UserMessage {
+        content: vec![ContentBlock::Text {
+            text: "hello world".to_string(),
+        }],
+    };
+    let entry = event_to_log_entry(&event).unwrap();
+    assert_eq!(entry.level, LogLevel::Info);
+    assert!(entry.message.contains("hello world"));
+}
+
+#[test]
+fn test_event_to_log_entry_user_message_empty() {
+    let event = Event::UserMessage { content: vec![] };
+    assert!(event_to_log_entry(&event).is_none());
+}
+
+#[test]
+fn test_event_to_log_entry_user_message_tool_use_only() {
+    let event = Event::UserMessage {
+        content: vec![ContentBlock::ToolUse {
+            id: "id1".to_string(),
+            name: "Bash".to_string(),
+            input: serde_json::json!({}),
+        }],
+    };
+    assert!(event_to_log_entry(&event).is_none());
+}
+
+#[test]
+fn test_event_to_log_entry_user_message_multiple_blocks() {
+    let event = Event::UserMessage {
+        content: vec![
+            ContentBlock::Text {
+                text: "line one".to_string(),
+            },
+            ContentBlock::Text {
+                text: "line two".to_string(),
+            },
+        ],
+    };
+    let entry = event_to_log_entry(&event).unwrap();
+    assert!(entry.message.contains("line one"));
+    assert!(entry.message.contains("line two"));
+}
+
+#[test]
+fn test_format_event_user_message() {
+    let event = Event::UserMessage {
+        content: vec![ContentBlock::Text {
+            text: "hello world".to_string(),
+        }],
+    };
+    let text = format_event_as_text(&event).unwrap();
+    assert!(text.contains("hello world"));
+    assert!(text.contains("> "));
+}
+
+#[test]
+fn test_format_event_user_message_empty() {
+    let event = Event::UserMessage { content: vec![] };
+    assert!(format_event_as_text(&event).is_none());
+}
+
+// --- Tool execution edge cases ---
+
+#[test]
+fn test_event_to_log_entry_tool_execution_no_error_message() {
+    let event = Event::ToolExecution {
+        tool_name: "Custom".to_string(),
+        tool_id: "id1".to_string(),
+        input: serde_json::json!({}),
+        result: ToolResult {
+            success: false,
+            output: None,
+            error: None,
+            data: None,
+        },
+    };
+    let entry = event_to_log_entry(&event).unwrap();
+    assert_eq!(entry.level, LogLevel::Warn);
+    assert!(entry.message.contains("unknown error"));
+}

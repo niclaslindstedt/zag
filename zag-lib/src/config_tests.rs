@@ -810,3 +810,83 @@ timestamp_format = "%Y-%m-%d"
     assert_eq!(config.listen_format(), Some("json"));
     assert_eq!(config.listen_timestamp_format(), "%Y-%m-%d");
 }
+
+// --- VALID_KEYS exhaustive tests ---
+
+/// Map each config key to a valid test value for set_value.
+fn test_value_for_key(key: &str) -> &str {
+    match key {
+        "provider" => "claude",
+        "auto_approve" => "true",
+        "max_turns" => "10",
+        "listen.format" => "json",
+        _ => "test-value",
+    }
+}
+
+#[test]
+fn test_valid_keys_all_gettable() {
+    let config = Config::default();
+    for key in Config::VALID_KEYS {
+        // Should return None on default config and never panic
+        let _ = config.get_value(key);
+    }
+}
+
+#[test]
+fn test_valid_keys_all_settable() {
+    let mut config = Config::default();
+    for key in Config::VALID_KEYS {
+        let value = test_value_for_key(key);
+        config
+            .set_value(key, value)
+            .unwrap_or_else(|e| panic!("set_value('{}', '{}') failed: {}", key, value, e));
+    }
+}
+
+#[test]
+fn test_valid_keys_all_unsettable() {
+    let mut config = Config::default();
+    // Set all keys first
+    for key in Config::VALID_KEYS {
+        let value = test_value_for_key(key);
+        config.set_value(key, value).unwrap();
+    }
+    // Unset each and verify it returns None
+    for key in Config::VALID_KEYS {
+        config
+            .unset_value(key)
+            .unwrap_or_else(|e| panic!("unset_value('{}') failed: {}", key, e));
+        assert_eq!(
+            config.get_value(key),
+            None,
+            "get_value('{}') should be None after unset",
+            key
+        );
+    }
+}
+
+#[test]
+fn test_set_value_listen_format_case_insensitive() {
+    let mut config = Config::default();
+
+    config.set_value("listen.format", "TEXT").unwrap();
+    assert_eq!(config.get_value("listen.format"), Some("text".to_string()));
+
+    config.set_value("listen.format", "JSON").unwrap();
+    assert_eq!(config.get_value("listen.format"), Some("json".to_string()));
+
+    config.set_value("listen.format", "RICH-TEXT").unwrap();
+    assert_eq!(
+        config.get_value("listen.format"),
+        Some("rich-text".to_string())
+    );
+}
+
+#[test]
+fn test_set_value_model_ollama() {
+    let mut config = Config::default();
+    config.set_value("model.ollama", "llama3").unwrap();
+    assert_eq!(config.get_value("model.ollama"), Some("llama3".to_string()));
+    assert_eq!(config.get_model("ollama"), Some("llama3"));
+}

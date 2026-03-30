@@ -78,3 +78,38 @@ fn test_git_repo_root_outside_repo() {
     let result = git_repo_root(Some("/tmp"));
     assert!(result.is_err());
 }
+
+#[test]
+fn test_worktree_base_dir_contains_expected_components() {
+    let base = worktree_base_dir(Path::new("/home/user/my-project"));
+    let path_str = base.to_string_lossy();
+    assert!(
+        path_str.contains(".zag"),
+        "should contain .zag: {}",
+        path_str
+    );
+    assert!(
+        path_str.contains("worktrees"),
+        "should contain worktrees: {}",
+        path_str
+    );
+    assert!(
+        path_str.contains("home-user-my-project"),
+        "should contain sanitized path: {}",
+        path_str
+    );
+}
+
+#[test]
+fn test_worktree_base_dir_uses_sanitize_path() {
+    let base = worktree_base_dir(Path::new("/Users/foo/Source/app"));
+    let path_str = base.to_string_lossy();
+    assert!(path_str.contains("Users-foo-Source-app"));
+}
+
+#[test]
+fn test_generate_name_format() {
+    let name = generate_name();
+    assert_eq!(name.len(), 12); // "zag-" (4) + 8 hex chars
+    assert!(name.starts_with("zag-"));
+}
