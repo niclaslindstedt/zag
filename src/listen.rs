@@ -264,6 +264,32 @@ fn with_timestamp(ts_str: &str, text: &str) -> String {
     }
 }
 
+/// Get the event type name for filtering (matches LogEventKind variant names in snake_case).
+fn event_type_name(kind: &LogEventKind) -> &'static str {
+    match kind {
+        LogEventKind::SessionStarted { .. } => "session_started",
+        LogEventKind::UserMessage { .. } => "user_message",
+        LogEventKind::AssistantMessage { .. } => "assistant_message",
+        LogEventKind::Reasoning { .. } => "reasoning",
+        LogEventKind::ToolCall { .. } => "tool_call",
+        LogEventKind::ToolResult { .. } => "tool_result",
+        LogEventKind::Permission { .. } => "permission",
+        LogEventKind::ProviderStatus { .. } => "provider_status",
+        LogEventKind::Stderr { .. } => "stderr",
+        LogEventKind::ParseWarning { .. } => "parse_warning",
+        LogEventKind::SessionCleared { .. } => "session_cleared",
+        LogEventKind::SessionEnded { .. } => "session_ended",
+    }
+}
+
+/// Check if an event matches the filter set.
+fn matches_filter(kind: &LogEventKind, filters: Option<&[String]>) -> bool {
+    match filters {
+        None => true,
+        Some(f) => f.iter().any(|filter| filter == event_type_name(kind)),
+    }
+}
+
 /// Tail a session log file, printing events as they arrive.
 /// Returns when a SessionEnded event is seen or the process is interrupted.
 pub fn tail_session_log(
@@ -272,6 +298,7 @@ pub fn tail_session_log(
     show_thinking: bool,
     show_timestamps: bool,
     config: &Config,
+    filters: Option<&[String]>,
 ) -> Result<()> {
     let ts_fmt = config.listen_timestamp_format().to_string();
     let file = File::open(path)
@@ -291,12 +318,25 @@ pub fn tail_session_log(
 
             match format {
                 ListenFormat::Json => {
-                    // Pass through raw JSON (timestamps already in each event)
-                    println!("{}", trimmed);
+                    // For JSON, parse to check filter, then pass through
+                    if let Ok(event) = serde_json::from_str::<AgentLogEvent>(trimmed) {
+                        if matches_filter(&event.kind, filters) {
+                            println!("{}", trimmed);
+                        }
+                    } else {
+                        println!("{}", trimmed);
+                    }
                 }
                 ListenFormat::Text | ListenFormat::RichText => {
                     match serde_json::from_str::<AgentLogEvent>(trimmed) {
                         Ok(event) => {
+                            if !matches_filter(&event.kind, filters) {
+                                // Check if session ended even when filtered out
+                                if matches!(event.kind, LogEventKind::SessionEnded { .. }) {
+                                    return Ok(());
+                                }
+                                continue;
+                            }
                             let formatted = if format == ListenFormat::RichText {
                                 format_event_rich(&event, show_thinking)
                             } else {

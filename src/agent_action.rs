@@ -39,6 +39,8 @@ pub(crate) struct AgentActionParams {
     pub(crate) json_stream: bool,
     pub(crate) session: Option<String>,
     pub(crate) max_turns: Option<u32>,
+    pub(crate) exit_on_failure: bool,
+    pub(crate) context_session: Option<String>,
     pub(crate) session_metadata: SessionMetadata,
 }
 
@@ -278,12 +280,13 @@ struct ExecutionContext<'a> {
 }
 
 /// Execute the requested action.
+/// Returns `Ok(true)` if agent reported success (or no output), `Ok(false)` if agent reported an error.
 async fn execute_action(
     action: Commands,
     agent: &mut (dyn crate::agent::Agent + Send + Sync),
     ctx: &ExecutionContext<'_>,
     log_writer: Option<&crate::session_log::SessionLogWriter>,
-) -> Result<()> {
+) -> Result<bool> {
     match action {
         Commands::Run {
             prompt,
@@ -346,6 +349,8 @@ async fn execute_action(
                 crate::session_log::record_agent_output(writer, agent_output)?;
             }
 
+            let agent_success = agent_output.as_ref().map(|o| !o.is_error).unwrap_or(true);
+
             if ctx.json_mode {
                 handle_json_output(
                     agent_output,
@@ -358,11 +363,13 @@ async fn execute_action(
             } else if let Some(agent_out) = agent_output {
                 print_agent_output(&agent_out, ctx.output_fmt, ctx.show_usage, ctx.verbose)?;
             }
+
+            return Ok(agent_success);
         }
         _ => unreachable!(),
     }
 
-    Ok(())
+    Ok(true)
 }
 
 /// Log configuration details at debug level.
@@ -410,6 +417,11 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Input { .. } => "input",
         Commands::Broadcast { .. } => "broadcast",
         Commands::Whoami { .. } => "whoami",
+        Commands::Env { .. } => "env",
+        Commands::Collect { .. } => "collect",
+        Commands::Status { .. } => "status",
+        Commands::Wait { .. } => "wait",
+        Commands::Spawn { .. } => "spawn",
     }
 }
 
@@ -451,6 +463,8 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         json_stream,
         session,
         max_turns,
+        exit_on_failure,
+        context_session,
         session_metadata: _,
     } = params;
 
@@ -761,6 +775,17 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         }
     }
 
+    // Write lifecycle started marker and prune old markers
+    let lifecycle_session_id = wt
+        .session_id
+        .as_deref()
+        .or(sb.session_id.as_deref())
+        .or(plain.session_id.as_deref())
+        .unwrap_or(&log_session_id)
+        .to_string();
+    crate::lifecycle::write_started_marker(&lifecycle_session_id);
+    crate::lifecycle::prune_old_markers();
+
     // Echo session ID for `agent listen` usage
     if show_wrapper {
         let display_session_id = wt
@@ -830,6 +855,29 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         );
     }
 
+    // Resolve --context: prepend another session's result to the prompt
+    if let Some(ref ctx_session_id) = context_session {
+        let context_text =
+            crate::collect::extract_last_assistant_message(ctx_session_id, root.as_deref());
+        if let Some(context_text) = context_text {
+            let prefix = format!(
+                "Context from previous session ({}):\n\n{}\n\n---\n\n",
+                ctx_session_id, context_text
+            );
+            match &mut action {
+                Commands::Exec { prompt, .. } => {
+                    *prompt = format!("{}{}", prefix, prompt);
+                }
+                Commands::Run {
+                    prompt: Some(p), ..
+                } => {
+                    *p = format!("{}{}", prefix, p);
+                }
+                _ => {}
+            }
+        }
+    }
+
     let is_worktree_session = wt.is_worktree_session;
     let is_interactive_worktree = wt.is_worktree_session && matches!(action, Commands::Run { .. });
     let is_interactive_sandbox = sb.is_sandbox_session && matches!(action, Commands::Run { .. });
@@ -857,17 +905,21 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         log::warn!("Agent cleanup failed: {}", cleanup_err);
     }
 
-    if let Err(err) = &action_result {
-        if let Ok(mut pstore) = zag::process_store::ProcessStore::load() {
-            pstore.update_status(&proc_id, "killed", Some(1));
-            let _ = pstore.save();
+    let agent_success = match &action_result {
+        Err(err) => {
+            if let Ok(mut pstore) = zag::process_store::ProcessStore::load() {
+                pstore.update_status(&proc_id, "killed", Some(1));
+                let _ = pstore.save();
+            }
+            // Use ok() to avoid masking the original error if log finishing also fails
+            if let Err(log_err) = log_coordinator.finish(false, Some(err.to_string())).await {
+                log::warn!("Failed to finish session log: {}", log_err);
+            }
+            crate::lifecycle::write_ended_marker(&lifecycle_session_id, false, Some(1));
+            return Err(anyhow::anyhow!(err.to_string()));
         }
-        // Use ok() to avoid masking the original error if log finishing also fails
-        if let Err(log_err) = log_coordinator.finish(false, Some(err.to_string())).await {
-            log::warn!("Failed to finish session log: {}", log_err);
-        }
-        return Err(anyhow::anyhow!(err.to_string()));
-    }
+        Ok(success) => *success,
+    };
 
     let wrapper_session_id = wt
         .session_id
@@ -910,6 +962,11 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         root.as_deref(),
     );
     log_coordinator.finish(true, None).await?;
+    crate::lifecycle::write_ended_marker(
+        &lifecycle_session_id,
+        agent_success,
+        Some(if agent_success { 0 } else { 1 }),
+    );
 
     if let Ok(mut pstore) = zag::process_store::ProcessStore::load() {
         pstore.update_status(&proc_id, "exited", Some(0));
@@ -1015,6 +1072,11 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             .find_by_session_id(sid)
             .and_then(|entry| entry.provider_session_id.clone());
         print_session_resume_hint(sid, provider_session_id.as_deref());
+    }
+
+    // Exit with code 1 if agent reported failure and --exit-on-failure is set
+    if exit_on_failure && !agent_success {
+        std::process::exit(1);
     }
 
     Ok(())

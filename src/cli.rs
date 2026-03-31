@@ -123,6 +123,10 @@ pub enum Commands {
         #[arg(long = "continue")]
         continue_session: bool,
 
+        /// Prepend the result of another session as context
+        #[arg(long, value_name = "SESSION_ID")]
+        context: Option<String>,
+
         #[command(flatten)]
         agent: AgentArgs,
 
@@ -152,6 +156,14 @@ pub enum Commands {
         /// Include partial message chunks in streaming output (Claude only, requires -o stream-json)
         #[arg(long)]
         include_partial_messages: bool,
+
+        /// Exit with code 1 if the agent reports failure
+        #[arg(long)]
+        exit_on_failure: bool,
+
+        /// Prepend the result of another session as context
+        #[arg(long, value_name = "SESSION_ID")]
+        context: Option<String>,
 
         #[command(flatten)]
         agent: AgentArgs,
@@ -260,6 +272,10 @@ pub enum Commands {
         /// Show timestamps for each event
         #[arg(long)]
         timestamps: bool,
+
+        /// Filter by event type (repeatable: session_started, user_message, assistant_message, reasoning, tool_call, tool_result, permission, session_ended)
+        #[arg(long = "filter", value_name = "EVENT_TYPE")]
+        filters: Vec<String>,
 
         /// Root directory for session log resolution
         #[arg(short, long)]
@@ -416,6 +432,93 @@ pub enum Commands {
         #[arg(long)]
         raw: bool,
     },
+    /// Export session environment variables for nested agent invocations
+    Env {
+        /// Session ID (defaults to latest)
+        session_id: Option<String>,
+
+        /// Output as shell export statements (for eval)
+        #[arg(long)]
+        shell: bool,
+
+        /// Root directory for session resolution
+        #[arg(short, long)]
+        root: Option<String>,
+    },
+    /// Gather results from multiple sessions
+    Collect {
+        /// Session IDs to collect results from
+        session_ids: Vec<String>,
+
+        /// Collect results from all sessions with this tag
+        #[arg(long, value_name = "TAG")]
+        tag: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Root directory for session resolution
+        #[arg(short, long)]
+        root: Option<String>,
+    },
+    /// Show session status (running, idle, completed, failed, dead, unknown)
+    Status {
+        /// Session ID to check
+        session_id: String,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Root directory for session resolution
+        #[arg(short, long)]
+        root: Option<String>,
+    },
+    /// Launch an agent session in the background, print session ID, and exit
+    Spawn {
+        /// The prompt to send to the agent
+        prompt: String,
+
+        #[command(flatten)]
+        agent: AgentArgs,
+
+        #[command(flatten)]
+        metadata: SessionMetadataArgs,
+
+        /// Output as JSON (includes session_id, pid, log_path)
+        #[arg(long)]
+        json: bool,
+    },
+    /// Block until one or more sessions complete
+    Wait {
+        /// Session IDs to wait for
+        session_ids: Vec<String>,
+
+        /// Wait for all sessions with this tag
+        #[arg(long, value_name = "TAG")]
+        tag: Option<String>,
+
+        /// Wait for the latest session
+        #[arg(long)]
+        latest: bool,
+
+        /// Timeout duration (e.g., 30s, 5m, 1h)
+        #[arg(long, value_name = "DURATION")]
+        timeout: Option<String>,
+
+        /// Exit on first completed session (instead of waiting for all)
+        #[arg(long)]
+        any: bool,
+
+        /// Output as JSON (NDJSON, one result per line)
+        #[arg(long)]
+        json: bool,
+
+        /// Root directory for session resolution
+        #[arg(short, long)]
+        root: Option<String>,
+    },
     /// Send a message to all sessions in the current project (optionally filtered by tag)
     Broadcast {
         /// Message to send (reads from stdin if omitted)
@@ -462,6 +565,9 @@ pub(crate) enum SessionCommand {
         /// Filter by tag (exact match, case-insensitive)
         #[arg(long)]
         tag: Option<String>,
+        /// Show only sessions spawned by this parent session ID
+        #[arg(long)]
+        parent: Option<String>,
     },
     /// Show details of a specific session
     Show {
@@ -621,6 +727,7 @@ pub(crate) fn command_agent_args(cmd: &Commands) -> Option<&AgentArgs> {
         Commands::Run { agent, .. } => Some(agent),
         Commands::Exec { agent, .. } => Some(agent),
         Commands::Review { agent, .. } => Some(agent),
+        Commands::Spawn { agent, .. } => Some(agent),
         _ => None,
     }
 }
@@ -639,6 +746,7 @@ pub(crate) fn command_metadata_args(cmd: &Commands) -> Option<&SessionMetadataAr
     match cmd {
         Commands::Run { metadata, .. } => Some(metadata),
         Commands::Exec { metadata, .. } => Some(metadata),
+        Commands::Spawn { metadata, .. } => Some(metadata),
         _ => None,
     }
 }

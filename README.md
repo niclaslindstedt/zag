@@ -101,6 +101,12 @@ zag search <query>            Search through session logs
 zag input [message]           Send a user message to a single session
 zag broadcast [message]       Send a message to all sessions in the project
 
+zag spawn <prompt>            Launch background agent, return session ID
+zag wait <id>... [--timeout]  Block until session(s) complete
+zag status <id>               Machine-readable session health check
+zag collect [--tag <tag>]     Gather results from multiple sessions
+zag env [--session <id>]      Export session environment variables
+
 zag capability                Show provider capability declarations
 zag skills list|add|remove|sync|import   Manage provider-agnostic skills
 zag mcp list|add|remove|sync|import     Manage MCP servers across providers
@@ -169,6 +175,44 @@ zag listen <session-id>
 zag listen --latest --rich-text
 zag listen --ps <pid>             # by OS PID or zag process UUID
 ```
+
+## Orchestration
+
+`zag` provides primitives for launching, synchronizing, and collecting results from multiple agent sessions. These are building blocks — not an orchestration engine — designed for shell scripts and pipelines.
+
+```bash
+# Spawn parallel agents
+sid1=$(zag spawn --name analyzer --tag batch -p claude "analyze auth module")
+sid2=$(zag spawn --name reviewer --tag batch -p gemini "review test coverage")
+sid3=$(zag spawn --name scanner --tag batch -p codex "find security issues")
+
+# Check health
+zag status $sid1                          # → running | idle | completed | failed | dead
+
+# Block until all finish (exit code reflects success)
+zag wait --tag batch --timeout 10m
+
+# Collect results
+zag collect --tag batch --json > results.json
+
+# Feed a session's result into a new agent
+zag exec --context $sid1 "summarize the analysis and suggest fixes"
+
+# Propagate agent failure as a non-zero exit code
+zag exec --exit-on-failure "fix the bug" || echo "Agent reported failure"
+
+# Export session env for nested invocations
+eval $(zag env --shell --session $sid1)
+
+# Query parent-child process trees
+zag ps list --children $PARENT_SESSION_ID
+zag session list --parent $PARENT_SESSION_ID
+
+# Filter listen to specific event types
+zag listen $sid1 --filter session_ended --filter tool_call
+```
+
+Filesystem lifecycle markers are written to `~/.zag/events/` (`.started` and `.ended` files) for external non-Rust orchestrators that prefer `inotifywait` over polling.
 
 ## Worktree and sandbox isolation
 

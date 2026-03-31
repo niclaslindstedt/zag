@@ -113,6 +113,7 @@ pub(crate) fn run_session(command: SessionCommand, json: bool, root: Option<&str
             global,
             name,
             tag,
+            parent,
         } => {
             let store = if global {
                 session::SessionStore::load_all()?
@@ -135,6 +136,20 @@ pub(crate) fn run_session(command: SessionCommand, json: bool, root: Option<&str
             if let Some(ref t) = tag {
                 let t_lower = t.to_lowercase();
                 sessions.retain(|s| s.tags.iter().any(|st| st.to_lowercase() == t_lower));
+            }
+            if let Some(ref parent_id) = parent {
+                // Cross-reference with process store to find child sessions
+                let proc_store = zag::process_store::ProcessStore::load().unwrap_or_default();
+                let child_session_ids: std::collections::HashSet<String> = proc_store
+                    .processes
+                    .iter()
+                    .filter(|e| {
+                        e.parent_session_id.as_deref() == Some(parent_id)
+                            || e.parent_process_id.as_deref() == Some(parent_id)
+                    })
+                    .filter_map(|e| e.session_id.clone())
+                    .collect();
+                sessions.retain(|s| child_session_ids.contains(&s.session_id));
             }
             if let Some(n) = limit {
                 sessions.truncate(n);

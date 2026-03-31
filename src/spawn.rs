@@ -1,0 +1,204 @@
+//! Spawn command: launch an agent session in the background and return the session ID.
+
+use anyhow::Result;
+use log::debug;
+use std::fs::{self, File};
+use std::path::PathBuf;
+use zag::config::Config;
+use zag::process_store::{ProcessEntry, ProcessStore};
+use zag::session::{SessionEntry, SessionStore};
+
+use crate::resume::current_workspace;
+use crate::session_setup::SessionMetadata;
+
+/// Parameters for the spawn command.
+pub struct SpawnParams {
+    pub prompt: String,
+    pub provider: String,
+    pub model: Option<String>,
+    pub root: Option<String>,
+    pub auto_approve: bool,
+    pub system_prompt: Option<String>,
+    pub add_dirs: Vec<String>,
+    pub size: Option<String>,
+    pub max_turns: Option<u32>,
+    pub json: bool,
+    pub metadata: SessionMetadata,
+}
+
+/// Directory for spawn log files.
+fn spawn_logs_dir() -> PathBuf {
+    Config::global_base_dir().join("logs").join("spawn")
+}
+
+/// Run the spawn command.
+pub fn run_spawn(params: SpawnParams) -> Result<()> {
+    let session_id = uuid::Uuid::new_v4().to_string();
+    let workspace = current_workspace(params.root.as_deref());
+
+    debug!(
+        "Spawning background session: id={}, provider={}, prompt='{}'",
+        session_id,
+        params.provider,
+        params.prompt.chars().take(100).collect::<String>()
+    );
+
+    // Register in session store
+    let mut session_store = SessionStore::load(params.root.as_deref()).unwrap_or_default();
+    session_store.add(SessionEntry {
+        session_id: session_id.clone(),
+        provider: params.provider.clone(),
+        model: params.model.clone().unwrap_or_default(),
+        worktree_path: workspace.clone(),
+        worktree_name: String::new(),
+        created_at: chrono::Utc::now().to_rfc3339(),
+        provider_session_id: None,
+        sandbox_name: None,
+        is_worktree: false,
+        discovered: false,
+        discovery_source: None,
+        log_path: None,
+        log_completeness: "partial".to_string(),
+        name: params.metadata.name.clone(),
+        description: params.metadata.description.clone(),
+        tags: params.metadata.tags.clone(),
+    });
+    if let Err(e) = session_store.save(params.root.as_deref()) {
+        log::warn!("Failed to save session store: {}", e);
+    }
+
+    // Build the zag exec command
+    let zag_bin = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("zag"));
+    let mut args: Vec<String> = Vec::new();
+
+    // Quiet mode for background
+    args.push("--quiet".to_string());
+
+    // Provider
+    args.push("-p".to_string());
+    args.push(params.provider.clone());
+
+    // Model
+    if let Some(ref model) = params.model {
+        args.push("--model".to_string());
+        args.push(model.clone());
+    }
+
+    // Root
+    if let Some(ref root) = params.root {
+        args.push("--root".to_string());
+        args.push(root.clone());
+    }
+
+    // Auto approve
+    if params.auto_approve {
+        args.push("--auto-approve".to_string());
+    }
+
+    // System prompt
+    if let Some(ref sp) = params.system_prompt {
+        args.push("--system-prompt".to_string());
+        args.push(sp.clone());
+    }
+
+    // Add dirs
+    for dir in &params.add_dirs {
+        args.push("--add-dir".to_string());
+        args.push(dir.clone());
+    }
+
+    // Size (ollama)
+    if let Some(ref size) = params.size {
+        args.push("--size".to_string());
+        args.push(size.clone());
+    }
+
+    // Exec subcommand with session ID
+    args.push("exec".to_string());
+    args.push("--session".to_string());
+    args.push(session_id.clone());
+
+    // Max turns
+    if let Some(max_turns) = params.max_turns {
+        args.push("--max-turns".to_string());
+        args.push(max_turns.to_string());
+    }
+
+    // Session metadata
+    if let Some(ref name) = params.metadata.name {
+        args.push("--name".to_string());
+        args.push(name.clone());
+    }
+    if let Some(ref desc) = params.metadata.description {
+        args.push("--description".to_string());
+        args.push(desc.clone());
+    }
+    for tag in &params.metadata.tags {
+        args.push("--tag".to_string());
+        args.push(tag.clone());
+    }
+
+    // The prompt
+    args.push(params.prompt.clone());
+
+    // Set up log file for stdout/stderr capture
+    let logs_dir = spawn_logs_dir();
+    fs::create_dir_all(&logs_dir)?;
+    let log_path = logs_dir.join(format!("{}.log", session_id));
+    let stdout_file = File::create(&log_path)?;
+    let stderr_file = stdout_file.try_clone()?;
+
+    debug!("Spawning: {} {}", zag_bin.display(), args.join(" "));
+
+    // Spawn the child process
+    let child = std::process::Command::new(&zag_bin)
+        .args(&args)
+        .stdin(std::process::Stdio::null())
+        .stdout(stdout_file)
+        .stderr(stderr_file)
+        .spawn()?;
+
+    let child_pid = child.id();
+
+    // Register in process store
+    let mut proc_store = ProcessStore::load().unwrap_or_default();
+    proc_store.add(ProcessEntry {
+        id: uuid::Uuid::new_v4().to_string(),
+        pid: child_pid,
+        session_id: Some(session_id.clone()),
+        provider: params.provider.clone(),
+        model: params.model.clone().unwrap_or_default(),
+        command: "exec".to_string(),
+        prompt: Some(params.prompt.chars().take(100).collect()),
+        started_at: chrono::Utc::now().to_rfc3339(),
+        status: "running".to_string(),
+        exit_code: None,
+        exited_at: None,
+        root: Some(workspace),
+        parent_process_id: std::env::var("ZAG_PROCESS_ID").ok(),
+        parent_session_id: std::env::var("ZAG_SESSION_ID").ok(),
+    });
+    if let Err(e) = proc_store.save() {
+        log::warn!("Failed to save process store: {}", e);
+    }
+
+    // Output the session ID
+    if params.json {
+        println!(
+            "{}",
+            serde_json::json!({
+                "session_id": session_id,
+                "pid": child_pid,
+                "log_path": log_path.to_string_lossy(),
+            })
+        );
+    } else {
+        println!("{}", session_id);
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "spawn_tests.rs"]
+mod tests;

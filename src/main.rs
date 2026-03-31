@@ -20,9 +20,12 @@ mod broadcast;
 mod capability;
 mod cleanup;
 mod cli;
+mod collect;
 mod commands;
+mod env;
 mod input;
 mod json_mode;
+mod lifecycle;
 mod listen;
 mod logging;
 mod manpage;
@@ -33,6 +36,9 @@ mod review;
 mod search;
 mod session_log;
 mod session_setup;
+mod spawn;
+mod status;
+mod wait;
 mod whoami;
 
 // Re-export from sub-modules so main_tests.rs can use `super::*`
@@ -260,6 +266,7 @@ async fn main() -> Result<()> {
                 running: false,
                 limit: None,
                 provider: None,
+                children: None,
             });
             ps::run_ps(cmd, json)?;
         }
@@ -325,6 +332,7 @@ async fn main() -> Result<()> {
             rich_text,
             show_thinking,
             timestamps,
+            filters,
             root,
         } => {
             let config = Config::load(root.as_deref()).unwrap_or_default();
@@ -339,7 +347,19 @@ async fn main() -> Result<()> {
             let log_path =
                 listen::resolve_session_log(resolved_session_id, latest, active, root.as_deref())?;
             debug!("Listening to session log: {}", log_path.display());
-            listen::tail_session_log(&log_path, format, show_thinking, timestamps, &config)?;
+            let filter_set = if filters.is_empty() {
+                None
+            } else {
+                Some(filters.iter().map(|s| s.to_lowercase()).collect::<Vec<_>>())
+            };
+            listen::tail_session_log(
+                &log_path,
+                format,
+                show_thinking,
+                timestamps,
+                &config,
+                filter_set.as_deref(),
+            )?;
         }
         Commands::Input {
             session,
@@ -392,6 +412,77 @@ async fn main() -> Result<()> {
         Commands::Whoami { json } => {
             whoami::run_whoami(json)?;
         }
+        Commands::Status {
+            session_id,
+            json: status_json,
+            root,
+        } => {
+            status::run_status(&session_id, status_json, root.as_deref())?;
+        }
+        Commands::Env {
+            session_id,
+            shell,
+            root,
+        } => {
+            env::run_env(session_id.as_deref(), shell, root.as_deref())?;
+        }
+        Commands::Collect {
+            session_ids,
+            tag,
+            json: collect_json,
+            root,
+        } => {
+            collect::run_collect(collect::CollectParams {
+                session_ids,
+                tag,
+                json: collect_json,
+                root,
+            })?;
+        }
+        Commands::Wait {
+            session_ids,
+            tag,
+            latest,
+            timeout,
+            any,
+            json: wait_json,
+            root,
+        } => {
+            wait::run_wait(wait::WaitParams {
+                session_ids,
+                tag,
+                latest,
+                timeout,
+                any,
+                json: wait_json,
+                root,
+            })?;
+        }
+        Commands::Spawn {
+            prompt,
+            agent,
+            metadata,
+            json: spawn_json,
+        } => {
+            let provider = resolve_provider(agent.provider.as_deref(), agent.root.as_deref())?;
+            spawn::run_spawn(spawn::SpawnParams {
+                prompt,
+                provider,
+                model: agent.model,
+                root: agent.root,
+                auto_approve: agent.auto_approve,
+                system_prompt: agent.system_prompt,
+                add_dirs: agent.add_dirs,
+                size: agent.size,
+                max_turns: agent.max_turns,
+                json: spawn_json,
+                metadata: session_setup::SessionMetadata {
+                    name: metadata.name,
+                    description: metadata.description,
+                    tags: metadata.tags,
+                },
+            })?;
+        }
         Commands::Review {
             uncommitted,
             base,
@@ -415,6 +506,18 @@ async fn main() -> Result<()> {
         }
         action => {
             let agent_args = command_agent_args(&action).cloned().unwrap();
+            let exit_on_failure = matches!(
+                &action,
+                Commands::Exec {
+                    exit_on_failure: true,
+                    ..
+                }
+            );
+            let context_session = match &action {
+                Commands::Exec { context, .. } => context.clone(),
+                Commands::Run { context, .. } => context.clone(),
+                _ => None,
+            };
             let session_isolation = session_args.unwrap_or(SessionIsolationArgs {
                 worktree: None,
                 sandbox: None,
@@ -448,6 +551,8 @@ async fn main() -> Result<()> {
                 json_stream,
                 session: session_isolation.session,
                 max_turns: agent_args.max_turns,
+                exit_on_failure,
+                context_session,
                 session_metadata: {
                     let meta = metadata_args.unwrap_or_default();
                     crate::session_setup::SessionMetadata {

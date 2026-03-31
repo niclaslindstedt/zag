@@ -161,6 +161,12 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `src/json_validation.rs` | JSON and JSON Schema validation utilities |
 | `src/skills.rs` | Provider-agnostic skill management: parsing, loading, syncing symlinks, system prompt injection |
 | `src/skills_tests.rs` | Unit tests for skills module |
+| `src/spawn.rs` | `zag spawn` command: launch background agent session, return session ID |
+| `src/wait.rs` | `zag wait` command: block until session(s) complete (polls JSONL logs) |
+| `src/status.rs` | `zag status` command: machine-readable session health check |
+| `src/collect.rs` | `zag collect` command: gather results from multiple sessions |
+| `src/env.rs` | `zag env` command: export session environment variables |
+| `src/lifecycle.rs` | Filesystem lifecycle markers (`.started`/`.ended` in `~/.zag/events/`) |
 | `man/*.md` | Embedded manpages for the `zag man` command |
 | `prompts/auto-selector/*.md` | Versioned prompt templates for auto-selection (latest: 3_1) |
 | `prompts/json-wrap/*.md` | Versioned prompt templates for wrapping user prompts with JSON instructions (latest: 1_0) |
@@ -172,6 +178,11 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `man/input.md` | Manpage for the `zag input` command |
 | `man/broadcast.md` | Manpage for the `zag broadcast` command |
 | `man/whoami.md` | Manpage for the `zag whoami` command |
+| `man/spawn.md` | Manpage for the `zag spawn` command |
+| `man/wait.md` | Manpage for the `zag wait` command |
+| `man/status.md` | Manpage for the `zag status` command |
+| `man/collect.md` | Manpage for the `zag collect` command |
+| `man/env.md` | Manpage for the `zag env` command |
 
 #### `bindings/` (language SDKs)
 
@@ -711,6 +722,11 @@ The provider is specified via the `--provider` (or `-p`) flag. If omitted, it de
 - **`input`** - Send a user message to a single running or resumable session
 - **`broadcast`** - Send a message to all sessions in the current project (optionally filtered by tag)
 - **`whoami`** - Show identity of the current zag session (for agent introspection)
+- **`spawn`** - Launch a background agent session and return the session ID
+- **`wait`** - Block until one or more sessions complete
+- **`status`** - Machine-readable session health check
+- **`collect`** - Gather results from multiple sessions
+- **`env`** - Export session environment variables for nested invocations
 
 ```bash
 # Interactive mode (uses default provider, typically claude)
@@ -911,6 +927,22 @@ zag broadcast --tag backend "status" -o json         # JSON output with per-sess
 # Session identity (agent introspection)
 zag whoami                                 # Show current session identity
 zag whoami --json                          # JSON output for machine consumption
+
+# Orchestration
+sid=$(zag spawn --name analyzer --tag batch -p claude "analyze auth")
+zag status $sid                            # Machine-readable health check
+zag status $sid --json                     # JSON output
+zag wait $sid --timeout 5m                 # Block until complete
+zag wait --tag batch --timeout 10m         # Wait for all tagged sessions
+zag wait --tag batch --any                 # Exit on first completion
+zag collect --tag batch --json             # Gather all results as JSON
+zag exec --context $sid "summarize"        # Feed session result into new prompt
+zag exec --exit-on-failure "fix the bug"   # Non-zero exit on agent failure
+zag env --session $sid                     # Show session env vars
+eval $(zag env --shell --session $sid)     # Set env vars in current shell
+zag ps list --children $PARENT_ID          # List child processes
+zag session list --parent $PARENT_ID       # List child sessions
+zag listen $sid --filter tool_call         # Filter event stream
 
 # Configuration
 zag config                       # Print full config

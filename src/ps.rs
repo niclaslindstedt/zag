@@ -27,6 +27,7 @@ pub fn run_ps(command: PsCommand, json: bool) -> Result<()> {
             running,
             limit,
             provider,
+            children,
         } => {
             let store = ProcessStore::load()?;
             let mut entries: Vec<&ProcessEntry> = store.list_recent(limit);
@@ -35,6 +36,12 @@ pub fn run_ps(command: PsCommand, json: bool) -> Result<()> {
             }
             if let Some(ref p) = provider {
                 entries.retain(|e| e.provider == *p);
+            }
+            if let Some(ref parent_id) = children {
+                entries.retain(|e| {
+                    e.parent_session_id.as_deref() == Some(parent_id)
+                        || e.parent_process_id.as_deref() == Some(parent_id)
+                });
             }
             if json {
                 let with_live: Vec<serde_json::Value> = entries
@@ -184,6 +191,9 @@ pub enum PsCommand {
         /// Filter by provider
         #[arg(short = 'p', long)]
         provider: Option<String>,
+        /// Show only child processes of this session or process ID
+        #[arg(long)]
+        children: Option<String>,
     },
     /// Show details of a specific process
     Show {

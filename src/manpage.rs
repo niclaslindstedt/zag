@@ -17,6 +17,11 @@ const MAN_SEARCH: &str = include_str!("../man/search.md");
 const MAN_INPUT: &str = include_str!("../man/input.md");
 const MAN_BROADCAST: &str = include_str!("../man/broadcast.md");
 const MAN_WHOAMI: &str = include_str!("../man/whoami.md");
+const MAN_WAIT: &str = include_str!("../man/wait.md");
+const MAN_SPAWN: &str = include_str!("../man/spawn.md");
+const MAN_STATUS: &str = include_str!("../man/status.md");
+const MAN_COLLECT: &str = include_str!("../man/collect.md");
+const MAN_ENV: &str = include_str!("../man/env.md");
 
 /// AI-oriented reference document for `--help-agent`.
 pub(crate) const HELP_AGENT: &str = include_str!("../man/help-agent.md");
@@ -40,8 +45,13 @@ pub(crate) fn print_manpage(command: Option<&str>) -> Result<()> {
         Some("input") => MAN_INPUT,
         Some("broadcast") => MAN_BROADCAST,
         Some("whoami") => MAN_WHOAMI,
+        Some("wait") => MAN_WAIT,
+        Some("spawn") => MAN_SPAWN,
+        Some("status") => MAN_STATUS,
+        Some("collect") => MAN_COLLECT,
+        Some("env") => MAN_ENV,
         Some(other) => bail!(
-            "No manual entry for '{}'. Available: run, exec, review, config, session, capability, listen, man, skills, mcp, ps, search, input, broadcast, whoami",
+            "No manual entry for '{}'. Available: run, exec, review, config, session, capability, listen, man, skills, mcp, ps, search, input, broadcast, whoami, wait, spawn, status, collect, env",
             other
         ),
     };

@@ -19,6 +19,11 @@ zag listen <id>                Tail a session's log events in real-time
 zag capability [-p provider]   Show provider capability declarations
 zag skills list                List provider-agnostic skills
 zag man [command]              Show detailed docs for a command
+zag spawn "<prompt>"           Launch background agent, return session ID
+zag wait <id>... [--timeout]   Block until session(s) complete
+zag status <id>                Machine-readable session health check
+zag collect [--tag <tag>]      Gather results from multiple sessions
+zag env [--session <id>]       Export session environment variables
 ```
 
 **For scripting and programmatic use, always use `exec`.** It runs non-interactively, prints output, and exits. `run` is for interactive terminal sessions only.
@@ -229,6 +234,43 @@ Config priority: CLI flags > `models.<agent>` > `defaults.model` > agent built-i
 -o, --output <FORMAT>        exec output format: text, json, json-pretty, stream-json
 ```
 
+## Orchestration Primitives
+
+Spawn background agents, wait for completion, and collect results:
+
+```sh
+# Spawn parallel agents with tags
+sid1=$(zag spawn --name analyzer --tag batch -p claude "analyze auth module")
+sid2=$(zag spawn --name reviewer --tag batch -p gemini "review test coverage")
+sid3=$(zag spawn --name scanner --tag batch -p codex "find security issues")
+
+# Monitor
+zag status $sid1                         # → running, idle, completed, failed, dead
+zag status $sid1 --json | jq .status     # Machine-readable
+
+# Wait for all to finish (exit code reflects success/failure)
+zag wait --tag batch --timeout 10m
+
+# Collect results
+zag collect --tag batch --json > results.json
+
+# Feed results into next stage
+zag exec --context $sid1 "summarize the analysis and suggest fixes"
+
+# Export session env for nested invocations
+eval $(zag env --shell --session $sid1)
+
+# Query parent-child relationships
+zag ps list --children $PARENT_SESSION_ID
+zag session list --parent $PARENT_SESSION_ID
+
+# Filter listen events
+zag listen $sid1 --filter session_ended --filter tool_call
+
+# Exit code propagation
+zag exec --exit-on-failure "fix the bug" || echo "Agent failed"
+```
+
 ## Detailed Documentation
 
 For deeper documentation on any command, run:
@@ -244,4 +286,9 @@ zag man listen       Real-time session log tailing
 zag man capability   Provider capability declarations
 zag man skills       Provider-agnostic skill management
 zag man search       Search through session logs
+zag man spawn        Background session launch
+zag man wait         Block until sessions complete
+zag man status       Session health check
+zag man collect      Gather multi-session results
+zag man env          Export session environment
 ```
