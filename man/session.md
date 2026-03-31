@@ -18,13 +18,15 @@ Sessions are automatically created when running agents with `zag run` or `zag ex
 
 List all sessions, sorted by creation time (newest first).
 
-    zag session list [--json] [-p provider] [-n limit] [--global]
+    zag session list [--json] [-p provider] [-n limit] [--global] [--name NAME] [--tag TAG]
 
 Options:
 - `--json` — Output as JSON array
 - `-p, --provider` — Filter by provider name (e.g., claude, codex, gemini)
 - `-n, --limit` — Show only the N most recent sessions
 - `--global` — List sessions across all projects (not just the current one)
+- `--name` — Filter by session name (case-insensitive substring match)
+- `--tag` — Filter by tag (case-insensitive exact match)
 
 ### show
 
@@ -47,6 +49,20 @@ Options:
 - `--json` — Output as JSON object
 
 The session entry is removed from the store. Associated log files on disk are not deleted.
+
+### update
+
+Update session metadata (name, description, tags).
+
+    zag session update <id> [--name NAME] [--description TEXT] [--tag TAG ...] [--clear-tags]
+
+Options:
+- `--name` — Set the session name
+- `--description` — Set the session description
+- `--tag` — Add a tag (repeatable)
+- `--clear-tags` — Clear all existing tags before adding new ones
+
+Only provided fields are updated; omitted fields remain unchanged.
 
 ### import
 
@@ -72,6 +88,16 @@ Supported providers: Claude, Codex, Gemini, Copilot, Ollama (no-op today).
 
     # List sessions across all projects
     zag session list --global
+
+    # Filter by session name
+    zag session list --name frontend
+
+    # Filter by tag
+    zag session list --tag backend
+
+    # Update session metadata
+    zag session update abc123-def456 --name "my-agent" --tag backend
+    zag session update abc123-def456 --clear-tags --tag new-tag
 
     # Show details of a specific session
     zag session show abc123-def456

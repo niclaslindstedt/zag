@@ -27,6 +27,9 @@ All global flags apply (see `zag man zag`).
     --resume <session-id>    Resume a specific interactive session
     --continue               Resume the latest tracked interactive session
     --session <UUID>         Use a specific session ID (cannot combine with --resume/--continue)
+    --name <NAME>            Human-readable session name (for discovery)
+    --description <TEXT>     Short description of the session's purpose
+    --tag <TAG>              Session tag for discovery (repeatable)
     --max-turns <N>          Maximum number of agentic turns
 
 ## Behavior
@@ -60,6 +63,7 @@ After an interactive sandbox session, you are prompted whether to keep or remove
     zag run --continue                      Resume the latest tracked session
     zag run --resume abc-123                Resume a specific session
     zag --session $(uuidgen) run             Pre-set session ID for agent listen
+    zag run --name my-agent --tag backend    Named and tagged session
     zag -p ollama run                       Interactive Ollama session (qwen3.5:9b)
     zag -p ollama --size 35b run            Ollama with large model size
 

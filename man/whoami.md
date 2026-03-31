@@ -25,6 +25,7 @@ Output as a JSON object with all fields.
 | Variable | Description |
 |----------|-------------|
 | `ZAG_SESSION_ID` | Session UUID of the enclosing zag process |
+| `ZAG_SESSION_NAME` | Session name (if set via `--name` on `run`/`exec`) |
 | `ZAG_PROCESS_ID` | Process UUID of the enclosing zag process |
 | `ZAG_PROVIDER` | Provider name (claude, codex, gemini, copilot, ollama) |
 | `ZAG_MODEL` | Model name |
@@ -35,6 +36,7 @@ Output as a JSON object with all fields.
 | Field | Description |
 |-------|-------------|
 | Session ID | The wrapper session UUID |
+| Session Name | The human-readable session name (if set via `--name`) |
 | Process ID | The zag process UUID |
 | PID | OS process ID of the current process |
 | Provider | Agent provider name |
@@ -48,6 +50,7 @@ Output as a JSON object with all fields.
     # Inside a zag session (called by an agent)
     zag whoami
     Session ID:        a1b2c3d4-...
+    Session Name:      backend-agent
     Process ID:        e5f6g7h8-...
     PID:               12345
     Provider:          claude

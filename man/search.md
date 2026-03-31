@@ -64,6 +64,10 @@ Show only events at or before this date/time. Same format as `--from`.
 
 Restrict search to a specific session ID. Accepts a prefix match — you can use the first 8 characters of a UUID.
 
+### `--tag <TAG>`
+
+Filter by session tag (case-insensitive exact match). Only sessions with the given tag are searched. Tags are set via `--tag` on `zag run` or `zag exec`, or updated via `zag session update`.
+
 ### `--global`
 
 Search all sessions across all projects (default: current project and sub-projects only).

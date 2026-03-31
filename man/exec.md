@@ -20,6 +20,9 @@ By default, exec mode suppresses wrapper UI (spinners, status messages, icons) s
 
     -o, --output <FORMAT>         Output format (see Output Formats below)
     -i, --input-format <FORMAT>   Input format: text (default), stream-json (Claude only)
+    --name <NAME>                 Human-readable session name (for discovery)
+    --description <TEXT>          Short description of the session's purpose
+    --tag <TAG>                   Session tag for discovery (repeatable)
     --max-turns <N>               Maximum number of agentic turns
 
 All global flags apply (see `zag man zag`).
@@ -110,6 +113,7 @@ In exec mode, the sandbox is kept after execution (no cleanup prompt). Resume wi
     zag -v exec "analyze code"                        Verbose with icons
     zag --sandbox exec "write tests"                  Run in Docker sandbox
     zag --session $(uuidgen) exec "say hello"          Pre-set session ID
+    zag exec --name backend --tag api "implement API"  Named and tagged session
     zag -p ollama exec "explain this code"            Ollama non-interactive
     zag -p ollama --size 35b exec "complex task"      Ollama with large size
 

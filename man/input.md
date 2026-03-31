@@ -6,6 +6,9 @@ Send a user message to a running or resumable session.
 
     zag input "message"
     zag input --session <session-id> "message"
+    zag input --name <session-name> "message"
+    zag input --tag <tag> "message"
+    zag input --tag <tag> --broadcast "message"
     zag input --latest "message"
     zag input --active "message"
     zag input --ps <pid> "message"
@@ -41,7 +44,19 @@ Send to the most recently active session (by log file modification time).
 
 ### `--ps <PID>`
 
-Send to the session belonging to a process, specified by OS PID (integer) or zag process UUID (from `zag ps list`). Mutually exclusive with `--session`, `--latest`, and `--active`.
+Send to the session belonging to a process, specified by OS PID (integer) or zag process UUID (from `zag ps list`). Mutually exclusive with `--session`, `--latest`, `--active`, `--name`, and `--tag`.
+
+### `--name <NAME>`
+
+Target a session by its human-readable name (set via `--name` on `run`/`exec`). Resolves to the most recent session with the given name. Mutually exclusive with `--session`, `--latest`, `--active`, `--ps`, and `--tag`.
+
+### `--tag <TAG>`
+
+Target session(s) by tag (set via `--tag` on `run`/`exec`). If exactly one session matches, the message is sent to it. If multiple sessions match and `--broadcast` is not set, an error is shown with the matching sessions. Mutually exclusive with `--session`, `--latest`, `--active`, `--ps`, and `--name`.
+
+### `--broadcast`
+
+Send the message to ALL sessions matching the `--tag` filter. Requires `--tag`. Without `--broadcast`, `--tag` expects exactly one matching session.
 
 ### `--global`
 
@@ -74,17 +89,17 @@ When `zag input` is invoked from within a zag session (i.e., by an agent), the m
 
 ```
 <agent-message>
-<from session="abc123-def456" provider="claude" model="opus"/>
-<reply-with>zag input --session abc123-def456 "your reply here"</reply-with>
+<from session="abc123-def456" name="frontend-agent" provider="claude" model="opus"/>
+<reply-with>zag input --name frontend-agent "your reply here"</reply-with>
 <body>
 Original message content here
 </body>
 </agent-message>
 ```
 
-The receiving agent can use the command in `<reply-with>` to send a response back. This enables bidirectional agent-to-agent communication via `zag input`.
+The `name` attribute is included when the sender session was created with `--name`. The `<reply-with>` command uses `--name` when available, falling back to `--session` otherwise. The receiving agent can use this command to send a response back.
 
-Session detection uses the `ZAG_SESSION_ID` environment variable, which is automatically set when `zag run` or `zag exec` spawns an agent subprocess. When not inside a session, messages are sent without wrapping.
+Session detection uses the `ZAG_SESSION_ID` and `ZAG_SESSION_NAME` environment variables, which are automatically set when `zag run` or `zag exec` spawns an agent subprocess. When not inside a session, messages are sent without wrapping.
 
 ## Examples
 
@@ -120,6 +135,15 @@ Session detection uses the `ZAG_SESSION_ID` environment variable, which is autom
 
     # Send to a session by zag process UUID
     zag input --ps a1b2c3d4-... "check progress"
+
+    # Send to a named session
+    zag input --name backend-agent "check the auth module"
+
+    # Send to a session by tag (single match)
+    zag input --tag api "what's the endpoint status?"
+
+    # Broadcast to all sessions with a tag
+    zag input --tag backend --broadcast "team standup: report your status"
 
     # Agent-to-agent: send a message (auto-wraps with sender info when inside a session)
     zag input --session <target-session-id> "please run the tests"
