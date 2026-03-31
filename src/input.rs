@@ -15,6 +15,9 @@ pub(crate) struct InputParams {
     pub latest: bool,
     pub active: bool,
     pub ps: Option<String>,
+    pub input_name: Option<String>,
+    pub input_tag: Option<String>,
+    pub broadcast: bool,
     pub global: bool,
     pub stream: bool,
     pub output: Option<String>,
@@ -25,6 +28,7 @@ pub(crate) struct InputParams {
 
 struct SenderInfo {
     session_id: String,
+    name: Option<String>,
     provider: Option<String>,
     model: Option<String>,
 }
@@ -35,6 +39,7 @@ impl SenderInfo {
         let session_id = std::env::var("ZAG_SESSION_ID").ok()?;
         Some(Self {
             session_id,
+            name: std::env::var("ZAG_SESSION_NAME").ok(),
             provider: std::env::var("ZAG_PROVIDER").ok(),
             model: std::env::var("ZAG_MODEL").ok(),
         })
@@ -44,15 +49,28 @@ impl SenderInfo {
 fn wrap_agent_message(message: &str, sender: &SenderInfo) -> String {
     let provider = sender.provider.as_deref().unwrap_or("unknown");
     let model = sender.model.as_deref().unwrap_or("unknown");
+    let name_attr = sender
+        .name
+        .as_ref()
+        .map(|n| format!(" name=\"{}\"", n))
+        .unwrap_or_default();
+    let reply_target = if let Some(ref name) = sender.name {
+        format!("zag input --name {} \"your reply here\"", name)
+    } else {
+        format!(
+            "zag input --session {} \"your reply here\"",
+            sender.session_id
+        )
+    };
     format!(
         "<agent-message>\n\
-         <from session=\"{}\" provider=\"{}\" model=\"{}\"/>\n\
-         <reply-with>zag input --session {} \"your reply here\"</reply-with>\n\
+         <from session=\"{}\"{} provider=\"{}\" model=\"{}\"/>\n\
+         <reply-with>{}</reply-with>\n\
          <body>\n\
          {}\n\
          </body>\n\
          </agent-message>",
-        sender.session_id, provider, model, sender.session_id, message
+        sender.session_id, name_attr, provider, model, reply_target, message
     )
 }
 
@@ -65,6 +83,71 @@ fn maybe_wrap_message(message: &str, raw: bool) -> String {
         Some(sender) => wrap_agent_message(message, &sender),
         None => message.to_string(),
     }
+}
+
+/// Resolve one or more session IDs for the input command from the various targeting flags.
+#[allow(clippy::too_many_arguments)]
+fn resolve_input_session_ids(
+    session: Option<&str>,
+    latest: bool,
+    active: bool,
+    ps: Option<&str>,
+    input_name: Option<&str>,
+    input_tag: Option<&str>,
+    broadcast: bool,
+    global: bool,
+    root: Option<&str>,
+) -> Result<Vec<String>> {
+    // --name: resolve by session name
+    if let Some(name) = input_name {
+        let store = if global {
+            zag::session::SessionStore::load_all().unwrap_or_default()
+        } else {
+            zag::session::SessionStore::load(root).unwrap_or_default()
+        };
+        if let Some(entry) = store.find_by_name(name) {
+            return Ok(vec![entry.session_id.clone()]);
+        }
+        bail!("No session found with name '{}'", name);
+    }
+
+    // --tag: resolve by tag
+    if let Some(tag) = input_tag {
+        let store = if global {
+            zag::session::SessionStore::load_all().unwrap_or_default()
+        } else {
+            zag::session::SessionStore::load(root).unwrap_or_default()
+        };
+        let matches = store.find_by_tag(tag);
+        if matches.is_empty() {
+            bail!("No sessions found with tag '{}'", tag);
+        }
+        if broadcast {
+            return Ok(matches.iter().map(|e| e.session_id.clone()).collect());
+        }
+        if matches.len() > 1 {
+            let mut msg = format!(
+                "Multiple sessions found with tag '{}'. Use --broadcast to send to all, or be more specific:\n",
+                tag
+            );
+            for m in &matches {
+                msg.push_str(&format!(
+                    "  {} ({}{})\n",
+                    m.session_id,
+                    m.provider,
+                    m.name
+                        .as_ref()
+                        .map(|n| format!(", name={}", n))
+                        .unwrap_or_default()
+                ));
+            }
+            bail!("{}", msg.trim_end());
+        }
+        return Ok(vec![matches[0].session_id.clone()]);
+    }
+
+    // Fall back to the single-session resolver
+    resolve_input_session_id(session, latest, active, ps, global, root).map(|id| vec![id])
 }
 
 /// Resolve the session ID for the input command from the various targeting flags.
@@ -126,6 +209,79 @@ fn resolve_input_session_id(
     }
 }
 
+/// Send a message to multiple sessions (broadcast mode).
+async fn run_input_broadcast(
+    session_ids: &[String],
+    message: Option<String>,
+    raw: bool,
+    quiet: bool,
+    root: Option<&str>,
+) -> Result<()> {
+    let msg = if let Some(m) = message {
+        m
+    } else {
+        let mut buf = String::new();
+        std::io::Read::read_to_string(&mut std::io::stdin(), &mut buf)?;
+        let trimmed = buf.trim().to_string();
+        if trimmed.is_empty() {
+            bail!("No message provided. Pass a message argument or pipe to stdin.");
+        }
+        trimmed
+    };
+
+    let msg = maybe_wrap_message(&msg, raw);
+    let mut sent = 0usize;
+    let mut failed = 0usize;
+
+    for resolved_id in session_ids {
+        let target = match resume::resolve_resume_target(resolved_id, root) {
+            Some(t) => t,
+            None => {
+                log::warn!("No session found for '{}', skipping", resolved_id);
+                failed += 1;
+                continue;
+            }
+        };
+
+        let provider = &target.entry.provider;
+        let provider_session_id = target
+            .entry
+            .provider_session_id
+            .as_deref()
+            .unwrap_or(resolved_id);
+
+        let model = if target.entry.model.is_empty() {
+            None
+        } else {
+            Some(target.entry.model.clone())
+        };
+
+        let agent =
+            AgentFactory::create(provider, None, model, root.map(String::from), false, vec![])?;
+        match agent
+            .run_resume_with_prompt(provider_session_id, &msg)
+            .await
+        {
+            Ok(_) => sent += 1,
+            Err(e) => {
+                log::warn!("Failed to send to session {}: {}", resolved_id, e);
+                failed += 1;
+            }
+        }
+    }
+
+    if !quiet {
+        eprintln!(
+            "> Sent to {} session{} ({} failed)",
+            sent,
+            if sent == 1 { "" } else { "s" },
+            failed
+        );
+    }
+
+    Ok(())
+}
+
 pub(crate) async fn run_input(params: InputParams) -> Result<()> {
     let InputParams {
         session,
@@ -133,6 +289,9 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
         latest,
         active,
         ps,
+        input_name,
+        input_tag,
+        broadcast,
         global,
         stream,
         output,
@@ -141,15 +300,28 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
         raw,
     } = params;
 
-    // Resolve the target session
-    let resolved_id = resolve_input_session_id(
+    // Resolve the target session(s)
+    let resolved_ids = resolve_input_session_ids(
         session.as_deref(),
         latest,
         active,
         ps.as_deref(),
+        input_name.as_deref(),
+        input_tag.as_deref(),
+        broadcast,
         global,
         root.as_deref(),
     )?;
+
+    // Broadcast mode: send to all resolved sessions
+    if resolved_ids.len() > 1 {
+        return run_input_broadcast(&resolved_ids, message, raw, quiet, root.as_deref()).await;
+    }
+
+    let resolved_id = resolved_ids
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("No matching session found"))?;
     debug!("Input command: resolved session ID = {}", resolved_id);
 
     // Resolve the resume target to get provider, provider_session_id, model

@@ -4,6 +4,14 @@ use zag::{sandbox, session, worktree};
 
 use crate::resume::current_workspace;
 
+/// Session metadata for discovery (name, description, tags).
+#[derive(Clone, Default)]
+pub(crate) struct SessionMetadata {
+    pub(crate) name: Option<String>,
+    pub(crate) description: Option<String>,
+    pub(crate) tags: Vec<String>,
+}
+
 /// Worktree setup state computed before agent creation.
 pub(crate) struct WorktreeSetup {
     pub(crate) is_worktree_session: bool,
@@ -143,6 +151,7 @@ pub(crate) fn save_session_mapping(
     provider: &str,
     model: &str,
     root: Option<&str>,
+    metadata: &SessionMetadata,
 ) {
     if plain.session_id.is_some() && !wt.is_worktree_session && !sb.is_sandbox_session {
         let mut store = session::SessionStore::load(root).unwrap_or_default();
@@ -160,6 +169,9 @@ pub(crate) fn save_session_mapping(
             discovery_source: None,
             log_path: None,
             log_completeness: "partial".to_string(),
+            name: metadata.name.clone(),
+            description: metadata.description.clone(),
+            tags: metadata.tags.clone(),
         });
         if let Err(e) = store.save(root) {
             log::warn!("Failed to save session mapping: {}", e);
@@ -190,6 +202,9 @@ pub(crate) fn save_session_mapping(
             discovery_source: None,
             log_path: None,
             log_completeness: "partial".to_string(),
+            name: metadata.name.clone(),
+            description: metadata.description.clone(),
+            tags: metadata.tags.clone(),
         });
         if let Err(e) = store.save(root) {
             log::warn!("Failed to save session mapping: {}", e);
@@ -215,6 +230,9 @@ pub(crate) fn save_session_mapping(
             discovery_source: None,
             log_path: None,
             log_completeness: "partial".to_string(),
+            name: metadata.name.clone(),
+            description: metadata.description.clone(),
+            tags: metadata.tags.clone(),
         });
         if let Err(e) = store.save(root) {
             log::warn!("Failed to save sandbox session mapping: {}", e);

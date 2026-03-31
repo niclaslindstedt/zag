@@ -89,23 +89,39 @@ zag man [command]             Built-in manual pages
 | `--json-schema <schema>` | | Validate output against a JSON schema |
 | `--json-stream` | | Stream JSON events (NDJSON) |
 | `--session <uuid>` | | Pre-set the session ID |
+| `--name <name>` | | Human-readable session name (for discovery) |
+| `--description <text>` | | Short description of the session's purpose |
+| `--tag <tag>` | | Session tag (repeatable, for discovery/filtering) |
 | `--debug` | `-d` | Debug logging |
 | `--quiet` | `-q` | Suppress all output except the agent's response |
 | `--verbose` | `-v` | Styled output with icons in exec mode |
 
 ## Session management
 
-Every interactive session gets a session ID. You can resume sessions, and `zag` tracks provider-native session IDs automatically.
+Every interactive session gets a session ID. You can name and tag sessions for discovery, resume them, and `zag` tracks provider-native session IDs automatically.
 
 ```bash
+# Create sessions with metadata for discovery
+zag exec --name "backend-agent" --tag backend "implement API"
+zag run --name "frontend-agent" --tag frontend --description "CSS work"
+
 # Resume a specific session
 zag run --resume <session-id>
 
 # Resume the most recent session
 zag run --continue
 
-# List all sessions
+# List and filter sessions
 zag session list
+zag session list --tag backend     # filter by tag
+zag session list --name frontend   # filter by name
+
+# Send messages by name or tag
+zag input --name backend-agent "check the auth module"
+zag input --tag backend --broadcast "report status"
+
+# Update session metadata
+zag session update <id> --tag new-tag
 
 # Tail a session's logs in real-time (from another terminal)
 zag listen <session-id>

@@ -33,6 +33,9 @@ fn sample_entry(id: &str) -> SessionEntry {
         discovery_source: None,
         log_path: None,
         log_completeness: "partial".to_string(),
+        name: None,
+        description: None,
+        tags: vec![],
     }
 }
 
@@ -273,4 +276,90 @@ fn test_add_replaces_by_provider_session_id() {
 fn test_latest_empty_store() {
     let store = SessionStore::default();
     assert!(store.latest().is_none());
+}
+
+#[test]
+fn test_find_by_name() {
+    let mut store = SessionStore::default();
+    let mut e1 = sample_entry("abc-123");
+    e1.name = Some("frontend-agent".to_string());
+    let mut e2 = sample_entry("def-456");
+    e2.name = Some("backend-agent".to_string());
+    store.add(e1);
+    store.add(e2);
+
+    let found = store.find_by_name("frontend-agent");
+    assert!(found.is_some());
+    assert_eq!(found.unwrap().session_id, "abc-123");
+
+    assert!(store.find_by_name("nonexistent").is_none());
+}
+
+#[test]
+fn test_find_by_name_returns_most_recent() {
+    let mut store = SessionStore::default();
+    let mut e1 = sample_entry("older");
+    e1.name = Some("my-agent".to_string());
+    e1.created_at = "2026-03-10T00:00:00Z".to_string();
+    let mut e2 = sample_entry("newer");
+    e2.name = Some("my-agent".to_string());
+    e2.created_at = "2026-03-15T00:00:00Z".to_string();
+    store.add(e1);
+    store.add(e2);
+
+    let found = store.find_by_name("my-agent").unwrap();
+    assert_eq!(found.session_id, "newer");
+}
+
+#[test]
+fn test_find_by_tag() {
+    let mut store = SessionStore::default();
+    let mut e1 = sample_entry("abc-123");
+    e1.tags = vec!["backend".to_string(), "api".to_string()];
+    let mut e2 = sample_entry("def-456");
+    e2.tags = vec!["frontend".to_string()];
+    let mut e3 = sample_entry("ghi-789");
+    e3.tags = vec!["Backend".to_string()]; // different case
+    store.add(e1);
+    store.add(e2);
+    store.add(e3);
+
+    let results = store.find_by_tag("backend");
+    assert_eq!(results.len(), 2);
+
+    let results = store.find_by_tag("frontend");
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].session_id, "def-456");
+
+    let results = store.find_by_tag("nonexistent");
+    assert!(results.is_empty());
+}
+
+#[test]
+fn test_backward_compat_missing_fields() {
+    let json = r#"{
+        "session_id": "abc-123",
+        "provider": "claude",
+        "model": "opus",
+        "worktree_path": "/tmp/test",
+        "worktree_name": "test",
+        "created_at": "2026-03-13T00:00:00Z"
+    }"#;
+    let entry: SessionEntry = serde_json::from_str(json).unwrap();
+    assert!(entry.name.is_none());
+    assert!(entry.description.is_none());
+    assert!(entry.tags.is_empty());
+}
+
+#[test]
+fn test_session_info_includes_metadata() {
+    let mut entry = sample_entry("abc-123");
+    entry.name = Some("test-agent".to_string());
+    entry.description = Some("A test session".to_string());
+    entry.tags = vec!["test".to_string(), "ci".to_string()];
+
+    let info = SessionInfo::from(&entry);
+    assert_eq!(info.name, Some("test-agent".to_string()));
+    assert_eq!(info.description, Some("A test session".to_string()));
+    assert_eq!(info.tags, vec!["test".to_string(), "ci".to_string()]);
 }

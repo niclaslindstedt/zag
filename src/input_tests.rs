@@ -4,6 +4,7 @@ use super::*;
 fn test_wrap_agent_message_full_info() {
     let sender = SenderInfo {
         session_id: "abc-123".to_string(),
+        name: None,
         provider: Some("claude".to_string()),
         model: Some("opus".to_string()),
     };
@@ -22,6 +23,7 @@ fn test_wrap_agent_message_full_info() {
 fn test_wrap_agent_message_missing_provider_and_model() {
     let sender = SenderInfo {
         session_id: "xyz-789".to_string(),
+        name: None,
         provider: None,
         model: None,
     };
@@ -29,6 +31,23 @@ fn test_wrap_agent_message_missing_provider_and_model() {
     assert!(result.contains(r#"provider="unknown""#));
     assert!(result.contains(r#"model="unknown""#));
     assert!(result.contains("test msg"));
+}
+
+#[test]
+fn test_wrap_agent_message_with_name() {
+    let sender = SenderInfo {
+        session_id: "abc-123".to_string(),
+        name: Some("frontend-agent".to_string()),
+        provider: Some("claude".to_string()),
+        model: Some("opus".to_string()),
+    };
+    let result = wrap_agent_message("hello", &sender);
+    assert!(result.contains(r#"name="frontend-agent""#));
+    assert!(
+        result.contains(
+            r#"<reply-with>zag input --name frontend-agent "your reply here"</reply-with>"#
+        )
+    );
 }
 
 #[test]

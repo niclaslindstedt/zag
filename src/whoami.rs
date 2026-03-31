@@ -4,6 +4,7 @@ use serde::Serialize;
 #[derive(Serialize)]
 struct WhoamiInfo {
     session_id: Option<String>,
+    session_name: Option<String>,
     process_id: Option<String>,
     pid: u32,
     provider: Option<String>,
@@ -17,6 +18,7 @@ impl WhoamiInfo {
     fn from_env() -> Self {
         Self {
             session_id: std::env::var("ZAG_SESSION_ID").ok(),
+            session_name: std::env::var("ZAG_SESSION_NAME").ok(),
             process_id: std::env::var("ZAG_PROCESS_ID").ok(),
             pid: std::process::id(),
             provider: std::env::var("ZAG_PROVIDER").ok(),
@@ -66,6 +68,9 @@ pub(crate) fn run_whoami(json: bool) -> Result<()> {
 
     if let Some(ref v) = info.session_id {
         println!("Session ID:        {}", v);
+    }
+    if let Some(ref v) = info.session_name {
+        println!("Session Name:      {}", v);
     }
     if let Some(ref v) = info.process_id {
         println!("Process ID:        {}", v);

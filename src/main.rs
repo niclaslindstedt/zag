@@ -37,8 +37,8 @@ mod whoami;
 // Re-export from sub-modules so main_tests.rs can use `super::*`
 pub(crate) use agent_action::{AgentActionParams, run_agent_action};
 pub(crate) use cli::{
-    Cli, Commands, SessionIsolationArgs, command_agent_args, command_session_args,
-    parse_json_schema,
+    Cli, Commands, SessionIsolationArgs, command_agent_args, command_metadata_args,
+    command_session_args, parse_json_schema,
 };
 pub(crate) use commands::{run_config, run_mcp, run_session, run_skills};
 
@@ -103,8 +103,9 @@ async fn main() -> Result<()> {
     let quiet = cli.quiet;
     let verbose = cli.verbose;
 
-    // Extract session isolation args (only present on run/exec)
+    // Extract session isolation and metadata args (only present on run/exec)
     let session_args = command_session_args(&cli.command).cloned();
+    let metadata_args = command_metadata_args(&cli.command).cloned();
     let json_mode = session_args
         .as_ref()
         .map(|s| s.json || s.json_schema.is_some())
@@ -271,6 +272,7 @@ async fn main() -> Result<()> {
             from,
             to,
             session,
+            tag,
             global,
             json: search_json,
             count,
@@ -289,6 +291,7 @@ async fn main() -> Result<()> {
                     from,
                     to,
                     session,
+                    tag,
                     global,
                     json: search_json,
                     count,
@@ -342,6 +345,9 @@ async fn main() -> Result<()> {
             latest,
             active,
             ps,
+            input_name,
+            input_tag,
+            broadcast,
             global,
             stream,
             output,
@@ -354,6 +360,9 @@ async fn main() -> Result<()> {
                 latest,
                 active,
                 ps,
+                input_name,
+                input_tag,
+                broadcast,
                 global,
                 stream,
                 output,
@@ -422,6 +431,14 @@ async fn main() -> Result<()> {
                 json_stream,
                 session: session_isolation.session,
                 max_turns: agent_args.max_turns,
+                session_metadata: {
+                    let meta = metadata_args.unwrap_or_default();
+                    crate::session_setup::SessionMetadata {
+                        name: meta.name,
+                        description: meta.description,
+                        tags: meta.tags,
+                    }
+                },
             })
             .await?;
         }

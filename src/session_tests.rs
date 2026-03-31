@@ -33,6 +33,9 @@ fn sample_entry(id: &str) -> SessionEntry {
         discovery_source: None,
         log_path: None,
         log_completeness: "partial".to_string(),
+        name: None,
+        description: None,
+        tags: vec![],
     }
 }
 

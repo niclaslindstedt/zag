@@ -31,6 +31,8 @@ pub struct SearchQuery {
     pub to: Option<DateTime<Utc>>,
     /// Restrict search to a specific session ID (prefix match).
     pub session_id: Option<String>,
+    /// Filter by session tag (exact match, case-insensitive).
+    pub tag: Option<String>,
     /// Search all sessions across all projects (default: current project and sub-projects).
     pub global: bool,
     /// Stop after collecting this many matches.
@@ -508,6 +510,20 @@ fn collect_candidate_sessions(
         return Ok(Vec::new());
     }
 
+    // If tag filter is set, collect matching session IDs from session stores.
+    let tag_session_ids: Option<std::collections::HashSet<String>> = if query.tag.is_some() {
+        let store = if query.global {
+            crate::session::SessionStore::load_all().unwrap_or_default()
+        } else {
+            crate::session::SessionStore::load(Some(&cwd.to_string_lossy())).unwrap_or_default()
+        };
+        let tag = query.tag.as_deref().unwrap();
+        let matching = store.find_by_tag(tag);
+        Some(matching.into_iter().map(|e| e.session_id.clone()).collect())
+    } else {
+        None
+    };
+
     let cwd_str = cwd.to_string_lossy().to_string();
     let mut candidates: Vec<(SessionLogIndexEntry, PathBuf)> = Vec::new();
     let mut seen_ids = std::collections::HashSet::new();
@@ -566,6 +582,13 @@ fn collect_candidate_sessions(
             // Metadata pre-filter (provider, session ID, dates)
             if !session_matches_query(&session_entry, query) {
                 continue;
+            }
+
+            // Tag filter: only include sessions matching the tag
+            if let Some(ref allowed) = tag_session_ids {
+                if !allowed.contains(&session_entry.wrapper_session_id) {
+                    continue;
+                }
             }
 
             // Deduplicate by session ID

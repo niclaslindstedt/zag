@@ -34,6 +34,15 @@ pub struct SessionEntry {
     pub log_path: Option<String>,
     #[serde(default = "default_log_completeness")]
     pub log_completeness: String,
+    /// Human-readable session name for discovery.
+    #[serde(default)]
+    pub name: Option<String>,
+    /// Short description of the session's purpose.
+    #[serde(default)]
+    pub description: Option<String>,
+    /// Arbitrary tags for categorization and discovery.
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -227,6 +236,27 @@ impl SessionStore {
     pub fn get(&self, id: &str) -> Option<SessionInfo> {
         self.find_by_any_id(id).map(SessionInfo::from)
     }
+
+    /// Find a session by exact name match. Returns the most recent if multiple match.
+    pub fn find_by_name(&self, name: &str) -> Option<&SessionEntry> {
+        self.sessions
+            .iter()
+            .filter(|e| e.name.as_deref() == Some(name))
+            .max_by(|a, b| {
+                parse_created_at(&a.created_at)
+                    .cmp(&parse_created_at(&b.created_at))
+                    .then_with(|| a.session_id.cmp(&b.session_id))
+            })
+    }
+
+    /// Find all sessions with a matching tag (case-insensitive).
+    pub fn find_by_tag(&self, tag: &str) -> Vec<&SessionEntry> {
+        let tag_lower = tag.to_lowercase();
+        self.sessions
+            .iter()
+            .filter(|e| e.tags.iter().any(|t| t.to_lowercase() == tag_lower))
+            .collect()
+    }
 }
 
 /// Public session info struct for programmatic API consumers.
@@ -240,6 +270,12 @@ pub struct SessionInfo {
     pub worktree_path: Option<String>,
     pub sandbox_name: Option<String>,
     pub log_completeness: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
 }
 
 impl From<&SessionEntry> for SessionInfo {
@@ -257,6 +293,9 @@ impl From<&SessionEntry> for SessionInfo {
             },
             sandbox_name: e.sandbox_name.clone(),
             log_completeness: e.log_completeness.clone(),
+            name: e.name.clone(),
+            description: e.description.clone(),
+            tags: e.tags.clone(),
         }
     }
 }

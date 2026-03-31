@@ -111,6 +111,8 @@ pub(crate) fn run_session(command: SessionCommand, json: bool, root: Option<&str
             provider,
             limit,
             global,
+            name,
+            tag,
         } => {
             let store = if global {
                 session::SessionStore::load_all()?
@@ -120,6 +122,19 @@ pub(crate) fn run_session(command: SessionCommand, json: bool, root: Option<&str
             let mut sessions = store.list();
             if let Some(ref p) = provider {
                 sessions.retain(|s| s.provider == *p);
+            }
+            if let Some(ref n) = name {
+                let n_lower = n.to_lowercase();
+                sessions.retain(|s| {
+                    s.name
+                        .as_ref()
+                        .map(|sn| sn.to_lowercase().contains(&n_lower))
+                        .unwrap_or(false)
+                });
+            }
+            if let Some(ref t) = tag {
+                let t_lower = t.to_lowercase();
+                sessions.retain(|s| s.tags.iter().any(|st| st.to_lowercase() == t_lower));
             }
             if let Some(n) = limit {
                 sessions.truncate(n);
@@ -133,14 +148,25 @@ pub(crate) fn run_session(command: SessionCommand, json: bool, root: Option<&str
                 return Ok(());
             }
             println!(
-                "{:<38} {:<10} {:<12} CREATED",
-                "SESSION ID", "PROVIDER", "MODEL"
+                "{:<38} {:<20} {:<10} {:<12} CREATED",
+                "SESSION ID", "NAME", "PROVIDER", "MODEL"
             );
-            println!("{}", "-".repeat(90));
+            println!("{}", "-".repeat(110));
             for s in &sessions {
+                let name_display = s
+                    .name
+                    .as_deref()
+                    .map(|n| {
+                        if n.len() > 18 {
+                            format!("{}…", &n[..17])
+                        } else {
+                            n.to_string()
+                        }
+                    })
+                    .unwrap_or_else(|| "-".to_string());
                 println!(
-                    "{:<38} {:<10} {:<12} {}",
-                    s.session_id, s.provider, s.model, s.created_at
+                    "{:<38} {:<20} {:<10} {:<12} {}",
+                    s.session_id, name_display, s.provider, s.model, s.created_at
                 );
             }
         }
@@ -156,6 +182,15 @@ pub(crate) fn run_session(command: SessionCommand, json: bool, root: Option<&str
                     println!("Provider:            {}", info.provider);
                     println!("Model:               {}", info.model);
                     println!("Created:             {}", info.created_at);
+                    if let Some(ref name) = info.name {
+                        println!("Name:                {}", name);
+                    }
+                    if let Some(ref desc) = info.description {
+                        println!("Description:         {}", desc);
+                    }
+                    if !info.tags.is_empty() {
+                        println!("Tags:                {}", info.tags.join(", "));
+                    }
                     if let Some(ref pid) = info.provider_session_id {
                         println!("Provider Session ID: {}", pid);
                     }
@@ -187,6 +222,39 @@ pub(crate) fn run_session(command: SessionCommand, json: bool, root: Option<&str
                 println!(r#"{{"deleted":"{}"}}"#, id);
             } else {
                 println!("Deleted session: {}", id);
+            }
+        }
+        SessionCommand::Update {
+            id,
+            name,
+            description,
+            tags,
+            clear_tags,
+        } => {
+            let mut store = session::SessionStore::load(root)?;
+            let entry = store.sessions.iter_mut().find(|e| e.session_id == id);
+            let entry = match entry {
+                Some(e) => e,
+                None => bail!("Session not found: {}", id),
+            };
+            if name.is_some() {
+                entry.name = name;
+            }
+            if description.is_some() {
+                entry.description = description;
+            }
+            if clear_tags {
+                entry.tags.clear();
+            }
+            if !tags.is_empty() {
+                entry.tags.extend(tags);
+            }
+            let updated = session::SessionInfo::from(&*entry);
+            store.save(root)?;
+            if json {
+                println!("{}", serde_json::to_string(&updated)?);
+            } else {
+                println!("Updated session: {}", id);
             }
         }
     }

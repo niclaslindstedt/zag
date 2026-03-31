@@ -63,6 +63,22 @@ pub(crate) struct AgentArgs {
     pub(crate) max_turns: Option<u32>,
 }
 
+/// Arguments for session discovery metadata (name, description, tags)
+#[derive(clap::Args, Clone, Default)]
+pub(crate) struct SessionMetadataArgs {
+    /// Human-readable name for this session (for discovery)
+    #[arg(long)]
+    pub(crate) name: Option<String>,
+
+    /// Short description of this session's purpose
+    #[arg(long)]
+    pub(crate) description: Option<String>,
+
+    /// Tags for session discovery (repeatable)
+    #[arg(long = "tag")]
+    pub(crate) tags: Vec<String>,
+}
+
 /// Arguments for session isolation (worktree, sandbox, session ID, JSON output)
 #[derive(clap::Args, Clone)]
 pub(crate) struct SessionIsolationArgs {
@@ -112,6 +128,9 @@ pub enum Commands {
 
         #[command(flatten)]
         session: SessionIsolationArgs,
+
+        #[command(flatten)]
+        metadata: SessionMetadataArgs,
     },
     /// Run non-interactively (print output and exit)
     Exec {
@@ -139,6 +158,9 @@ pub enum Commands {
 
         #[command(flatten)]
         session: SessionIsolationArgs,
+
+        #[command(flatten)]
+        metadata: SessionMetadataArgs,
     },
     /// Review code changes (uses Codex under the hood)
     Review {
@@ -319,6 +341,10 @@ pub enum Commands {
         #[arg(long, value_name = "SESSION_ID")]
         session: Option<String>,
 
+        /// Filter by session tag (exact match, case-insensitive)
+        #[arg(long)]
+        tag: Option<String>,
+
         /// Search all sessions across all projects (default: current project and sub-projects)
         #[arg(long)]
         global: bool,
@@ -351,20 +377,32 @@ pub enum Commands {
         message: Option<String>,
 
         /// Target a specific session by ID
-        #[arg(long, value_name = "SESSION_ID", conflicts_with_all = ["latest", "active", "ps"])]
+        #[arg(long, value_name = "SESSION_ID", conflicts_with_all = ["latest", "active", "ps", "input_name", "input_tag"])]
         session: Option<String>,
 
         /// Send to the most recently created session
-        #[arg(long, conflicts_with_all = ["active", "ps"])]
+        #[arg(long, conflicts_with_all = ["active", "ps", "input_name", "input_tag"])]
         latest: bool,
 
         /// Send to the most recently active session
-        #[arg(long, conflicts_with_all = ["latest", "ps"])]
+        #[arg(long, conflicts_with_all = ["latest", "ps", "input_name", "input_tag"])]
         active: bool,
 
         /// Send to a session by PID or zag process UUID
-        #[arg(long, value_name = "PID", conflicts_with_all = ["session", "latest", "active"])]
+        #[arg(long, value_name = "PID", conflicts_with_all = ["session", "latest", "active", "input_name", "input_tag"])]
         ps: Option<String>,
+
+        /// Target a session by name
+        #[arg(long = "name", id = "input_name", value_name = "NAME", conflicts_with_all = ["session", "latest", "active", "ps", "input_tag"])]
+        input_name: Option<String>,
+
+        /// Target session(s) by tag
+        #[arg(long = "tag", id = "input_tag", value_name = "TAG", conflicts_with_all = ["session", "latest", "active", "ps", "input_name"])]
+        input_tag: Option<String>,
+
+        /// Send to ALL sessions matching the tag (requires --tag)
+        #[arg(long, requires = "input_tag")]
+        broadcast: bool,
 
         /// Search across all projects when auto-resolving the session
         #[arg(long)]
@@ -401,6 +439,12 @@ pub(crate) enum SessionCommand {
         /// List sessions across all projects
         #[arg(long)]
         global: bool,
+        /// Filter by session name (substring match, case-insensitive)
+        #[arg(long)]
+        name: Option<String>,
+        /// Filter by tag (exact match, case-insensitive)
+        #[arg(long)]
+        tag: Option<String>,
     },
     /// Show details of a specific session
     Show {
@@ -413,6 +457,23 @@ pub(crate) enum SessionCommand {
     Delete {
         /// Session ID to delete
         id: String,
+    },
+    /// Update session metadata (name, description, tags)
+    Update {
+        /// Session ID to update
+        id: String,
+        /// Set session name
+        #[arg(long)]
+        name: Option<String>,
+        /// Set session description
+        #[arg(long)]
+        description: Option<String>,
+        /// Add tags (repeatable)
+        #[arg(long = "tag")]
+        tags: Vec<String>,
+        /// Clear all existing tags before adding new ones
+        #[arg(long)]
+        clear_tags: bool,
     },
 }
 
@@ -552,6 +613,15 @@ pub(crate) fn command_session_args(cmd: &Commands) -> Option<&SessionIsolationAr
     match cmd {
         Commands::Run { session, .. } => Some(session),
         Commands::Exec { session, .. } => Some(session),
+        _ => None,
+    }
+}
+
+/// Extract SessionMetadataArgs from a command, if it has them.
+pub(crate) fn command_metadata_args(cmd: &Commands) -> Option<&SessionMetadataArgs> {
+    match cmd {
+        Commands::Run { metadata, .. } => Some(metadata),
+        Commands::Exec { metadata, .. } => Some(metadata),
         _ => None,
     }
 }

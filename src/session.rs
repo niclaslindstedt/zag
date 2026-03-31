@@ -34,6 +34,12 @@ pub struct SessionEntry {
     pub log_path: Option<String>,
     #[serde(default = "default_log_completeness")]
     pub log_completeness: String,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

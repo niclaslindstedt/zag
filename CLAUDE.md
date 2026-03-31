@@ -470,6 +470,7 @@ When `zag run` or `zag exec` spawns an agent subprocess, the following environme
 | Variable | Description |
 |----------|-------------|
 | `ZAG_SESSION_ID` | Session UUID of the enclosing zag process |
+| `ZAG_SESSION_NAME` | Session name (if set via `--name`) |
 | `ZAG_PROCESS_ID` | Process UUID of the enclosing zag process |
 | `ZAG_PROVIDER` | Provider name (claude, codex, gemini, copilot, ollama) |
 | `ZAG_MODEL` | Model name |
@@ -483,15 +484,15 @@ When `zag input` is called from within a zag session (detected via `ZAG_SESSION_
 
 ```
 <agent-message>
-<from session="abc123-def456" provider="claude" model="opus"/>
-<reply-with>zag input --session abc123-def456 "your reply here"</reply-with>
+<from session="abc123-def456" name="frontend-agent" provider="claude" model="opus"/>
+<reply-with>zag input --name frontend-agent "your reply here"</reply-with>
 <body>
 Original message content here
 </body>
 </agent-message>
 ```
 
-The receiving agent can parse the `<from>` tag for sender context and use the `<reply-with>` command to respond. Use `--raw` to skip envelope wrapping.
+The receiving agent can parse the `<from>` tag for sender context and use the `<reply-with>` command to respond. When the sender has a `--name`, the reply-with uses `--name` instead of `--session` for easier addressing. Use `--raw` to skip envelope wrapping.
 
 ## Logging
 
@@ -793,6 +794,10 @@ zag exec --json-stream "list 3 colors"                                 # Stream 
 zag --session $(uuidgen) run                    # Know the session ID before it starts
 zag --session $(uuidgen) exec "complex task"    # Works with exec too
 
+# Session metadata (for discovery)
+zag exec --name "backend-agent" --tag backend --tag api "implement REST API"
+zag run --name "frontend-agent" --description "CSS refactoring" --tag frontend
+
 # Limit agentic turns
 zag exec --max-turns 5 "fix the bug"
 zag run --max-turns 10 "refactor auth"
@@ -824,9 +829,13 @@ zag session list --json             # JSON output
 zag session list -p claude          # Filter by provider
 zag session list -n 5               # Show 5 most recent
 zag session list --global           # List sessions across all projects
+zag session list --name frontend    # Filter by name (substring)
+zag session list --tag backend      # Filter by tag
 zag session show <session-id>       # Show session details
 zag session show <id> --json        # JSON output
 zag session delete <session-id>     # Delete a session from the store
+zag session update <id> --name "new-name" --tag new-tag  # Update metadata
+zag session update <id> --clear-tags --tag only-this     # Replace tags
 zag session import                  # Import historical provider logs
 
 # Skills management
@@ -869,6 +878,7 @@ zag search --role user "refactor"          # Only user messages
 zag search --tool bash --from 7d           # Bash tool calls in last 7 days
 zag search --tool-kind shell "cargo test"  # By tool kind
 zag search --provider claude "error"       # Filter by provider
+zag search --tag backend "error"           # Filter by session tag
 zag search --count "TODO"                  # Count matches only
 zag search --json "api key" | jq .snippet  # JSON output
 zag search --regex "fn\s+\w+_handler"      # Regex search
@@ -877,6 +887,9 @@ zag search --from 2024-01-01 "deploy"      # Date range filter
 # Send input to a session
 zag input "hello"                          # Auto-resolve to most recent session in this project
 zag input --session <session-id> "hello"   # Send a message to a specific session
+zag input --name backend-agent "hello"     # Send to a session by name
+zag input --tag api "hello"                # Send to a session by tag (single match)
+zag input --tag backend --broadcast "msg"  # Broadcast to ALL sessions with tag
 zag input --latest "continue"              # Send to the most recent session
 zag input --active "run tests"             # Send to the most active session
 zag input --ps 12345 "status"              # Send by PID

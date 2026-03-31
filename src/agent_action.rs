@@ -14,7 +14,7 @@ use crate::resume::{
     current_workspace, discover_provider_session_id, resolve_continue_target, resolve_resume_target,
 };
 use crate::session_setup::{
-    save_session_mapping, setup_plain_session, setup_sandbox, setup_worktree,
+    SessionMetadata, save_session_mapping, setup_plain_session, setup_sandbox, setup_worktree,
     update_provider_session_id, update_session_log_metadata,
 };
 
@@ -39,6 +39,7 @@ pub(crate) struct AgentActionParams {
     pub(crate) json_stream: bool,
     pub(crate) session: Option<String>,
     pub(crate) max_turns: Option<u32>,
+    pub(crate) session_metadata: SessionMetadata,
 }
 
 pub(crate) fn run_resume_id(action: &Commands) -> Option<&str> {
@@ -427,6 +428,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
     resolve_auto_selection(&mut params).await?;
     log_config_details(&params);
 
+    let session_metadata = std::mem::take(&mut params.session_metadata);
     let AgentActionParams {
         agent_name: _,
         mut provider,
@@ -448,6 +450,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         json_stream,
         session,
         max_turns,
+        session_metadata: _,
     } = params;
 
     // Apply config fallbacks for max_turns and system_prompt
@@ -703,6 +706,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         &provider,
         &persisted_model,
         root.as_deref(),
+        &session_metadata,
     );
 
     // Register process entry before execution so `zag ps` can see it while running.
@@ -750,6 +754,9 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         std::env::set_var("ZAG_MODEL", &persisted_model);
         if let Some(ref r) = root {
             std::env::set_var("ZAG_ROOT", r);
+        }
+        if let Some(ref name) = session_metadata.name {
+            std::env::set_var("ZAG_SESSION_NAME", name);
         }
     }
 

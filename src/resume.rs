@@ -169,6 +169,9 @@ pub fn cache_discovered_session(
         discovery_source: Some(discovered.discovery_source.clone()),
         log_path: None,
         log_completeness: "partial".to_string(),
+        name: None,
+        description: None,
+        tags: vec![],
     };
 
     let mut store = session::SessionStore::load(root).unwrap_or_default();

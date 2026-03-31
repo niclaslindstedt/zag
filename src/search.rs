@@ -17,6 +17,7 @@ pub struct SearchCommandArgs {
     pub from: Option<String>,
     pub to: Option<String>,
     pub session: Option<String>,
+    pub tag: Option<String>,
     pub global: bool,
     pub json: bool,
     pub count: bool,
@@ -40,6 +41,7 @@ pub fn run_search_command(args: SearchCommandArgs, quiet: bool) -> Result<()> {
         from,
         to,
         session_id: args.session,
+        tag: args.tag,
         global: args.global,
         limit: args.limit,
     };
