@@ -32,6 +32,7 @@ mod review;
 mod search;
 mod session_log;
 mod session_setup;
+mod whoami;
 
 // Re-export from sub-modules so main_tests.rs can use `super::*`
 pub(crate) use agent_action::{AgentActionParams, run_agent_action};
@@ -359,6 +360,9 @@ async fn main() -> Result<()> {
                 quiet,
             })
             .await?;
+        }
+        Commands::Whoami { json } => {
+            whoami::run_whoami(json)?;
         }
         Commands::Review {
             uncommitted,

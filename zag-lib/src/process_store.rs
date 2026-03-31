@@ -36,6 +36,12 @@ pub struct ProcessEntry {
     /// Project root path (for context).
     #[serde(default)]
     pub root: Option<String>,
+    /// Process ID of the parent zag process (if nested).
+    #[serde(default)]
+    pub parent_process_id: Option<String>,
+    /// Session ID of the parent zag process (if nested).
+    #[serde(default)]
+    pub parent_session_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

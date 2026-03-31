@@ -339,6 +339,12 @@ pub enum Commands {
         #[arg(long)]
         root: Option<String>,
     },
+    /// Show identity of the current zag session (for agent introspection)
+    Whoami {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Send a user message to a running or resumable session
     Input {
         /// Message to send (reads from stdin if omitted and not --stream)

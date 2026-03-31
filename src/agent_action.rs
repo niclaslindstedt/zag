@@ -407,6 +407,7 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Ps { .. } => "ps",
         Commands::Search { .. } => "search",
         Commands::Input { .. } => "input",
+        Commands::Whoami { .. } => "whoami",
     }
 }
 
@@ -713,11 +714,15 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         .or_else(|| plain.session_id.clone());
     let proc_prompt = action_prompt(&action).map(|p| p.chars().take(100).collect::<String>());
     let proc_cmd = command_name(&action).to_string();
+    // Read parent process/session info from env vars (set by a parent zag process, if nested)
+    let parent_process_id = std::env::var("ZAG_PROCESS_ID").ok();
+    let parent_session_id = std::env::var("ZAG_SESSION_ID").ok();
+
     if let Ok(mut pstore) = zag::process_store::ProcessStore::load() {
         pstore.add(zag::process_store::ProcessEntry {
             id: proc_id.clone(),
             pid: std::process::id(),
-            session_id: proc_session_id,
+            session_id: proc_session_id.clone(),
             provider: provider.clone(),
             model: persisted_model.clone(),
             command: proc_cmd,
@@ -727,8 +732,25 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             exit_code: None,
             exited_at: None,
             root: root.clone(),
+            parent_process_id,
+            parent_session_id,
         });
         let _ = pstore.save();
+    }
+
+    // Set ZAG_* env vars so child processes (agent CLIs) can discover their identity.
+    // These are inherited by spawned subprocesses automatically.
+    // SAFETY: zag is single-threaded at this point (agent subprocess has not yet been spawned).
+    unsafe {
+        if let Some(ref sid) = proc_session_id {
+            std::env::set_var("ZAG_SESSION_ID", sid);
+        }
+        std::env::set_var("ZAG_PROCESS_ID", &proc_id);
+        std::env::set_var("ZAG_PROVIDER", &provider);
+        std::env::set_var("ZAG_MODEL", &persisted_model);
+        if let Some(ref r) = root {
+            std::env::set_var("ZAG_ROOT", r);
+        }
     }
 
     // Echo session ID for `agent listen` usage

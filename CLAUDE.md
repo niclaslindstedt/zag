@@ -148,6 +148,7 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `src/logging.rs` | Terminal logging, spinners, colored output (implements `ProgressHandler` pattern) |
 | `src/listen.rs` | Listen command: session log tailing, event formatting, session resolution |
 | `src/ps.rs` | `zag ps` command: list/show/kill agent processes via `ProcessStore` |
+| `src/whoami.rs` | `zag whoami` command: session identity introspection via `ZAG_*` env vars |
 | `src/search.rs` | `zag search` command: CLI argument wiring, human-readable and JSON output |
 | `src/capability.rs` | Re-exports zag-lib capability types + provider-specific capability constructors |
 | `src/output.rs` | Re-exports zag-lib output types |
@@ -168,6 +169,7 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `man/mcp.md` | Manpage for the `zag mcp` command |
 | `man/ps.md` | Manpage for the `zag ps` command |
 | `man/input.md` | Manpage for the `zag input` command |
+| `man/whoami.md` | Manpage for the `zag whoami` command |
 
 #### `bindings/` (language SDKs)
 
@@ -461,6 +463,20 @@ zag mcp import --from claude          # Import from provider
 zag mcp import --from codex           # Import from Codex TOML config
 ```
 
+## Session Identity Environment Variables
+
+When `zag run` or `zag exec` spawns an agent subprocess, the following environment variables are set so that child processes can discover their session identity:
+
+| Variable | Description |
+|----------|-------------|
+| `ZAG_SESSION_ID` | Session UUID of the enclosing zag process |
+| `ZAG_PROCESS_ID` | Process UUID of the enclosing zag process |
+| `ZAG_PROVIDER` | Provider name (claude, codex, gemini, copilot, ollama) |
+| `ZAG_MODEL` | Model name |
+| `ZAG_ROOT` | Project root path |
+
+These are used by `zag whoami` for agent self-discovery and by nested `zag` invocations to track parent/child session hierarchies. The `ProcessEntry` in `processes.json` stores `parent_process_id` and `parent_session_id` when a nested zag process detects these env vars.
+
 ## Logging
 
 The CLI includes professional logging and progress indicators to provide clear feedback about operations.
@@ -674,6 +690,7 @@ The provider is specified via the `--provider` (or `-p`) flag. If omitted, it de
 - **`ps`** - List, inspect, and kill agent processes started by zag
 - **`search`** - Search through session logs (full-text + filters)
 - **`input`** - Send a user message to a running or resumable session
+- **`whoami`** - Show identity of the current zag session (for agent introspection)
 
 ```bash
 # Interactive mode (uses default provider, typically claude)
@@ -851,6 +868,10 @@ zag input --global "hello"                 # Auto-resolve across all projects
 echo "message" | zag input                 # Pipe message from stdin
 zag input --stream --latest                # Stream messages interactively (Claude only)
 zag input --latest "task" -o stream-json   # NDJSON event output (Claude only)
+
+# Session identity (agent introspection)
+zag whoami                                 # Show current session identity
+zag whoami --json                          # JSON output for machine consumption
 
 # Configuration
 zag config                       # Print full config

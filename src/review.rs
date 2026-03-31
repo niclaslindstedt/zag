@@ -122,6 +122,8 @@ pub(crate) async fn run_review(params: ReviewParams) -> Result<()> {
             exit_code: None,
             exited_at: None,
             root: root.clone(),
+            parent_process_id: std::env::var("ZAG_PROCESS_ID").ok(),
+            parent_session_id: std::env::var("ZAG_SESSION_ID").ok(),
         });
         let _ = pstore.save();
     }
