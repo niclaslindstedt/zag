@@ -50,6 +50,12 @@ These flags can be used with any subcommand.
     search       Search through session logs
     input        Send a user message to a running or resumable session
     whoami       Show identity of the current zag session
+    pipe         Chain results from completed sessions into a new session
+    events       Query structured events from session logs
+    cancel       Gracefully cancel running sessions
+    summary      Show log-based session summaries and stats
+    watch        Watch session logs and execute commands on matching events
+    subscribe    Subscribe to a multiplexed event stream from all sessions
     man          Show manual pages for commands
 
 Run `zag man <command>` for detailed help on each command.
@@ -108,3 +114,9 @@ Settings priority: CLI flags > config file > agent defaults.
     zag man search
     zag man input
     zag man whoami
+    zag man pipe
+    zag man events
+    zag man cancel
+    zag man summary
+    zag man watch
+    zag man subscribe

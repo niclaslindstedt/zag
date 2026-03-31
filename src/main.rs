@@ -17,12 +17,14 @@ use zag::providers::ollama;
 // Modules that remain in the binary crate
 mod agent_action;
 mod broadcast;
+mod cancel;
 mod capability;
 mod cleanup;
 mod cli;
 mod collect;
 mod commands;
 mod env;
+mod events;
 mod input;
 mod json_mode;
 mod lifecycle;
@@ -30,6 +32,7 @@ mod listen;
 mod logging;
 mod manpage;
 mod output;
+mod pipe;
 mod ps;
 mod resume;
 mod review;
@@ -38,7 +41,10 @@ mod session_log;
 mod session_setup;
 mod spawn;
 mod status;
+mod subscribe;
+mod summary;
 mod wait;
+mod watch;
 mod whoami;
 
 // Re-export from sub-modules so main_tests.rs can use `super::*`
@@ -458,11 +464,128 @@ async fn main() -> Result<()> {
                 root,
             })?;
         }
+        Commands::Pipe {
+            session_ids,
+            tag,
+            prompt,
+            agent,
+            output: pipe_output,
+            json: pipe_json,
+        } => {
+            pipe::run_pipe(pipe::PipeParams {
+                session_ids,
+                tag,
+                prompt,
+                provider: agent.provider,
+                model: agent.model,
+                root: agent.root,
+                auto_approve: agent.auto_approve,
+                system_prompt: agent.system_prompt,
+                add_dirs: agent.add_dirs,
+                size: agent.size,
+                max_turns: agent.max_turns,
+                output: pipe_output,
+                json: pipe_json,
+                quiet,
+            })
+            .await?;
+        }
+        Commands::Events {
+            session_id,
+            event_type,
+            last,
+            after_seq,
+            before_seq,
+            count,
+            json: events_json,
+            root,
+        } => {
+            events::run_events(events::EventsParams {
+                session_id,
+                event_type,
+                last,
+                after_seq,
+                before_seq,
+                count,
+                json: events_json,
+                root,
+            })?;
+        }
+        Commands::Cancel {
+            session_ids,
+            tag,
+            reason,
+            json: cancel_json,
+            root,
+        } => {
+            cancel::run_cancel(cancel::CancelParams {
+                session_ids,
+                tag,
+                reason,
+                json: cancel_json,
+                root,
+            })?;
+        }
+        Commands::Summary {
+            session_ids,
+            tag,
+            stats,
+            json: summary_json,
+            root,
+        } => {
+            summary::run_summary(summary::SummaryParams {
+                session_ids,
+                tag,
+                stats,
+                json: summary_json,
+                root,
+            })?;
+        }
+        Commands::Watch {
+            session_id,
+            tag,
+            latest,
+            on_event,
+            filter_expr,
+            once,
+            json: watch_json,
+            root,
+            command: watch_command,
+        } => {
+            watch::run_watch(watch::WatchParams {
+                session_id,
+                tag,
+                latest,
+                on_event,
+                filter_expr,
+                command: watch_command,
+                once,
+                json: watch_json,
+                root,
+            })?;
+        }
+        Commands::Subscribe {
+            tag,
+            event_type,
+            global,
+            json: subscribe_json,
+            root,
+        } => {
+            subscribe::run_subscribe(subscribe::SubscribeParams {
+                tag,
+                event_type,
+                global,
+                json: subscribe_json,
+                root,
+            })?;
+        }
         Commands::Spawn {
             prompt,
             agent,
             metadata,
             json: spawn_json,
+            depends_on,
+            inject_context,
         } => {
             let provider = resolve_provider(agent.provider.as_deref(), agent.root.as_deref())?;
             spawn::run_spawn(spawn::SpawnParams {
@@ -481,6 +604,8 @@ async fn main() -> Result<()> {
                     description: metadata.description,
                     tags: metadata.tags,
                 },
+                depends_on,
+                inject_context,
             })?;
         }
         Commands::Review {

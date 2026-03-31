@@ -172,6 +172,7 @@ pub fn cache_discovered_session(
         name: None,
         description: None,
         tags: vec![],
+        dependencies: vec![],
     };
 
     let mut store = session::SessionStore::load(root).unwrap_or_default();

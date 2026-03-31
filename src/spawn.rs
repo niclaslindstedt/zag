@@ -24,6 +24,8 @@ pub struct SpawnParams {
     pub max_turns: Option<u32>,
     pub json: bool,
     pub metadata: SessionMetadata,
+    pub depends_on: Vec<String>,
+    pub inject_context: bool,
 }
 
 /// Directory for spawn log files.
@@ -62,6 +64,7 @@ pub fn run_spawn(params: SpawnParams) -> Result<()> {
         name: params.metadata.name.clone(),
         description: params.metadata.description.clone(),
         tags: params.metadata.tags.clone(),
+        dependencies: params.depends_on.clone(),
     });
     if let Err(e) = session_store.save(params.root.as_deref()) {
         log::warn!("Failed to save session store: {}", e);
@@ -148,15 +151,52 @@ pub fn run_spawn(params: SpawnParams) -> Result<()> {
     let stdout_file = File::create(&log_path)?;
     let stderr_file = stdout_file.try_clone()?;
 
+    // If --inject-context is set, add --context for each dependency
+    if params.inject_context {
+        for dep in &params.depends_on {
+            // Insert --context before the prompt (which is the last arg)
+            let prompt = args.pop().unwrap();
+            args.push("--context".to_string());
+            args.push(dep.clone());
+            args.push(prompt);
+        }
+    }
+
     debug!("Spawning: {} {}", zag_bin.display(), args.join(" "));
 
-    // Spawn the child process
-    let child = std::process::Command::new(&zag_bin)
-        .args(&args)
-        .stdin(std::process::Stdio::null())
-        .stdout(stdout_file)
-        .stderr(stderr_file)
-        .spawn()?;
+    // If there are dependencies, wrap in a shell command that waits first
+    let child = if !params.depends_on.is_empty() {
+        let wait_args: Vec<String> = params
+            .depends_on
+            .iter()
+            .map(|id| format!("\"{}\"", id))
+            .collect();
+        let wait_cmd = format!(
+            "{} wait {} && {} {}",
+            zag_bin.display(),
+            wait_args.join(" "),
+            zag_bin.display(),
+            args.iter()
+                .map(|a| format!("\"{}\"", a.replace('"', "\\\"")))
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
+        debug!("Spawn with deps: sh -c '{}'", wait_cmd);
+        std::process::Command::new("sh")
+            .arg("-c")
+            .arg(&wait_cmd)
+            .stdin(std::process::Stdio::null())
+            .stdout(stdout_file)
+            .stderr(stderr_file)
+            .spawn()?
+    } else {
+        std::process::Command::new(&zag_bin)
+            .args(&args)
+            .stdin(std::process::Stdio::null())
+            .stdout(stdout_file)
+            .stderr(stderr_file)
+            .spawn()?
+    };
 
     let child_pid = child.id();
 

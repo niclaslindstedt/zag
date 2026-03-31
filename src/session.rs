@@ -40,6 +40,8 @@ pub struct SessionEntry {
     pub description: Option<String>,
     #[serde(default)]
     pub tags: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dependencies: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

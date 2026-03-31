@@ -212,6 +212,7 @@ fn event_kind_label(event: &AgentLogEvent) -> String {
         LogEventKind::ProviderStatus { .. } => "ProviderStatus".to_string(),
         LogEventKind::Stderr { .. } => "Stderr".to_string(),
         LogEventKind::ParseWarning { .. } => "ParseWarning".to_string(),
+        LogEventKind::Heartbeat { .. } => "Heartbeat".to_string(),
     }
 }
 

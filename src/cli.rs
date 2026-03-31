@@ -489,6 +489,14 @@ pub enum Commands {
         /// Output as JSON (includes session_id, pid, log_path)
         #[arg(long)]
         json: bool,
+
+        /// Wait for these sessions to complete before starting (repeatable)
+        #[arg(long = "depends-on", value_name = "SESSION_ID")]
+        depends_on: Vec<String>,
+
+        /// Auto-inject dependency session results as context
+        #[arg(long)]
+        inject_context: bool,
     },
     /// Block until one or more sessions complete
     Wait {
@@ -512,6 +520,165 @@ pub enum Commands {
         any: bool,
 
         /// Output as JSON (NDJSON, one result per line)
+        #[arg(long)]
+        json: bool,
+
+        /// Root directory for session resolution
+        #[arg(short, long)]
+        root: Option<String>,
+    },
+    /// Chain results from completed sessions into a new agent session
+    Pipe {
+        /// Session IDs to pipe results from
+        session_ids: Vec<String>,
+
+        /// Pipe results from all sessions with this tag
+        #[arg(long, value_name = "TAG")]
+        tag: Option<String>,
+
+        /// The prompt to send with the piped context (after --)
+        #[arg(last = true)]
+        prompt: String,
+
+        #[command(flatten)]
+        agent: AgentArgs,
+
+        /// Output format (text, json, json-pretty)
+        #[arg(short = 'o', long)]
+        output: Option<String>,
+
+        /// Request JSON output from the agent
+        #[arg(long)]
+        json: bool,
+    },
+    /// Query structured events from session logs
+    Events {
+        /// Session ID to query events from
+        session_id: String,
+
+        /// Filter by event type (session_started, user_message, assistant_message, tool_call, etc.)
+        #[arg(long = "type", value_name = "EVENT_TYPE")]
+        event_type: Option<String>,
+
+        /// Show only the last N events
+        #[arg(long)]
+        last: Option<usize>,
+
+        /// Show events after this sequence number (for pagination/polling)
+        #[arg(long, value_name = "SEQ")]
+        after_seq: Option<u64>,
+
+        /// Show events before this sequence number
+        #[arg(long, value_name = "SEQ")]
+        before_seq: Option<u64>,
+
+        /// Output only the count of matching events
+        #[arg(long)]
+        count: bool,
+
+        /// Output as NDJSON
+        #[arg(long)]
+        json: bool,
+
+        /// Root directory for session log resolution
+        #[arg(short, long)]
+        root: Option<String>,
+    },
+    /// Gracefully cancel one or more running sessions
+    Cancel {
+        /// Session IDs to cancel
+        session_ids: Vec<String>,
+
+        /// Cancel all sessions with this tag
+        #[arg(long, value_name = "TAG")]
+        tag: Option<String>,
+
+        /// Reason for cancellation
+        #[arg(long)]
+        reason: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Root directory for session resolution
+        #[arg(short, long)]
+        root: Option<String>,
+    },
+    /// Show a log-based summary of one or more sessions
+    Summary {
+        /// Session IDs to summarize
+        session_ids: Vec<String>,
+
+        /// Summarize all sessions with this tag
+        #[arg(long, value_name = "TAG")]
+        tag: Option<String>,
+
+        /// Show detailed statistics
+        #[arg(long)]
+        stats: bool,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Root directory for session resolution
+        #[arg(short, long)]
+        root: Option<String>,
+    },
+    /// Watch session logs and execute a command on matching events
+    Watch {
+        /// Session ID to watch
+        #[arg(conflicts_with_all = ["latest", "watch_tag"])]
+        session_id: Option<String>,
+
+        /// Watch sessions with this tag
+        #[arg(long = "tag", id = "watch_tag", value_name = "TAG", conflicts_with_all = ["latest"])]
+        tag: Option<String>,
+
+        /// Watch the latest session
+        #[arg(long)]
+        latest: bool,
+
+        /// Event type to watch for (e.g., session_ended, tool_call)
+        #[arg(long = "on", value_name = "EVENT_TYPE")]
+        on_event: String,
+
+        /// Filter expression (key=value pairs, comma-separated)
+        #[arg(long = "filter")]
+        filter_expr: Option<String>,
+
+        /// Exit after the first matching event
+        #[arg(long)]
+        once: bool,
+
+        /// Output matching events as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Root directory for session log resolution
+        #[arg(short, long)]
+        root: Option<String>,
+
+        /// Command to execute (after --)
+        #[arg(last = true)]
+        command: Vec<String>,
+    },
+    /// Subscribe to a multiplexed event stream from all active sessions
+    Subscribe {
+        /// Filter by session tag
+        #[arg(long, value_name = "TAG")]
+        tag: Option<String>,
+
+        /// Filter by event type
+        #[arg(long = "filter", value_name = "EVENT_TYPE")]
+        event_type: Option<String>,
+
+        /// Subscribe across all projects
+        #[arg(long)]
+        global: bool,
+
+        /// Output as NDJSON (default)
         #[arg(long)]
         json: bool,
 
@@ -728,6 +895,7 @@ pub(crate) fn command_agent_args(cmd: &Commands) -> Option<&AgentArgs> {
         Commands::Exec { agent, .. } => Some(agent),
         Commands::Review { agent, .. } => Some(agent),
         Commands::Spawn { agent, .. } => Some(agent),
+        Commands::Pipe { agent, .. } => Some(agent),
         _ => None,
     }
 }

@@ -158,6 +158,9 @@ pub enum LogEventKind {
         success: bool,
         error: Option<String>,
     },
+    Heartbeat {
+        interval_secs: Option<u64>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

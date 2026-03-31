@@ -166,6 +166,12 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `src/status.rs` | `zag status` command: machine-readable session health check |
 | `src/collect.rs` | `zag collect` command: gather results from multiple sessions |
 | `src/env.rs` | `zag env` command: export session environment variables |
+| `src/pipe.rs` | `zag pipe` command: chain session results into a new agent session |
+| `src/events.rs` | `zag events` command: structured event query API for session logs |
+| `src/cancel.rs` | `zag cancel` command: graceful session cancellation with clean log entry |
+| `src/summary.rs` | `zag summary` command: log-based session summarization and stats |
+| `src/watch.rs` | `zag watch` command: event-driven reactions on session log events |
+| `src/subscribe.rs` | `zag subscribe` command: multiplexed event stream from all active sessions |
 | `src/lifecycle.rs` | Filesystem lifecycle markers (`.started`/`.ended` in `~/.zag/events/`) |
 | `man/*.md` | Embedded manpages for the `zag man` command |
 | `prompts/auto-selector/*.md` | Versioned prompt templates for auto-selection (latest: 3_1) |
@@ -183,6 +189,12 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `man/status.md` | Manpage for the `zag status` command |
 | `man/collect.md` | Manpage for the `zag collect` command |
 | `man/env.md` | Manpage for the `zag env` command |
+| `man/pipe.md` | Manpage for the `zag pipe` command |
+| `man/events.md` | Manpage for the `zag events` command |
+| `man/cancel.md` | Manpage for the `zag cancel` command |
+| `man/summary.md` | Manpage for the `zag summary` command |
+| `man/watch.md` | Manpage for the `zag watch` command |
+| `man/subscribe.md` | Manpage for the `zag subscribe` command |
 
 #### `bindings/` (language SDKs)
 
@@ -727,6 +739,12 @@ The provider is specified via the `--provider` (or `-p`) flag. If omitted, it de
 - **`status`** - Machine-readable session health check
 - **`collect`** - Gather results from multiple sessions
 - **`env`** - Export session environment variables for nested invocations
+- **`pipe`** - Chain results from completed sessions into a new agent session
+- **`events`** - Query structured events from session logs
+- **`cancel`** - Gracefully cancel running sessions with clean log entry
+- **`summary`** - Show log-based session summaries and stats
+- **`watch`** - Watch session logs and execute commands on matching events
+- **`subscribe`** - Subscribe to a multiplexed event stream from all active sessions
 
 ```bash
 # Interactive mode (uses default provider, typically claude)
@@ -943,6 +961,37 @@ eval $(zag env --shell --session $sid)     # Set env vars in current shell
 zag ps list --children $PARENT_ID          # List child processes
 zag session list --parent $PARENT_ID       # List child sessions
 zag listen $sid --filter tool_call         # Filter event stream
+
+# Session result chaining (pipe)
+zag pipe $sid1 $sid2 -- "synthesize"               # Chain multiple sessions
+zag pipe --tag batch -- "create unified report"     # Chain by tag
+
+# Structured event query
+zag events $sid --type tool_call --json             # Query tool calls as NDJSON
+zag events $sid --last 5                            # Last 5 events
+zag events $sid --after-seq 42 --json               # Poll for new events
+
+# Graceful cancellation
+zag cancel $sid                                     # Cancel with clean log entry
+zag cancel --tag batch --reason "timeout"           # Cancel by tag with reason
+
+# Session summaries
+zag summary $sid                                    # Human-readable summary
+zag summary --tag batch --json                      # JSON summaries
+zag summary $sid --stats                            # Detailed statistics
+
+# Event-driven reactions (watch)
+zag watch $sid --on session_ended -- echo "done"    # Run command on event
+zag watch --tag batch --on session_ended --once      # Exit on first match
+
+# Multiplexed event stream (subscribe)
+zag subscribe --tag batch                           # All events from tagged sessions
+zag subscribe --filter session_ended --json         # Filter + JSON output
+
+# Spawn with dependencies (DAG workflows)
+sid_a=$(zag spawn "analyze auth")
+sid_b=$(zag spawn --depends-on $sid_a "fix issues")            # Wait for A
+sid_c=$(zag spawn --depends-on $sid_a --inject-context "test") # Wait + inject results
 
 # Configuration
 zag config                       # Print full config

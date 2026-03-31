@@ -106,6 +106,12 @@ zag wait <id>... [--timeout]  Block until session(s) complete
 zag status <id>               Machine-readable session health check
 zag collect [--tag <tag>]     Gather results from multiple sessions
 zag env [--session <id>]      Export session environment variables
+zag pipe <ids>... -- <prompt> Chain session results into a new session
+zag events <id> [--type ...]  Query structured events from session logs
+zag cancel <id>... [--tag]    Gracefully cancel running sessions
+zag summary <id>... [--tag]   Log-based session summary and stats
+zag watch <id> --on <event>   Execute command on matching log events
+zag subscribe [--tag <tag>]   Multiplexed event stream from all sessions
 
 zag capability                Show provider capability declarations
 zag skills list|add|remove|sync|import   Manage provider-agnostic skills
@@ -210,6 +216,33 @@ zag session list --parent $PARENT_SESSION_ID
 
 # Filter listen to specific event types
 zag listen $sid1 --filter session_ended --filter tool_call
+
+# Chain session results into a new agent session
+zag pipe --tag batch -- "synthesize all findings into a report"
+
+# Query structured events from a session log
+zag events $sid1 --type tool_call --json
+zag events $sid1 --last 10 --after-seq 42
+
+# Gracefully cancel sessions
+zag cancel $sid1 --reason "orchestrator timeout"
+zag cancel --tag batch
+
+# Get session summaries (no LLM call — log-based)
+zag summary --tag batch --json
+
+# Watch for events and react
+zag watch $sid1 --on session_ended -- echo "done: {session_id}"
+zag watch --tag batch --on session_ended --filter 'success=false' --once
+
+# Subscribe to a multiplexed event stream from all sessions
+zag subscribe --tag batch --json | jq 'select(.type == "session_ended")'
+
+# DAG workflows with spawn dependencies
+sid_a=$(zag spawn "analyze code")
+sid_b=$(zag spawn --depends-on $sid_a "fix issues from analysis")
+sid_c=$(zag spawn --depends-on $sid_a --inject-context "write tests")
+sid_d=$(zag spawn --depends-on $sid_b --depends-on $sid_c "final report")
 ```
 
 Filesystem lifecycle markers are written to `~/.zag/events/` (`.started` and `.ended` files) for external non-Rust orchestrators that prefer `inotifywait` over polling.

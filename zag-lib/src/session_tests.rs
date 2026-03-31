@@ -36,6 +36,7 @@ fn sample_entry(id: &str) -> SessionEntry {
         name: None,
         description: None,
         tags: vec![],
+        dependencies: vec![],
     }
 }
 

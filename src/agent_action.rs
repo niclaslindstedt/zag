@@ -422,6 +422,12 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Status { .. } => "status",
         Commands::Wait { .. } => "wait",
         Commands::Spawn { .. } => "spawn",
+        Commands::Pipe { .. } => "pipe",
+        Commands::Events { .. } => "events",
+        Commands::Cancel { .. } => "cancel",
+        Commands::Summary { .. } => "summary",
+        Commands::Watch { .. } => "watch",
+        Commands::Subscribe { .. } => "subscribe",
     }
 }
 

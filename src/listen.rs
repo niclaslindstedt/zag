@@ -279,6 +279,7 @@ fn event_type_name(kind: &LogEventKind) -> &'static str {
         LogEventKind::ParseWarning { .. } => "parse_warning",
         LogEventKind::SessionCleared { .. } => "session_cleared",
         LogEventKind::SessionEnded { .. } => "session_ended",
+        LogEventKind::Heartbeat { .. } => "heartbeat",
     }
 }
 
@@ -465,6 +466,7 @@ pub fn format_event_text(event: &AgentLogEvent, show_thinking: bool) -> Option<S
                 .unwrap_or_default();
             Some(format!("\n\u{25cf} Session {}{}", status, error_info))
         }
+        LogEventKind::Heartbeat { .. } => None,
     }
 }
 
@@ -651,6 +653,7 @@ pub fn format_event_rich(event: &AgentLogEvent, show_thinking: bool) -> Option<S
                 color, status, error_info
             ))
         }
+        LogEventKind::Heartbeat { .. } => None,
     }
 }
 

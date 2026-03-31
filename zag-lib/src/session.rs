@@ -43,6 +43,9 @@ pub struct SessionEntry {
     /// Arbitrary tags for categorization and discovery.
     #[serde(default)]
     pub tags: Vec<String>,
+    /// Session IDs that this session depends on (must complete before this session starts).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dependencies: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
