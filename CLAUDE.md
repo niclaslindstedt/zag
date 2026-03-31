@@ -147,7 +147,7 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `src/agent_action.rs` | Core agent orchestration: `run_agent_action`, session setup, agent creation, execution |
 | `src/logging.rs` | Terminal logging, spinners, colored output (implements `ProgressHandler` pattern) |
 | `src/listen.rs` | Listen command: session log tailing, event formatting, session resolution |
-| `src/broadcast.rs` | `zag broadcast` command: send a message to all sessions matching a tag |
+| `src/broadcast.rs` | `zag broadcast` command: send a message to all sessions in a project (optionally filtered by tag) |
 | `src/ps.rs` | `zag ps` command: list/show/kill agent processes via `ProcessStore` |
 | `src/whoami.rs` | `zag whoami` command: session identity introspection via `ZAG_*` env vars |
 | `src/search.rs` | `zag search` command: CLI argument wiring, human-readable and JSON output |
@@ -709,7 +709,7 @@ The provider is specified via the `--provider` (or `-p`) flag. If omitted, it de
 - **`ps`** - List, inspect, and kill agent processes started by zag
 - **`search`** - Search through session logs (full-text + filters)
 - **`input`** - Send a user message to a single running or resumable session
-- **`broadcast`** - Send a message to all sessions matching a tag
+- **`broadcast`** - Send a message to all sessions in the current project (optionally filtered by tag)
 - **`whoami`** - Show identity of the current zag session (for agent introspection)
 
 ```bash
@@ -900,9 +900,11 @@ zag input --stream --latest                # Stream messages interactively (Clau
 zag input --latest "task" -o stream-json   # NDJSON event output (Claude only)
 zag input --raw --session <id> "plain msg" # Send without agent envelope wrapping
 
-# Broadcast to multiple sessions by tag
-zag broadcast --tag backend "report status"          # Send to all sessions with tag
-zag broadcast --tag backend --global "deploy done"   # Cross-project broadcast
+# Broadcast to sessions
+zag broadcast "report status"                        # Send to all sessions in current project
+zag broadcast --tag backend "report status"          # Send only to sessions with tag
+zag broadcast --global "deploy done"                 # Cross-project broadcast to all sessions
+zag broadcast --tag backend --global "deploy done"   # Cross-project broadcast filtered by tag
 echo "standup time" | zag broadcast --tag team       # Pipe from stdin
 zag broadcast --tag backend "status" -o json         # JSON output with per-session results
 

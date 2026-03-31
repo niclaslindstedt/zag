@@ -11,7 +11,7 @@ use crate::resume;
 
 pub(crate) struct BroadcastParams {
     pub message: Option<String>,
-    pub tag: String,
+    pub tag: Option<String>,
     pub global: bool,
     pub output: Option<String>,
     pub root: Option<String>,
@@ -19,9 +19,9 @@ pub(crate) struct BroadcastParams {
     pub raw: bool,
 }
 
-/// Resolve all session IDs matching a tag.
+/// Resolve all session IDs, optionally filtered by tag.
 fn resolve_broadcast_session_ids(
-    tag: &str,
+    tag: Option<&str>,
     global: bool,
     root: Option<&str>,
 ) -> Result<Vec<String>> {
@@ -30,11 +30,27 @@ fn resolve_broadcast_session_ids(
     } else {
         zag::session::SessionStore::load(root).unwrap_or_default()
     };
-    let matches = store.find_by_tag(tag);
-    if matches.is_empty() {
-        bail!("No sessions found with tag '{}'", tag);
+    if let Some(t) = tag {
+        let matches = store.find_by_tag(t);
+        if matches.is_empty() {
+            bail!("No sessions found with tag '{}'", t);
+        }
+        Ok(matches.iter().map(|e| e.session_id.clone()).collect())
+    } else {
+        if store.sessions.is_empty() {
+            let scope = if global {
+                "across all projects"
+            } else {
+                "in current project"
+            };
+            bail!("No sessions found {}", scope);
+        }
+        Ok(store
+            .sessions
+            .iter()
+            .map(|e| e.session_id.clone())
+            .collect())
     }
-    Ok(matches.iter().map(|e| e.session_id.clone()).collect())
 }
 
 pub(crate) async fn run_broadcast(params: BroadcastParams) -> Result<()> {
@@ -48,12 +64,14 @@ pub(crate) async fn run_broadcast(params: BroadcastParams) -> Result<()> {
         raw,
     } = params;
 
-    let session_ids = resolve_broadcast_session_ids(&tag, global, root.as_deref())?;
+    let session_ids = resolve_broadcast_session_ids(tag.as_deref(), global, root.as_deref())?;
 
     debug!(
-        "Broadcast: resolved {} session(s) for tag '{}'",
+        "Broadcast: resolved {} session(s){}",
         session_ids.len(),
-        tag
+        tag.as_ref()
+            .map(|t| format!(" for tag '{}'", t))
+            .unwrap_or_default()
     );
 
     let msg = if let Some(m) = message {

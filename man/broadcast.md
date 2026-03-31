@@ -1,16 +1,19 @@
 # zag broadcast
 
-Send a message to all sessions matching a tag.
+Send a message to all sessions in the current project.
 
 ## Synopsis
 
+    zag broadcast "message"
     zag broadcast --tag <tag> "message"
-    zag broadcast --tag <tag> --global "message"
+    zag broadcast --global "message"
     echo "message" | zag broadcast --tag <tag>
 
 ## Description
 
-`zag broadcast` sends a user message to all sessions that match a given tag. This is the multi-session counterpart to `zag input` — while `input` targets exactly one session, `broadcast` delivers the same message to every session with the specified tag.
+`zag broadcast` sends a user message to all sessions in the current project. This is the multi-session counterpart to `zag input` — while `input` targets exactly one session, `broadcast` delivers the same message to every session in scope.
+
+Use `--tag` to narrow the broadcast to only sessions with a specific tag. Use `--global` to broadcast across all projects.
 
 The command resolves all matching sessions, sends the message to each one sequentially, and reports a summary of sent/failed counts.
 
@@ -24,7 +27,7 @@ The message text to send. If omitted, the message is read from stdin.
 
 ### `--tag <TAG>`
 
-Target all sessions with this tag. Required. Tags are matched case-insensitively.
+Filter target sessions by tag. When specified, only sessions with this tag receive the message. Tags are matched case-insensitively. When omitted, all sessions in scope are targeted.
 
 ### `--global`
 
@@ -60,10 +63,16 @@ Send the message without agent-to-agent envelope wrapping. By default, when `zag
 
 ## Examples
 
-    # Broadcast to all sessions tagged "backend"
+    # Broadcast to all sessions in the current project
+    zag broadcast "report your status"
+
+    # Broadcast only to sessions tagged "backend"
     zag broadcast --tag backend "report your status"
 
     # Cross-project broadcast
+    zag broadcast --global "deploy completed"
+
+    # Cross-project broadcast filtered by tag
     zag broadcast --tag backend --global "deploy completed"
 
     # Pipe from stdin
@@ -73,7 +82,7 @@ Send the message without agent-to-agent envelope wrapping. By default, when `zag
     zag broadcast --tag backend "status" -o json
 
     # Pretty-printed JSON output
-    zag broadcast --tag backend "status" -o json-pretty
+    zag broadcast "status" -o json-pretty
 
     # Send without agent envelope wrapping
     zag broadcast --tag backend --raw "plain message"

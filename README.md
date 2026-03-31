@@ -99,7 +99,8 @@ zag listen <id>               Tail a session's log events in real-time
 zag ps list|show|stop|kill    List, inspect, and manage agent processes
 zag search <query>            Search through session logs
 zag input [message]           Send a user message to a single session
-zag broadcast --tag <tag> [message]  Send a message to all sessions with a tag
+zag broadcast [message]       Send a message to all sessions in the project
+
 zag capability                Show provider capability declarations
 zag skills list|add|remove|sync|import   Manage provider-agnostic skills
 zag mcp list|add|remove|sync|import     Manage MCP servers across providers
@@ -156,7 +157,8 @@ zag session list --name frontend   # filter by name
 # Send messages by name
 zag input --name backend-agent "check the auth module"
 
-# Broadcast to all sessions with a tag
+# Broadcast to all sessions in the project (or filter by tag)
+zag broadcast "report status"
 zag broadcast --tag backend "report status"
 
 # Update session metadata

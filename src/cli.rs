@@ -416,14 +416,14 @@ pub enum Commands {
         #[arg(long)]
         raw: bool,
     },
-    /// Send a message to all sessions matching a tag
+    /// Send a message to all sessions in the current project (optionally filtered by tag)
     Broadcast {
         /// Message to send (reads from stdin if omitted)
         message: Option<String>,
 
-        /// Target sessions by tag (required)
+        /// Filter target sessions by tag (optional; sends to all project sessions if omitted)
         #[arg(long, value_name = "TAG")]
-        tag: String,
+        tag: Option<String>,
 
         /// Search across all projects
         #[arg(long)]
