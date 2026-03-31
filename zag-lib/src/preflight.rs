@@ -24,11 +24,9 @@ fn install_hint(agent: &str) -> &'static str {
     match agent {
         "claude" => "Install: npm install -g @anthropic-ai/claude-code",
         "codex" => "Install: npm install -g @openai/codex",
-        "gemini" => {
-            "Install: npm install -g @anthropic-ai/gemini-cli (or see https://github.com/google-gemini/gemini-cli)"
-        }
+        "gemini" => "Install: npm install -g @anthropic-ai/gemini-cli",
         "copilot" => {
-            "Install: npm install -g @anthropic-ai/copilot-cli (or see https://github.com/github/copilot-cli)"
+            "Install: gh extension install github/gh-copilot (see https://docs.github.com/en/copilot/github-copilot-in-the-cli)"
         }
         "ollama" => "Install: https://ollama.ai/download",
         _ => "Check that the CLI is installed and available in PATH",

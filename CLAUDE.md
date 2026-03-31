@@ -191,7 +191,7 @@ Instead of specifying agent-specific model names, you can use size aliases that 
 
 ```bash
 # Use size aliases
-zag --model large run              # Uses opus (default provider: claude)
+zag --model large run              # Uses default (default provider: claude)
 zag -p codex --model large run     # Uses gpt-5.4
 zag -p gemini --model small run    # Uses gemini-2.5-flash-lite
 
@@ -207,7 +207,7 @@ Each agent implements `model_for_size()` in its `Agent` trait implementation:
 |------|--------|-------|--------|---------|---------------|
 | `small` / `s` | haiku | gpt-5.4-mini | gemini-2.5-flash-lite | claude-haiku-4.5 | 2b |
 | `medium` / `m` | sonnet | gpt-5.3-codex | gemini-2.5-flash | claude-sonnet-4.5 | 9b |
-| `large` / `l` / `max` | opus | gpt-5.4 | gemini-2.5-pro | claude-opus-4.5 | 35b |
+| `large` / `l` / `max` | default | gpt-5.4 | gemini-2.5-pro | claude-opus-4.5 | 35b |
 
 For Ollama, size aliases map to parameter sizes (not model names). The model is always `ollama.model` config (default: qwen3.5). Sizes are configurable via `ollama.size_small`, `ollama.size_medium`, `ollama.size_large`.
 
@@ -996,7 +996,7 @@ The CLI validates model names to catch typos and provide helpful error messages.
 
 ```bash
 $ zag --model gpt-5 run
-Error: Invalid model 'gpt-5' for Claude. Available models: sonnet, opus, haiku
+Error: Invalid model 'gpt-5' for Claude. Available models: default, sonnet, opus, haiku, sonnet-4.6, opus-4.6, haiku-4.5
 ```
 
 Size aliases (small, medium, large) are always valid and automatically resolve to the appropriate model for each agent.
@@ -1008,8 +1008,8 @@ Size aliases (small, medium, large) are always valid and automatically resolve t
 zag [-p claude] <run|exec> [OPTIONS]
 ```
 
-**Available models**: sonnet, opus, haiku
-**Default**: opus
+**Available models**: default, sonnet, opus, haiku (also: sonnet-4.6, opus-4.6, haiku-4.5)
+**Default**: default (delegates to Claude CLI's own default)
 
 ### Codex
 ```bash

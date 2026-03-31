@@ -49,6 +49,10 @@ Output events as rich text with ANSI formatting (colors, bold, dim, italic). Ass
 
 Show thinking/reasoning content. By default, reasoning blocks are hidden.
 
+### `--timestamps`
+
+Show timestamps for each event. The timestamp format can be configured via the `listen.timestamp_format` config key (strftime-style, default: `%H:%M:%S`).
+
 ### `-r, --root <PATH>`
 
 Root directory for session log resolution.
@@ -106,6 +110,9 @@ In rich-text mode, the same icons are used with ANSI colors and markdown renderi
 
     # Listen to a session by zag process UUID
     zag listen --ps a1b2c3d4-...
+
+    # Show timestamps for each event
+    zag listen --latest --timestamps
 
 ## Exit Behavior
 

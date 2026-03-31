@@ -85,13 +85,76 @@ test(claude): add streaming session edge case tests
 - Core logic belongs in `zag-lib`; the binary crate is a thin CLI wrapper
 - Follow existing patterns — check `CLAUDE.md` for architecture details
 
+## Running individual tests
+
+```bash
+# Run a specific test by name
+cargo test test_name
+
+# Run tests in a specific crate
+cargo test -p zag          # zag-lib tests
+cargo test -p zag-cli      # binary crate tests
+
+# Run tests with output shown
+cargo test -- --nocapture
+```
+
+## Code coverage
+
+```bash
+# Summary (requires cargo-llvm-cov)
+make coverage
+
+# HTML report
+make coverage-report
+# Opens .coverage/html/index.html
+```
+
+Install the coverage tool with: `cargo install cargo-llvm-cov`
+
 ## Adding a new provider
 
 1. Create `zag-lib/src/providers/<name>.rs` implementing the `Agent` trait
 2. Register the provider in `zag-lib/src/factory.rs`
 3. Add model validation and size mappings
-4. Add tests
+4. Add tests in `zag-lib/src/providers/<name>_tests.rs`
 5. Update `CLAUDE.md`, `README.md`, and `man/zag.md`
+
+## Language bindings
+
+SDK bindings live under `bindings/` for TypeScript, Python, and C#. Each wraps the `zag` CLI binary and parses its JSON output.
+
+### Testing bindings
+
+```bash
+# TypeScript
+cd bindings/typescript && npm run build && npm test
+
+# Python
+cd bindings/python && pip install -e . && pytest
+
+# C#
+cd bindings/csharp && dotnet test
+```
+
+When modifying the `AgentOutput` or `Event` types in `zag-lib/src/output.rs`, update the corresponding type definitions in all three binding packages.
+
+## Release process
+
+Releases are managed via `scripts/release.sh`, which builds a release binary, creates a git tag, and publishes to GitHub Releases.
+
+```bash
+# Bump patch version and release
+./scripts/release.sh --bump patch
+
+# Set an explicit version
+./scripts/release.sh --version 1.0.0
+
+# Dry-run (build only, no publish)
+./scripts/release.sh --dry-run
+```
+
+Requires `cargo`, `gh` (GitHub CLI), and `git`.
 
 ## Reporting issues
 

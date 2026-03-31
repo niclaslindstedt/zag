@@ -42,7 +42,7 @@ Use size aliases (portable across providers) or specific model names:
 ```
 zag --model small exec "..."           Fast/cheap: haiku / gpt-5.4-mini / gemini-2.5-flash-lite
 zag --model medium exec "..."          Balanced: sonnet / gpt-5.3-codex / gemini-2.5-flash
-zag --model large exec "..."           Most capable: opus / gpt-5.4 / gemini-2.5-pro
+zag --model large exec "..."           Most capable: default / gpt-5.4 / gemini-2.5-pro
 zag --model auto exec "..."            Auto-select best model for the task
 zag -p auto -m auto exec "..."         Auto-select both provider and model
 ```

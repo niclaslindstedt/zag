@@ -4,20 +4,52 @@ One CLI for all your AI coding agents.
 
 `zag` wraps Claude, Codex, Gemini, Copilot, and Ollama behind a single command so you can switch between them without learning five different CLIs. It adds cross-provider features on top: model size aliases, automatic provider/model selection, git worktree isolation, Docker sandboxing, structured JSON output with schema validation, unified session logs, and a programmatic Rust API.
 
+## Prerequisites
+
+- **Rust 1.85+** (edition 2024) — for building from source
+- **git** — required for `--worktree` isolation
+- **Docker** — required for `--sandbox` isolation (optional)
+- At least one agent CLI installed (see below)
+
 ## Install
 
+### From crates.io
+
 ```bash
-# Install the CLI
 cargo install zag-cli
+```
 
-# Or add the library to your project
-cargo add zag
+### From GitHub Releases
 
-# Or build from source
+Download a pre-built binary from [GitHub Releases](https://github.com/niclaslindstedt/zag/releases), extract it, and place it in your `PATH`.
+
+### From source
+
+```bash
+git clone https://github.com/niclaslindstedt/zag.git
+cd zag
 cargo install --path .
 ```
 
-You also need at least one of the underlying agent CLIs installed: [`claude`](https://docs.anthropic.com/en/docs/claude-code), [`codex`](https://github.com/openai/codex), [`gemini`](https://github.com/google-gemini/gemini-cli), [`copilot`](https://docs.github.com/en/copilot/github-copilot-in-the-cli), or [`ollama`](https://ollama.com).
+### As a library
+
+```bash
+cargo add zag
+```
+
+### Agent CLIs
+
+You need at least one underlying agent CLI installed:
+
+| Provider | Install command | Link |
+|----------|----------------|------|
+| Claude | `npm install -g @anthropic-ai/claude-code` | [docs](https://docs.anthropic.com/en/docs/claude-code) |
+| Codex | `npm install -g @openai/codex` | [repo](https://github.com/openai/codex) |
+| Gemini | `npm install -g @anthropic-ai/gemini-cli` | [repo](https://github.com/google-gemini/gemini-cli) |
+| Copilot | `gh extension install github/gh-copilot` | [docs](https://docs.github.com/en/copilot/github-copilot-in-the-cli) |
+| Ollama | See [ollama.com/download](https://ollama.com/download) | [site](https://ollama.com) |
+
+`zag` checks for the required binary before running and provides install hints if it's missing.
 
 ## Quick start
 
@@ -47,13 +79,13 @@ zag review --uncommitted
 
 | Provider | Default model | Size aliases (small / medium / large) |
 |----------|---------------|---------------------------------------|
-| **claude** | opus | haiku / sonnet / opus |
+| **claude** | default | haiku / sonnet / default |
 | **codex** | gpt-5.4 | gpt-5.4-mini / gpt-5.3-codex / gpt-5.4 |
 | **gemini** | auto | gemini-2.5-flash-lite / gemini-2.5-flash / gemini-2.5-pro |
 | **copilot** | claude-sonnet-4.5 | claude-haiku-4.5 / claude-sonnet-4.5 / claude-opus-4.5 |
 | **ollama** | qwen3.5:9b | 2b / 9b / 35b (parameter sizes, any model from ollama.com) |
 
-Size aliases let you write `zag -m large exec "..."` and get the right model regardless of which provider you're using.
+Size aliases let you write `zag -m large exec "..."` and get the right model regardless of which provider you're using. For Claude, `default` delegates model selection to the Claude CLI itself.
 
 ## Commands
 
@@ -70,6 +102,7 @@ zag input <id> [message]      Send a user message to a session
 zag capability                Show provider capability declarations
 zag skills list|add|remove|sync|import   Manage provider-agnostic skills
 zag mcp list|add|remove|sync|import     Manage MCP servers across providers
+zag whoami                    Show current session identity (for agents)
 zag man [command]             Built-in manual pages
 ```
 
@@ -92,6 +125,9 @@ zag man [command]             Built-in manual pages
 | `--name <name>` | | Human-readable session name (for discovery) |
 | `--description <text>` | | Short description of the session's purpose |
 | `--tag <tag>` | | Session tag (repeatable, for discovery/filtering) |
+| `--max-turns <n>` | | Maximum number of agentic turns |
+| `--size <size>` | | Ollama parameter size (e.g., 2b, 9b, 35b) |
+| `--show-usage` | | Show token usage statistics (JSON output mode) |
 | `--debug` | `-d` | Debug logging |
 | `--quiet` | `-q` | Suppress all output except the agent's response |
 | `--verbose` | `-v` | Styled output with icons in exec mode |
@@ -316,6 +352,25 @@ await foreach (var evt in new ZagBuilder().Provider("claude").StreamAsync("analy
     Console.WriteLine(evt.Type);
 }
 ```
+
+## Examples
+
+The `examples/` directory contains complete projects demonstrating `zag` usage:
+
+- **[cv-review](examples/cv-review/)** — A Rust program that uses the `zag` library crate to review CVs against job descriptions using parallel agent invocations
+- **[react-claude-interface](examples/react-claude-interface/)** — A React web app that provides a Claude Code-like chat interface powered by `zag exec` and `zag input` with streaming NDJSON events over Server-Sent Events
+
+## Troubleshooting
+
+**"CLI not found in PATH"** — The agent CLI binary isn't installed or isn't in your `PATH`. Install it using the commands in the [Agent CLIs](#agent-clis) table above.
+
+**"Invalid model 'X' for Y"** — You specified a model name that the provider doesn't recognize. Use `zag capability -p <provider> --pretty` to see available models, or use size aliases (`small`, `medium`, `large`).
+
+**`--worktree` fails** — You must be inside a git repository. The worktree is created under `~/.zag/worktrees/`.
+
+**`--sandbox` fails** — Docker must be installed and running. Sandbox mode uses `docker sandbox run` for microVM isolation.
+
+**Config not taking effect** — Check which config file is being used with `zag config path`. Config is per-project (based on git repo root). CLI flags always override config.
 
 ## Architecture
 
