@@ -98,7 +98,8 @@ zag session list|show|import  List/inspect sessions, import historical logs
 zag listen <id>               Tail a session's log events in real-time
 zag ps list|show|stop|kill    List, inspect, and manage agent processes
 zag search <query>            Search through session logs
-zag input <id> [message]      Send a user message to a session
+zag input [message]           Send a user message to a single session
+zag broadcast --tag <tag> [message]  Send a message to all sessions with a tag
 zag capability                Show provider capability declarations
 zag skills list|add|remove|sync|import   Manage provider-agnostic skills
 zag mcp list|add|remove|sync|import     Manage MCP servers across providers
@@ -152,9 +153,11 @@ zag session list
 zag session list --tag backend     # filter by tag
 zag session list --name frontend   # filter by name
 
-# Send messages by name or tag
+# Send messages by name
 zag input --name backend-agent "check the auth module"
-zag input --tag backend --broadcast "report status"
+
+# Broadcast to all sessions with a tag
+zag broadcast --tag backend "report status"
 
 # Update session metadata
 zag session update <id> --tag new-tag

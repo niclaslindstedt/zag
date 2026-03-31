@@ -15,6 +15,7 @@ const MAN_MCP: &str = include_str!("../man/mcp.md");
 const MAN_PS: &str = include_str!("../man/ps.md");
 const MAN_SEARCH: &str = include_str!("../man/search.md");
 const MAN_INPUT: &str = include_str!("../man/input.md");
+const MAN_BROADCAST: &str = include_str!("../man/broadcast.md");
 const MAN_WHOAMI: &str = include_str!("../man/whoami.md");
 
 /// AI-oriented reference document for `--help-agent`.
@@ -37,9 +38,10 @@ pub(crate) fn print_manpage(command: Option<&str>) -> Result<()> {
         Some("ps") => MAN_PS,
         Some("search") => MAN_SEARCH,
         Some("input") => MAN_INPUT,
+        Some("broadcast") => MAN_BROADCAST,
         Some("whoami") => MAN_WHOAMI,
         Some(other) => bail!(
-            "No manual entry for '{}'. Available: run, exec, review, config, session, capability, listen, man, skills, mcp, ps, search, input, whoami",
+            "No manual entry for '{}'. Available: run, exec, review, config, session, capability, listen, man, skills, mcp, ps, search, input, broadcast, whoami",
             other
         ),
     };

@@ -16,6 +16,7 @@ use zag::providers::ollama;
 
 // Modules that remain in the binary crate
 mod agent_action;
+mod broadcast;
 mod capability;
 mod cleanup;
 mod cli;
@@ -47,6 +48,7 @@ use clap::Parser;
 use config::Config;
 use log::debug;
 
+use broadcast::{BroadcastParams, run_broadcast};
 use input::{InputParams, run_input};
 use manpage::{HELP_AGENT, print_manpage};
 use review::{ReviewParams, run_review};
@@ -346,8 +348,6 @@ async fn main() -> Result<()> {
             active,
             ps,
             input_name,
-            input_tag,
-            broadcast,
             global,
             stream,
             output,
@@ -361,10 +361,27 @@ async fn main() -> Result<()> {
                 active,
                 ps,
                 input_name,
-                input_tag,
-                broadcast,
                 global,
                 stream,
+                output,
+                root,
+                quiet,
+                raw,
+            })
+            .await?;
+        }
+        Commands::Broadcast {
+            message,
+            tag,
+            global,
+            output,
+            root,
+            raw,
+        } => {
+            run_broadcast(BroadcastParams {
+                message,
+                tag,
+                global,
                 output,
                 root,
                 quiet,

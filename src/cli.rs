@@ -371,38 +371,30 @@ pub enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// Send a user message to a running or resumable session
+    /// Send a user message to a single running or resumable session
     Input {
         /// Message to send (reads from stdin if omitted and not --stream)
         message: Option<String>,
 
         /// Target a specific session by ID
-        #[arg(long, value_name = "SESSION_ID", conflicts_with_all = ["latest", "active", "ps", "input_name", "input_tag"])]
+        #[arg(long, value_name = "SESSION_ID", conflicts_with_all = ["latest", "active", "ps", "input_name"])]
         session: Option<String>,
 
         /// Send to the most recently created session
-        #[arg(long, conflicts_with_all = ["active", "ps", "input_name", "input_tag"])]
+        #[arg(long, conflicts_with_all = ["active", "ps", "input_name"])]
         latest: bool,
 
         /// Send to the most recently active session
-        #[arg(long, conflicts_with_all = ["latest", "ps", "input_name", "input_tag"])]
+        #[arg(long, conflicts_with_all = ["latest", "ps", "input_name"])]
         active: bool,
 
         /// Send to a session by PID or zag process UUID
-        #[arg(long, value_name = "PID", conflicts_with_all = ["session", "latest", "active", "input_name", "input_tag"])]
+        #[arg(long, value_name = "PID", conflicts_with_all = ["session", "latest", "active", "input_name"])]
         ps: Option<String>,
 
         /// Target a session by name
-        #[arg(long = "name", id = "input_name", value_name = "NAME", conflicts_with_all = ["session", "latest", "active", "ps", "input_tag"])]
+        #[arg(long = "name", id = "input_name", value_name = "NAME", conflicts_with_all = ["session", "latest", "active", "ps"])]
         input_name: Option<String>,
-
-        /// Target session(s) by tag
-        #[arg(long = "tag", id = "input_tag", value_name = "TAG", conflicts_with_all = ["session", "latest", "active", "ps", "input_name"])]
-        input_tag: Option<String>,
-
-        /// Send to ALL sessions matching the tag (requires --tag)
-        #[arg(long, requires = "input_tag")]
-        broadcast: bool,
 
         /// Search across all projects when auto-resolving the session
         #[arg(long)]
@@ -413,6 +405,31 @@ pub enum Commands {
         stream: bool,
 
         /// Output format (text, json, stream-json)
+        #[arg(short = 'o', long)]
+        output: Option<String>,
+
+        /// Root directory for session resolution
+        #[arg(short, long)]
+        root: Option<String>,
+
+        /// Send without agent-to-agent envelope (skip sender metadata wrapping)
+        #[arg(long)]
+        raw: bool,
+    },
+    /// Send a message to all sessions matching a tag
+    Broadcast {
+        /// Message to send (reads from stdin if omitted)
+        message: Option<String>,
+
+        /// Target sessions by tag (required)
+        #[arg(long, value_name = "TAG")]
+        tag: String,
+
+        /// Search across all projects
+        #[arg(long)]
+        global: bool,
+
+        /// Output format (text, json, json-pretty)
         #[arg(short = 'o', long)]
         output: Option<String>,
 

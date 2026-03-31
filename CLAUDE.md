@@ -147,6 +147,7 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `src/agent_action.rs` | Core agent orchestration: `run_agent_action`, session setup, agent creation, execution |
 | `src/logging.rs` | Terminal logging, spinners, colored output (implements `ProgressHandler` pattern) |
 | `src/listen.rs` | Listen command: session log tailing, event formatting, session resolution |
+| `src/broadcast.rs` | `zag broadcast` command: send a message to all sessions matching a tag |
 | `src/ps.rs` | `zag ps` command: list/show/kill agent processes via `ProcessStore` |
 | `src/whoami.rs` | `zag whoami` command: session identity introspection via `ZAG_*` env vars |
 | `src/search.rs` | `zag search` command: CLI argument wiring, human-readable and JSON output |
@@ -169,6 +170,7 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `man/mcp.md` | Manpage for the `zag mcp` command |
 | `man/ps.md` | Manpage for the `zag ps` command |
 | `man/input.md` | Manpage for the `zag input` command |
+| `man/broadcast.md` | Manpage for the `zag broadcast` command |
 | `man/whoami.md` | Manpage for the `zag whoami` command |
 
 #### `bindings/` (language SDKs)
@@ -480,7 +482,7 @@ These are used by `zag whoami` for agent self-discovery and by nested `zag` invo
 
 ## Agent-to-Agent Messaging
 
-When `zag input` is called from within a zag session (detected via `ZAG_SESSION_ID`), messages are automatically wrapped in an XML envelope containing sender identity and reply instructions:
+When `zag input` or `zag broadcast` is called from within a zag session (detected via `ZAG_SESSION_ID`), messages are automatically wrapped in an XML envelope containing sender identity and reply instructions:
 
 ```
 <agent-message>
@@ -706,7 +708,8 @@ The provider is specified via the `--provider` (or `-p`) flag. If omitted, it de
 - **`mcp`** - Manage MCP servers across providers
 - **`ps`** - List, inspect, and kill agent processes started by zag
 - **`search`** - Search through session logs (full-text + filters)
-- **`input`** - Send a user message to a running or resumable session
+- **`input`** - Send a user message to a single running or resumable session
+- **`broadcast`** - Send a message to all sessions matching a tag
 - **`whoami`** - Show identity of the current zag session (for agent introspection)
 
 ```bash
@@ -884,12 +887,10 @@ zag search --json "api key" | jq .snippet  # JSON output
 zag search --regex "fn\s+\w+_handler"      # Regex search
 zag search --from 2024-01-01 "deploy"      # Date range filter
 
-# Send input to a session
+# Send input to a single session
 zag input "hello"                          # Auto-resolve to most recent session in this project
 zag input --session <session-id> "hello"   # Send a message to a specific session
 zag input --name backend-agent "hello"     # Send to a session by name
-zag input --tag api "hello"                # Send to a session by tag (single match)
-zag input --tag backend --broadcast "msg"  # Broadcast to ALL sessions with tag
 zag input --latest "continue"              # Send to the most recent session
 zag input --active "run tests"             # Send to the most active session
 zag input --ps 12345 "status"              # Send by PID
@@ -898,6 +899,12 @@ echo "message" | zag input                 # Pipe message from stdin
 zag input --stream --latest                # Stream messages interactively (Claude only)
 zag input --latest "task" -o stream-json   # NDJSON event output (Claude only)
 zag input --raw --session <id> "plain msg" # Send without agent envelope wrapping
+
+# Broadcast to multiple sessions by tag
+zag broadcast --tag backend "report status"          # Send to all sessions with tag
+zag broadcast --tag backend --global "deploy done"   # Cross-project broadcast
+echo "standup time" | zag broadcast --tag team       # Pipe from stdin
+zag broadcast --tag backend "status" -o json         # JSON output with per-session results
 
 # Session identity (agent introspection)
 zag whoami                                 # Show current session identity

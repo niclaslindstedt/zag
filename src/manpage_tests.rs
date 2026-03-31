@@ -26,6 +26,7 @@ fn test_print_manpage_all_commands() {
         "ps",
         "search",
         "input",
+        "broadcast",
     ] {
         assert!(
             print_manpage(Some(cmd)).is_ok(),
@@ -57,4 +58,5 @@ fn test_manpage_content_has_headers() {
     assert!(MAN_PS.contains("# zag ps"));
     assert!(MAN_SEARCH.contains("# zag search"));
     assert!(MAN_INPUT.contains("# zag input"));
+    assert!(MAN_BROADCAST.contains("# zag broadcast"));
 }

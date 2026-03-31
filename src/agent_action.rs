@@ -408,6 +408,7 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Ps { .. } => "ps",
         Commands::Search { .. } => "search",
         Commands::Input { .. } => "input",
+        Commands::Broadcast { .. } => "broadcast",
         Commands::Whoami { .. } => "whoami",
     }
 }

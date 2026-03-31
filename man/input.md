@@ -1,14 +1,12 @@
 # zag input
 
-Send a user message to a running or resumable session.
+Send a user message to a single running or resumable session.
 
 ## Synopsis
 
     zag input "message"
     zag input --session <session-id> "message"
     zag input --name <session-name> "message"
-    zag input --tag <tag> "message"
-    zag input --tag <tag> --broadcast "message"
     zag input --latest "message"
     zag input --active "message"
     zag input --ps <pid> "message"
@@ -18,7 +16,7 @@ Send a user message to a running or resumable session.
 
 ## Description
 
-`zag input` sends a user message to an existing agent session by resuming it non-interactively. This is the write counterpart to `zag listen` — while `listen` tails a session's output, `input` sends new messages into it.
+`zag input` sends a user message to a single existing agent session by resuming it non-interactively. This is the write counterpart to `zag listen` — while `listen` tails a session's output, `input` sends new messages into it. To send a message to multiple sessions at once, use `zag broadcast`.
 
 The command resolves the target session, looks up the provider-native session ID, and uses the provider's resume mechanism to deliver the message. For Claude, this uses `--resume --print` with `--replay-user-messages`.
 
@@ -32,7 +30,7 @@ The message text to send. If omitted (and `--stream` is not set), the message is
 
 ### `--session <SESSION_ID>`
 
-Target a specific session by ID. Supports both wrapper session IDs and provider-native session IDs. Mutually exclusive with `--latest`, `--active`, and `--ps`.
+Target a specific session by ID. Supports both wrapper session IDs and provider-native session IDs. Mutually exclusive with `--latest`, `--active`, `--ps`, and `--name`.
 
 ### `--latest`
 
@@ -44,19 +42,11 @@ Send to the most recently active session (by log file modification time).
 
 ### `--ps <PID>`
 
-Send to the session belonging to a process, specified by OS PID (integer) or zag process UUID (from `zag ps list`). Mutually exclusive with `--session`, `--latest`, `--active`, `--name`, and `--tag`.
+Send to the session belonging to a process, specified by OS PID (integer) or zag process UUID (from `zag ps list`). Mutually exclusive with `--session`, `--latest`, `--active`, and `--name`.
 
 ### `--name <NAME>`
 
-Target a session by its human-readable name (set via `--name` on `run`/`exec`). Resolves to the most recent session with the given name. Mutually exclusive with `--session`, `--latest`, `--active`, `--ps`, and `--tag`.
-
-### `--tag <TAG>`
-
-Target session(s) by tag (set via `--tag` on `run`/`exec`). If exactly one session matches, the message is sent to it. If multiple sessions match and `--broadcast` is not set, an error is shown with the matching sessions. Mutually exclusive with `--session`, `--latest`, `--active`, `--ps`, and `--name`.
-
-### `--broadcast`
-
-Send the message to ALL sessions matching the `--tag` filter. Requires `--tag`. Without `--broadcast`, `--tag` expects exactly one matching session.
+Target a session by its human-readable name (set via `--name` on `run`/`exec`). Resolves to the most recent session with the given name. Mutually exclusive with `--session`, `--latest`, `--active`, and `--ps`.
 
 ### `--global`
 
@@ -139,12 +129,6 @@ Session detection uses the `ZAG_SESSION_ID` and `ZAG_SESSION_NAME` environment v
     # Send to a named session
     zag input --name backend-agent "check the auth module"
 
-    # Send to a session by tag (single match)
-    zag input --tag api "what's the endpoint status?"
-
-    # Broadcast to all sessions with a tag
-    zag input --tag backend --broadcast "team standup: report your status"
-
     # Agent-to-agent: send a message (auto-wraps with sender info when inside a session)
     zag input --session <target-session-id> "please run the tests"
 
@@ -160,6 +144,7 @@ Session detection uses the `ZAG_SESSION_ID` and `ZAG_SESSION_NAME` environment v
 
 ## See Also
 
+    zag man broadcast Send a message to multiple sessions by tag
     zag man listen    Tail session output in real-time
     zag man run       Start an interactive session
     zag man exec      Run non-interactively
