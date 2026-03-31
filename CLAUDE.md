@@ -477,6 +477,22 @@ When `zag run` or `zag exec` spawns an agent subprocess, the following environme
 
 These are used by `zag whoami` for agent self-discovery and by nested `zag` invocations to track parent/child session hierarchies. The `ProcessEntry` in `processes.json` stores `parent_process_id` and `parent_session_id` when a nested zag process detects these env vars.
 
+## Agent-to-Agent Messaging
+
+When `zag input` is called from within a zag session (detected via `ZAG_SESSION_ID`), messages are automatically wrapped in an XML envelope containing sender identity and reply instructions:
+
+```
+<agent-message>
+<from session="abc123-def456" provider="claude" model="opus"/>
+<reply-with>zag input --session abc123-def456 "your reply here"</reply-with>
+<body>
+Original message content here
+</body>
+</agent-message>
+```
+
+The receiving agent can parse the `<from>` tag for sender context and use the `<reply-with>` command to respond. Use `--raw` to skip envelope wrapping.
+
 ## Logging
 
 The CLI includes professional logging and progress indicators to provide clear feedback about operations.
@@ -868,6 +884,7 @@ zag input --global "hello"                 # Auto-resolve across all projects
 echo "message" | zag input                 # Pipe message from stdin
 zag input --stream --latest                # Stream messages interactively (Claude only)
 zag input --latest "task" -o stream-json   # NDJSON event output (Claude only)
+zag input --raw --session <id> "plain msg" # Send without agent envelope wrapping
 
 # Session identity (agent introspection)
 zag whoami                                 # Show current session identity

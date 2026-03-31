@@ -381,6 +381,10 @@ pub enum Commands {
         /// Root directory for session resolution
         #[arg(short, long)]
         root: Option<String>,
+
+        /// Send without agent-to-agent envelope (skip sender metadata wrapping)
+        #[arg(long)]
+        raw: bool,
     },
 }
 

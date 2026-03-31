@@ -64,6 +64,28 @@ Output format for the agent's response:
 
 Root directory for session resolution.
 
+### `--raw`
+
+Send the message without agent-to-agent envelope wrapping. By default, when `zag input` is called from within a zag session (detected via `ZAG_SESSION_ID`), the message is wrapped with sender metadata and reply instructions. Use `--raw` to send the message verbatim.
+
+## Agent-to-Agent Messaging
+
+When `zag input` is invoked from within a zag session (i.e., by an agent), the message is automatically wrapped in an envelope containing the sender's identity and reply instructions:
+
+```
+<agent-message>
+<from session="abc123-def456" provider="claude" model="opus"/>
+<reply-with>zag input --session abc123-def456 "your reply here"</reply-with>
+<body>
+Original message content here
+</body>
+</agent-message>
+```
+
+The receiving agent can use the command in `<reply-with>` to send a response back. This enables bidirectional agent-to-agent communication via `zag input`.
+
+Session detection uses the `ZAG_SESSION_ID` environment variable, which is automatically set when `zag run` or `zag exec` spawns an agent subprocess. When not inside a session, messages are sent without wrapping.
+
 ## Examples
 
     # Send a message (auto-resolves to the most recent session in this project)
@@ -98,6 +120,12 @@ Root directory for session resolution.
 
     # Send to a session by zag process UUID
     zag input --ps a1b2c3d4-... "check progress"
+
+    # Agent-to-agent: send a message (auto-wraps with sender info when inside a session)
+    zag input --session <target-session-id> "please run the tests"
+
+    # Agent-to-agent: send without envelope wrapping
+    zag input --raw --session <target-session-id> "raw message"
 
 ## Provider Support
 

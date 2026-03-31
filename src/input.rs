@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "input_tests.rs"]
+mod tests;
+
 use anyhow::{Result, bail};
 use log::debug;
 
@@ -16,6 +20,51 @@ pub(crate) struct InputParams {
     pub output: Option<String>,
     pub root: Option<String>,
     pub quiet: bool,
+    pub raw: bool,
+}
+
+struct SenderInfo {
+    session_id: String,
+    provider: Option<String>,
+    model: Option<String>,
+}
+
+impl SenderInfo {
+    /// Read sender identity from ZAG_* env vars. Returns None if not inside a session.
+    fn from_env() -> Option<Self> {
+        let session_id = std::env::var("ZAG_SESSION_ID").ok()?;
+        Some(Self {
+            session_id,
+            provider: std::env::var("ZAG_PROVIDER").ok(),
+            model: std::env::var("ZAG_MODEL").ok(),
+        })
+    }
+}
+
+fn wrap_agent_message(message: &str, sender: &SenderInfo) -> String {
+    let provider = sender.provider.as_deref().unwrap_or("unknown");
+    let model = sender.model.as_deref().unwrap_or("unknown");
+    format!(
+        "<agent-message>\n\
+         <from session=\"{}\" provider=\"{}\" model=\"{}\"/>\n\
+         <reply-with>zag input --session {} \"your reply here\"</reply-with>\n\
+         <body>\n\
+         {}\n\
+         </body>\n\
+         </agent-message>",
+        sender.session_id, provider, model, sender.session_id, message
+    )
+}
+
+/// If inside a zag session and raw mode is not set, wrap the message with sender metadata.
+fn maybe_wrap_message(message: &str, raw: bool) -> String {
+    if raw {
+        return message.to_string();
+    }
+    match SenderInfo::from_env() {
+        Some(sender) => wrap_agent_message(message, &sender),
+        None => message.to_string(),
+    }
 }
 
 /// Resolve the session ID for the input command from the various targeting flags.
@@ -89,6 +138,7 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
         output,
         root,
         quiet,
+        raw,
     } = params;
 
     // Resolve the target session
@@ -165,7 +215,8 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
         // Send messages and read events concurrently
         let messages = stdin_task.await?;
         for msg in messages {
-            session.send_user_message(&msg).await?;
+            let wrapped = maybe_wrap_message(&msg, raw);
+            session.send_user_message(&wrapped).await?;
         }
         session.close_input();
 
@@ -204,6 +255,8 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
             }
             trimmed
         };
+
+        let msg = maybe_wrap_message(&msg, raw);
 
         debug!("Input command: sending message ({} bytes)", msg.len());
 

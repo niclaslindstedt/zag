@@ -346,6 +346,7 @@ async fn main() -> Result<()> {
             stream,
             output,
             root,
+            raw,
         } => {
             run_input(InputParams {
                 session,
@@ -358,6 +359,7 @@ async fn main() -> Result<()> {
                 output,
                 root,
                 quiet,
+                raw,
             })
             .await?;
         }
