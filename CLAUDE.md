@@ -180,6 +180,7 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `man/*.md` | Embedded manpages for the `zag man` command |
 | `prompts/auto-selector/*.md` | Versioned prompt templates for auto-selection (latest: 3_1) |
 | `prompts/json-wrap/*.md` | Versioned prompt templates for wrapping user prompts with JSON instructions (latest: 1_0) |
+| `man/orchestration.md` | Orchestration patterns guide: sequential, fan-out/gather, coordinator, hierarchical, generator-critic, iterative refinement, human-in-the-loop, A2A, composite |
 | `man/capability.md` | Manpage for the `zag capability` command |
 | `man/listen.md` | Manpage for the `zag listen` command |
 | `man/skills.md` | Manpage for the `zag skills` command |

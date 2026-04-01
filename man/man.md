@@ -31,3 +31,4 @@ Displays detailed documentation for zag commands. When called without arguments,
     zag man search        Manual for the search command
     zag man input         Manual for the input command
     zag man whoami        Manual for the whoami command
+    zag man orchestration Orchestration patterns guide

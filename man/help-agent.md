@@ -257,6 +257,27 @@ zag collect --tag batch --json > results.json
 # Feed results into next stage
 zag exec --context $sid1 "summarize the analysis and suggest fixes"
 
+# Chain results from multiple sessions into a new agent
+zag pipe --tag batch -- "synthesize all analyses into a report"
+
+# DAG dependencies: B waits for A, C waits for A with context injection
+sid_a=$(zag spawn "analyze the codebase")
+sid_b=$(zag spawn --depends-on $sid_a "fix issues")
+sid_c=$(zag spawn --depends-on $sid_a --inject-context "write tests based on analysis")
+
+# Inter-agent messaging
+zag input --name analyzer "focus on SQL injection risks"
+zag broadcast --tag batch "report your progress"
+
+# Event-driven reactions
+zag watch $sid1 --on session_ended --once -- echo "done: {session_id}"
+
+# Retry failed sessions (optionally with upgraded model)
+zag retry $sid1 --model large
+
+# Cancel running sessions
+zag cancel --tag batch --reason "timeout"
+
 # Export session env for nested invocations
 eval $(zag env --shell --session $sid1)
 
@@ -270,6 +291,11 @@ zag listen $sid1 --filter session_ended --filter tool_call
 # Exit code propagation
 zag exec --exit-on-failure "fix the bug" || echo "Agent failed"
 ```
+
+For complete orchestration pattern documentation (sequential pipelines,
+fan-out/gather, coordinator/dispatcher, generator-critic loops, hierarchical
+decomposition, human-in-the-loop, inter-agent communication, and composite
+patterns), run: `zag man orchestration`
 
 ## Detailed Documentation
 

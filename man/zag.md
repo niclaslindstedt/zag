@@ -119,4 +119,5 @@ Settings priority: CLI flags > config file > agent defaults.
     zag man cancel
     zag man summary
     zag man watch
+    zag man orchestration
     zag man subscribe
