@@ -31,6 +31,7 @@ const MAN_SUBSCRIBE: &str = include_str!("../man/subscribe.md");
 const MAN_LOG: &str = include_str!("../man/log.md");
 const MAN_OUTPUT: &str = include_str!("../man/output.md");
 const MAN_RETRY: &str = include_str!("../man/retry.md");
+const MAN_GC: &str = include_str!("../man/gc.md");
 
 /// AI-oriented reference document for `--help-agent`.
 pub(crate) const HELP_AGENT: &str = include_str!("../man/help-agent.md");
@@ -68,8 +69,9 @@ pub(crate) fn print_manpage(command: Option<&str>) -> Result<()> {
         Some("log") => MAN_LOG,
         Some("output") => MAN_OUTPUT,
         Some("retry") => MAN_RETRY,
+        Some("gc") => MAN_GC,
         Some(other) => bail!(
-            "No manual entry for '{}'. Available: run, exec, review, config, session, capability, listen, man, skills, mcp, ps, search, input, broadcast, whoami, wait, spawn, status, collect, env, pipe, events, cancel, summary, watch, subscribe, log, output, retry",
+            "No manual entry for '{}'. Available: run, exec, review, config, session, capability, listen, man, skills, mcp, ps, search, input, broadcast, whoami, wait, spawn, status, collect, env, pipe, events, cancel, summary, watch, subscribe, log, output, retry, gc",
             other
         ),
     };

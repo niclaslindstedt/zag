@@ -115,6 +115,7 @@ zag subscribe [--tag <tag>]   Multiplexed event stream from all sessions
 zag log <message> [--session] Append custom event to a session log
 zag output [<id>] [--latest]  Extract final result text from a session
 zag retry <id>... [--failed]  Re-run failed sessions with same config
+zag gc [--force] [--older-than]  Clean up old session data and logs
 
 zag capability                Show provider capability declarations
 zag skills list|add|remove|sync|import   Manage provider-agnostic skills

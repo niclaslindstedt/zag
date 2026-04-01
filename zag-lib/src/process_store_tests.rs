@@ -15,6 +15,8 @@ fn make_entry(id: &str, pid: u32, status: &str) -> ProcessEntry {
         exit_code: None,
         exited_at: None,
         root: None,
+        parent_process_id: None,
+        parent_session_id: None,
     }
 }
 
@@ -119,6 +121,8 @@ fn process_entry_full_serialization_roundtrip() {
         exit_code: Some(0),
         exited_at: Some("2026-03-28T10:05:00Z".to_string()),
         root: Some("/home/user/project".to_string()),
+        parent_process_id: None,
+        parent_session_id: None,
     };
     let json = serde_json::to_string(&entry).unwrap();
     let parsed: ProcessEntry = serde_json::from_str(&json).unwrap();
@@ -145,6 +149,8 @@ fn process_entry_minimal_serialization_roundtrip() {
         exit_code: None,
         exited_at: None,
         root: None,
+        parent_process_id: None,
+        parent_session_id: None,
     };
     let json = serde_json::to_string(&entry).unwrap();
     let parsed: ProcessEntry = serde_json::from_str(&json).unwrap();

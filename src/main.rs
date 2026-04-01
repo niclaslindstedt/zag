@@ -25,6 +25,7 @@ mod collect;
 mod commands;
 mod env;
 mod events;
+mod gc;
 mod input;
 mod json_mode;
 mod lifecycle;
@@ -679,6 +680,21 @@ async fn main() -> Result<()> {
                 failed,
                 model,
                 json: retry_json,
+                root,
+            })?;
+        }
+        Commands::Gc {
+            force,
+            older_than,
+            keep_logs,
+            json: gc_json,
+            root,
+        } => {
+            gc::run_gc(gc::GcParams {
+                force,
+                older_than,
+                keep_logs,
+                json: gc_json,
                 root,
             })?;
         }

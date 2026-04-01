@@ -161,6 +161,16 @@ pub enum LogEventKind {
     Heartbeat {
         interval_secs: Option<u64>,
     },
+    Usage {
+        input_tokens: u64,
+        output_tokens: u64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cache_read_tokens: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cache_creation_tokens: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        total_cost_usd: Option<f64>,
+    },
     UserEvent {
         level: String,
         message: String,
@@ -588,10 +598,14 @@ impl SessionLogCoordinator {
                 task: Some(task),
             })
         } else {
+            // No live adapter — start a standalone heartbeat loop
+            let (stop_tx, stop_rx) = watch::channel(false);
+            let writer_clone = writer.clone();
+            let task = tokio::spawn(async move { run_heartbeat_loop(writer_clone, stop_rx).await });
             Ok(Self {
                 writer,
-                stop_tx: None,
-                task: None,
+                stop_tx: Some(stop_tx),
+                task: Some(task),
             })
         }
     }
@@ -754,6 +768,33 @@ pub fn record_agent_output(writer: &SessionLogWriter, output: &AgentOutput) -> R
             }
         }
     }
+
+    // Emit usage/cost event if available
+    if let Some(ref usage) = output.usage {
+        writer.emit(
+            LogSourceKind::Wrapper,
+            LogEventKind::Usage {
+                input_tokens: usage.input_tokens,
+                output_tokens: usage.output_tokens,
+                cache_read_tokens: usage.cache_read_tokens,
+                cache_creation_tokens: usage.cache_creation_tokens,
+                total_cost_usd: output.total_cost_usd,
+            },
+        )?;
+    } else if let Some(cost) = output.total_cost_usd {
+        // Cost without detailed usage breakdown
+        writer.emit(
+            LogSourceKind::Wrapper,
+            LogEventKind::Usage {
+                input_tokens: 0,
+                output_tokens: 0,
+                cache_read_tokens: None,
+                cache_creation_tokens: None,
+                total_cost_usd: Some(cost),
+            },
+        )?;
+    }
+
     Ok(())
 }
 
@@ -828,13 +869,29 @@ pub fn run_backfill(
     Ok(imported)
 }
 
+/// Heartbeat interval for session liveness detection.
+const HEARTBEAT_INTERVAL_SECS: u64 = 10;
+
 async fn run_live_adapter(
     mut adapter: Box<dyn LiveLogAdapter>,
     writer: SessionLogWriter,
     mut stop_rx: watch::Receiver<bool>,
 ) -> Result<()> {
+    let mut last_heartbeat = tokio::time::Instant::now();
     loop {
         adapter.poll(&writer).await?;
+
+        // Emit periodic heartbeats for liveness detection
+        if last_heartbeat.elapsed().as_secs() >= HEARTBEAT_INTERVAL_SECS {
+            let _ = writer.emit(
+                LogSourceKind::Wrapper,
+                LogEventKind::Heartbeat {
+                    interval_secs: Some(HEARTBEAT_INTERVAL_SECS),
+                },
+            );
+            last_heartbeat = tokio::time::Instant::now();
+        }
+
         tokio::select! {
             changed = stop_rx.changed() => {
                 if changed.is_ok() && *stop_rx.borrow() {
@@ -845,6 +902,31 @@ async fn run_live_adapter(
         }
     }
     adapter.finalize(&writer).await
+}
+
+/// Run a standalone heartbeat loop for sessions without a live adapter.
+async fn run_heartbeat_loop(
+    writer: SessionLogWriter,
+    mut stop_rx: watch::Receiver<bool>,
+) -> Result<()> {
+    loop {
+        tokio::select! {
+            changed = stop_rx.changed() => {
+                if changed.is_ok() && *stop_rx.borrow() {
+                    break;
+                }
+            }
+            _ = tokio::time::sleep(std::time::Duration::from_secs(HEARTBEAT_INTERVAL_SECS)) => {
+                let _ = writer.emit(
+                    LogSourceKind::Wrapper,
+                    LogEventKind::Heartbeat {
+                        interval_secs: Some(HEARTBEAT_INTERVAL_SECS),
+                    },
+                );
+            }
+        }
+    }
+    Ok(())
 }
 
 fn next_sequence(path: &Path) -> Result<u64> {

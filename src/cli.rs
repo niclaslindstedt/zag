@@ -782,6 +782,28 @@ pub enum Commands {
         #[arg(short, long)]
         root: Option<String>,
     },
+    /// Clean up old session data, logs, and process entries
+    Gc {
+        /// Actually delete (default is dry-run)
+        #[arg(long)]
+        force: bool,
+
+        /// Only clean data older than this threshold (e.g. 7d, 30d, 24h)
+        #[arg(long, default_value = "7d")]
+        older_than: String,
+
+        /// Keep session log files (only clean process/marker entries)
+        #[arg(long)]
+        keep_logs: bool,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Root directory for session resolution
+        #[arg(short, long)]
+        root: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]

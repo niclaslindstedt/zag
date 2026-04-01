@@ -175,6 +175,7 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `src/log_cmd.rs` | `zag log` command: append custom structured events to session logs |
 | `src/output_cmd.rs` | `zag output` command: extract final result text from sessions |
 | `src/retry.rs` | `zag retry` command: re-run failed sessions with same configuration |
+| `src/gc.rs` | `zag gc` command: clean up old session data, logs, and process entries |
 | `src/lifecycle.rs` | Filesystem lifecycle markers (`.started`/`.ended` in `~/.zag/events/`) |
 | `man/*.md` | Embedded manpages for the `zag man` command |
 | `prompts/auto-selector/*.md` | Versioned prompt templates for auto-selection (latest: 3_1) |
@@ -201,6 +202,7 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `man/log.md` | Manpage for the `zag log` command |
 | `man/output.md` | Manpage for the `zag output` command |
 | `man/retry.md` | Manpage for the `zag retry` command |
+| `man/gc.md` | Manpage for the `zag gc` command |
 
 #### `bindings/` (language SDKs)
 
@@ -754,6 +756,7 @@ The provider is specified via the `--provider` (or `-p`) flag. If omitted, it de
 - **`log`** - Append custom structured events to a session log
 - **`output`** - Extract final result text from a session
 - **`retry`** - Re-run failed sessions with the same configuration
+- **`gc`** - Clean up old session data, logs, and process entries
 
 ```bash
 # Interactive mode (uses default provider, typically claude)
@@ -1016,6 +1019,13 @@ zag output --tag batch --json                        # JSON output for all tagge
 zag retry $sid                                       # Retry a specific session
 zag retry --tag batch --failed                       # Retry all failed in batch
 zag retry $sid --model large                         # Retry with upgraded model
+
+# Garbage collection
+zag gc                                               # Dry run — show what would be cleaned
+zag gc --force                                       # Actually delete
+zag gc --force --older-than 30d                      # Custom threshold
+zag gc --force --keep-logs                           # Only clean process/marker entries
+zag gc --json                                        # Machine-readable output
 
 # Configuration
 zag config                       # Print full config

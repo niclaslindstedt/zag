@@ -46,6 +46,8 @@ pub struct StatusInfo {
     pub pid: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_heartbeat_at: Option<String>,
 }
 
 /// Determine session status by combining session store, process store, and log state.
@@ -75,6 +77,7 @@ pub fn determine_status(session_id: &str, root: Option<&str>) -> Result<StatusIn
         if let Ok(file) = file {
             let reader = BufReader::new(file);
             let mut last_event_ts: Option<String> = None;
+            let mut last_heartbeat_ts: Option<String> = None;
             let mut ended: Option<(bool, Option<String>)> = None;
 
             for line in reader.lines() {
@@ -88,8 +91,14 @@ pub fn determine_status(session_id: &str, root: Option<&str>) -> Result<StatusIn
                 }
                 if let Ok(event) = serde_json::from_str::<AgentLogEvent>(trimmed) {
                     last_event_ts = Some(event.ts.clone());
-                    if let LogEventKind::SessionEnded { success, error } = &event.kind {
-                        ended = Some((*success, error.clone()));
+                    match &event.kind {
+                        LogEventKind::SessionEnded { success, error } => {
+                            ended = Some((*success, error.clone()));
+                        }
+                        LogEventKind::Heartbeat { .. } => {
+                            last_heartbeat_ts = Some(event.ts.clone());
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -108,6 +117,7 @@ pub fn determine_status(session_id: &str, root: Option<&str>) -> Result<StatusIn
                     name,
                     pid: proc_entry.map(|e| e.pid),
                     error,
+                    last_heartbeat_at: last_heartbeat_ts,
                 });
             }
 
@@ -115,8 +125,11 @@ pub fn determine_status(session_id: &str, root: Option<&str>) -> Result<StatusIn
             if let Some(pe) = proc_entry {
                 let live = resolve_live_status(pe);
                 if live == "running" {
-                    // Check log freshness: if last event < 30s ago → running, else → idle
-                    let status = if let Some(ref ts) = last_event_ts {
+                    // Use heartbeat timestamp for liveness if available (more reliable
+                    // than generic event timestamps during long thinking phases).
+                    // Fall back to last event timestamp if no heartbeats yet.
+                    let liveness_ts = last_heartbeat_ts.as_ref().or(last_event_ts.as_ref());
+                    let status = if let Some(ts) = liveness_ts {
                         if is_recent(ts, 30) {
                             SessionStatus::Running
                         } else {
@@ -133,6 +146,10 @@ pub fn determine_status(session_id: &str, root: Option<&str>) -> Result<StatusIn
                         name,
                         pid: Some(pe.pid),
                         error: None,
+                        last_heartbeat_at: last_heartbeat_ts
+                            .as_ref()
+                            .or(last_event_ts.as_ref())
+                            .cloned(),
                     });
                 } else {
                     // Process dead but no SessionEnded
@@ -144,6 +161,7 @@ pub fn determine_status(session_id: &str, root: Option<&str>) -> Result<StatusIn
                         name,
                         pid: Some(pe.pid),
                         error: Some("process died without clean exit".to_string()),
+                        last_heartbeat_at: last_heartbeat_ts,
                     });
                 }
             }
@@ -174,6 +192,7 @@ pub fn determine_status(session_id: &str, root: Option<&str>) -> Result<StatusIn
             name,
             pid: Some(pe.pid),
             error: None,
+            last_heartbeat_at: None,
         });
     }
 
@@ -187,6 +206,7 @@ pub fn determine_status(session_id: &str, root: Option<&str>) -> Result<StatusIn
             name,
             pid: None,
             error: None,
+            last_heartbeat_at: None,
         });
     }
 

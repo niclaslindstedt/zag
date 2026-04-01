@@ -431,6 +431,7 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Log { .. } => "log",
         Commands::Output { .. } => "output",
         Commands::Retry { .. } => "retry",
+        Commands::Gc { .. } => "gc",
     }
 }
 

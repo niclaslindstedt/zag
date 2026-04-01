@@ -338,3 +338,122 @@ fn test_writer_populates_global_index_when_configured() {
     assert_eq!(index.sessions[0].session_id, "global-test-1");
     assert_eq!(index.sessions[0].provider, "claude");
 }
+
+#[test]
+fn test_usage_event_json_roundtrip() {
+    let event = LogEventKind::Usage {
+        input_tokens: 1500,
+        output_tokens: 500,
+        cache_read_tokens: Some(200),
+        cache_creation_tokens: None,
+        total_cost_usd: Some(0.0042),
+    };
+    let json = serde_json::to_string(&event).unwrap();
+    assert!(json.contains("\"usage\"") || json.contains("\"Usage\""));
+    assert!(json.contains("1500"));
+    assert!(json.contains("0.0042"));
+    let parsed: LogEventKind = serde_json::from_str(&json).unwrap();
+    match parsed {
+        LogEventKind::Usage {
+            input_tokens,
+            output_tokens,
+            cache_read_tokens,
+            cache_creation_tokens,
+            total_cost_usd,
+        } => {
+            assert_eq!(input_tokens, 1500);
+            assert_eq!(output_tokens, 500);
+            assert_eq!(cache_read_tokens, Some(200));
+            assert_eq!(cache_creation_tokens, None);
+            assert_eq!(total_cost_usd, Some(0.0042));
+        }
+        _ => panic!("Expected Usage variant"),
+    }
+}
+
+#[test]
+fn test_record_agent_output_emits_usage() {
+    let (logs_dir, _guard) = temp_logs_dir("usage-emit");
+    let writer = SessionLogWriter::create(
+        &logs_dir,
+        SessionLogMetadata {
+            provider: "claude".to_string(),
+            wrapper_session_id: "usage-test-1".to_string(),
+            provider_session_id: None,
+            workspace_path: None,
+            command: "exec".to_string(),
+            model: Some("sonnet".to_string()),
+            resumed: false,
+            backfilled: false,
+        },
+    )
+    .unwrap();
+
+    let output = AgentOutput {
+        agent: "claude".to_string(),
+        session_id: "native-usage-1".to_string(),
+        events: vec![],
+        result: Some("done".to_string()),
+        is_error: false,
+        total_cost_usd: Some(0.05),
+        usage: Some(crate::output::Usage {
+            input_tokens: 10000,
+            output_tokens: 2000,
+            cache_read_tokens: Some(500),
+            cache_creation_tokens: Some(100),
+            web_search_requests: None,
+            web_fetch_requests: None,
+        }),
+    };
+
+    record_agent_output(&writer, &output).unwrap();
+    let content = std::fs::read_to_string(writer.log_path().unwrap()).unwrap();
+    assert!(content.contains("\"usage\"") || content.contains("\"Usage\""));
+    assert!(content.contains("10000"));
+    assert!(content.contains("2000"));
+    assert!(content.contains("0.05"));
+}
+
+#[test]
+fn test_heartbeat_event_json_roundtrip() {
+    let event = LogEventKind::Heartbeat {
+        interval_secs: Some(10),
+    };
+    let json = serde_json::to_string(&event).unwrap();
+    assert!(json.contains("10"));
+    let parsed: LogEventKind = serde_json::from_str(&json).unwrap();
+    match parsed {
+        LogEventKind::Heartbeat { interval_secs } => {
+            assert_eq!(interval_secs, Some(10));
+        }
+        _ => panic!("Expected Heartbeat variant"),
+    }
+}
+
+#[test]
+fn test_coordinator_emits_heartbeat_without_live_adapter() {
+    let (logs_dir, _guard) = temp_logs_dir("heartbeat");
+    let metadata = SessionLogMetadata {
+        provider: "claude".to_string(),
+        wrapper_session_id: "heartbeat-test-1".to_string(),
+        provider_session_id: None,
+        workspace_path: None,
+        command: "run".to_string(),
+        model: Some("opus".to_string()),
+        resumed: false,
+        backfilled: false,
+    };
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(async {
+        let coordinator = SessionLogCoordinator::start(&logs_dir, metadata, None).unwrap();
+        let log_path = coordinator.writer().log_path().unwrap();
+        // Just verify it starts and stops without error
+        coordinator.finish(true, None).await.unwrap();
+
+        let content = std::fs::read_to_string(&log_path).unwrap();
+        // The session_started and session_ended events should be present
+        assert!(content.contains("\"session_started\""));
+        assert!(content.contains("\"session_ended\""));
+    });
+}

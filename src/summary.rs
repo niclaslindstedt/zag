@@ -41,6 +41,12 @@ pub struct SessionSummary {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     pub event_count: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_tokens: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_tokens: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_cost_usd: Option<f64>,
 }
 
 /// Build a summary from a session's JSONL log.
@@ -66,6 +72,10 @@ fn summarize_session(session_id: &str, root: Option<&str>) -> Result<SessionSumm
     let mut status = "running".to_string();
     let mut error: Option<String> = None;
     let mut event_count: u32 = 0;
+    let mut total_input_tokens: u64 = 0;
+    let mut total_output_tokens: u64 = 0;
+    let mut total_cost: f64 = 0.0;
+    let mut has_usage = false;
 
     for line in reader.lines() {
         let line = match line {
@@ -117,6 +127,19 @@ fn summarize_session(session_id: &str, root: Option<&str>) -> Result<SessionSumm
                 };
                 error = err.clone();
             }
+            LogEventKind::Usage {
+                input_tokens,
+                output_tokens,
+                total_cost_usd,
+                ..
+            } => {
+                has_usage = true;
+                total_input_tokens += input_tokens;
+                total_output_tokens += output_tokens;
+                if let Some(cost) = total_cost_usd {
+                    total_cost += cost;
+                }
+            }
             _ => {}
         }
     }
@@ -152,6 +175,21 @@ fn summarize_session(session_id: &str, root: Option<&str>) -> Result<SessionSumm
         result: last_assistant_msg.map(|s| s.chars().take(500).collect()),
         error,
         event_count,
+        input_tokens: if has_usage {
+            Some(total_input_tokens)
+        } else {
+            None
+        },
+        output_tokens: if has_usage {
+            Some(total_output_tokens)
+        } else {
+            None
+        },
+        total_cost_usd: if has_usage && total_cost > 0.0 {
+            Some(total_cost)
+        } else {
+            None
+        },
     })
 }
 
@@ -249,6 +287,13 @@ pub fn run_summary(params: SummaryParams) -> Result<()> {
                     "Turns: {}, Events: {}, Total tool calls: {}",
                     s.turns, s.event_count, s.total_tool_calls
                 );
+                if let (Some(input), Some(output)) = (s.input_tokens, s.output_tokens) {
+                    let cost_str = s
+                        .total_cost_usd
+                        .map(|c| format!(", Cost: ${:.4}", c))
+                        .unwrap_or_default();
+                    println!("Tokens: {} in / {} out{}", input, output, cost_str);
+                }
             } else {
                 println!("Turns: {}", s.turns);
             }

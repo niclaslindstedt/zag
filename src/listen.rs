@@ -281,6 +281,7 @@ fn event_type_name(kind: &LogEventKind) -> &'static str {
         LogEventKind::SessionEnded { .. } => "session_ended",
         LogEventKind::Heartbeat { .. } => "heartbeat",
         LogEventKind::UserEvent { .. } => "user_event",
+        LogEventKind::Usage { .. } => "usage",
     }
 }
 
@@ -468,6 +469,20 @@ pub fn format_event_text(event: &AgentLogEvent, show_thinking: bool) -> Option<S
             Some(format!("\n\u{25cf} Session {}{}", status, error_info))
         }
         LogEventKind::Heartbeat { .. } => None,
+        LogEventKind::Usage {
+            input_tokens,
+            output_tokens,
+            total_cost_usd,
+            ..
+        } => {
+            let cost_str = total_cost_usd
+                .map(|c| format!(", cost=${:.4}", c))
+                .unwrap_or_default();
+            Some(format!(
+                "  tokens: {} in / {} out{}",
+                input_tokens, output_tokens, cost_str
+            ))
+        }
         LogEventKind::UserEvent { level, message, .. } => {
             Some(format!("  [{}] {}", level, truncate(message, 200)))
         }
@@ -658,6 +673,20 @@ pub fn format_event_rich(event: &AgentLogEvent, show_thinking: bool) -> Option<S
             ))
         }
         LogEventKind::Heartbeat { .. } => None,
+        LogEventKind::Usage {
+            input_tokens,
+            output_tokens,
+            total_cost_usd,
+            ..
+        } => {
+            let cost_str = total_cost_usd
+                .map(|c| format!(", cost=\x1b[33m${:.4}\x1b[0m", c))
+                .unwrap_or_default();
+            Some(format!(
+                "  \x1b[2mtokens: {} in / {} out{}\x1b[0m",
+                input_tokens, output_tokens, cost_str
+            ))
+        }
         LogEventKind::UserEvent { level, message, .. } => {
             let color = match level.as_str() {
                 "error" => "31",
