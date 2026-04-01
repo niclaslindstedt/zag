@@ -27,9 +27,25 @@ cargo run -p cv-review -- --cv-dir cvs/ --job jobs/senior_backend.txt
 cargo run -p cv-review -- --cv-dir cvs/ --job jobs/senior_backend.txt --rules scoring_rules.toml
 ```
 
+To use a different provider or model, edit the `AgentBuilder` calls in `src/main.rs` or set defaults via `zag config`:
+
+```bash
+zag config provider gemini
+zag config model large
+```
+
+## What to expect
+
+Each CV produces two rounds of output:
+
+1. **Recruiter Screen** — structured JSON with scores (1-10) for experience, skills, education, communication, and culture fit, plus strengths, weaknesses, and a recommendation
+2. **Hiring Committee** — calibrated adjustments with transparent justifications and a final hire/no-hire recommendation
+
+When batch-reviewing, all CVs are processed in parallel. A summary table is printed at the end with all candidates ranked by overall score.
+
 ## Sample data
 
-- `cvs/` — 10 sample candidate CVs
+- `cvs/` — 10 sample candidate CVs with varying experience levels
 - `jobs/` — 3 job descriptions (senior backend, fullstack lead, ML platform)
 - `scoring_rules.toml` — Configurable thresholds and category weights
 

@@ -35,6 +35,22 @@ This starts both:
 
 Open http://localhost:5173 in your browser.
 
+To use a different provider or model, set environment variables before starting:
+
+```bash
+ZAG_PROVIDER=gemini npm run dev
+```
+
+## What you'll see
+
+A dark-themed chat interface similar to Claude Code:
+
+- **Status bar** at the top showing connection state, model name, and session ID
+- **Message bubbles** for user and assistant messages (with basic markdown rendering)
+- **Collapsible tool blocks** showing tool name, input, and output (with icons per tool kind: shell, file read/write, search, etc.)
+- **Collapsible thinking blocks** for reasoning/thinking content
+- **Multi-turn support** — after the first response, you can send follow-up messages that continue the same session
+
 ## Architecture
 
 ```

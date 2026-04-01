@@ -69,8 +69,11 @@ for await (const event of new ZagBuilder().provider("claude").stream("analyze co
 | Method | Returns | Description |
 |--------|---------|-------------|
 | `.exec(prompt)` | `Promise<AgentOutput>` | Run non-interactively, return structured output |
-| `.stream(prompt)` | `AsyncIterable<Event>` | Stream NDJSON events |
+| `.stream(prompt)` | `AsyncGenerator<Event>` | Stream NDJSON events |
+| `.execStreaming(prompt)` | `StreamingSession` | Bidirectional streaming (Claude only) |
 | `.run(prompt?)` | `Promise<void>` | Start an interactive session (inherits stdio) |
+| `.resume(sessionId)` | `Promise<void>` | Resume a previous session by ID |
+| `.continueLast()` | `Promise<void>` | Resume the most recent session |
 
 ## How it works
 

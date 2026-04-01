@@ -46,8 +46,8 @@ async for event in await ZagBuilder().provider("claude").stream("analyze code"):
 | `.root(path)` | Set the working directory |
 | `.auto_approve()` | Skip permission prompts |
 | `.add_dir(path)` | Add an additional directory (chainable) |
-| `.json()` | Request JSON output |
-| `.json_schema(schema)` | Validate output against a JSON schema (implies `.json()`) |
+| `.json_mode()` | Request JSON output |
+| `.json_schema(schema)` | Validate output against a JSON schema (implies `.json_mode()`) |
 | `.json_stream()` | Enable streaming NDJSON output |
 | `.worktree(name=None)` | Run in an isolated git worktree |
 | `.sandbox(name=None)` | Run in a Docker sandbox |
@@ -67,7 +67,10 @@ async for event in await ZagBuilder().provider("claude").stream("analyze code"):
 |--------|---------|-------------|
 | `.exec(prompt)` | `AgentOutput` | Run non-interactively, return structured output |
 | `.stream(prompt)` | `AsyncGenerator[Event]` | Stream NDJSON events |
+| `.exec_streaming(prompt)` | `StreamingSession` | Bidirectional streaming (Claude only) |
 | `.run(prompt=None)` | `None` | Start an interactive session (inherits stdio) |
+| `.resume(session_id)` | `None` | Resume a previous session by ID |
+| `.continue_last()` | `None` | Resume the most recent session |
 
 ## How it works
 

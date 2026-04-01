@@ -64,6 +64,46 @@ zag = "0.1"
 tokio = { version = "1", features = ["full"] }
 ```
 
+### Example: spawn, wait, and collect results
+
+The orchestration modules expose public functions that mirror the CLI commands. Here's the typical pattern for spawning parallel agents and gathering results:
+
+```bash
+# From the CLI — the most common way to use these primitives:
+sid1=$(zag spawn --name analyzer --tag batch -p claude "analyze auth module")
+sid2=$(zag spawn --name reviewer --tag batch -p gemini "review test coverage")
+
+# Wait for all tagged sessions to finish
+zag wait --tag batch --timeout 5m
+
+# Collect results into a JSON array
+zag collect --tag batch --json > results.json
+
+# Chain results into a synthesis step
+zag pipe --tag batch -- "summarize all findings into a report"
+```
+
+Each CLI command delegates to the corresponding module function (e.g., `zag spawn` calls `zag_orch::spawn::run_spawn()`). The module functions accept structured arguments and return typed results, so you can call them from Rust code without going through the CLI.
+
+### Example: session status polling
+
+```bash
+sid=$(zag spawn "long running task")
+
+# Poll until complete
+while true; do
+    status=$(zag status "$sid" --json | jq -r .status)
+    case "$status" in
+        completed) echo "Done!"; break ;;
+        failed)    echo "Failed!"; exit 1 ;;
+        *)         sleep 5 ;;
+    esac
+done
+
+# Get the result
+zag output "$sid"
+```
+
 ## See also
 
 - [Root README](../README.md) — Full CLI documentation and orchestration examples

@@ -47,13 +47,16 @@ make build && make test && make clippy && make fmt
 
 ```
 zag/
-├── src/              # Binary crate (CLI wrapper)
-├── zag-lib/src/      # Library crate (core logic)
-├── examples/         # Example projects
+├── src/              # Binary crate — thin CLI wrapper (argument parsing, dispatch)
+├── zag-lib/src/      # Library crate — agent trait, providers, builder API, config
+├── zag-orch/src/     # Orchestration crate — spawn, wait, collect, pipe, and more
+├── examples/         # Example projects (cv-review, orchestration scripts, React UI)
 ├── bindings/         # Language SDKs (TypeScript, Python, C#)
-├── man/              # Manpages
-└── prompts/          # Prompt templates
+├── man/              # Manpages (embedded in `zag man`)
+└── prompts/          # Prompt templates (auto-selector, json-wrap)
 ```
+
+Dependency graph: `zag-lib` ← `zag-orch` ← `zag` (binary). The binary also depends directly on `zag-lib`.
 
 See `CLAUDE.md` for detailed architecture documentation.
 

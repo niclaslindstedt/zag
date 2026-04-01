@@ -69,7 +69,10 @@ await foreach (var evt in new ZagBuilder().Provider("claude").StreamAsync("analy
 |--------|---------|-------------|
 | `.ExecAsync(prompt)` | `Task<AgentOutput>` | Run non-interactively, return structured output |
 | `.StreamAsync(prompt)` | `IAsyncEnumerable<Event>` | Stream NDJSON events |
+| `.ExecStreaming(prompt)` | `StreamingSession` | Bidirectional streaming (Claude only) |
 | `.RunAsync(prompt?)` | `Task` | Start an interactive session (inherits stdio) |
+| `.ResumeAsync(sessionId)` | `Task` | Resume a previous session by ID |
+| `.ContinueLastAsync()` | `Task` | Resume the most recent session |
 
 ## How it works
 

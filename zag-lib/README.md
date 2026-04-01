@@ -100,6 +100,69 @@ AgentBuilder::new()
     .await?;
 ```
 
+### Worktree isolation
+
+```rust
+use zag::builder::AgentBuilder;
+
+// Run the agent in an isolated git worktree
+let output = AgentBuilder::new()
+    .provider("claude")
+    .worktree(Some("my-feature"))
+    .auto_approve(true)
+    .exec("implement the feature")
+    .await?;
+```
+
+### Limiting agentic turns
+
+```rust
+use zag::builder::AgentBuilder;
+
+let output = AgentBuilder::new()
+    .provider("claude")
+    .max_turns(5)
+    .exec("fix the failing test")
+    .await?;
+```
+
+## Builder methods
+
+| Method | Description |
+|--------|-------------|
+| `.provider(name)` | Set provider: `"claude"`, `"codex"`, `"gemini"`, `"copilot"`, `"ollama"` |
+| `.model(name)` | Set model name or size alias (`"small"`, `"medium"`, `"large"`) |
+| `.system_prompt(text)` | Set a system prompt |
+| `.root(path)` | Set the root directory for the agent |
+| `.auto_approve(bool)` | Skip permission prompts |
+| `.add_dir(path)` | Add an additional directory (chainable) |
+| `.json()` | Request JSON output |
+| `.json_schema(schema)` | Validate output against a JSON schema (implies `.json()`) |
+| `.json_stream()` | Enable streaming NDJSON output |
+| `.worktree(name)` | Run in an isolated git worktree |
+| `.sandbox(name)` | Run inside a Docker sandbox |
+| `.session_id(uuid)` | Pre-set a session ID |
+| `.output_format(fmt)` | Set output format (`"text"`, `"json"`, `"json-pretty"`, `"stream-json"`) |
+| `.input_format(fmt)` | Set input format (`"text"`, `"stream-json"` — Claude only) |
+| `.replay_user_messages(bool)` | Re-emit user messages on stdout (Claude only) |
+| `.include_partial_messages(bool)` | Include partial message chunks (Claude only) |
+| `.max_turns(n)` | Maximum number of agentic turns |
+| `.size(size)` | Ollama parameter size (e.g., `"2b"`, `"9b"`, `"35b"`) |
+| `.show_usage(bool)` | Show token usage statistics |
+| `.verbose(bool)` | Enable verbose output |
+| `.quiet(bool)` | Suppress non-essential output |
+| `.on_progress(handler)` | Set a custom progress handler |
+
+### Terminal methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `.exec(prompt)` | `Result<AgentOutput>` | Run non-interactively, return structured output |
+| `.exec_streaming(prompt)` | `Result<StreamingSession>` | Bidirectional streaming (Claude only) |
+| `.run(prompt)` | `Result<()>` | Start an interactive session (inherits stdio) |
+| `.resume(session_id)` | `Result<()>` | Resume a previous session by ID |
+| `.continue_last()` | `Result<()>` | Resume the most recent session |
+
 ## CLI
 
 The companion binary crate [`zag-cli`](https://crates.io/crates/zag-cli) provides a full CLI:
