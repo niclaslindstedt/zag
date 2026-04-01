@@ -26,6 +26,7 @@ pub struct SpawnParams {
     pub metadata: SessionMetadata,
     pub depends_on: Vec<String>,
     pub inject_context: bool,
+    pub retried_from: Option<String>,
 }
 
 /// Directory for spawn log files.
@@ -65,6 +66,7 @@ pub fn run_spawn(params: SpawnParams) -> Result<()> {
         description: params.metadata.description.clone(),
         tags: params.metadata.tags.clone(),
         dependencies: params.depends_on.clone(),
+        retried_from: params.retried_from.clone(),
     });
     if let Err(e) = session_store.save(params.root.as_deref()) {
         log::warn!("Failed to save session store: {}", e);

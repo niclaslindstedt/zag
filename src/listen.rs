@@ -280,6 +280,7 @@ fn event_type_name(kind: &LogEventKind) -> &'static str {
         LogEventKind::SessionCleared { .. } => "session_cleared",
         LogEventKind::SessionEnded { .. } => "session_ended",
         LogEventKind::Heartbeat { .. } => "heartbeat",
+        LogEventKind::UserEvent { .. } => "user_event",
     }
 }
 
@@ -467,6 +468,9 @@ pub fn format_event_text(event: &AgentLogEvent, show_thinking: bool) -> Option<S
             Some(format!("\n\u{25cf} Session {}{}", status, error_info))
         }
         LogEventKind::Heartbeat { .. } => None,
+        LogEventKind::UserEvent { level, message, .. } => {
+            Some(format!("  [{}] {}", level, truncate(message, 200)))
+        }
     }
 }
 
@@ -654,6 +658,19 @@ pub fn format_event_rich(event: &AgentLogEvent, show_thinking: bool) -> Option<S
             ))
         }
         LogEventKind::Heartbeat { .. } => None,
+        LogEventKind::UserEvent { level, message, .. } => {
+            let color = match level.as_str() {
+                "error" => "31",
+                "warn" => "33",
+                _ => "36",
+            };
+            Some(format!(
+                "  \x1b[{}m[{}]\x1b[0m {}",
+                color,
+                level,
+                truncate(message, 200)
+            ))
+        }
     }
 }
 

@@ -264,6 +264,9 @@ fn extract_searchable_text(event: &AgentLogEvent) -> String {
         }
         LogEventKind::SessionCleared { .. } => {}
         LogEventKind::Heartbeat { .. } => {}
+        LogEventKind::UserEvent { message, .. } => {
+            parts.push(message.clone());
+        }
     }
 
     parts.join(" ")

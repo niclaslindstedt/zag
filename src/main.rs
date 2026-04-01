@@ -29,12 +29,15 @@ mod input;
 mod json_mode;
 mod lifecycle;
 mod listen;
+mod log_cmd;
 mod logging;
 mod manpage;
 mod output;
+mod output_cmd;
 mod pipe;
 mod ps;
 mod resume;
+mod retry;
 mod review;
 mod search;
 mod session_log;
@@ -606,6 +609,7 @@ async fn main() -> Result<()> {
                 },
                 depends_on,
                 inject_context,
+                retried_from: None,
             })?;
         }
         Commands::Review {
@@ -628,6 +632,55 @@ async fn main() -> Result<()> {
                 quiet,
             })
             .await?;
+        }
+        Commands::Log {
+            message,
+            session,
+            level,
+            data,
+            root,
+        } => {
+            log_cmd::run_log(log_cmd::LogParams {
+                message,
+                session,
+                level,
+                data,
+                root,
+            })?;
+        }
+        Commands::Output {
+            session_id,
+            latest,
+            output_name,
+            tag,
+            json: output_json,
+            root,
+        } => {
+            output_cmd::run_output(output_cmd::OutputParams {
+                session_id,
+                latest,
+                output_name,
+                tag,
+                json: output_json,
+                root,
+            })?;
+        }
+        Commands::Retry {
+            session_ids,
+            tag,
+            failed,
+            model,
+            json: retry_json,
+            root,
+        } => {
+            retry::run_retry(retry::RetryParams {
+                session_ids,
+                tag,
+                failed,
+                model,
+                json: retry_json,
+                root,
+            })?;
         }
         action => {
             let agent_args = command_agent_args(&action).cloned().unwrap();

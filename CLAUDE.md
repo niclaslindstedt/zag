@@ -172,6 +172,9 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `src/summary.rs` | `zag summary` command: log-based session summarization and stats |
 | `src/watch.rs` | `zag watch` command: event-driven reactions on session log events |
 | `src/subscribe.rs` | `zag subscribe` command: multiplexed event stream from all active sessions |
+| `src/log_cmd.rs` | `zag log` command: append custom structured events to session logs |
+| `src/output_cmd.rs` | `zag output` command: extract final result text from sessions |
+| `src/retry.rs` | `zag retry` command: re-run failed sessions with same configuration |
 | `src/lifecycle.rs` | Filesystem lifecycle markers (`.started`/`.ended` in `~/.zag/events/`) |
 | `man/*.md` | Embedded manpages for the `zag man` command |
 | `prompts/auto-selector/*.md` | Versioned prompt templates for auto-selection (latest: 3_1) |
@@ -195,6 +198,9 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `man/summary.md` | Manpage for the `zag summary` command |
 | `man/watch.md` | Manpage for the `zag watch` command |
 | `man/subscribe.md` | Manpage for the `zag subscribe` command |
+| `man/log.md` | Manpage for the `zag log` command |
+| `man/output.md` | Manpage for the `zag output` command |
+| `man/retry.md` | Manpage for the `zag retry` command |
 
 #### `bindings/` (language SDKs)
 
@@ -745,6 +751,9 @@ The provider is specified via the `--provider` (or `-p`) flag. If omitted, it de
 - **`summary`** - Show log-based session summaries and stats
 - **`watch`** - Watch session logs and execute commands on matching events
 - **`subscribe`** - Subscribe to a multiplexed event stream from all active sessions
+- **`log`** - Append custom structured events to a session log
+- **`output`** - Extract final result text from a session
+- **`retry`** - Re-run failed sessions with the same configuration
 
 ```bash
 # Interactive mode (uses default provider, typically claude)
@@ -992,6 +1001,21 @@ zag subscribe --filter session_ended --json         # Filter + JSON output
 sid_a=$(zag spawn "analyze auth")
 sid_b=$(zag spawn --depends-on $sid_a "fix issues")            # Wait for A
 sid_c=$(zag spawn --depends-on $sid_a --inject-context "test") # Wait + inject results
+
+# Custom log events
+zag log "deployment started"                         # Log from inside a session
+zag log --session $sid "build done" --level info     # Log from outside
+zag log "tests passed" --data '{"count": 42}'        # Attach structured data
+
+# Extract session output
+zag output $sid                                      # Print final result text
+zag output --latest                                  # Latest session result
+zag output --tag batch --json                        # JSON output for all tagged
+
+# Retry failed sessions
+zag retry $sid                                       # Retry a specific session
+zag retry --tag batch --failed                       # Retry all failed in batch
+zag retry $sid --model large                         # Retry with upgraded model
 
 # Configuration
 zag config                       # Print full config

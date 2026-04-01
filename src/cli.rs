@@ -711,6 +711,77 @@ pub enum Commands {
         #[arg(long)]
         raw: bool,
     },
+    /// Append a custom event to a session's log
+    Log {
+        /// Event message
+        message: String,
+
+        /// Target session ID (defaults to ZAG_SESSION_ID env var)
+        #[arg(long, value_name = "SESSION_ID")]
+        session: Option<String>,
+
+        /// Event level (info, warn, error, debug)
+        #[arg(long, default_value = "info")]
+        level: String,
+
+        /// Structured JSON data to attach to the event
+        #[arg(long, value_name = "JSON")]
+        data: Option<String>,
+
+        /// Root directory for session log resolution
+        #[arg(short, long)]
+        root: Option<String>,
+    },
+    /// Extract the final result text from a session
+    Output {
+        /// Session ID (defaults to latest)
+        session_id: Option<String>,
+
+        /// Get result from the latest session
+        #[arg(long, conflicts_with_all = ["session_id", "output_name"])]
+        latest: bool,
+
+        /// Get result from a session by name
+        #[arg(long = "name", id = "output_name", value_name = "NAME", conflicts_with_all = ["session_id", "latest"])]
+        output_name: Option<String>,
+
+        /// Get results from sessions with this tag
+        #[arg(long, value_name = "TAG", conflicts_with_all = ["session_id", "latest", "output_name"])]
+        tag: Option<String>,
+
+        /// Output as JSON (includes session_id and metadata)
+        #[arg(long)]
+        json: bool,
+
+        /// Root directory for session resolution
+        #[arg(short, long)]
+        root: Option<String>,
+    },
+    /// Re-run a failed session with the same configuration
+    Retry {
+        /// Session IDs to retry
+        session_ids: Vec<String>,
+
+        /// Retry all sessions with this tag
+        #[arg(long, value_name = "TAG")]
+        tag: Option<String>,
+
+        /// Only retry sessions that failed (skip completed ones)
+        #[arg(long)]
+        failed: bool,
+
+        /// Override the model for retried sessions
+        #[arg(short, long)]
+        model: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Root directory for session resolution
+        #[arg(short, long)]
+        root: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]

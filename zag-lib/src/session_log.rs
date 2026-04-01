@@ -161,6 +161,12 @@ pub enum LogEventKind {
     Heartbeat {
         interval_secs: Option<u64>,
     },
+    UserEvent {
+        level: String,
+        message: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        data: Option<Value>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

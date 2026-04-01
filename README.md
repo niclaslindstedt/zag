@@ -112,6 +112,9 @@ zag cancel <id>... [--tag]    Gracefully cancel running sessions
 zag summary <id>... [--tag]   Log-based session summary and stats
 zag watch <id> --on <event>   Execute command on matching log events
 zag subscribe [--tag <tag>]   Multiplexed event stream from all sessions
+zag log <message> [--session] Append custom event to a session log
+zag output [<id>] [--latest]  Extract final result text from a session
+zag retry <id>... [--failed]  Re-run failed sessions with same config
 
 zag capability                Show provider capability declarations
 zag skills list|add|remove|sync|import   Manage provider-agnostic skills

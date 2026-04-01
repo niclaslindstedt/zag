@@ -46,6 +46,9 @@ pub struct SessionEntry {
     /// Session IDs that this session depends on (must complete before this session starts).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dependencies: Vec<String>,
+    /// Session ID that this session is a retry of.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retried_from: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

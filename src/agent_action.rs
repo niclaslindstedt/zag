@@ -428,6 +428,9 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Summary { .. } => "summary",
         Commands::Watch { .. } => "watch",
         Commands::Subscribe { .. } => "subscribe",
+        Commands::Log { .. } => "log",
+        Commands::Output { .. } => "output",
+        Commands::Retry { .. } => "retry",
     }
 }
 
