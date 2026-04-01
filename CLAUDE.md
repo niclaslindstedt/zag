@@ -185,13 +185,6 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `src/capability.rs` | Re-exports zag-lib capability types + provider-specific capability constructors |
 | `src/output.rs` | Re-exports zag-lib output types |
 | `src/session_log.rs` | Re-exports zag-lib session_log + provider-specific wiring |
-| `src/auto_selector.rs` | Auto provider/model selection via lightweight LLM call |
-| `src/sandbox.rs` | Docker sandbox configuration, command building, and removal |
-| `src/session.rs` | Session-worktree/sandbox mapping store (`sessions.json`) |
-| `src/worktree.rs` | Git worktree creation, removal, and name generation |
-| `src/json_validation.rs` | JSON and JSON Schema validation utilities |
-| `src/skills.rs` | Provider-agnostic skill management: parsing, loading, syncing symlinks, system prompt injection |
-| `src/skills_tests.rs` | Unit tests for skills module |
 | `man/*.md` | Embedded manpages for the `zag man` command |
 | `prompts/auto-selector/*.md` | Versioned prompt templates for auto-selection (latest: 3_1) |
 | `prompts/json-wrap/*.md` | Versioned prompt templates for wrapping user prompts with JSON instructions (latest: 1_0) |
