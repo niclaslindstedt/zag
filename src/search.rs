@@ -326,4 +326,155 @@ mod tests {
         };
         assert_eq!(event_kind_label(&event), "SessionStarted");
     }
+
+    fn make_event(kind: LogEventKind) -> AgentLogEvent {
+        AgentLogEvent {
+            seq: 1,
+            ts: "2026-01-01T00:00:00Z".to_string(),
+            provider: "claude".to_string(),
+            wrapper_session_id: "s1".to_string(),
+            provider_session_id: None,
+            source_kind: zag::session_log::LogSourceKind::Wrapper,
+            completeness: zag::session_log::LogCompleteness::Full,
+            kind,
+        }
+    }
+
+    #[test]
+    fn test_event_kind_label_session_ended() {
+        let event = make_event(LogEventKind::SessionEnded {
+            success: true,
+            error: None,
+        });
+        assert_eq!(event_kind_label(&event), "SessionEnded");
+    }
+
+    #[test]
+    fn test_event_kind_label_session_cleared() {
+        let event = make_event(LogEventKind::SessionCleared {
+            old_session_id: None,
+            new_session_id: None,
+        });
+        assert_eq!(event_kind_label(&event), "SessionCleared");
+    }
+
+    #[test]
+    fn test_event_kind_label_assistant_message() {
+        let event = make_event(LogEventKind::AssistantMessage {
+            content: "hello".to_string(),
+            message_id: None,
+        });
+        assert_eq!(event_kind_label(&event), "AssistantMessage");
+    }
+
+    #[test]
+    fn test_event_kind_label_reasoning() {
+        let event = make_event(LogEventKind::Reasoning {
+            content: "thinking...".to_string(),
+            message_id: None,
+        });
+        assert_eq!(event_kind_label(&event), "Reasoning");
+    }
+
+    #[test]
+    fn test_event_kind_label_tool_result() {
+        let event = make_event(LogEventKind::ToolResult {
+            tool_name: Some("Bash".to_string()),
+            tool_kind: None,
+            tool_id: None,
+            success: Some(true),
+            output: None,
+            error: None,
+            data: None,
+        });
+        let label = event_kind_label(&event);
+        assert!(label.contains("ToolResult"));
+        assert!(label.contains("Bash"));
+    }
+
+    #[test]
+    fn test_event_kind_label_tool_result_no_name() {
+        let event = make_event(LogEventKind::ToolResult {
+            tool_name: None,
+            tool_kind: None,
+            tool_id: None,
+            success: None,
+            output: None,
+            error: None,
+            data: None,
+        });
+        let label = event_kind_label(&event);
+        assert!(label.contains("ToolResult"));
+        assert!(label.contains("?"));
+    }
+
+    #[test]
+    fn test_event_kind_label_permission() {
+        let event = make_event(LogEventKind::Permission {
+            tool_name: "Write".to_string(),
+            description: "write file".to_string(),
+            granted: true,
+        });
+        let label = event_kind_label(&event);
+        assert!(label.contains("Permission"));
+        assert!(label.contains("Write"));
+    }
+
+    #[test]
+    fn test_event_kind_label_provider_status() {
+        let event = make_event(LogEventKind::ProviderStatus {
+            message: "connected".to_string(),
+            data: None,
+        });
+        assert_eq!(event_kind_label(&event), "ProviderStatus");
+    }
+
+    #[test]
+    fn test_event_kind_label_stderr() {
+        let event = make_event(LogEventKind::Stderr {
+            message: "warning".to_string(),
+        });
+        assert_eq!(event_kind_label(&event), "Stderr");
+    }
+
+    #[test]
+    fn test_event_kind_label_parse_warning() {
+        let event = make_event(LogEventKind::ParseWarning {
+            message: "bad json".to_string(),
+            raw: None,
+        });
+        assert_eq!(event_kind_label(&event), "ParseWarning");
+    }
+
+    #[test]
+    fn test_event_kind_label_heartbeat() {
+        let event = make_event(LogEventKind::Heartbeat {
+            interval_secs: Some(30),
+        });
+        assert_eq!(event_kind_label(&event), "Heartbeat");
+    }
+
+    #[test]
+    fn test_event_kind_label_usage() {
+        let event = make_event(LogEventKind::Usage {
+            input_tokens: 100,
+            output_tokens: 50,
+            cache_read_tokens: None,
+            cache_creation_tokens: None,
+            total_cost_usd: None,
+        });
+        assert_eq!(event_kind_label(&event), "Usage");
+    }
+
+    #[test]
+    fn test_event_kind_label_user_event() {
+        let event = make_event(LogEventKind::UserEvent {
+            level: "info".to_string(),
+            message: "custom event".to_string(),
+            data: None,
+        });
+        let label = event_kind_label(&event);
+        assert!(label.contains("UserEvent"));
+        assert!(label.contains("info"));
+    }
 }

@@ -211,3 +211,7 @@ pub enum PsCommand {
         id: String,
     },
 }
+
+#[cfg(test)]
+#[path = "ps_tests.rs"]
+mod tests;

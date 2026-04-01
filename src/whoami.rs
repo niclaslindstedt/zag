@@ -48,6 +48,10 @@ impl WhoamiInfo {
     }
 }
 
+#[cfg(test)]
+#[path = "whoami_tests.rs"]
+mod tests;
+
 pub(crate) fn run_whoami(json: bool) -> Result<()> {
     let mut info = WhoamiInfo::from_env();
 

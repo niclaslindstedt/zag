@@ -540,9 +540,7 @@ fn extract_thread_id(line: &str) -> Option<String> {
     let needle = "thread_id=";
     let start = line.find(needle)? + needle.len();
     let tail = &line[start..];
-    let end = tail
-        .find(|ch: char| ch == ' ' || ch == '}' || ch == ':')
-        .unwrap_or(tail.len());
+    let end = tail.find([' ', '}', ':']).unwrap_or(tail.len());
     Some(tail[..end].to_string())
 }
 

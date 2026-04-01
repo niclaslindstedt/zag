@@ -4,6 +4,10 @@ use zag::{sandbox, session, worktree};
 
 use crate::resume::current_workspace;
 
+#[cfg(test)]
+#[path = "session_setup_tests.rs"]
+mod tests;
+
 /// Session metadata for discovery (name, description, tags).
 #[derive(Clone, Default)]
 pub(crate) struct SessionMetadata {

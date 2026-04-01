@@ -31,3 +31,7 @@ pub trait ProgressHandler: Send + Sync {
 pub struct SilentProgress;
 
 impl ProgressHandler for SilentProgress {}
+
+#[cfg(test)]
+#[path = "progress_tests.rs"]
+mod tests;

@@ -1,5 +1,9 @@
 //! Worktree and sandbox cleanup prompts after agent sessions.
 
+#[cfg(test)]
+#[path = "cleanup_tests.rs"]
+mod tests;
+
 use crate::sandbox;
 use crate::session;
 use crate::worktree;

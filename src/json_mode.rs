@@ -161,3 +161,7 @@ pub fn augment_system_prompt_for_json(
     }
     Some(prompt)
 }
+
+#[cfg(test)]
+#[path = "json_mode_tests.rs"]
+mod tests;
