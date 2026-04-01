@@ -217,8 +217,121 @@ fn test_builder_default_impl() {
 
 #[test]
 fn test_resolve_provider_all_valid() {
-    for provider in &["claude", "codex", "gemini", "copilot", "ollama"] {
+    for provider in &["claude", "codex", "gemini", "copilot", "ollama", "mock"] {
         let builder = AgentBuilder::new().provider(provider);
         assert_eq!(builder.resolve_provider().unwrap(), *provider);
     }
+}
+
+// ---------------------------------------------------------------------------
+// Mock agent builder integration
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_resolve_provider_mock() {
+    let builder = AgentBuilder::new().provider("mock");
+    assert_eq!(builder.resolve_provider().unwrap(), "mock");
+}
+
+#[test]
+fn test_resolve_provider_mock_case_insensitive() {
+    let builder = AgentBuilder::new().provider("MOCK");
+    assert_eq!(builder.resolve_provider().unwrap(), "mock");
+
+    let builder = AgentBuilder::new().provider("Mock");
+    assert_eq!(builder.resolve_provider().unwrap(), "mock");
+}
+
+#[test]
+fn test_create_agent_mock() {
+    let builder = AgentBuilder::new().provider("mock");
+    let provider = builder.resolve_provider().unwrap();
+    let agent = builder.create_agent(&provider).unwrap();
+    assert_eq!(agent.name(), "mock");
+    // Model depends on config (may be "mock-medium" if config has model = "medium")
+    let model = agent.get_model();
+    assert!(
+        model.starts_with("mock-"),
+        "Expected mock model, got: {}",
+        model
+    );
+}
+
+#[test]
+fn test_create_agent_mock_with_model() {
+    let builder = AgentBuilder::new().provider("mock").model("mock-large");
+    let provider = builder.resolve_provider().unwrap();
+    let agent = builder.create_agent(&provider).unwrap();
+    assert_eq!(agent.get_model(), "mock-large");
+}
+
+#[test]
+fn test_create_agent_mock_with_size_alias() {
+    let builder = AgentBuilder::new().provider("mock").model("small");
+    let provider = builder.resolve_provider().unwrap();
+    let agent = builder.create_agent(&provider).unwrap();
+    assert_eq!(agent.get_model(), "mock-small");
+}
+
+#[test]
+fn test_create_agent_mock_with_auto_approve() {
+    use crate::providers::mock::MockAgent;
+    let builder = AgentBuilder::new().provider("mock").auto_approve(true);
+    let provider = builder.resolve_provider().unwrap();
+    let agent = builder.create_agent(&provider).unwrap();
+    let mock = agent.as_any_ref().downcast_ref::<MockAgent>().unwrap();
+    assert!(mock.skip_permissions());
+}
+
+#[test]
+fn test_create_agent_mock_with_max_turns() {
+    use crate::providers::mock::MockAgent;
+    let builder = AgentBuilder::new().provider("mock").max_turns(10);
+    let provider = builder.resolve_provider().unwrap();
+    let agent = builder.create_agent(&provider).unwrap();
+    let mock = agent.as_any_ref().downcast_ref::<MockAgent>().unwrap();
+    assert_eq!(mock.max_turns(), Some(10));
+}
+
+#[test]
+fn test_create_agent_mock_with_output_format() {
+    use crate::providers::mock::MockAgent;
+    let builder = AgentBuilder::new()
+        .provider("mock")
+        .output_format("stream-json");
+    let provider = builder.resolve_provider().unwrap();
+    let agent = builder.create_agent(&provider).unwrap();
+    let mock = agent.as_any_ref().downcast_ref::<MockAgent>().unwrap();
+    assert_eq!(mock.output_format(), Some("stream-json"));
+}
+
+#[test]
+fn test_create_agent_mock_json_mode_sets_output_format() {
+    use crate::providers::mock::MockAgent;
+    let builder = AgentBuilder::new().provider("mock").json();
+    let provider = builder.resolve_provider().unwrap();
+    let agent = builder.create_agent(&provider).unwrap();
+    let mock = agent.as_any_ref().downcast_ref::<MockAgent>().unwrap();
+    assert_eq!(mock.output_format(), Some("json"));
+}
+
+#[test]
+fn test_create_agent_mock_json_mode_augments_system_prompt() {
+    let builder = AgentBuilder::new()
+        .provider("mock")
+        .system_prompt("original prompt")
+        .json();
+    let provider = builder.resolve_provider().unwrap();
+    let agent = builder.create_agent(&provider).unwrap();
+    assert!(agent.system_prompt().contains("original prompt"));
+    assert!(agent.system_prompt().contains("valid JSON"));
+}
+
+#[test]
+fn test_create_agent_mock_json_schema_augments_system_prompt() {
+    let schema = serde_json::json!({"type": "object"});
+    let builder = AgentBuilder::new().provider("mock").json_schema(schema);
+    let provider = builder.resolve_provider().unwrap();
+    let agent = builder.create_agent(&provider).unwrap();
+    assert!(agent.system_prompt().contains("JSON schema"));
 }

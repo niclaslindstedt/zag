@@ -138,6 +138,9 @@ AgentBuilder::new()
 | `zag-lib/src/providers/gemini.rs` | Gemini agent implementation |
 | `zag-lib/src/providers/copilot.rs` | Copilot agent implementation |
 | `zag-lib/src/providers/ollama.rs` | Ollama agent implementation (local models) |
+| `zag-lib/src/providers/mock.rs` | Mock agent for integration testing (`#[cfg(test)]` only) |
+| `zag-lib/src/providers/mock_tests.rs` | Mock agent unit tests |
+| `zag-lib/src/mock_integration_tests.rs` | Integration tests: AgentBuilder → AgentFactory → MockAgent pipeline |
 
 #### `zag-orch/` (orchestration library crate)
 
@@ -1332,6 +1335,66 @@ Pattern for adding new features:
 6. **For agent-specific features**: Add to `Agent` trait in `zag-lib/src/agent.rs` or use the downcast pattern via `as_any_mut()` (e.g., `input_format` for Claude)
 7. **For new provider support**: Add a new module under `zag-lib/src/providers/`, register in `zag-lib/src/factory.rs`
 8. **For new orchestration commands**: Add module in `zag-orch/src/`, declare in `zag-orch/src/lib.rs`, dispatch from `src/main.rs`
+
+## Mock Agent for Testing
+
+A `MockAgent` provider (`-p mock`) is available in `#[cfg(test)]` builds for integration testing. It implements the full `Agent` trait without requiring any external CLI binary, using an in-memory response queue instead of spawning subprocesses.
+
+### Usage in Tests
+
+```rust
+use zag::providers::mock::{MockAgent, MockResponse, events};
+use zag::builder::AgentBuilder;
+use zag::factory::AgentFactory;
+
+// Direct MockAgent usage with builder
+let agent = MockAgent::builder()
+    .respond_with_text("hello world")
+    .respond_with_error("something failed")
+    .with_delay(Duration::from_millis(100))
+    .build();
+
+let output = agent.run(Some("prompt")).await?;
+assert_eq!(agent.last_prompt(), Some("prompt".to_string()));
+
+// Through AgentBuilder (full pipeline)
+let output = AgentBuilder::new()
+    .provider("mock")
+    .model("mock-large")
+    .exec("test prompt")
+    .await?;
+
+// Through AgentFactory
+let agent = AgentFactory::create("mock", None, Some("small".into()), None, false, vec![])?;
+assert_eq!(agent.get_model(), "mock-small");
+
+// Custom event sequences
+let response = MockResponse::with_events(vec![
+    events::init("mock-default"),
+    events::assistant_message("I'll help"),
+    events::tool_execution("Bash", "echo hi", "hi"),
+    events::result_success("done"),
+]);
+```
+
+### Mock Model Sizes
+
+| Size | Model Name |
+|------|-----------|
+| `small` | `mock-small` |
+| `medium` | `mock-medium` |
+| `large` | `mock-large` |
+| default | `mock-default` |
+
+### Key Capabilities
+
+- **Response queue**: Queue multiple `MockResponse` values; they are consumed in order, falling back to a default
+- **Prompt capture**: `last_prompt()` and `all_prompts()` track what was passed to `run()`
+- **Call counting**: `run_count()`, `interactive_count()`, `resume_count()` for assertions
+- **Error simulation**: `fail_on_run("message")`, `fail_on_interactive()` to test error paths
+- **Delay simulation**: `with_delay(Duration)` to test timing-sensitive code
+- **Event helpers**: `events::init()`, `events::assistant_message()`, `events::tool_execution()`, etc.
+- **Full trait coverage**: Supports `set_max_turns`, `set_sandbox`, `set_add_dirs`, `run_resume_with_prompt`, downcasting via `as_any_ref()`
 
 ## Development Process
 

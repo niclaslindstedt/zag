@@ -311,8 +311,15 @@ impl Config {
     }
 
     /// Valid provider names (including "auto").
+    #[cfg(not(test))]
     pub const VALID_PROVIDERS: &'static [&'static str] =
         &["claude", "codex", "gemini", "copilot", "ollama", "auto"];
+
+    /// Valid provider names (including "auto" and "mock" for testing).
+    #[cfg(test)]
+    pub const VALID_PROVIDERS: &'static [&'static str] = &[
+        "claude", "codex", "gemini", "copilot", "ollama", "auto", "mock",
+    ];
 
     /// All valid config keys for listing/discovery.
     pub const VALID_KEYS: &'static [&'static str] = &[

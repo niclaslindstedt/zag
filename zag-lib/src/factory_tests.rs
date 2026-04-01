@@ -185,6 +185,61 @@ fn test_create_missing_binary_gives_actionable_error() {
     assert!(err.contains("not found in PATH"));
 }
 
+// --- mock agent ---
+
+#[test]
+fn test_create_agent_mock() {
+    let agent = AgentFactory::create_agent("mock").unwrap();
+    assert_eq!(agent.name(), "mock");
+}
+
+#[test]
+fn test_resolve_model_mock() {
+    assert_eq!(AgentFactory::resolve_model("mock", "small"), "mock-small");
+    assert_eq!(AgentFactory::resolve_model("mock", "medium"), "mock-medium");
+    assert_eq!(AgentFactory::resolve_model("mock", "large"), "mock-large");
+    assert_eq!(
+        AgentFactory::resolve_model("mock", "mock-default"),
+        "mock-default"
+    );
+}
+
+#[test]
+fn test_validate_model_mock() {
+    assert!(AgentFactory::validate_model("mock", "mock-default").is_ok());
+    assert!(AgentFactory::validate_model("mock", "mock-small").is_ok());
+    assert!(AgentFactory::validate_model("mock", "mock-medium").is_ok());
+    assert!(AgentFactory::validate_model("mock", "mock-large").is_ok());
+    assert!(AgentFactory::validate_model("mock", "invalid").is_err());
+}
+
+#[test]
+fn test_create_mock_no_preflight_needed() {
+    // Mock agent skips preflight binary check
+    let agent = AgentFactory::create("mock", None, None, None, false, vec![]).unwrap();
+    assert_eq!(agent.name(), "mock");
+}
+
+#[test]
+fn test_create_mock_with_model_resolution() {
+    let agent =
+        AgentFactory::create("mock", None, Some("small".to_string()), None, false, vec![]).unwrap();
+    assert_eq!(agent.get_model(), "mock-small");
+}
+
+#[test]
+fn test_create_mock_with_invalid_model() {
+    let result = AgentFactory::create(
+        "mock",
+        None,
+        Some("invalid".to_string()),
+        None,
+        false,
+        vec![],
+    );
+    assert!(result.is_err());
+}
+
 #[test]
 fn test_create_all_agents_default() {
     // Only test agents whose CLI binary is available in PATH.

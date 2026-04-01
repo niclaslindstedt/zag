@@ -4,6 +4,8 @@ use crate::providers::claude::Claude;
 use crate::providers::codex::Codex;
 use crate::providers::copilot::Copilot;
 use crate::providers::gemini::Gemini;
+#[cfg(test)]
+use crate::providers::mock::MockAgent;
 use crate::providers::ollama::Ollama;
 use anyhow::{Result, bail};
 use log::debug;
@@ -29,8 +31,16 @@ impl AgentFactory {
     ) -> Result<Box<dyn Agent + Send + Sync>> {
         debug!("Creating agent: {}", agent_name);
 
+        // Skip pre-flight binary check for mock agent (test only)
+        #[cfg(test)]
+        let skip_preflight = agent_name == "mock";
+        #[cfg(not(test))]
+        let skip_preflight = false;
+
         // Pre-flight: verify the agent CLI binary is available in PATH
-        crate::preflight::check_binary(agent_name)?;
+        if !skip_preflight {
+            crate::preflight::check_binary(agent_name)?;
+        }
 
         // Initialize .agent directory and config on first run
         let _ = Config::init(root.as_deref());
@@ -93,6 +103,8 @@ impl AgentFactory {
             "gemini" => Ok(Box::new(Gemini::new())),
             "copilot" => Ok(Box::new(Copilot::new())),
             "ollama" => Ok(Box::new(Ollama::new())),
+            #[cfg(test)]
+            "mock" => Ok(Box::new(MockAgent::new())),
             _ => bail!("Unknown agent: {}", agent_name),
         }
     }
@@ -105,6 +117,8 @@ impl AgentFactory {
             "gemini" => Gemini::resolve_model(model_input),
             "copilot" => Copilot::resolve_model(model_input),
             "ollama" => Ollama::resolve_model(model_input),
+            #[cfg(test)]
+            "mock" => MockAgent::resolve_model(model_input),
             _ => model_input.to_string(), // Unknown agent, pass through
         }
     }
@@ -117,6 +131,8 @@ impl AgentFactory {
             "gemini" => Gemini::validate_model(model, "Gemini"),
             "copilot" => Copilot::validate_model(model, "Copilot"),
             "ollama" => Ollama::validate_model(model, "Ollama"),
+            #[cfg(test)]
+            "mock" => MockAgent::validate_model(model, "Mock"),
             _ => Ok(()), // Unknown agent, skip validation
         }
     }

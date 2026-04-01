@@ -20,3 +20,7 @@ pub mod session_log;
 pub mod skills;
 pub mod streaming;
 pub mod worktree;
+
+#[cfg(test)]
+#[path = "mock_integration_tests.rs"]
+mod mock_integration_tests;
