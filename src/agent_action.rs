@@ -793,8 +793,8 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         .or(plain.session_id.as_deref())
         .unwrap_or(&log_session_id)
         .to_string();
-    crate::lifecycle::write_started_marker(&lifecycle_session_id);
-    crate::lifecycle::prune_old_markers();
+    zag_orch::lifecycle::write_started_marker(&lifecycle_session_id);
+    zag_orch::lifecycle::prune_old_markers();
 
     // Echo session ID for `agent listen` usage
     if show_wrapper {
@@ -868,7 +868,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
     // Resolve --context: prepend another session's result to the prompt
     if let Some(ref ctx_session_id) = context_session {
         let context_text =
-            crate::collect::extract_last_assistant_message(ctx_session_id, root.as_deref());
+            zag_orch::collect::extract_last_assistant_message(ctx_session_id, root.as_deref());
         if let Some(context_text) = context_text {
             let prefix = format!(
                 "Context from previous session ({}):\n\n{}\n\n---\n\n",
@@ -925,7 +925,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             if let Err(log_err) = log_coordinator.finish(false, Some(err.to_string())).await {
                 log::warn!("Failed to finish session log: {}", log_err);
             }
-            crate::lifecycle::write_ended_marker(&lifecycle_session_id, false, Some(1));
+            zag_orch::lifecycle::write_ended_marker(&lifecycle_session_id, false, Some(1));
             return Err(anyhow::anyhow!(err.to_string()));
         }
         Ok(success) => *success,
@@ -972,7 +972,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         root.as_deref(),
     );
     log_coordinator.finish(true, None).await?;
-    crate::lifecycle::write_ended_marker(
+    zag_orch::lifecycle::write_ended_marker(
         &lifecycle_session_id,
         agent_success,
         Some(if agent_success { 0 } else { 1 }),

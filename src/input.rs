@@ -6,8 +6,8 @@ use anyhow::{Result, bail};
 use log::debug;
 
 use crate::factory::AgentFactory;
-use crate::listen;
 use crate::resume;
+use zag_orch::listen;
 
 pub(crate) struct InputParams {
     pub session: Option<String>,

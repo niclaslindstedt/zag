@@ -2,11 +2,11 @@
 
 use crate::listen;
 use crate::ps::resolve_live_status;
-use crate::session_log::{AgentLogEvent, LogEventKind};
 use anyhow::{Result, bail};
 use std::io::{BufRead, BufReader};
 use zag::process_store::ProcessStore;
 use zag::session::SessionStore;
+use zag::session_log::{AgentLogEvent, LogEventKind};
 
 /// Possible session status values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]

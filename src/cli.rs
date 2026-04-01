@@ -314,7 +314,7 @@ pub enum Commands {
         json: bool,
 
         #[command(subcommand)]
-        command: Option<crate::ps::PsCommand>,
+        command: Option<zag_orch::ps::PsCommand>,
     },
     /// Search through session logs
     Search {

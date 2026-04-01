@@ -16,10 +16,11 @@ name = "zag"
 path = "src/main.rs"
 
 [workspace]
-members = [".", "zag-lib", "examples/cv-review"]
+members = [".", "zag-lib", "zag-orch", "examples/cv-review"]
 
 [dependencies]
 zag = { version = "0.1.0", path = "zag-lib" }
+zag-orch = { version = "0.1.0", path = "zag-orch" }
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 async-trait = "0.1"

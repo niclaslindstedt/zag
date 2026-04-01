@@ -115,7 +115,8 @@ pub async fn run_pipe(params: PipeParams) -> Result<()> {
     );
 
     // Resolve provider
-    let provider = crate::resolve_provider(params.provider.as_deref(), params.root.as_deref())?;
+    let provider =
+        zag::config::resolve_provider(params.provider.as_deref(), params.root.as_deref())?;
 
     let mut builder = zag::builder::AgentBuilder::new().provider(&provider);
 

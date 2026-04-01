@@ -4,9 +4,9 @@
 //! filtering by event type, sequence number, and count.
 
 use crate::listen;
-use crate::session_log::{AgentLogEvent, LogEventKind};
 use anyhow::Result;
 use std::io::{BufRead, BufReader};
+use zag::session_log::{AgentLogEvent, LogEventKind};
 
 /// Parameters for the events command.
 pub struct EventsParams {

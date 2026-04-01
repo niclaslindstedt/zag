@@ -4,10 +4,10 @@
 //! Think of it as `listen` + `xargs`.
 
 use crate::listen;
-use crate::session_log::{AgentLogEvent, LogEventKind};
 use anyhow::{Result, bail};
 use log::debug;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
+use zag::session_log::{AgentLogEvent, LogEventKind};
 
 /// Parameters for the watch command.
 pub struct WatchParams {

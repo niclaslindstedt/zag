@@ -19,12 +19,16 @@ Keep this file updated when making architectural changes to the codebase.
 
 ## Architecture
 
-Cargo workspace with two crates:
+Cargo workspace with three crates:
 - **`zag`** (binary) — Thin CLI wrapper (argument parsing, terminal logging)
-- **`zag-lib`** (library) — All core logic: agent trait, provider implementations, factory, config, builder API, output types, session logs, capabilities
+- **`zag-lib`** (library) — Agent consolidation: agent trait, provider implementations, factory, config, builder API, output types, session logs, capabilities. Updated when upstream agent CLIs change.
+- **`zag-orch`** (library) — Orchestration: spawn, wait, collect, pipe, status, events, cancel, summary, watch, subscribe, retry, gc, and related coordination primitives. This is "our own" code for multi-session coordination.
+
+Dependency graph: `zag-lib ← zag-orch ← zag (binary)`. The binary also depends directly on `zag-lib`.
 
 ### Design
 
+- **Consolidation vs orchestration separation**: `zag-lib` tracks upstream agent CLI changes (input, output, behavior); `zag-orch` contains internal orchestration logic
 - **Trait-based abstraction**: Common `Agent` trait defines the interface for all agent implementations
 - **Factory pattern**: `AgentFactory` creates and configures agents based on parameters
 - **Builder API**: `AgentBuilder` provides ergonomic programmatic access (see below)
@@ -135,22 +139,49 @@ AgentBuilder::new()
 | `zag-lib/src/providers/copilot.rs` | Copilot agent implementation |
 | `zag-lib/src/providers/ollama.rs` | Ollama agent implementation (local models) |
 
-#### `src/` (binary crate)
+#### `zag-orch/` (orchestration library crate)
 
-The binary crate is a thin CLI wrapper. It parses arguments with clap and delegates to `zag-lib` modules.
+Multi-session coordination primitives. Depends on `zag-lib` for shared types (session_log, config, process_store) and agent execution (AgentBuilder).
 
 | File | Purpose |
 |------|---------|
-| `src/main.rs` | CLI entry point — `main()`, `resolve_provider`, `capitalize`, re-exports |
+| `zag-orch/src/lib.rs` | Library root — declares all orchestration modules |
+| `zag-orch/src/types.rs` | Shared types: `SessionMetadata` (name, description, tags) |
+| `zag-orch/src/util.rs` | Shared utilities: `current_workspace()`, `logs_dir()` |
+| `zag-orch/src/spawn.rs` | `zag spawn`: launch background agent session, return session ID |
+| `zag-orch/src/wait.rs` | `zag wait`: block until session(s) complete (polls JSONL logs) |
+| `zag-orch/src/status.rs` | `zag status`: machine-readable session health check |
+| `zag-orch/src/collect.rs` | `zag collect`: gather results from multiple sessions |
+| `zag-orch/src/env.rs` | `zag env`: export session environment variables |
+| `zag-orch/src/pipe.rs` | `zag pipe`: chain session results into a new agent session |
+| `zag-orch/src/events.rs` | `zag events`: structured event query API for session logs |
+| `zag-orch/src/cancel.rs` | `zag cancel`: graceful session cancellation with clean log entry |
+| `zag-orch/src/summary.rs` | `zag summary`: log-based session summarization and stats |
+| `zag-orch/src/watch.rs` | `zag watch`: event-driven reactions on session log events |
+| `zag-orch/src/subscribe.rs` | `zag subscribe`: multiplexed event stream from all active sessions |
+| `zag-orch/src/log_cmd.rs` | `zag log`: append custom structured events to session logs |
+| `zag-orch/src/output_cmd.rs` | `zag output`: extract final result text from sessions |
+| `zag-orch/src/retry.rs` | `zag retry`: re-run failed sessions with same configuration |
+| `zag-orch/src/gc.rs` | `zag gc`: clean up old session data, logs, and process entries |
+| `zag-orch/src/listen.rs` | Listen: session log tailing, event formatting, session resolution |
+| `zag-orch/src/ps.rs` | `zag ps`: list/show/kill agent processes via `ProcessStore` |
+| `zag-orch/src/whoami.rs` | `zag whoami`: session identity introspection via `ZAG_*` env vars |
+| `zag-orch/src/search.rs` | `zag search`: CLI argument wiring, human-readable and JSON output |
+| `zag-orch/src/lifecycle.rs` | Filesystem lifecycle markers (`.started`/`.ended` in `~/.zag/events/`) |
+
+#### `src/` (binary crate)
+
+The binary crate is a thin CLI wrapper. It parses arguments with clap and delegates to `zag-lib` and `zag-orch` modules. Agent-coupled commands (broadcast, input) remain here due to AgentFactory/resume dependencies.
+
+| File | Purpose |
+|------|---------|
+| `src/main.rs` | CLI entry point — `main()`, `resolve_provider`, `capitalize`, dispatch to `zag_orch::*` |
 | `src/cli.rs` | Clap CLI definitions: `Cli`, `Commands`, `AgentArgs`, `SessionIsolationArgs`, all subcommand enums, parsing helpers |
 | `src/commands.rs` | Management command handlers: `run_config`, `run_session`, `run_skills`, `run_mcp` |
 | `src/agent_action.rs` | Core agent orchestration: `run_agent_action`, session setup, agent creation, execution |
 | `src/logging.rs` | Terminal logging, spinners, colored output (implements `ProgressHandler` pattern) |
-| `src/listen.rs` | Listen command: session log tailing, event formatting, session resolution |
-| `src/broadcast.rs` | `zag broadcast` command: send a message to all sessions in a project (optionally filtered by tag) |
-| `src/ps.rs` | `zag ps` command: list/show/kill agent processes via `ProcessStore` |
-| `src/whoami.rs` | `zag whoami` command: session identity introspection via `ZAG_*` env vars |
-| `src/search.rs` | `zag search` command: CLI argument wiring, human-readable and JSON output |
+| `src/broadcast.rs` | `zag broadcast` command: send a message to all sessions in a project (stays in binary due to agent coupling) |
+| `src/input.rs` | `zag input` command: send messages to sessions (stays in binary due to AgentFactory + Claude streaming) |
 | `src/capability.rs` | Re-exports zag-lib capability types + provider-specific capability constructors |
 | `src/output.rs` | Re-exports zag-lib output types |
 | `src/session_log.rs` | Re-exports zag-lib session_log + provider-specific wiring |
@@ -161,22 +192,6 @@ The binary crate is a thin CLI wrapper. It parses arguments with clap and delega
 | `src/json_validation.rs` | JSON and JSON Schema validation utilities |
 | `src/skills.rs` | Provider-agnostic skill management: parsing, loading, syncing symlinks, system prompt injection |
 | `src/skills_tests.rs` | Unit tests for skills module |
-| `src/spawn.rs` | `zag spawn` command: launch background agent session, return session ID |
-| `src/wait.rs` | `zag wait` command: block until session(s) complete (polls JSONL logs) |
-| `src/status.rs` | `zag status` command: machine-readable session health check |
-| `src/collect.rs` | `zag collect` command: gather results from multiple sessions |
-| `src/env.rs` | `zag env` command: export session environment variables |
-| `src/pipe.rs` | `zag pipe` command: chain session results into a new agent session |
-| `src/events.rs` | `zag events` command: structured event query API for session logs |
-| `src/cancel.rs` | `zag cancel` command: graceful session cancellation with clean log entry |
-| `src/summary.rs` | `zag summary` command: log-based session summarization and stats |
-| `src/watch.rs` | `zag watch` command: event-driven reactions on session log events |
-| `src/subscribe.rs` | `zag subscribe` command: multiplexed event stream from all active sessions |
-| `src/log_cmd.rs` | `zag log` command: append custom structured events to session logs |
-| `src/output_cmd.rs` | `zag output` command: extract final result text from sessions |
-| `src/retry.rs` | `zag retry` command: re-run failed sessions with same configuration |
-| `src/gc.rs` | `zag gc` command: clean up old session data, logs, and process entries |
-| `src/lifecycle.rs` | Filesystem lifecycle markers (`.started`/`.ended` in `~/.zag/events/`) |
 | `man/*.md` | Embedded manpages for the `zag man` command |
 | `prompts/auto-selector/*.md` | Versioned prompt templates for auto-selection (latest: 3_1) |
 | `prompts/json-wrap/*.md` | Versioned prompt templates for wrapping user prompts with JSON instructions (latest: 1_0) |
@@ -1316,12 +1331,14 @@ After interactive (`run`) sandbox sessions:
 
 Pattern for adding new features:
 
-1. **Core logic goes in `zag-lib`**: Agent trait changes, provider implementations, builder options, config — all in the library crate
-2. **CLI-only changes go in `src/main.rs`**: New clap flags, terminal-specific formatting
-3. **For new builder options**: Add a setter to `AgentBuilder` in `zag-lib/src/builder.rs`, then wire it in `create_agent()` or the terminal methods
-4. **For new CLI flags**: Add to `Cli` struct in `src/main.rs`, then map to the corresponding `AgentBuilder` setter or handle in `run_agent_action()`
-5. **For agent-specific features**: Add to `Agent` trait in `zag-lib/src/agent.rs` or use the downcast pattern via `as_any_mut()` (e.g., `input_format` for Claude)
-6. **For new provider support**: Add a new module under `zag-lib/src/providers/`, register in `zag-lib/src/factory.rs`
+1. **Agent consolidation logic goes in `zag-lib`**: Agent trait changes, provider implementations, builder options, config, session logs — updated when upstream agent CLIs change
+2. **Orchestration logic goes in `zag-orch`**: Multi-session coordination (spawn, wait, collect, pipe, events, cancel, summary, watch, subscribe, retry, gc, etc.)
+3. **CLI-only changes go in `src/main.rs`**: New clap flags, terminal-specific formatting, dispatch to `zag_orch::*`
+4. **For new builder options**: Add a setter to `AgentBuilder` in `zag-lib/src/builder.rs`, then wire it in `create_agent()` or the terminal methods
+5. **For new CLI flags**: Add to `Cli` struct in `src/cli.rs`, then map to the corresponding setter or handle in `run_agent_action()`
+6. **For agent-specific features**: Add to `Agent` trait in `zag-lib/src/agent.rs` or use the downcast pattern via `as_any_mut()` (e.g., `input_format` for Claude)
+7. **For new provider support**: Add a new module under `zag-lib/src/providers/`, register in `zag-lib/src/factory.rs`
+8. **For new orchestration commands**: Add module in `zag-orch/src/`, declare in `zag-orch/src/lib.rs`, dispatch from `src/main.rs`
 
 ## Development Process
 

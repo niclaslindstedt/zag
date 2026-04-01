@@ -1,8 +1,8 @@
-use crate::config::Config;
 use anyhow::Result;
 use std::collections::BTreeMap;
 use std::env;
 use std::path::PathBuf;
+use zag::config::Config;
 use zag::search::{SearchMatch, SearchQuery, SearchResults, parse_date_arg, search as lib_search};
 use zag::session_log::{AgentLogEvent, LogEventKind};
 

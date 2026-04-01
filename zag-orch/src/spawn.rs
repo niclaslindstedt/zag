@@ -8,8 +8,8 @@ use zag::config::Config;
 use zag::process_store::{ProcessEntry, ProcessStore};
 use zag::session::{SessionEntry, SessionStore};
 
-use crate::resume::current_workspace;
-use crate::session_setup::SessionMetadata;
+use crate::types::SessionMetadata;
+use crate::util::current_workspace;
 
 /// Parameters for the spawn command.
 pub struct SpawnParams {

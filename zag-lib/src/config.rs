@@ -520,6 +520,30 @@ model = "medium"
     }
 }
 
+/// Resolve the provider name from a CLI flag, config default, or hardcoded fallback.
+///
+/// Validates the provider name against [`Config::VALID_PROVIDERS`].
+pub fn resolve_provider(flag: Option<&str>, root: Option<&str>) -> anyhow::Result<String> {
+    if let Some(p) = flag {
+        let p = p.to_lowercase();
+        if !Config::VALID_PROVIDERS.contains(&p.as_str()) {
+            anyhow::bail!(
+                "Invalid provider '{}'. Available: {}",
+                p,
+                Config::VALID_PROVIDERS.join(", ")
+            );
+        }
+        return Ok(p);
+    }
+
+    let config = Config::load(root).unwrap_or_default();
+    if let Some(p) = config.provider() {
+        return Ok(p.to_string());
+    }
+
+    Ok("claude".to_string())
+}
+
 #[cfg(test)]
 #[path = "config_tests.rs"]
 mod tests;

@@ -5,11 +5,11 @@
 //! orchestration on top of zag.
 
 use crate::listen;
-use crate::session_log::AgentLogEvent;
 use anyhow::{Result, bail};
 use log::debug;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use zag::session::SessionStore;
+use zag::session_log::AgentLogEvent;
 
 /// Parameters for the subscribe command.
 pub struct SubscribeParams {
@@ -114,22 +114,20 @@ pub fn run_subscribe(params: SubscribeParams) -> Result<()> {
                         // Filter by event type
                         if let Some(ref type_filter) = params.event_type {
                             let event_type = match &event.kind {
-                                crate::session_log::LogEventKind::SessionStarted { .. } => {
+                                zag::session_log::LogEventKind::SessionStarted { .. } => {
                                     "session_started"
                                 }
-                                crate::session_log::LogEventKind::SessionEnded { .. } => {
+                                zag::session_log::LogEventKind::SessionEnded { .. } => {
                                     "session_ended"
                                 }
-                                crate::session_log::LogEventKind::UserMessage { .. } => {
+                                zag::session_log::LogEventKind::UserMessage { .. } => {
                                     "user_message"
                                 }
-                                crate::session_log::LogEventKind::AssistantMessage { .. } => {
+                                zag::session_log::LogEventKind::AssistantMessage { .. } => {
                                     "assistant_message"
                                 }
-                                crate::session_log::LogEventKind::ToolCall { .. } => "tool_call",
-                                crate::session_log::LogEventKind::ToolResult { .. } => {
-                                    "tool_result"
-                                }
+                                zag::session_log::LogEventKind::ToolCall { .. } => "tool_call",
+                                zag::session_log::LogEventKind::ToolResult { .. } => "tool_result",
                                 _ => "other",
                             };
                             if event_type != type_filter.as_str() {
@@ -145,16 +143,16 @@ pub fn run_subscribe(params: SubscribeParams) -> Result<()> {
                             let id_short =
                                 &event.wrapper_session_id[..event.wrapper_session_id.len().min(8)];
                             let type_name = match &event.kind {
-                                crate::session_log::LogEventKind::SessionStarted { .. } => {
+                                zag::session_log::LogEventKind::SessionStarted { .. } => {
                                     "session_started"
                                 }
-                                crate::session_log::LogEventKind::SessionEnded { .. } => {
+                                zag::session_log::LogEventKind::SessionEnded { .. } => {
                                     "session_ended"
                                 }
-                                crate::session_log::LogEventKind::AssistantMessage { .. } => {
+                                zag::session_log::LogEventKind::AssistantMessage { .. } => {
                                     "assistant_message"
                                 }
-                                crate::session_log::LogEventKind::ToolCall { .. } => "tool_call",
+                                zag::session_log::LogEventKind::ToolCall { .. } => "tool_call",
                                 _ => "event",
                             };
                             println!("[{}] {} {}", id_short, event.ts, type_name);

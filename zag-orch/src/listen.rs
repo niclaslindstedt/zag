@@ -1,14 +1,14 @@
 //! Listen command: tail a session's JSONL log file and output parsed events in real-time.
 
-use crate::config::Config;
-use crate::session_log::{AgentLogEvent, LogEventKind, SessionLogIndex};
 use anyhow::{Context, Result, bail};
 use chrono::{DateTime, Local};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use zag::config::Config;
 use zag::process_store::ProcessStore;
 use zag::session_log::load_global_index;
+use zag::session_log::{AgentLogEvent, LogEventKind, SessionLogIndex};
 
 /// Output format for listen command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -87,7 +87,7 @@ pub fn resolve_session_log(
     active: bool,
     root: Option<&str>,
 ) -> Result<PathBuf> {
-    let logs_dir = crate::session_log::logs_dir(root);
+    let logs_dir = crate::util::logs_dir(root);
     let sessions_dir = logs_dir.join("sessions");
 
     if let Some(id) = session_id {

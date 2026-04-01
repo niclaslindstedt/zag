@@ -17,39 +17,19 @@ use zag::providers::ollama;
 // Modules that remain in the binary crate
 mod agent_action;
 mod broadcast;
-mod cancel;
 mod capability;
 mod cleanup;
 mod cli;
-mod collect;
 mod commands;
-mod env;
-mod events;
-mod gc;
 mod input;
 mod json_mode;
-mod lifecycle;
-mod listen;
-mod log_cmd;
 mod logging;
 mod manpage;
 mod output;
-mod output_cmd;
-mod pipe;
-mod ps;
 mod resume;
-mod retry;
 mod review;
-mod search;
 mod session_log;
 mod session_setup;
-mod spawn;
-mod status;
-mod subscribe;
-mod summary;
-mod wait;
-mod watch;
-mod whoami;
 
 // Re-export from sub-modules so main_tests.rs can use `super::*`
 pub(crate) use agent_action::{AgentActionParams, run_agent_action};
@@ -71,24 +51,7 @@ use review::{ReviewParams, run_review};
 
 /// Resolve the provider name from CLI flag, config, or default.
 pub(crate) fn resolve_provider(flag: Option<&str>, root: Option<&str>) -> Result<String> {
-    if let Some(p) = flag {
-        let p = p.to_lowercase();
-        if !Config::VALID_PROVIDERS.contains(&p.as_str()) {
-            bail!(
-                "Invalid provider '{}'. Available: {}",
-                p,
-                Config::VALID_PROVIDERS.join(", ")
-            );
-        }
-        return Ok(p);
-    }
-
-    let config = Config::load(root).unwrap_or_default();
-    if let Some(p) = config.provider() {
-        return Ok(p.to_string());
-    }
-
-    Ok("claude".to_string())
+    zag::config::resolve_provider(flag, root)
 }
 
 /// Capitalize the first letter of a string.
@@ -272,13 +235,13 @@ async fn main() -> Result<()> {
             run_mcp(command, json, root.as_deref())?;
         }
         Commands::Ps { command, json } => {
-            let cmd = command.unwrap_or(ps::PsCommand::List {
+            let cmd = command.unwrap_or(zag_orch::ps::PsCommand::List {
                 running: false,
                 limit: None,
                 provider: None,
                 children: None,
             });
-            ps::run_ps(cmd, json)?;
+            zag_orch::ps::run_ps(cmd, json)?;
         }
         Commands::Search {
             query,
@@ -298,8 +261,8 @@ async fn main() -> Result<()> {
             limit,
             root,
         } => {
-            search::run_search_command(
-                search::SearchCommandArgs {
+            zag_orch::search::run_search_command(
+                zag_orch::search::SearchCommandArgs {
                     query,
                     use_regex: regex,
                     case_sensitive,
@@ -346,23 +309,31 @@ async fn main() -> Result<()> {
             root,
         } => {
             let config = Config::load(root.as_deref()).unwrap_or_default();
-            let format =
-                listen::ListenFormat::from_flags(listen_json, rich_text, listen_text, &config);
+            let format = zag_orch::listen::ListenFormat::from_flags(
+                listen_json,
+                rich_text,
+                listen_text,
+                &config,
+            );
             // Resolve --ps to a session_id if provided
             let ps_session_id = ps
                 .as_deref()
-                .map(listen::resolve_session_from_ps)
+                .map(zag_orch::listen::resolve_session_from_ps)
                 .transpose()?;
             let resolved_session_id = ps_session_id.as_deref().or(session_id.as_deref());
-            let log_path =
-                listen::resolve_session_log(resolved_session_id, latest, active, root.as_deref())?;
+            let log_path = zag_orch::listen::resolve_session_log(
+                resolved_session_id,
+                latest,
+                active,
+                root.as_deref(),
+            )?;
             debug!("Listening to session log: {}", log_path.display());
             let filter_set = if filters.is_empty() {
                 None
             } else {
                 Some(filters.iter().map(|s| s.to_lowercase()).collect::<Vec<_>>())
             };
-            listen::tail_session_log(
+            zag_orch::listen::tail_session_log(
                 &log_path,
                 format,
                 show_thinking,
@@ -420,21 +391,21 @@ async fn main() -> Result<()> {
             .await?;
         }
         Commands::Whoami { json } => {
-            whoami::run_whoami(json)?;
+            zag_orch::whoami::run_whoami(json)?;
         }
         Commands::Status {
             session_id,
             json: status_json,
             root,
         } => {
-            status::run_status(&session_id, status_json, root.as_deref())?;
+            zag_orch::status::run_status(&session_id, status_json, root.as_deref())?;
         }
         Commands::Env {
             session_id,
             shell,
             root,
         } => {
-            env::run_env(session_id.as_deref(), shell, root.as_deref())?;
+            zag_orch::env::run_env(session_id.as_deref(), shell, root.as_deref())?;
         }
         Commands::Collect {
             session_ids,
@@ -442,7 +413,7 @@ async fn main() -> Result<()> {
             json: collect_json,
             root,
         } => {
-            collect::run_collect(collect::CollectParams {
+            zag_orch::collect::run_collect(zag_orch::collect::CollectParams {
                 session_ids,
                 tag,
                 json: collect_json,
@@ -458,7 +429,7 @@ async fn main() -> Result<()> {
             json: wait_json,
             root,
         } => {
-            wait::run_wait(wait::WaitParams {
+            zag_orch::wait::run_wait(zag_orch::wait::WaitParams {
                 session_ids,
                 tag,
                 latest,
@@ -476,7 +447,7 @@ async fn main() -> Result<()> {
             output: pipe_output,
             json: pipe_json,
         } => {
-            pipe::run_pipe(pipe::PipeParams {
+            zag_orch::pipe::run_pipe(zag_orch::pipe::PipeParams {
                 session_ids,
                 tag,
                 prompt,
@@ -504,7 +475,7 @@ async fn main() -> Result<()> {
             json: events_json,
             root,
         } => {
-            events::run_events(events::EventsParams {
+            zag_orch::events::run_events(zag_orch::events::EventsParams {
                 session_id,
                 event_type,
                 last,
@@ -522,7 +493,7 @@ async fn main() -> Result<()> {
             json: cancel_json,
             root,
         } => {
-            cancel::run_cancel(cancel::CancelParams {
+            zag_orch::cancel::run_cancel(zag_orch::cancel::CancelParams {
                 session_ids,
                 tag,
                 reason,
@@ -537,7 +508,7 @@ async fn main() -> Result<()> {
             json: summary_json,
             root,
         } => {
-            summary::run_summary(summary::SummaryParams {
+            zag_orch::summary::run_summary(zag_orch::summary::SummaryParams {
                 session_ids,
                 tag,
                 stats,
@@ -556,7 +527,7 @@ async fn main() -> Result<()> {
             root,
             command: watch_command,
         } => {
-            watch::run_watch(watch::WatchParams {
+            zag_orch::watch::run_watch(zag_orch::watch::WatchParams {
                 session_id,
                 tag,
                 latest,
@@ -575,7 +546,7 @@ async fn main() -> Result<()> {
             json: subscribe_json,
             root,
         } => {
-            subscribe::run_subscribe(subscribe::SubscribeParams {
+            zag_orch::subscribe::run_subscribe(zag_orch::subscribe::SubscribeParams {
                 tag,
                 event_type,
                 global,
@@ -592,7 +563,7 @@ async fn main() -> Result<()> {
             inject_context,
         } => {
             let provider = resolve_provider(agent.provider.as_deref(), agent.root.as_deref())?;
-            spawn::run_spawn(spawn::SpawnParams {
+            zag_orch::spawn::run_spawn(zag_orch::spawn::SpawnParams {
                 prompt,
                 provider,
                 model: agent.model,
@@ -603,7 +574,7 @@ async fn main() -> Result<()> {
                 size: agent.size,
                 max_turns: agent.max_turns,
                 json: spawn_json,
-                metadata: session_setup::SessionMetadata {
+                metadata: zag_orch::types::SessionMetadata {
                     name: metadata.name,
                     description: metadata.description,
                     tags: metadata.tags,
@@ -641,7 +612,7 @@ async fn main() -> Result<()> {
             data,
             root,
         } => {
-            log_cmd::run_log(log_cmd::LogParams {
+            zag_orch::log_cmd::run_log(zag_orch::log_cmd::LogParams {
                 message,
                 session,
                 level,
@@ -657,7 +628,7 @@ async fn main() -> Result<()> {
             json: output_json,
             root,
         } => {
-            output_cmd::run_output(output_cmd::OutputParams {
+            zag_orch::output_cmd::run_output(zag_orch::output_cmd::OutputParams {
                 session_id,
                 latest,
                 output_name,
@@ -674,7 +645,7 @@ async fn main() -> Result<()> {
             json: retry_json,
             root,
         } => {
-            retry::run_retry(retry::RetryParams {
+            zag_orch::retry::run_retry(zag_orch::retry::RetryParams {
                 session_ids,
                 tag,
                 failed,
@@ -690,7 +661,7 @@ async fn main() -> Result<()> {
             json: gc_json,
             root,
         } => {
-            gc::run_gc(gc::GcParams {
+            zag_orch::gc::run_gc(zag_orch::gc::GcParams {
                 force,
                 older_than,
                 keep_logs,

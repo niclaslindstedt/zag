@@ -2,7 +2,6 @@
 
 use crate::listen;
 use crate::ps::resolve_live_status;
-use crate::session_log::{AgentLogEvent, LogEventKind};
 use anyhow::{Result, bail};
 use log::debug;
 use std::io::{BufRead, BufReader};
@@ -10,6 +9,7 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 use zag::process_store::ProcessStore;
 use zag::session::SessionStore;
+use zag::session_log::{AgentLogEvent, LogEventKind};
 
 /// Result of waiting for a single session.
 #[derive(Debug, Clone, serde::Serialize)]

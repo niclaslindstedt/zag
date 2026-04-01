@@ -2703,6 +2703,25 @@ dependencies = [
  "toml",
  "uuid",
  "zag",
+ "zag-orch",
+]
+
+[[package]]
+name = "zag-orch"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "log",
+ "nix",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "termimad",
+ "tokio",
+ "uuid",
+ "zag",
 ]
 
 [[package]]

@@ -1,5 +1,5 @@
 use super::*;
-use crate::session_log::{AgentLogEvent, LogCompleteness, LogEventKind, LogSourceKind, ToolKind};
+use zag::session_log::{AgentLogEvent, LogCompleteness, LogEventKind, LogSourceKind, ToolKind};
 use zag::session_log::{
     GlobalSessionEntry, GlobalSessionIndex, load_global_index, save_global_index,
 };

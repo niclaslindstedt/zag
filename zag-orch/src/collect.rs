@@ -1,10 +1,10 @@
 //! Collect command: gather results from multiple sessions.
 
 use crate::listen;
-use crate::session_log::{AgentLogEvent, LogEventKind};
 use anyhow::{Result, bail};
 use std::io::{BufRead, BufReader};
 use zag::session::SessionStore;
+use zag::session_log::{AgentLogEvent, LogEventKind};
 
 /// A collected result from a single session.
 #[derive(Debug, serde::Serialize)]

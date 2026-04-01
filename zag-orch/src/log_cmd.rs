@@ -5,9 +5,9 @@
 //! with structured events that flow through all existing read commands.
 
 use crate::listen;
-use crate::session_log::{AgentLogEvent, LogCompleteness, LogEventKind, LogSourceKind};
 use anyhow::{Result, bail};
 use std::io::{BufRead, Write};
+use zag::session_log::{AgentLogEvent, LogCompleteness, LogEventKind, LogSourceKind};
 
 /// Parameters for the log command.
 pub struct LogParams {

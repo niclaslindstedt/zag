@@ -52,7 +52,7 @@ impl WhoamiInfo {
 #[path = "whoami_tests.rs"]
 mod tests;
 
-pub(crate) fn run_whoami(json: bool) -> Result<()> {
+pub fn run_whoami(json: bool) -> Result<()> {
     let mut info = WhoamiInfo::from_env();
 
     if !info.is_inside_session() {
