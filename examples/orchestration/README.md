@@ -33,6 +33,7 @@ ZAG_PROVIDER=gemini ./01-sequential-pipeline.sh
 | [04-coordinator-dispatch.sh](04-coordinator-dispatch.sh) | Coordinator / Dispatcher | Classify task complexity, route to appropriate model size | `exec --json`, `exec -m small/large`, `spawn`, `wait`, `output`, `summary` |
 | [05-hierarchical-decomposition.sh](05-hierarchical-decomposition.sh) | Hierarchical, Human-in-the-Loop | Plan → human approval → parallel child execution → verification | `spawn --depends-on --inject-context`, `wait --tag`, `output`, `pipe --tag`, `summary` |
 | [06-event-driven-composite.sh](06-event-driven-composite.sh) | A2A Communication, Composite | Frontend + backend agents collaborate with messaging and event watching | `spawn --name`, `input --name`, `broadcast --tag`, `watch --on`, `wait --tag`, `pipe --tag`, `summary` |
+| [07-decision-arena.sh](07-decision-arena.sh) | Adversarial Debate, Fan-Out, A2A | Advocate vs skeptic debate with rebuttals and judge verdict; optional mixed providers | `spawn --name --tag`, `wait`, `output`, `input --name`, `pipe --tag`, `summary` |
 
 ## Environment Variables
 
@@ -84,6 +85,21 @@ Hierarchical (05)               Composite / A2A (06)
 ┌───┼───┐                       ┌────┴──────────────┴────┐
 ▼   ▼   ▼                       │    Integration Review  │
 A   B   C ──► Verify            └────────────────────────┘
+
+Decision Arena (07)
+┌──────────┐   ┌──────────┐
+│ Advocate │   │ Skeptic  │
+│ (FOR)    │   │ (AGAINST)│
+└────┬─────┘   └────┬─────┘
+     │   cross-poll  │
+     │◄─────────────►│
+     │   rebuttals   │
+     └───────┬───────┘
+             ▼
+        ┌─────────┐
+        │  Judge  │
+        │(verdict)│
+        └─────────┘
 ```
 
 ## Tips
