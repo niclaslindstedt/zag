@@ -13,7 +13,10 @@ Displays detailed documentation for zag commands. When called without arguments,
 ## Arguments
 
     command    Command to show help for: run, exec, review, config, session,
-               capability, listen, skills, mcp, ps, search, input, whoami, man
+               capability, listen, skills, mcp, ps, search, input, broadcast,
+               whoami, spawn, wait, status, collect, env, pipe, events, cancel,
+               summary, watch, subscribe, log, output, retry, gc, man,
+               orchestration
 
 ## Examples
 
@@ -30,5 +33,21 @@ Displays detailed documentation for zag commands. When called without arguments,
     zag man ps            Manual for the ps command
     zag man search        Manual for the search command
     zag man input         Manual for the input command
+    zag man broadcast     Manual for the broadcast command
     zag man whoami        Manual for the whoami command
+    zag man spawn         Manual for the spawn command
+    zag man wait          Manual for the wait command
+    zag man status        Manual for the status command
+    zag man collect       Manual for the collect command
+    zag man env           Manual for the env command
+    zag man pipe          Manual for the pipe command
+    zag man events        Manual for the events command
+    zag man cancel        Manual for the cancel command
+    zag man summary       Manual for the summary command
+    zag man watch         Manual for the watch command
+    zag man subscribe     Manual for the subscribe command
+    zag man log           Manual for the log command
+    zag man output        Manual for the output command
+    zag man retry         Manual for the retry command
+    zag man gc            Manual for the gc command
     zag man orchestration Orchestration patterns guide

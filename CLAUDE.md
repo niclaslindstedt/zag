@@ -446,13 +446,13 @@ Provider-agnostic skills are stored at `~/.zag/skills/<skill-name>/` using the [
 
 | Provider | Strategy | Target |
 |----------|----------|--------|
-| Claude   | Symlink  | `~/.claude/skills/agent-<name>/` |
-| Gemini   | Symlink  | `~/.gemini/skills/agent-<name>/` |
-| Copilot  | Symlink  | `~/.copilot/skills/agent-<name>/` |
-| Codex    | Symlink  | `~/.agents/skills/agent-<name>/` |
+| Claude   | Symlink  | `~/.claude/skills/zag-<name>/` |
+| Gemini   | Symlink  | `~/.gemini/skills/zag-<name>/` |
+| Copilot  | Symlink  | `~/.copilot/skills/zag-<name>/` |
+| Codex    | Symlink  | `~/.agents/skills/zag-<name>/` |
 | Ollama   | System prompt injection | N/A |
 
-Skills are synced automatically in `run_agent_action()` (after `augment_system_prompt_for_json`, before `create_and_configure_agent`). Symlinks use `agent-` prefix to avoid collisions.
+Skills are synced automatically in `run_agent_action()` (after `augment_system_prompt_for_json`, before `create_and_configure_agent`). Symlinks use `zag-` prefix to avoid collisions.
 
 ## MCP Servers
 

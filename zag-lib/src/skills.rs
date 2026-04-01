@@ -260,7 +260,7 @@ pub fn sync_skills_for_provider(provider: &str, skills: &[Skill]) -> Result<usiz
         );
     }
 
-    // Remove stale symlinks (our agent-* prefixed ones whose source no longer exists)
+    // Remove stale symlinks (our zag-* prefixed ones whose source no longer exists)
     let skill_names: std::collections::HashSet<String> =
         skills.iter().map(|s| s.name.clone()).collect();
 
@@ -466,7 +466,7 @@ pub fn import_skills(from_provider: &str) -> Result<Vec<String>> {
         let file_name = entry.file_name();
         let name = file_name.to_string_lossy();
 
-        // Skip our own agent-* symlinks
+        // Skip our own zag-* symlinks
         if name.starts_with(SKILL_PREFIX) {
             continue;
         }

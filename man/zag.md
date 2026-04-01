@@ -49,13 +49,23 @@ These flags can be used with any subcommand.
     ps           List, inspect, and manage agent processes
     search       Search through session logs
     input        Send a user message to a running or resumable session
+    broadcast    Send a message to all sessions in the project
     whoami       Show identity of the current zag session
+    spawn        Launch a background agent session, return session ID
+    wait         Block until session(s) complete
+    status       Machine-readable session health check
+    collect      Gather results from multiple sessions
+    env          Export session environment variables
     pipe         Chain results from completed sessions into a new session
     events       Query structured events from session logs
     cancel       Gracefully cancel running sessions
     summary      Show log-based session summaries and stats
     watch        Watch session logs and execute commands on matching events
     subscribe    Subscribe to a multiplexed event stream from all sessions
+    log          Append custom structured events to a session log
+    output       Extract final result text from a session
+    retry        Re-run failed sessions with the same configuration
+    gc           Clean up old session data, logs, and process entries
     man          Show manual pages for commands
 
 Run `zag man <command>` for detailed help on each command.
@@ -113,11 +123,21 @@ Settings priority: CLI flags > config file > agent defaults.
     zag man ps
     zag man search
     zag man input
+    zag man broadcast
     zag man whoami
+    zag man spawn
+    zag man wait
+    zag man status
+    zag man collect
+    zag man env
     zag man pipe
     zag man events
     zag man cancel
     zag man summary
     zag man watch
-    zag man orchestration
     zag man subscribe
+    zag man log
+    zag man output
+    zag man retry
+    zag man gc
+    zag man orchestration

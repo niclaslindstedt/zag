@@ -118,7 +118,7 @@ Options:
     # Add an HTTP MCP server
     zag mcp add sentry --transport http --url https://mcp.sentry.dev/sse
 
-    # Add a project-scoped server
+    # Add a global server
     zag mcp add my-db --command npx --args -y db-mcp --global
 
     # List all servers
