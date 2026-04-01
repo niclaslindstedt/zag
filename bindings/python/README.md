@@ -80,6 +80,13 @@ pip install pytest pytest-asyncio
 pytest
 ```
 
+## See also
+
+- [TypeScript SDK](../typescript/README.md)
+- [C# SDK](../csharp/README.md)
+- [Rust API (zag-lib)](../../zag-lib/README.md)
+- [All bindings](../README.md)
+
 ## License
 
 [MIT](../../LICENSE)

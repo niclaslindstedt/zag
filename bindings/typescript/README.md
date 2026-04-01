@@ -82,6 +82,13 @@ The SDK spawns the `zag` CLI as a subprocess (`zag exec -o json` or `-o stream-j
 npm run build && npm test
 ```
 
+## See also
+
+- [Python SDK](../python/README.md)
+- [C# SDK](../csharp/README.md)
+- [Rust API (zag-lib)](../../zag-lib/README.md)
+- [All bindings](../README.md)
+
 ## License
 
 [MIT](../../LICENSE)

@@ -7,7 +7,7 @@ A unified Rust library for driving AI coding agents — Claude, Codex, Gemini, C
 
 ## Overview
 
-`zag` provides a programmatic Rust API for spawning and interacting with AI coding agents. It wraps multiple provider CLIs behind a common `Agent` trait and exposes a fluent `AgentBuilder` for ergonomic use.
+`zag` provides a programmatic Rust API for spawning and interacting with AI coding agents. It wraps multiple provider CLIs behind a common `Agent` trait and exposes a fluent `AgentBuilder` for ergonomic use. Write your agent logic once and swap providers without changing code.
 
 ## Quick start
 
@@ -109,6 +109,15 @@ cargo install zag-cli
 ```
 
 See the [repository](https://github.com/niclaslindstedt/zag) for full documentation.
+
+For complete projects using this API, see the [examples directory](../examples/) — especially [cv-review](../examples/cv-review/) which demonstrates `AgentBuilder`, JSON schema validation, and parallel agent invocations.
+
+## See also
+
+- [Root README](../README.md) — Full CLI documentation
+- [zag-orch](../zag-orch/) — Orchestration primitives (spawn, wait, collect, pipe)
+- [Language bindings](../bindings/) — TypeScript, Python, and C# SDKs
+- [Examples](../examples/) — Complete projects demonstrating zag usage
 
 ## License
 

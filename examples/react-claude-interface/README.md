@@ -69,3 +69,9 @@ The app consumes `AgentLogEvent` objects from zag's session log format (NDJSON).
 | `tool_call` + `tool_result` | Collapsible tool block (paired by `tool_id`) |
 | `permission` | Permission grant/deny indicator |
 | `session_ended` | System message |
+
+## See also
+
+- [Orchestration examples](../orchestration/) — Multi-agent shell scripts
+- [CV Review example](../cv-review/) — Programmatic library usage with parallel agents
+- [Root README](../../README.md) — Full CLI documentation

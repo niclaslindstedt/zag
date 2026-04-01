@@ -1,5 +1,7 @@
 # Claude Agent JSON Output Format
 
+> **Note:** This is internal developer documentation describing Claude's raw JSON output format. For user-facing docs, see the [root README](../../README.md).
+
 This document explains the JSON output format returned by the Claude CLI when running in verbose/JSON mode. Understanding this structure is essential for parsing and extracting information from Claude's responses.
 
 ## Overview
@@ -470,6 +472,6 @@ When implementing parsers for this format:
 
 ## References
 
-- Main documentation: `/AGENT_EXPLORATION.md`
-- Struct implementations: `./models.rs`
-- Agent implementation: `./mod.rs`
+- Main documentation: [Root README](../../README.md)
+- Struct implementations: [`zag-lib/src/providers/claude/models.rs`](../../zag-lib/src/providers/claude/models.rs)
+- Agent implementation: [`zag-lib/src/providers/claude/mod.rs`](../../zag-lib/src/providers/claude/mod.rs)

@@ -145,3 +145,8 @@ zag ps kill <id>          # Force-kill a specific process
 - `zag man collect` — gathering multi-session results
 - `zag man watch` — event-driven command execution
 - `zag man subscribe` — multiplexed event streams
+
+### Other examples
+
+- [CV Review](../cv-review/) — Programmatic `zag-lib` API usage with parallel agents
+- [React Claude Interface](../react-claude-interface/) — Web UI with streaming NDJSON events

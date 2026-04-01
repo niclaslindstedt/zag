@@ -1,5 +1,8 @@
 # zag
 
+[![Crates.io](https://img.shields.io/crates/v/zag-cli.svg)](https://crates.io/crates/zag-cli)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 One CLI for all your AI coding agents.
 
 `zag` wraps Claude, Codex, Gemini, Copilot, and Ollama behind a single command so you can switch between them without learning five different CLIs. It adds cross-provider features on top: model size aliases, automatic provider/model selection, git worktree isolation, Docker sandboxing, structured JSON output with schema validation, unified session logs, and a programmatic Rust API.
@@ -444,7 +447,10 @@ await foreach (var evt in new ZagBuilder().Provider("claude").StreamAsync("analy
 The `examples/` directory contains complete projects demonstrating `zag` usage:
 
 - **[cv-review](examples/cv-review/)** — A Rust program that uses the `zag` library crate to review CVs against job descriptions using parallel agent invocations
+- **[orchestration](examples/orchestration/)** — Shell scripts demonstrating multi-agent patterns: sequential pipelines, fan-out/gather, generator-critic loops, coordinator dispatch, and more
 - **[react-claude-interface](examples/react-claude-interface/)** — A React web app that provides a Claude Code-like chat interface powered by `zag exec` and `zag input` with streaming NDJSON events over Server-Sent Events
+
+See the [examples directory](examples/) for details on each.
 
 ## Troubleshooting
 
@@ -462,12 +468,16 @@ The `examples/` directory contains complete projects demonstrating `zag` usage:
 
 ```
 zag (binary crate)
-  CLI parsing (clap) → AgentFactory → Agent trait → subprocess
+  CLI parsing (clap) → dispatch to zag-lib and zag-orch
   Session logs, worktree/sandbox lifecycle, JSON mode, auto-selection
 
 zag-lib (library crate)
   Agent trait, provider implementations, AgentBuilder API
   Config, output types, session logs, skills, process helpers
+
+zag-orch (orchestration crate)
+  spawn, wait, collect, pipe, cancel, status, events
+  watch, subscribe, summary, retry, gc, and more
 ```
 
 Each provider implementation spawns the respective CLI tool as a subprocess. The `Agent` trait defines the common interface (run, resume, cleanup, model resolution). `AgentOutput` normalizes output from all providers into a unified event stream.
