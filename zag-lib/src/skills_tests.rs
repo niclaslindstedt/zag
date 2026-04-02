@@ -171,7 +171,7 @@ fn test_sync_skills_removes_stale_symlinks() {
     // Re-sync with no skills — stale link should be removed
     sync_skills_for_provider_to(&provider_skills, &[]).unwrap();
     assert!(
-        !link.symlink_metadata().is_ok(),
+        link.symlink_metadata().is_err(),
         "stale symlink should be removed"
     );
 }
@@ -350,7 +350,7 @@ fn test_sync_removes_stale_symlink_when_native_exists() {
     // Create a skill and symlink it
     make_skill_dir(&skills_src, "commit", "Commit", "Body");
     let skill = parse_skill(&skills_src.join("commit")).unwrap();
-    sync_skills_for_provider_to(&provider_skills, &[skill.clone()]).unwrap();
+    sync_skills_for_provider_to(&provider_skills, std::slice::from_ref(&skill)).unwrap();
 
     let link = provider_skills.join("zag-commit");
     assert!(

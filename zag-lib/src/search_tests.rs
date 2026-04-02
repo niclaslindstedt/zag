@@ -72,7 +72,7 @@ impl Drop for TempDir {
 #[test]
 fn test_parse_date_arg_rfc3339() {
     let dt = parse_date_arg("2024-01-15T10:30:00Z").unwrap();
-    assert_eq!(dt.to_rfc3339().starts_with("2024-01-15T10:30:00"), true);
+    assert!(dt.to_rfc3339().starts_with("2024-01-15T10:30:00"));
 }
 
 #[test]
@@ -849,7 +849,7 @@ fn test_scan_session_skips_malformed_json() {
     let mut file = fs::File::create(&log_path).unwrap();
     writeln!(file, "not valid json").unwrap();
     writeln!(file, "{}", serde_json::to_string(&event).unwrap()).unwrap();
-    writeln!(file, "").unwrap(); // empty line
+    writeln!(file).unwrap(); // empty line
     writeln!(file, "{{broken json").unwrap();
 
     let query = SearchQuery::new();
