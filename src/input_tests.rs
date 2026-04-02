@@ -1,4 +1,9 @@
 use super::*;
+use std::sync::Mutex;
+
+/// Mutex to serialize tests that manipulate ZAG_* environment variables,
+/// preventing races when tests run in parallel.
+static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
 #[test]
 fn test_wrap_agent_message_full_info() {
@@ -60,6 +65,8 @@ fn test_maybe_wrap_message_raw_skips_wrapping() {
 
 #[test]
 fn test_maybe_wrap_message_no_session_returns_raw() {
+    let _lock = ENV_MUTEX.lock().unwrap();
+
     // Temporarily ensure ZAG_SESSION_ID is not set
     let original = std::env::var("ZAG_SESSION_ID").ok();
     unsafe { std::env::remove_var("ZAG_SESSION_ID") };
@@ -76,6 +83,8 @@ fn test_maybe_wrap_message_no_session_returns_raw() {
 
 #[test]
 fn test_sender_info_from_env_returns_none_without_session() {
+    let _lock = ENV_MUTEX.lock().unwrap();
+
     let original = std::env::var("ZAG_SESSION_ID").ok();
     unsafe { std::env::remove_var("ZAG_SESSION_ID") };
 
@@ -88,6 +97,8 @@ fn test_sender_info_from_env_returns_none_without_session() {
 
 #[test]
 fn test_sender_info_from_env_reads_vars() {
+    let _lock = ENV_MUTEX.lock().unwrap();
+
     let orig_sid = std::env::var("ZAG_SESSION_ID").ok();
     let orig_prov = std::env::var("ZAG_PROVIDER").ok();
     let orig_model = std::env::var("ZAG_MODEL").ok();
