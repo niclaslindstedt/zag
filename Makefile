@@ -41,4 +41,4 @@ website-dev:
 	cd website && npm install && npm run dev
 
 website-clean:
-	rm -rf docs/index.html docs/assets
+	rm -rf website/dist

@@ -24,6 +24,6 @@ examples/react-claude-interface/node_modules/
 examples/react-claude-interface/dist/
 examples/react-claude-interface/package-lock.json
 
-# Website build artifacts (source in website/, output committed to docs/)
+# Website build artifacts (source in website/, output built in CI)
 website/node_modules/
-website/package-lock.json
+website/dist/

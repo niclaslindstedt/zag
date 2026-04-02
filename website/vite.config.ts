@@ -6,7 +6,6 @@ export default defineConfig({
   plugins: [tailwindcss(), react()],
   base: "/zag/",
   build: {
-    outDir: "../docs",
-    emptyOutDir: false,
+    outDir: "dist",
   },
 });
