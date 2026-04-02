@@ -9,6 +9,22 @@ identified in recent research (Google ADK, Gulli's *Agentic Design Patterns*,
 and Google Research's scaling principles for multi-agent coordination) and shows
 how to implement each pattern using zag's built-in primitives.
 
+## Contents
+
+- [Key Primitives](#key-primitives)
+- [Pattern 1: Sequential Pipeline](#pattern-1-sequential-pipeline)
+- [Pattern 2: Parallel Fan-Out / Gather](#pattern-2-parallel-fan-out--gather)
+- [Pattern 3: Coordinator / Dispatcher](#pattern-3-coordinator--dispatcher)
+- [Pattern 4: Hierarchical Decomposition](#pattern-4-hierarchical-decomposition)
+- [Pattern 5: Generator & Critic](#pattern-5-generator--critic)
+- [Pattern 6: Iterative Refinement](#pattern-6-iterative-refinement)
+- [Pattern 7: Human-in-the-Loop](#pattern-7-human-in-the-loop)
+- [Pattern 8: Inter-Agent Communication (A2A)](#pattern-8-inter-agent-communication-a2a)
+- [Pattern 9: Composite Patterns](#pattern-9-composite-patterns)
+- [Common Use Cases](#common-use-cases)
+- [Topology Selection Guide](#topology-selection-guide)
+- [Monitoring Orchestrations](#monitoring-orchestrations)
+
 ## Key Primitives
 
 Before diving into patterns, here are the zag commands that form the

@@ -7,6 +7,13 @@ One CLI for all your AI coding agents.
 
 `zag` wraps Claude, Codex, Gemini, Copilot, and Ollama behind a single command so you can switch between them without learning five different CLIs. It adds cross-provider features on top: model size aliases, automatic provider/model selection, git worktree isolation, Docker sandboxing, structured JSON output with schema validation, unified session logs, and a programmatic Rust API.
 
+## Why zag?
+
+- **One CLI, five agents** — Switch between Claude, Codex, Gemini, Copilot, and Ollama without learning five different CLIs
+- **Cross-provider features** — Model size aliases, JSON schema validation, git worktree isolation, and Docker sandboxing work with every provider
+- **Orchestration primitives** — Spawn, wait, collect, pipe, and chain agents in shell scripts for multi-agent workflows
+- **Programmatic API** — Rust library crate plus TypeScript, Python, and C# SDKs
+
 ## Prerequisites
 
 - **Rust 1.85+** (edition 2024) — for building from source
@@ -463,6 +470,16 @@ See the [examples directory](examples/) for details on each.
 **`--sandbox` fails** — Docker must be installed and running. Sandbox mode uses `docker sandbox run` for microVM isolation.
 
 **Config not taking effect** — Check which config file is being used with `zag config path`. Config is per-project (based on git repo root). CLI flags always override config.
+
+## Documentation
+
+- [Getting Started](docs/getting-started.md) — Step-by-step tutorial for new users
+- [Providers](docs/providers.md) — Feature comparison, model recommendations
+- [Configuration](docs/configuration.md) — Complete config reference
+- [Events & Logging](docs/events-and-logging.md) — NDJSON event format reference
+- [Troubleshooting](docs/troubleshooting.md) — Common issues and solutions
+- [Contributing](CONTRIBUTING.md) — Development workflow and guidelines
+- `zag man <command>` — Built-in manual pages for every command
 
 ## Architecture
 

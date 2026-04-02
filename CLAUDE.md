@@ -76,5 +76,8 @@ When adding a new `AgentBuilder` setter, keep all layers in sync:
 | New CLI flag | `src/cli.rs`, `README.md`, relevant `man/*.md` |
 | New builder option | `zag-lib/src/builder.rs`, all 3 bindings + tests + READMEs |
 | New command | `src/cli.rs`, `src/main.rs`, `man/<cmd>.md`, `README.md` |
-| New provider | `zag-lib/src/providers/`, `zag-lib/src/factory.rs`, `README.md` |
+| New provider | `zag-lib/src/providers/`, `zag-lib/src/factory.rs`, `README.md`, `docs/providers.md` |
 | New orch command | `zag-orch/src/`, `zag-orch/src/lib.rs`, `src/cli.rs`, `src/main.rs`, `man/`, `README.md` |
+| Provider feature change | `docs/providers.md` |
+| Config key change | `docs/configuration.md`, `man/config.md` |
+| Event format change | `docs/events-and-logging.md` |

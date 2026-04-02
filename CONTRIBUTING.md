@@ -2,6 +2,8 @@
 
 Thank you for your interest in contributing to zag! This document provides guidelines and instructions for contributing.
 
+Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before participating. To report security vulnerabilities, see [SECURITY.md](SECURITY.md).
+
 ## Getting started
 
 ### Prerequisites
