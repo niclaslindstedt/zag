@@ -243,7 +243,7 @@ pub fn sync_skills_for_provider(provider: &str, skills: &[Skill]) -> Result<usiz
                 .with_context(|| format!("Failed to remove stale entry {}", link_path.display()))?;
         }
 
-        std::os::unix::fs::symlink(target, &link_path).with_context(|| {
+        create_symlink_dir(target, &link_path).with_context(|| {
             format!(
                 "Failed to create symlink {} -> {}",
                 link_path.display(),
@@ -300,6 +300,16 @@ pub fn sync_skills_for_provider(provider: &str, skills: &[Skill]) -> Result<usiz
     }
 
     Ok(skipped)
+}
+
+#[cfg(unix)]
+fn create_symlink_dir(target: &Path, link: &Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(target, link)
+}
+
+#[cfg(not(unix))]
+fn create_symlink_dir(target: &Path, link: &Path) -> std::io::Result<()> {
+    std::os::windows::fs::symlink_dir(target, link)
 }
 
 #[cfg(unix)]
