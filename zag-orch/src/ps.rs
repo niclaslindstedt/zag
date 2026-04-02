@@ -1,6 +1,4 @@
 use anyhow::{Result, bail};
-use nix::sys::signal::{Signal, kill};
-use nix::unistd::Pid;
 use zag::process_store::{ProcessEntry, ProcessStore};
 
 /// Resolve the live OS status for an entry that is marked "running".
@@ -13,12 +11,41 @@ pub fn resolve_live_status(entry: &ProcessEntry) -> &'static str {
             _ => "unknown",
         };
     }
-    // Signal 0: does not send a signal but checks whether the process exists.
-    let pid = Pid::from_raw(entry.pid as i32);
+    check_process_alive(entry.pid)
+}
+
+#[cfg(unix)]
+fn check_process_alive(pid: u32) -> &'static str {
+    use nix::sys::signal::kill;
+    use nix::unistd::Pid;
+    let pid = Pid::from_raw(pid as i32);
     match kill(pid, None) {
         Ok(()) => "running",
         Err(_) => "dead",
     }
+}
+
+#[cfg(not(unix))]
+fn check_process_alive(_pid: u32) -> &'static str {
+    // On Windows, we cannot cheaply check liveness with signals.
+    // Return "running" and let callers handle stale entries.
+    "running"
+}
+
+#[cfg(unix)]
+fn send_signal(pid: u32, signal: nix::sys::signal::Signal) -> Result<()> {
+    use nix::sys::signal::kill;
+    use nix::unistd::Pid;
+    let pid = Pid::from_raw(pid as i32);
+    kill(pid, signal).map_err(|e| anyhow::anyhow!("Failed to signal process: {}", e))
+}
+
+#[cfg(not(unix))]
+fn send_signal(pid: u32, _signal_name: &str) -> Result<()> {
+    bail!(
+        "Process signaling is not supported on Windows. Use taskkill /PID {} instead.",
+        pid
+    );
 }
 
 pub fn run_ps(command: PsCommand, json: bool) -> Result<()> {
@@ -144,13 +171,11 @@ pub fn run_ps(command: PsCommand, json: bool) -> Result<()> {
             if live != "running" {
                 bail!("Process {} is not running (status: {})", id, live);
             }
-            let pid = Pid::from_raw(entry.pid as i32);
             println!(
-                "\x1b[33m>\x1b[0m Sending SIGHUP to process {} ({})",
+                "\x1b[33m>\x1b[0m Sending stop signal to process {} ({})",
                 entry.pid, entry.id
             );
-            kill(pid, Signal::SIGHUP)
-                .map_err(|e| anyhow::anyhow!("Failed to stop process {}: {}", entry.pid, e))?;
+            stop_process(entry.pid)?;
             println!("\x1b[32m✓\x1b[0m Stop signal sent");
         }
         PsCommand::Kill { id } => {
@@ -163,19 +188,37 @@ pub fn run_ps(command: PsCommand, json: bool) -> Result<()> {
             if live != "running" {
                 bail!("Process {} is not running (status: {})", id, live);
             }
-            let pid = Pid::from_raw(entry.pid as i32);
             println!(
-                "\x1b[33m>\x1b[0m Sending SIGTERM to process {} ({})",
+                "\x1b[33m>\x1b[0m Sending kill signal to process {} ({})",
                 entry.pid, entry.id
             );
-            kill(pid, Signal::SIGTERM)
-                .map_err(|e| anyhow::anyhow!("Failed to kill process {}: {}", entry.pid, e))?;
+            kill_process(entry.pid)?;
             store.update_status(&id, "killed", None);
             store.save()?;
             println!("\x1b[32m✓\x1b[0m Process killed");
         }
     }
     Ok(())
+}
+
+#[cfg(unix)]
+fn stop_process(pid: u32) -> Result<()> {
+    send_signal(pid, nix::sys::signal::Signal::SIGHUP)
+}
+
+#[cfg(not(unix))]
+fn stop_process(pid: u32) -> Result<()> {
+    send_signal(pid, "stop")
+}
+
+#[cfg(unix)]
+fn kill_process(pid: u32) -> Result<()> {
+    send_signal(pid, nix::sys::signal::Signal::SIGTERM)
+}
+
+#[cfg(not(unix))]
+fn kill_process(pid: u32) -> Result<()> {
+    send_signal(pid, "kill")
 }
 
 #[derive(clap::Subcommand)]
@@ -200,12 +243,12 @@ pub enum PsCommand {
         /// Process ID
         id: String,
     },
-    /// Send SIGHUP to a running process (graceful stop request)
+    /// Send stop signal to a running process (graceful stop request)
     Stop {
         /// Process ID
         id: String,
     },
-    /// Send SIGTERM to a running process (forceful termination)
+    /// Send kill signal to a running process (forceful termination)
     Kill {
         /// Process ID
         id: String,

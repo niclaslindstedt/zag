@@ -43,23 +43,23 @@ fn cancel_session(session_id: &str, reason: Option<&str>, root: Option<&str>) ->
         .max_by(|a, b| a.started_at.cmp(&b.started_at));
 
     // Try to send SIGHUP if process is alive
+    #[cfg(unix)]
     if let Some(pe) = proc_entry {
-        #[cfg(unix)]
-        {
-            use nix::sys::signal::{Signal, kill};
-            use nix::unistd::Pid;
-            let pid = Pid::from_raw(pe.pid as i32);
-            match kill(pid, Signal::SIGHUP) {
-                Ok(_) => debug!("Sent SIGHUP to pid {}", pe.pid),
-                Err(nix::errno::Errno::ESRCH) => {
-                    debug!("Process {} already dead", pe.pid);
-                }
-                Err(e) => {
-                    debug!("Failed to send SIGHUP to pid {}: {}", pe.pid, e);
-                }
+        use nix::sys::signal::{Signal, kill};
+        use nix::unistd::Pid;
+        let pid = Pid::from_raw(pe.pid as i32);
+        match kill(pid, Signal::SIGHUP) {
+            Ok(_) => debug!("Sent SIGHUP to pid {}", pe.pid),
+            Err(nix::errno::Errno::ESRCH) => {
+                debug!("Process {} already dead", pe.pid);
+            }
+            Err(e) => {
+                debug!("Failed to send SIGHUP to pid {}: {}", pe.pid, e);
             }
         }
     }
+    #[cfg(not(unix))]
+    let _ = proc_entry;
 
     // Write a SessionEnded event to the log
     let log_result = write_cancel_event(session_id, reason_msg, root);
