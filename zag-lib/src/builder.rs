@@ -40,7 +40,7 @@ use crate::sandbox::SandboxConfig;
 use crate::streaming::StreamingSession;
 use crate::worktree;
 use anyhow::{Result, bail};
-use log::debug;
+use log::{debug, warn};
 
 /// Builder for configuring and running agent sessions.
 ///
@@ -437,11 +437,34 @@ impl AgentBuilder {
 
         if let Some(output) = result {
             // Validate JSON output if schema is provided
-            if let Some(ref schema) = builder.json_schema
-                && let Some(ref result_text) = output.result
-                && let Err(errors) = json_validation::validate_json_schema(result_text, schema)
-            {
-                bail!("JSON schema validation failed: {}", errors.join("; "));
+            if let Some(ref schema) = builder.json_schema {
+                if !builder.json_mode {
+                    warn!(
+                        "json_schema is set but json_mode is false — \
+                         schema will not be sent to the agent, only used for output validation"
+                    );
+                }
+                if let Some(ref result_text) = output.result {
+                    debug!(
+                        "exec: validating result ({} bytes): {:.300}",
+                        result_text.len(),
+                        result_text
+                    );
+                    if let Err(errors) = json_validation::validate_json_schema(result_text, schema)
+                    {
+                        let preview = if result_text.len() > 500 {
+                            &result_text[..500]
+                        } else {
+                            result_text.as_str()
+                        };
+                        bail!(
+                            "JSON schema validation failed: {}\nRaw agent output ({} bytes):\n{}",
+                            errors.join("; "),
+                            result_text.len(),
+                            preview
+                        );
+                    }
+                }
             }
             Ok(output)
         } else {

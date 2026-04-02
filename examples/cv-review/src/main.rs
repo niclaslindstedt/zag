@@ -339,6 +339,7 @@ Score each category from 1-10 and provide your assessment."#,
         .model(model)
         .auto_approve(true)
         .verbose(debug)
+        .json_mode(true)
         .system_prompt(
             "You are an expert technical recruiter. \
              Evaluate candidates objectively based on evidence from their CV. \
@@ -415,6 +416,7 @@ Provide your committee review with any score adjustments and final recommendatio
         .model(model)
         .auto_approve(true)
         .verbose(debug)
+        .json_mode(true)
         .system_prompt(
             "You are a senior hiring committee member. \
              You calibrate recruiter scores, catch biases, and ensure hiring quality. \

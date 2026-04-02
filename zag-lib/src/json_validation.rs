@@ -50,8 +50,14 @@ pub fn validate_json_schema(
 ) -> Result<serde_json::Value, Vec<String>> {
     let cleaned = strip_markdown_fences(text);
     debug!("Validating JSON ({} bytes) against schema", cleaned.len());
-    let value: serde_json::Value =
-        serde_json::from_str(cleaned).map_err(|e| vec![format!("Invalid JSON: {}", e)])?;
+    let value: serde_json::Value = serde_json::from_str(cleaned).map_err(|e| {
+        debug!(
+            "JSON parse failed on input ({} bytes): {:.200}",
+            cleaned.len(),
+            cleaned
+        );
+        vec![format!("Invalid JSON: {}", e)]
+    })?;
 
     let validator = jsonschema::validator_for(schema)
         .map_err(|e| vec![format!("Invalid JSON schema: {}", e)])?;
