@@ -1,0 +1,110 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+  BINARY_NAME: zag
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            use_cross: true
+          - target: x86_64-apple-darwin
+            os: macos-13
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install cross
+        if: matrix.use_cross == true
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Build
+        shell: bash
+        run: |
+          if [ "${{ matrix.use_cross }}" = "true" ]; then
+            cross build --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          TARGET="${{ matrix.target }}"
+          STEM="${BINARY_NAME}-v${VERSION}-${TARGET}"
+          mkdir -p dist staging
+          cp "target/${TARGET}/release/${BINARY_NAME}" staging/
+          cp README.md staging/ 2>/dev/null || true
+          cp LICENSE* staging/ 2>/dev/null || true
+          tar -czf "dist/${STEM}.tar.gz" -C staging .
+          (cd dist && sha256sum "${STEM}.tar.gz" > "${STEM}.tar.gz.sha256")
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $Version = "$env:GITHUB_REF_NAME".TrimStart('v')
+          $Target = "${{ matrix.target }}"
+          $Stem = "$env:BINARY_NAME-v${Version}-${Target}"
+          New-Item -ItemType Directory -Force dist, staging | Out-Null
+          Copy-Item "target/$Target/release/$env:BINARY_NAME.exe" staging/
+          if (Test-Path README.md) { Copy-Item README.md staging/ }
+          Get-ChildItem LICENSE* -ErrorAction SilentlyContinue | Copy-Item -Destination staging/
+          Compress-Archive -Path staging/* -DestinationPath "dist/${Stem}.zip"
+          $Hash = (Get-FileHash "dist/${Stem}.zip" -Algorithm SHA256).Hash.ToLower()
+          "${Hash}  ${Stem}.zip" | Out-File -Encoding ascii "dist/${Stem}.zip.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.target }}
+          path: dist/
+          retention-days: 1
+
+  release:
+    name: GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: artifacts/*
