@@ -23,3 +23,7 @@ bindings/csharp/**/obj/
 examples/react-claude-interface/node_modules/
 examples/react-claude-interface/dist/
 examples/react-claude-interface/package-lock.json
+
+# Website build artifacts (source in website/, output committed to docs/)
+website/node_modules/
+website/package-lock.json

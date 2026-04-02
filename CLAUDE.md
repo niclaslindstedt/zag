@@ -7,6 +7,9 @@
 - `make test` — Run tests
 - `make fmt` — Format code
 - `make clippy` — Lint (zero warnings required)
+- `make website` — Build the website (output to `docs/`)
+- `make website-dev` — Start website dev server
+- `make website-clean` — Remove website build output from `docs/`
 
 ## Commit Messages
 
@@ -35,6 +38,7 @@ Key design: trait-based `Agent` abstraction, factory pattern, builder API, subpr
 6. **Agent-specific feature** → `Agent` trait or downcast via `as_any_mut()`
 7. **New provider** → `zag-lib/src/providers/`, register in `zag-lib/src/factory.rs`
 8. **New orch command** → `zag-orch/src/`, declare in `zag-orch/src/lib.rs`, dispatch from `src/main.rs`
+9. **Website** → `website/src/` (React components, styles, content)
 
 ## Development Process
 
@@ -81,3 +85,34 @@ When adding a new `AgentBuilder` setter, keep all layers in sync:
 | Provider feature change | `docs/providers.md` |
 | Config key change | `docs/configuration.md`, `man/config.md` |
 | Event format change | `docs/events-and-logging.md` |
+| Website content change | `website/src/`, rebuild with `make website` (auto-staged by pre-commit hook) |
+
+## Website
+
+The project landing page lives in `website/` (React + Vite + Tailwind CSS v4). Built output goes to `docs/` for GitHub Pages serving.
+
+- **Source**: `website/src/` — React components and styles
+- **Output**: `docs/index.html` + `docs/assets/` — committed to the repo, served by GitHub Pages
+- **Build**: `make website` (or `cd website && npm run build`)
+- **Dev server**: `make website-dev` (serves at `http://localhost:5173/zag/`)
+- **Clean**: `make website-clean` (removes only Vite output, preserves `.md` docs)
+
+### Publishing
+
+The website is published automatically via GitHub Pages from the `docs/` folder on the `main` branch.
+
+A pre-commit hook in `.githooks/pre-commit` automatically rebuilds the website when files in `website/` are staged for commit. The built output is added to the same commit.
+
+To enable the hook:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+To manually rebuild (e.g. after pulling changes):
+
+```bash
+make website-clean && make website
+```
+
+GitHub Pages must be configured in the repository settings to deploy from the `docs/` folder on the `main` branch.

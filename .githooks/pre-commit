@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Rebuild the website when website/ source files are staged for commit.
+# The built output (docs/index.html, docs/assets/) is auto-staged so it
+# becomes part of the same commit.
+#
+# Enable this hook:  git config core.hooksPath .githooks
+
+# Check if any staged files are under website/
+if ! git diff --cached --name-only -- 'website/' | grep -q .; then
+  exit 0
+fi
+
+# Verify Node.js is available
+if ! command -v node >/dev/null 2>&1; then
+  echo "Error: Node.js is required to build the website but was not found."
+  echo "Install Node.js or skip the hook with --no-verify (not recommended)."
+  exit 1
+fi
+
+echo "==> Website files changed — rebuilding..."
+
+# Clean previous Vite build output (preserves existing .md files in docs/)
+rm -rf docs/assets docs/index.html docs/vite.svg 2>/dev/null || true
+
+cd website
+if [ ! -d node_modules ]; then
+  echo "==> Installing website dependencies..."
+  npm install --silent
+fi
+npm run build
+cd ..
+
+# Stage the build output so it's included in this commit
+git add docs/index.html docs/assets/
+
+echo "==> Website rebuilt and build output staged."
