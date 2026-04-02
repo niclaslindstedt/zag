@@ -257,7 +257,7 @@ pub(crate) fn sync_skills_for_provider_to(provider_dir: &Path, skills: &[Skill])
             let _ = fs::remove_file(&link_path).or_else(|_| fs::remove_dir(&link_path));
         }
 
-        std::os::unix::fs::symlink(target, &link_path)?;
+        create_symlink_dir(target, &link_path)?;
     }
 
     // Remove stale

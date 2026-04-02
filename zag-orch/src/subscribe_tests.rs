@@ -7,5 +7,4 @@
 #[test]
 fn subscribe_module_compiles() {
     // Smoke test: the module compiles and is importable
-    assert!(true);
 }
