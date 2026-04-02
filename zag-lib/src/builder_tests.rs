@@ -82,6 +82,7 @@ fn test_builder_streaming_flags() {
 }
 
 #[test]
+#[ignore] // requires 'claude' CLI installed in PATH
 fn test_create_agent_claude() {
     let builder = AgentBuilder::new().provider("claude");
     let provider = builder.resolve_provider().unwrap();
@@ -90,6 +91,7 @@ fn test_create_agent_claude() {
 }
 
 #[test]
+#[ignore] // requires 'claude' CLI installed in PATH
 fn test_create_agent_with_model() {
     let builder = AgentBuilder::new().provider("claude").model("sonnet");
     let provider = builder.resolve_provider().unwrap();

@@ -995,12 +995,11 @@ async fn main() -> Result<()> {
             args.debug,
         )
         .await
-        .map_err(|e| {
+        .inspect_err(|_| {
             if !args.debug {
                 eprintln!("  \x1b[33m!\x1b[0m Tip: re-run with --debug for verbose agent output");
                 eprintln!("  \x1b[33m!\x1b[0m Claude session logs: ~/.claude/projects/");
             }
-            e
         })?;
         eprintln!(
             "  \x1b[32m✓\x1b[0m Score: {}/10, Recommendation: {}",
@@ -1018,12 +1017,11 @@ async fn main() -> Result<()> {
             args.debug,
         )
         .await
-        .map_err(|e| {
+        .inspect_err(|_| {
             if !args.debug {
                 eprintln!("  \x1b[33m!\x1b[0m Tip: re-run with --debug for verbose agent output");
                 eprintln!("  \x1b[33m!\x1b[0m Claude session logs: ~/.claude/projects/");
             }
-            e
         })?;
         eprintln!(
             "  \x1b[32m✓\x1b[0m Adjusted: {}/10, Final: {}",
