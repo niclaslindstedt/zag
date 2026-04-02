@@ -97,6 +97,30 @@ public class ZagBuilderTests
         var args = builder.BuildGlobalArgs();
         Assert.Equal(new[] { "--sandbox", "box1" }, args);
     }
+
+    [Fact]
+    public void Builder_MaxTurns()
+    {
+        var builder = new ZagBuilder().MaxTurns(10);
+        var args = builder.BuildGlobalArgs();
+        Assert.Equal(new[] { "--max-turns", "10" }, args);
+    }
+
+    [Fact]
+    public void Builder_ShowUsage()
+    {
+        var builder = new ZagBuilder().ShowUsage();
+        var args = builder.BuildGlobalArgs();
+        Assert.Equal(new[] { "--show-usage" }, args);
+    }
+
+    [Fact]
+    public void Builder_Size()
+    {
+        var builder = new ZagBuilder().Size("35b");
+        var args = builder.BuildGlobalArgs();
+        Assert.Equal(new[] { "--size", "35b" }, args);
+    }
 }
 
 public class ZagExceptionTests

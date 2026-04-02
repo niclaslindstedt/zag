@@ -37,6 +37,9 @@ class TestZagBuilder:
             .quiet()
             .debug()
             .session_id("abc-123")
+            .max_turns(5)
+            .show_usage()
+            .size("9b")
         )
         assert builder._provider == "claude"
         assert builder._model == "sonnet"
@@ -48,6 +51,9 @@ class TestZagBuilder:
         assert builder._quiet is True
         assert builder._debug is True
         assert builder._session_id == "abc-123"
+        assert builder._max_turns == 5
+        assert builder._show_usage is True
+        assert builder._size == "9b"
 
     def test_json_options(self) -> None:
         builder = ZagBuilder().json_mode().json_schema({"type": "object"})
@@ -94,6 +100,18 @@ class TestZagBuilder:
             "--debug",
             "--session", "sess-1",
         ]
+
+    def test_max_turns_args(self) -> None:
+        args = ZagBuilder().max_turns(10)._global_args()
+        assert ["--max-turns", "10"] == args[-2:]
+
+    def test_show_usage_args(self) -> None:
+        args = ZagBuilder().show_usage()._global_args()
+        assert "--show-usage" in args
+
+    def test_size_args(self) -> None:
+        args = ZagBuilder().size("35b")._global_args()
+        assert ["--size", "35b"] == args[-2:]
 
     def test_exec_args_default_json(self) -> None:
         builder = ZagBuilder().provider("claude")

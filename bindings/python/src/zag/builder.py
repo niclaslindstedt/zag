@@ -46,6 +46,9 @@ class ZagBuilder:
         self._input_format: str | None = None
         self._replay_user_messages: bool = False
         self._include_partial_messages: bool = False
+        self._max_turns: int | None = None
+        self._show_usage: bool = False
+        self._size: str | None = None
 
     # -- Configuration methods -----------------------------------------------
 
@@ -150,6 +153,21 @@ class ZagBuilder:
         self._include_partial_messages = i
         return self
 
+    def max_turns(self, n: int) -> ZagBuilder:
+        """Set the maximum number of agentic turns."""
+        self._max_turns = n
+        return self
+
+    def show_usage(self, s: bool = True) -> ZagBuilder:
+        """Show token usage statistics (only applies to JSON output mode)."""
+        self._show_usage = s
+        return self
+
+    def size(self, s: str) -> ZagBuilder:
+        """Set the Ollama model parameter size (e.g., ``"2b"``, ``"9b"``, ``"35b"``)."""
+        self._size = s
+        return self
+
     # -- Arg building --------------------------------------------------------
 
     def _global_args(self) -> list[str]:
@@ -182,6 +200,12 @@ class ZagBuilder:
             args.append("--debug")
         if self._session_id:
             args.extend(["--session", self._session_id])
+        if self._max_turns is not None:
+            args.extend(["--max-turns", str(self._max_turns)])
+        if self._show_usage:
+            args.append("--show-usage")
+        if self._size:
+            args.extend(["--size", self._size])
         return args
 
     def _exec_args(self, prompt: str, *, streaming: bool = False) -> list[str]:

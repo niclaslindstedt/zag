@@ -1411,6 +1411,73 @@ Follow these steps when making changes to the codebase:
 9. **Update manpages** — if the change adds/removes/modifies commands, flags, or behavior documented in `man/*.md`
 10. **Commit** — use `/commit` to commit with conventional commit messages
 
+## Parity Checklist
+
+When adding a new builder option, CLI flag, or agent feature, ensure all layers stay in sync:
+
+### Builder option parity
+
+Every setter method on `AgentBuilder` in `zag-lib/src/builder.rs` must be mirrored in all three language bindings:
+
+| Rust (`AgentBuilder`) | TypeScript (`ZagBuilder`) | Python (`ZagBuilder`) | C# (`ZagBuilder`) |
+|----------------------|--------------------------|----------------------|-------------------|
+| `.provider()` | `.provider()` | `.provider()` | `.Provider()` |
+| `.model()` | `.model()` | `.model()` | `.Model()` |
+| `.system_prompt()` | `.systemPrompt()` | `.system_prompt()` | `.SystemPrompt()` |
+| `.root()` | `.root()` | `.root()` | `.Root()` |
+| `.auto_approve()` | `.autoApprove()` | `.auto_approve()` | `.AutoApprove()` |
+| `.add_dir()` | `.addDir()` | `.add_dir()` | `.AddDir()` |
+| `.worktree()` | `.worktree()` | `.worktree()` | `.Worktree()` |
+| `.sandbox()` | `.sandbox()` | `.sandbox()` | `.Sandbox()` |
+| `.size()` | `.size()` | `.size()` | `.Size()` |
+| `.json()` | `.json()` | `.json_mode()` | `.Json()` |
+| `.json_schema()` | `.jsonSchema()` | `.json_schema()` | `.JsonSchema()` |
+| `.json_stream()` | `.jsonStream()` | `.json_stream()` | `.JsonStream()` |
+| `.session_id()` | `.sessionId()` | `.session_id()` | `.SessionId()` |
+| `.output_format()` | `.outputFormat()` | `.output_format()` | `.OutputFormat()` |
+| `.input_format()` | `.inputFormat()` | `.input_format()` | `.InputFormat()` |
+| `.replay_user_messages()` | `.replayUserMessages()` | `.replay_user_messages()` | `.ReplayUserMessages()` |
+| `.include_partial_messages()` | `.includePartialMessages()` | `.include_partial_messages()` | `.IncludePartialMessages()` |
+| `.max_turns()` | `.maxTurns()` | `.max_turns()` | `.MaxTurns()` |
+| `.show_usage()` | `.showUsage()` | `.show_usage()` | `.ShowUsage()` |
+| `.verbose()` | `.verbose()` | `.verbose()` | `.Verbose()` |
+| `.quiet()` | `.quiet()` | `.quiet()` | `.Quiet()` |
+| `.on_progress()` | N/A (Rust-only) | N/A (Rust-only) | N/A (Rust-only) |
+
+Bindings also have `.bin()` / `.Bin()` (override zag binary path) and `.debug()` / `.Debug()` which are binding-specific (not in Rust `AgentBuilder`).
+
+### When adding a new AgentBuilder setter
+
+1. Add the setter to `zag-lib/src/builder.rs`
+2. Wire it into `create_agent()` or the terminal methods in `builder.rs`
+3. If it maps to a CLI flag, add to `AgentArgs` in `src/cli.rs` and wire in `src/agent_action.rs`
+4. Add the corresponding method to all three bindings:
+   - `bindings/typescript/src/builder.ts` — field, method, and `buildGlobalArgs()` or `buildExecArgs()`
+   - `bindings/python/src/zag/builder.py` — field, method, and `_global_args()` or `_exec_args()`
+   - `bindings/csharp/src/Zag/ZagBuilder.cs` — field, method, and `BuildGlobalArgs()` or `BuildExecArgs()`
+5. Add tests for the new method in all three binding test files
+6. Update the builder methods table in all three binding READMEs
+7. Update the parity table in this section of CLAUDE.md
+
+### Test file conventions
+
+- Rust tests live in separate `*_tests.rs` files with `use super::*;`, referenced via `#[cfg(test)] #[path = "..._tests.rs"] mod tests;`
+- TypeScript tests: `bindings/typescript/tests/builder.test.ts`
+- Python tests: `bindings/python/tests/test_builder.py`
+- C# tests: `bindings/csharp/tests/Zag.Tests/ZagBuilderTests.cs`
+
+### Documentation sync points
+
+When adding user-facing features, update all of these:
+
+| Change type | Files to update |
+|-------------|----------------|
+| New CLI flag | `src/cli.rs`, `README.md`, relevant `man/*.md`, `CLAUDE.md` (if architectural) |
+| New builder option | `zag-lib/src/builder.rs`, all 3 bindings + tests + READMEs, parity table above |
+| New command | `src/cli.rs`, `src/main.rs`, `man/<cmd>.md`, `README.md`, `CLAUDE.md` key files table |
+| New provider | `zag-lib/src/providers/`, `zag-lib/src/factory.rs`, `README.md`, `CLAUDE.md` |
+| New orch command | `zag-orch/src/`, `zag-orch/src/lib.rs`, `src/cli.rs`, `src/main.rs`, `man/`, `README.md`, `CLAUDE.md` |
+
 ## Context Window Guidelines
 
 When using a 1M context model (e.g., Opus 4.6 1M), do NOT use exploration agents (subagent_type=Explore). The large context window can hold sufficient codebase context directly — use Glob, Grep, and Read tools instead of delegating to subagents.

@@ -45,6 +45,9 @@ export class ZagBuilder {
   private _inputFormat?: string;
   private _replayUserMessages = false;
   private _includePartialMessages = false;
+  private _maxTurns?: number;
+  private _showUsage = false;
+  private _size?: string;
 
   /** Override the zag binary path (default: `ZAG_BIN` env or `"zag"`). */
   bin(path: string): this {
@@ -167,6 +170,24 @@ export class ZagBuilder {
     return this;
   }
 
+  /** Set the maximum number of agentic turns. */
+  maxTurns(n: number): this {
+    this._maxTurns = n;
+    return this;
+  }
+
+  /** Show token usage statistics (only applies to JSON output mode). */
+  showUsage(s = true): this {
+    this._showUsage = s;
+    return this;
+  }
+
+  /** Set the Ollama model parameter size (e.g., "2b", "9b", "35b"). */
+  size(s: string): this {
+    this._size = s;
+    return this;
+  }
+
   /** Build the shared CLI flags (before the subcommand). */
   private buildGlobalArgs(): string[] {
     const args: string[] = [];
@@ -190,6 +211,9 @@ export class ZagBuilder {
     if (this._quiet) args.push("--quiet");
     if (this._debug) args.push("--debug");
     if (this._sessionId) args.push("--session", this._sessionId);
+    if (this._maxTurns != null) args.push("--max-turns", String(this._maxTurns));
+    if (this._showUsage) args.push("--show-usage");
+    if (this._size) args.push("--size", this._size);
     return args;
   }
 

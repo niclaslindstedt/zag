@@ -21,7 +21,10 @@ describe("ZagBuilder", () => {
       .verbose()
       .quiet()
       .debug()
-      .sessionId("abc-123");
+      .sessionId("abc-123")
+      .maxTurns(5)
+      .showUsage()
+      .size("9b");
 
     assert.ok(builder);
   });

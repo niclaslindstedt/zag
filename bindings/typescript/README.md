@@ -59,6 +59,9 @@ for await (const event of new ZagBuilder().provider("claude").stream("analyze co
 | `.inputFormat(fmt)` | Set input format (`"text"`, `"stream-json"` — Claude only) |
 | `.replayUserMessages()` | Re-emit user messages on stdout (Claude only) |
 | `.includePartialMessages()` | Include partial message chunks (Claude only) |
+| `.maxTurns(n)` | Set the maximum number of agentic turns |
+| `.showUsage()` | Show token usage statistics (JSON output mode) |
+| `.size(size)` | Set Ollama model parameter size (e.g., `"2b"`, `"9b"`, `"35b"`) |
 | `.verbose()` | Enable verbose output |
 | `.quiet()` | Suppress non-essential output |
 | `.debug()` | Enable debug logging |

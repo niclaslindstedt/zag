@@ -38,6 +38,9 @@ public class ZagBuilder
     private string? _inputFormat;
     private bool _replayUserMessages;
     private bool _includePartialMessages;
+    private int? _maxTurns;
+    private bool _showUsage;
+    private string? _size;
 
     // -- Configuration methods -----------------------------------------------
 
@@ -101,6 +104,15 @@ public class ZagBuilder
     /// <summary>Include partial message chunks in streaming output (Claude only).</summary>
     public ZagBuilder IncludePartialMessages(bool i = true) { _includePartialMessages = i; return this; }
 
+    /// <summary>Set the maximum number of agentic turns.</summary>
+    public ZagBuilder MaxTurns(int n) { _maxTurns = n; return this; }
+
+    /// <summary>Show token usage statistics (only applies to JSON output mode).</summary>
+    public ZagBuilder ShowUsage(bool s = true) { _showUsage = s; return this; }
+
+    /// <summary>Set the Ollama model parameter size (e.g., "2b", "9b", "35b").</summary>
+    public ZagBuilder Size(string s) { _size = s; return this; }
+
     // -- Arg building --------------------------------------------------------
 
     internal List<string> BuildGlobalArgs()
@@ -120,6 +132,9 @@ public class ZagBuilder
         if (_quiet) args.Add("--quiet");
         if (_debug) args.Add("--debug");
         if (_sessionId != null) { args.Add("--session"); args.Add(_sessionId); }
+        if (_maxTurns.HasValue) { args.Add("--max-turns"); args.Add(_maxTurns.Value.ToString()); }
+        if (_showUsage) args.Add("--show-usage");
+        if (_size != null) { args.Add("--size"); args.Add(_size); }
         return args;
     }
 

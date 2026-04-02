@@ -18,3 +18,7 @@ pub fn current_workspace(root: Option<&str>) -> String {
 pub fn logs_dir(root: Option<&str>) -> std::path::PathBuf {
     zag::config::Config::agent_dir(root).join("logs")
 }
+
+#[cfg(test)]
+#[path = "util_tests.rs"]
+mod tests;
