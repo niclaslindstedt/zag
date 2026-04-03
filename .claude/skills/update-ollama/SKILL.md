@@ -1,0 +1,143 @@
+---
+description: "Use when the user wants to update the Ollama provider in zag-agent. Guides keeping the Ollama CLI wrapper up to date with new CLI flags, model defaults, size mappings, and Docker sandbox behavior."
+---
+
+# Updating the Ollama Provider
+
+The Ollama provider wraps the `ollama` CLI for local model execution. It is the simplest provider — no session resume, no MCP, no streaming in structured format. Models use a `name:size` tag format and system prompts are prepended to the user prompt.
+
+## Upstream References
+
+- **GitHub repository**: https://github.com/ollama/ollama (open source)
+- **Changelog**: https://github.com/ollama/ollama/releases
+- **Website**: https://ollama.com
+- **Model library**: https://ollama.com/library (browse available models)
+- **Install/update**: https://ollama.com/download
+- **Discover flags**: `ollama --help`, `ollama run --help`
+
+## Discovery Process
+
+1. Check https://github.com/ollama/ollama/releases for new releases
+2. Clone or pull the repo to read source code for CLI flag changes
+3. Install/update `ollama` and run `ollama run --help` to discover new flags
+4. Focus on: new `ollama run` flags (especially `--system`, `--format`, `--json`), new default models on ollama.com/library, changes to model tag format, Docker/container changes
+5. Check if `ollama` has added a `--system` flag (currently missing — system prompts are prepended to the user prompt as a workaround)
+6. Check if `ollama` has added session/conversation resume capability
+
+## Implementation Files
+
+### Primary
+
+- **Provider**: `zag-agent/src/providers/ollama.rs` — `build_run_args()`, model/size handling, Docker sandbox wrapper
+- **Tests**: `zag-agent/src/providers/ollama_tests.rs`
+
+### Secondary (touch only if adding new capabilities)
+
+- `zag-agent/src/factory.rs` — model resolution (Ollama uses config-based size resolution)
+- `zag-agent/src/builder.rs` — Ollama-specific size resolution from config
+- `zag-cli/src/cli.rs` — `--size` flag in AgentArgs (Ollama-specific)
+- `zag-cli/src/commands/agent_action.rs` — if new wiring needed
+
+## Implementation Patterns
+
+### Argument construction
+
+Ollama uses `ollama run` with model:size tags:
+
+**Non-interactive with JSON**:
+```
+ollama run --format json --nowordwrap --hidethinking <model>:<size> "<prompt>"
+```
+
+**Non-interactive text**:
+```
+ollama run --nowordwrap --hidethinking <model>:<size> "<prompt>"
+```
+
+**Interactive**:
+```
+ollama run --hidethinking <model>:<size> "<prompt>"
+```
+
+### Model:size tag format
+
+Unlike other providers, Ollama models are specified as `<model>:<size>` (e.g., `qwen3.5:9b`). The model and size are separate concepts:
+- **Model**: the model family (e.g., `qwen3.5`, `llama3`, `codellama`)
+- **Size**: parameter count (e.g., `0.8b`, `2b`, `4b`, `9b`, `27b`, `35b`, `122b`)
+
+The display name combines both: `model_display_name()` returns `"{model}:{size}"`.
+
+### System prompt injection
+
+Ollama has **no `--system` flag**. The system prompt is prepended to the user prompt with a double newline separator: `"{system_prompt}\n\n{user_prompt}"`. If Ollama adds a `--system` flag in a future release, this should be updated to use it instead.
+
+### Model validation
+
+Ollama skips model validation — it accepts any model name since users can pull any model from the Ollama registry. Validation is only done for size values against the `AVAILABLE_SIZES` list.
+
+### Size resolution
+
+Size comes from multiple sources with this priority:
+1. CLI `--size` flag
+2. Config file `ollama.size` key
+3. Default: `"9b"`
+
+The builder in `builder.rs` has Ollama-specific logic to resolve size from config.
+
+### Docker sandbox
+
+Ollama has special sandbox support that wraps the command in a Docker shell:
+```
+docker sandbox run --name <name> <template> <workspace> -- \
+  -c "ollama run --hidethinking <model>:<size> ..."
+```
+Shell escaping is applied for special characters in the prompt.
+
+### Permission handling
+
+Ollama always auto-approves — `set_skip_permissions()` forces `skip_permissions = true` regardless of the input. This is because Ollama runs locally and doesn't have a permission model.
+
+### Session resume
+
+Ollama does **not** support session resume. The `run_resume()` method returns an error: "Ollama does not support session resume." If Ollama adds conversation history/resume in a future release, this should be implemented.
+
+### Updating the default model
+
+The default model (`qwen3.5`) may need updating when better small models become available. Consider:
+1. Model quality for coding tasks
+2. Availability in the Ollama library
+3. Reasonable download size for the default size (9b)
+
+### Adding a new size
+
+1. Add size string to `AVAILABLE_SIZES` array
+2. Update `model_for_size()` if the new size should be a size alias target
+3. Update size validation logic
+
+### Adding a new flag
+
+1. Add field to `Ollama` struct
+2. Wire into `build_run_args()`
+3. Handle both direct and sandbox execution paths
+4. Add setter method following the existing pattern
+
+## Update Checklist
+
+- [ ] Update `ollama.rs` — new flags in arg builders, model/size defaults, sandbox wrapper
+- [ ] Update `ollama_tests.rs` — test new arg combinations, sandbox command construction
+- [ ] Update `docs/providers.md` — feature matrix, available sizes, known limitations
+- [ ] Update `docs/configuration.md` — if new Ollama-specific config keys added
+- [ ] Update `man/run.md` and `man/exec.md` — if command behavior changes
+- [ ] Update `README.md` — provider table, model size aliases
+- [ ] Update `website/src/components/Providers.tsx` — feature tags, size lists
+- [ ] Update `website/src/components/GettingStarted.tsx` — if install method changes
+- [ ] If new builder option: update all three bindings (see parity checklist in CLAUDE.md)
+
+## Verification
+
+```sh
+make build    # Must compile cleanly
+make test     # All tests must pass
+make clippy   # Zero warnings
+make fmt      # Format code
+```

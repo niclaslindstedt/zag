@@ -8,7 +8,8 @@
 # Coverage output
 .coverage/
 
-.claude/
+.claude/*
+!.claude/skills/
 
 # Binding build artifacts
 bindings/typescript/node_modules/
