@@ -57,7 +57,7 @@ default, sonnet, sonnet-4.6, opus, opus-4.6, haiku, haiku-4.5
 
 ### Codex
 
-gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex-mini
+gpt-5.4, gpt-5.4-mini, gpt-5.3-codex-spark, gpt-5.3-codex, gpt-5-codex, gpt-5.2-codex, gpt-5.2, o4-mini, gpt-5.1-codex-max, gpt-5.1-codex-mini
 
 ### Gemini
 
