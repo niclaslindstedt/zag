@@ -268,3 +268,31 @@ jobs:
         run: dotnet nuget push bin/Release/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [update-repo, build]
+    runs-on: ubuntu-latest
+    environment: pypi-registry
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.update-repo.outputs.commit_sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install build tools
+        run: pip install build twine
+
+      - name: Build package
+        working-directory: bindings/python
+        run: python -m build
+
+      - name: Publish zag-agent
+        working-directory: bindings/python
+        run: twine upload dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}

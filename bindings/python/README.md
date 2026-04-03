@@ -7,9 +7,13 @@ Python binding for [zag](https://github.com/niclaslindstedt/zag) — a unified C
 - Python 3.10+
 - The `zag` CLI binary installed and on your `PATH` (or set via `ZAG_BIN` env var)
 
-## Setup
+## Installation
 
-This binding is not published to PyPI. Use it directly from the source tree:
+```bash
+pip install zag-agent
+```
+
+For development from source:
 
 ```bash
 cd bindings/python
