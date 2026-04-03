@@ -5,7 +5,7 @@
 
 use crate::collect::extract_last_assistant_message;
 use anyhow::{Result, bail};
-use zag::session::SessionStore;
+use zag_agent::session::SessionStore;
 
 /// Parameters for the output command.
 pub struct OutputParams {

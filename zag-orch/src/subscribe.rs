@@ -8,8 +8,8 @@ use crate::listen;
 use anyhow::{Result, bail};
 use log::debug;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
-use zag::session::SessionStore;
-use zag::session_log::AgentLogEvent;
+use zag_agent::session::SessionStore;
+use zag_agent::session_log::AgentLogEvent;
 
 /// Parameters for the subscribe command.
 pub struct SubscribeParams {
@@ -114,20 +114,24 @@ pub fn run_subscribe(params: SubscribeParams) -> Result<()> {
                         // Filter by event type
                         if let Some(ref type_filter) = params.event_type {
                             let event_type = match &event.kind {
-                                zag::session_log::LogEventKind::SessionStarted { .. } => {
+                                zag_agent::session_log::LogEventKind::SessionStarted { .. } => {
                                     "session_started"
                                 }
-                                zag::session_log::LogEventKind::SessionEnded { .. } => {
+                                zag_agent::session_log::LogEventKind::SessionEnded { .. } => {
                                     "session_ended"
                                 }
-                                zag::session_log::LogEventKind::UserMessage { .. } => {
+                                zag_agent::session_log::LogEventKind::UserMessage { .. } => {
                                     "user_message"
                                 }
-                                zag::session_log::LogEventKind::AssistantMessage { .. } => {
-                                    "assistant_message"
+                                zag_agent::session_log::LogEventKind::AssistantMessage {
+                                    ..
+                                } => "assistant_message",
+                                zag_agent::session_log::LogEventKind::ToolCall { .. } => {
+                                    "tool_call"
                                 }
-                                zag::session_log::LogEventKind::ToolCall { .. } => "tool_call",
-                                zag::session_log::LogEventKind::ToolResult { .. } => "tool_result",
+                                zag_agent::session_log::LogEventKind::ToolResult { .. } => {
+                                    "tool_result"
+                                }
                                 _ => "other",
                             };
                             if event_type != type_filter.as_str() {
@@ -143,16 +147,18 @@ pub fn run_subscribe(params: SubscribeParams) -> Result<()> {
                             let id_short =
                                 &event.wrapper_session_id[..event.wrapper_session_id.len().min(8)];
                             let type_name = match &event.kind {
-                                zag::session_log::LogEventKind::SessionStarted { .. } => {
+                                zag_agent::session_log::LogEventKind::SessionStarted { .. } => {
                                     "session_started"
                                 }
-                                zag::session_log::LogEventKind::SessionEnded { .. } => {
+                                zag_agent::session_log::LogEventKind::SessionEnded { .. } => {
                                     "session_ended"
                                 }
-                                zag::session_log::LogEventKind::AssistantMessage { .. } => {
-                                    "assistant_message"
+                                zag_agent::session_log::LogEventKind::AssistantMessage {
+                                    ..
+                                } => "assistant_message",
+                                zag_agent::session_log::LogEventKind::ToolCall { .. } => {
+                                    "tool_call"
                                 }
-                                zag::session_log::LogEventKind::ToolCall { .. } => "tool_call",
                                 _ => "event",
                             };
                             println!("[{}] {} {}", id_short, event.ts, type_name);

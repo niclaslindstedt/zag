@@ -1,6 +1,8 @@
 use super::*;
-use zag::session_log::{AgentLogEvent, LogCompleteness, LogEventKind, LogSourceKind, ToolKind};
-use zag::session_log::{
+use zag_agent::session_log::{
+    AgentLogEvent, LogCompleteness, LogEventKind, LogSourceKind, ToolKind,
+};
+use zag_agent::session_log::{
     GlobalSessionEntry, GlobalSessionIndex, load_global_index, save_global_index,
 };
 

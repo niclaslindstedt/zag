@@ -7,7 +7,7 @@ use crate::listen;
 use anyhow::{Result, bail};
 use log::debug;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
-use zag::session_log::{AgentLogEvent, LogEventKind};
+use zag_agent::session_log::{AgentLogEvent, LogEventKind};
 
 /// Parameters for the watch command.
 pub struct WatchParams {
@@ -102,7 +102,7 @@ fn resolve_watch_sessions(params: &WatchParams) -> Result<Vec<String>> {
     }
 
     if let Some(ref tag) = params.tag {
-        let store = zag::session::SessionStore::load(params.root.as_deref())?;
+        let store = zag_agent::session::SessionStore::load(params.root.as_deref())?;
         let tagged = store.find_by_tag(tag);
         if tagged.is_empty() {
             bail!("No sessions found with tag '{}'", tag);

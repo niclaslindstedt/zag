@@ -1,5 +1,5 @@
 use anyhow::Result;
-use zag::mcp;
+use zag_agent::mcp;
 
 pub(crate) fn run(from: &str) -> Result<()> {
     let imported = mcp::import_servers(from)?;

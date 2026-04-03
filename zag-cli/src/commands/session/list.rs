@@ -1,5 +1,5 @@
 use anyhow::Result;
-use zag::session;
+use zag_agent::session;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run(
@@ -35,7 +35,7 @@ pub(crate) fn run(
         sessions.retain(|s| s.tags.iter().any(|st| st.to_lowercase() == t_lower));
     }
     if let Some(ref parent_id) = parent {
-        let proc_store = zag::process_store::ProcessStore::load().unwrap_or_default();
+        let proc_store = zag_agent::process_store::ProcessStore::load().unwrap_or_default();
         let child_session_ids: std::collections::HashSet<String> = proc_store
             .processes
             .iter()

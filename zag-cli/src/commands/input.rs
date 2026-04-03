@@ -96,9 +96,9 @@ fn resolve_input_session_id(
     // --name: resolve by session name
     if let Some(name) = input_name {
         let store = if global {
-            zag::session::SessionStore::load_all().unwrap_or_default()
+            zag_agent::session::SessionStore::load_all().unwrap_or_default()
         } else {
-            zag::session::SessionStore::load(root).unwrap_or_default()
+            zag_agent::session::SessionStore::load(root).unwrap_or_default()
         };
         if let Some(entry) = store.find_by_name(name) {
             return Ok(entry.session_id.clone());
@@ -132,7 +132,7 @@ fn resolve_input_session_id(
     if global {
         // Search across all projects via global index
         let global_dir = crate::config::Config::global_base_dir();
-        if let Ok(index) = zag::session_log::load_global_index(&global_dir) {
+        if let Ok(index) = zag_agent::session_log::load_global_index(&global_dir) {
             if let Some(entry) = index
                 .sessions
                 .iter()
@@ -146,7 +146,7 @@ fn resolve_input_session_id(
         );
     } else {
         // Search current project's session store
-        let store = zag::session::SessionStore::load(root).unwrap_or_default();
+        let store = zag_agent::session::SessionStore::load(root).unwrap_or_default();
         if let Some(entry) = store.latest() {
             return Ok(entry.session_id.clone());
         }
@@ -261,9 +261,9 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
                 }
                 _ => {
                     // Text output: print assistant messages
-                    if let zag::output::Event::AssistantMessage { ref content, .. } = event {
+                    if let zag_agent::output::Event::AssistantMessage { ref content, .. } = event {
                         for block in content {
-                            if let zag::output::ContentBlock::Text { text } = block {
+                            if let zag_agent::output::ContentBlock::Text { text } = block {
                                 print!("{}", text);
                             }
                         }

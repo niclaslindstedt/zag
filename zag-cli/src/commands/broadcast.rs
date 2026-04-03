@@ -26,9 +26,9 @@ fn resolve_broadcast_session_ids(
     root: Option<&str>,
 ) -> Result<Vec<String>> {
     let store = if global {
-        zag::session::SessionStore::load_all().unwrap_or_default()
+        zag_agent::session::SessionStore::load_all().unwrap_or_default()
     } else {
-        zag::session::SessionStore::load(root).unwrap_or_default()
+        zag_agent::session::SessionStore::load(root).unwrap_or_default()
     };
     if let Some(t) = tag {
         let matches = store.find_by_tag(t);

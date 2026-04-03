@@ -1,5 +1,5 @@
 use anyhow::Result;
-use zag::skills;
+use zag_agent::skills;
 
 pub(crate) fn run(provider: Option<String>) -> Result<()> {
     let skill_list = skills::load_all_skills()?;

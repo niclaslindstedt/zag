@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use zag::mcp;
+use zag_agent::mcp;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run(

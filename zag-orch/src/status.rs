@@ -4,9 +4,9 @@ use crate::listen;
 use crate::ps::resolve_live_status;
 use anyhow::{Result, bail};
 use std::io::{BufRead, BufReader};
-use zag::process_store::ProcessStore;
-use zag::session::SessionStore;
-use zag::session_log::{AgentLogEvent, LogEventKind};
+use zag_agent::process_store::ProcessStore;
+use zag_agent::session::SessionStore;
+use zag_agent::session_log::{AgentLogEvent, LogEventKind};
 
 /// Possible session status values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]

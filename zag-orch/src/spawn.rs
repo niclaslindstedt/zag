@@ -4,9 +4,9 @@ use anyhow::Result;
 use log::debug;
 use std::fs::{self, File};
 use std::path::PathBuf;
-use zag::config::Config;
-use zag::process_store::{ProcessEntry, ProcessStore};
-use zag::session::{SessionEntry, SessionStore};
+use zag_agent::config::Config;
+use zag_agent::process_store::{ProcessEntry, ProcessStore};
+use zag_agent::session::{SessionEntry, SessionStore};
 
 use crate::types::SessionMetadata;
 use crate::util::current_workspace;

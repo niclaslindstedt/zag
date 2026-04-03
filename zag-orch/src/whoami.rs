@@ -38,7 +38,7 @@ impl WhoamiInfo {
         let Some(ref proc_id) = self.process_id else {
             return;
         };
-        let Ok(store) = zag::process_store::ProcessStore::load() else {
+        let Ok(store) = zag_agent::process_store::ProcessStore::load() else {
             return;
         };
         if let Some(entry) = store.find(proc_id) {

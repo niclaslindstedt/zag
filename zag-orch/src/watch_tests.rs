@@ -1,5 +1,5 @@
 use super::*;
-use zag::session_log::{LogCompleteness, LogSourceKind};
+use zag_agent::session_log::{LogCompleteness, LogSourceKind};
 
 fn make_event(kind: LogEventKind) -> AgentLogEvent {
     AgentLogEvent {

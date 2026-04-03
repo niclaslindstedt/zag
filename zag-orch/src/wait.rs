@@ -7,9 +7,9 @@ use log::debug;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
-use zag::process_store::ProcessStore;
-use zag::session::SessionStore;
-use zag::session_log::{AgentLogEvent, LogEventKind};
+use zag_agent::process_store::ProcessStore;
+use zag_agent::session::SessionStore;
+use zag_agent::session_log::{AgentLogEvent, LogEventKind};
 
 /// Result of waiting for a single session.
 #[derive(Debug, Clone, serde::Serialize)]

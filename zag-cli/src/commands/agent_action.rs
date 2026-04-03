@@ -1,8 +1,8 @@
 use anyhow::{Result, bail};
 use log::{debug, info};
-use zag::config::Config;
-use zag::factory::AgentFactory;
-use zag::{auto_selector, mcp, sandbox, session, skills, worktree};
+use zag_agent::config::Config;
+use zag_agent::factory::AgentFactory;
+use zag_agent::{auto_selector, mcp, sandbox, session, skills, worktree};
 
 use crate::cleanup::{
     print_resume_hint, print_session_resume_hint, prompt_sandbox_cleanup, prompt_worktree_cleanup,
@@ -747,8 +747,8 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
     let parent_process_id = std::env::var("ZAG_PROCESS_ID").ok();
     let parent_session_id = std::env::var("ZAG_SESSION_ID").ok();
 
-    if let Ok(mut pstore) = zag::process_store::ProcessStore::load() {
-        pstore.add(zag::process_store::ProcessEntry {
+    if let Ok(mut pstore) = zag_agent::process_store::ProcessStore::load() {
+        pstore.add(zag_agent::process_store::ProcessEntry {
             id: proc_id.clone(),
             pid: std::process::id(),
             session_id: proc_session_id.clone(),
@@ -917,7 +917,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
 
     let agent_success = match &action_result {
         Err(err) => {
-            if let Ok(mut pstore) = zag::process_store::ProcessStore::load() {
+            if let Ok(mut pstore) = zag_agent::process_store::ProcessStore::load() {
                 pstore.update_status(&proc_id, "killed", Some(1));
                 let _ = pstore.save();
             }
@@ -978,7 +978,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         Some(if agent_success { 0 } else { 1 }),
     );
 
-    if let Ok(mut pstore) = zag::process_store::ProcessStore::load() {
+    if let Ok(mut pstore) = zag_agent::process_store::ProcessStore::load() {
         pstore.update_status(&proc_id, "exited", Some(0));
         let _ = pstore.save();
     }

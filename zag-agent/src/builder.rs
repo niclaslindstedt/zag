@@ -6,7 +6,7 @@
 //! # Examples
 //!
 //! ```no_run
-//! use zag::builder::AgentBuilder;
+//! use zag_agent::builder::AgentBuilder;
 //!
 //! # async fn example() -> anyhow::Result<()> {
 //! // Non-interactive exec — returns structured output
@@ -482,7 +482,7 @@ impl AgentBuilder {
     /// # Examples
     ///
     /// ```no_run
-    /// use zag::builder::AgentBuilder;
+    /// use zag_agent::builder::AgentBuilder;
     ///
     /// # async fn example() -> anyhow::Result<()> {
     /// let mut session = AgentBuilder::new()

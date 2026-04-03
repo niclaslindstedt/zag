@@ -5,7 +5,7 @@
 
 use log::debug;
 use std::path::PathBuf;
-use zag::config::Config;
+use zag_agent::config::Config;
 
 /// Directory for lifecycle event marker files.
 fn events_dir() -> PathBuf {

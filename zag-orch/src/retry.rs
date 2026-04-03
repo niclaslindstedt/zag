@@ -10,8 +10,8 @@ use crate::types::SessionMetadata;
 use anyhow::{Result, bail};
 use log::debug;
 use std::io::{BufRead, BufReader};
-use zag::session::SessionStore;
-use zag::session_log::{AgentLogEvent, LogEventKind};
+use zag_agent::session::SessionStore;
+use zag_agent::session_log::{AgentLogEvent, LogEventKind};
 
 /// Parameters for the retry command.
 pub struct RetryParams {

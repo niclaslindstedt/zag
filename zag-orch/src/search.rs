@@ -2,9 +2,11 @@ use anyhow::Result;
 use std::collections::BTreeMap;
 use std::env;
 use std::path::PathBuf;
-use zag::config::Config;
-use zag::search::{SearchMatch, SearchQuery, SearchResults, parse_date_arg, search as lib_search};
-use zag::session_log::{AgentLogEvent, LogEventKind};
+use zag_agent::config::Config;
+use zag_agent::search::{
+    SearchMatch, SearchQuery, SearchResults, parse_date_arg, search as lib_search,
+};
+use zag_agent::session_log::{AgentLogEvent, LogEventKind};
 
 pub struct SearchCommandArgs {
     pub query: Option<String>,
@@ -13,7 +15,7 @@ pub struct SearchCommandArgs {
     pub provider: Option<String>,
     pub role: Option<String>,
     pub tool: Option<String>,
-    pub tool_kind: Option<zag::session_log::ToolKind>,
+    pub tool_kind: Option<zag_agent::session_log::ToolKind>,
     pub from: Option<String>,
     pub to: Option<String>,
     pub session: Option<String>,
@@ -273,8 +275,8 @@ mod tests {
             provider: "claude".to_string(),
             wrapper_session_id: "s1".to_string(),
             provider_session_id: None,
-            source_kind: zag::session_log::LogSourceKind::Wrapper,
-            completeness: zag::session_log::LogCompleteness::Full,
+            source_kind: zag_agent::session_log::LogSourceKind::Wrapper,
+            completeness: zag_agent::session_log::LogCompleteness::Full,
             kind: LogEventKind::UserMessage {
                 role: "user".to_string(),
                 content: "hello".to_string(),
@@ -292,8 +294,8 @@ mod tests {
             provider: "claude".to_string(),
             wrapper_session_id: "s1".to_string(),
             provider_session_id: None,
-            source_kind: zag::session_log::LogSourceKind::Wrapper,
-            completeness: zag::session_log::LogCompleteness::Full,
+            source_kind: zag_agent::session_log::LogSourceKind::Wrapper,
+            completeness: zag_agent::session_log::LogCompleteness::Full,
             kind: LogEventKind::ToolCall {
                 tool_name: "Bash".to_string(),
                 tool_kind: None,
@@ -314,8 +316,8 @@ mod tests {
             provider: "claude".to_string(),
             wrapper_session_id: "s1".to_string(),
             provider_session_id: None,
-            source_kind: zag::session_log::LogSourceKind::Wrapper,
-            completeness: zag::session_log::LogCompleteness::Full,
+            source_kind: zag_agent::session_log::LogSourceKind::Wrapper,
+            completeness: zag_agent::session_log::LogCompleteness::Full,
             kind: LogEventKind::SessionStarted {
                 command: "run".to_string(),
                 model: None,
@@ -334,8 +336,8 @@ mod tests {
             provider: "claude".to_string(),
             wrapper_session_id: "s1".to_string(),
             provider_session_id: None,
-            source_kind: zag::session_log::LogSourceKind::Wrapper,
-            completeness: zag::session_log::LogCompleteness::Full,
+            source_kind: zag_agent::session_log::LogSourceKind::Wrapper,
+            completeness: zag_agent::session_log::LogCompleteness::Full,
             kind,
         }
     }

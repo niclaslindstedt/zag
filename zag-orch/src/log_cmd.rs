@@ -7,7 +7,7 @@
 use crate::listen;
 use anyhow::{Result, bail};
 use std::io::{BufRead, Write};
-use zag::session_log::{AgentLogEvent, LogCompleteness, LogEventKind, LogSourceKind};
+use zag_agent::session_log::{AgentLogEvent, LogCompleteness, LogEventKind, LogSourceKind};
 
 /// Parameters for the log command.
 pub struct LogParams {

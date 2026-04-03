@@ -4,7 +4,7 @@
 pub fn current_workspace(root: Option<&str>) -> String {
     if let Some(root) = root {
         root.to_string()
-    } else if let Ok(repo_root) = zag::worktree::git_repo_root(None) {
+    } else if let Ok(repo_root) = zag_agent::worktree::git_repo_root(None) {
         repo_root.to_string_lossy().to_string()
     } else {
         std::env::current_dir()
@@ -16,7 +16,7 @@ pub fn current_workspace(root: Option<&str>) -> String {
 
 /// Resolve the logs directory for a given project root.
 pub fn logs_dir(root: Option<&str>) -> std::path::PathBuf {
-    zag::config::Config::agent_dir(root).join("logs")
+    zag_agent::config::Config::agent_dir(root).join("logs")
 }
 
 #[cfg(test)]
