@@ -102,7 +102,7 @@ The `--provider` flag overrides `defaults.provider`, and `--auto-approve` overri
     claude = "opus"
     codex = "gpt-5.4"
     gemini = "auto"
-    copilot = "claude-sonnet-4.5"
+    copilot = "claude-sonnet-4.6"
 
     [auto]
     provider = "claude"

@@ -59,7 +59,7 @@ You need at least one underlying agent CLI installed:
 | Claude | `curl -fsSL https://claude.ai/install.sh \| bash` | [docs](https://docs.anthropic.com/en/docs/claude-code) |
 | Codex | `npm install -g @openai/codex` | [repo](https://github.com/openai/codex) |
 | Gemini | `npm install -g @anthropic-ai/gemini-cli` | [repo](https://github.com/google-gemini/gemini-cli) |
-| Copilot | `gh extension install github/gh-copilot` | [docs](https://docs.github.com/en/copilot/github-copilot-in-the-cli) |
+| Copilot | `npm install -g @github/copilot` | [docs](https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli) |
 | Ollama | See [ollama.com/download](https://ollama.com/download) | [site](https://ollama.com) |
 
 `zag` checks for the required binary before running and provides install hints if it's missing.
@@ -95,7 +95,7 @@ zag review --uncommitted
 | **claude** | default | haiku / sonnet / default |
 | **codex** | gpt-5.4 | gpt-5.4-mini / gpt-5.3-codex / gpt-5.4 |
 | **gemini** | auto | gemini-2.5-flash-lite / gemini-2.5-flash / gemini-2.5-pro |
-| **copilot** | claude-sonnet-4.5 | claude-haiku-4.5 / claude-sonnet-4.5 / claude-opus-4.5 |
+| **copilot** | claude-sonnet-4.6 | claude-haiku-4.5 / claude-sonnet-4.6 / claude-opus-4.6 |
 | **ollama** | qwen3.5:9b | 2b / 9b / 35b (parameter sizes, any model from ollama.com) |
 
 Size aliases let you write `zag -m large exec "..."` and get the right model regardless of which provider you're using. For Claude, `default` delegates model selection to the Claude CLI itself.

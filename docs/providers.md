@@ -9,7 +9,7 @@ zag supports five AI coding agent providers. Each provider wraps its respective 
 | **claude** | `claude` | default | `curl -fsSL https://claude.ai/install.sh \| bash` |
 | **codex** | `codex` | gpt-5.4 | `npm install -g @openai/codex` |
 | **gemini** | `gemini` | auto | `npm install -g @anthropic-ai/gemini-cli` |
-| **copilot** | `gh copilot` | claude-sonnet-4.5 | `gh extension install github/gh-copilot` |
+| **copilot** | `copilot` | claude-sonnet-4.6 | `npm install -g @github/copilot` |
 | **ollama** | `ollama` | qwen3.5:9b | [ollama.com/download](https://ollama.com/download) |
 
 ## Model size aliases
@@ -21,7 +21,7 @@ Size aliases let you write `zag -m large exec "..."` and get the right model reg
 | **claude** | haiku | sonnet | default |
 | **codex** | gpt-5.4-mini | gpt-5.3-codex | gpt-5.4 |
 | **gemini** | gemini-2.5-flash-lite | gemini-2.5-flash | gemini-2.5-pro |
-| **copilot** | claude-haiku-4.5 | claude-sonnet-4.5 | claude-opus-4.5 |
+| **copilot** | claude-haiku-4.5 | claude-sonnet-4.6 | claude-opus-4.6 |
 | **ollama** | 2b | 9b | 35b |
 
 For Claude, `default` delegates model selection to the Claude CLI itself. For Ollama, sizes refer to parameter counts and can be used with any model from the Ollama registry.
@@ -33,7 +33,7 @@ For Claude, `default` delegates model selection to the Claude CLI itself. For Ol
 | Interactive sessions (`run`) | Yes | Yes | Yes | Yes | Yes |
 | Non-interactive (`exec`) | Yes | Yes | Yes | Yes | Yes |
 | Streaming output | Yes | Yes | Yes | No | No |
-| Session resume | Yes | Yes | No | No | No |
+| Session resume | Yes | Yes | No | Yes | No |
 | Native JSON schema | Yes | No | No | No | No |
 | MCP servers | Yes | Yes | Yes | Yes | No |
 | Worktree isolation | Yes | Yes | Yes | Yes | Yes |
@@ -47,7 +47,7 @@ For Claude, `default` delegates model selection to the Claude CLI itself. For Ol
 - **Streaming**: Claude uses `stream-json` format natively. Codex emits NDJSON. Gemini supports output format flags. Copilot and Ollama do not support streaming in a structured format.
 - **JSON schema**: Claude supports `--json-schema` natively. For other providers, zag injects JSON instructions into the system prompt and validates the output, retrying up to 3 times on validation failure.
 - **MCP**: Ollama does not support Model Context Protocol. All other providers have native MCP support that zag manages via `zag mcp`.
-- **Resume**: Claude stores session state for `--resume`. Codex tracks thread IDs for resumable sessions. Other providers do not support native session resume.
+- **Resume**: Claude stores session state for `--resume`. Codex tracks thread IDs for resumable sessions. Copilot supports `--resume` and `--continue` for session resume. Other providers do not support native session resume.
 
 ## Available models
 
@@ -65,7 +65,7 @@ auto, gemini-3-pro-preview, gemini-3-flash-preview, gemini-2.5-pro, gemini-2.5-f
 
 ### Copilot
 
-claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.2, gpt-5.1, gpt-5, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1, gemini-3-pro-preview
+claude-sonnet-4.6, claude-haiku-4.5, claude-opus-4.6, claude-sonnet-4.5, claude-opus-4.5, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.2, gpt-5.1, gpt-5, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1, gemini-3-pro-preview
 
 ### Ollama
 
@@ -105,7 +105,7 @@ model = "sonnet"      # Which model runs the selector
 
 ## Known limitations
 
-- **Copilot**: Does not support the `--output` flag, limiting structured output options. No streaming or resume support.
+- **Copilot**: Does not support the `--output` flag, limiting structured output options. No streaming support.
 - **Ollama**: No MCP support. System prompts must be prepended to the user prompt (no `--system` flag in the CLI). No streaming in structured format.
 - **Gemini**: No native session resume. Session path discovery relies on scanning `~/.gemini/tmp/`.
 - **Codex**: Output parsing depends on the specific NDJSON format from the Codex CLI. Log backfilling uses `~/.codex/history.jsonl`.

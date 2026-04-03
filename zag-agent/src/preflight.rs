@@ -26,7 +26,7 @@ fn install_hint(agent: &str) -> &'static str {
         "codex" => "Install: npm install -g @openai/codex",
         "gemini" => "Install: npm install -g @anthropic-ai/gemini-cli",
         "copilot" => {
-            "Install: gh extension install github/gh-copilot (see https://docs.github.com/en/copilot/github-copilot-in-the-cli)"
+            "Install: npm install -g @github/copilot (see https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli)"
         }
         "ollama" => "Install: https://ollama.ai/download",
         _ => "Check that the CLI is installed and available in PATH",

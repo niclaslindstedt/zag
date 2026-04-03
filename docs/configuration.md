@@ -60,7 +60,7 @@ system_prompt = ""        # Default system prompt appended to all sessions (opti
 claude = "opus"           # Default model when using Claude
 codex = "gpt-5.4"        # Default model when using Codex
 gemini = "gemini-2.5-pro" # Default model when using Gemini
-copilot = "claude-sonnet-4.5"  # Default model when using Copilot
+copilot = "claude-sonnet-4.6"  # Default model when using Copilot
 ollama = "qwen3.5"       # Default model when using Ollama
 
 [auto]

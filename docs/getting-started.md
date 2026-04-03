@@ -35,7 +35,7 @@ curl -fsSL https://claude.ai/install.sh | bash
 # Or any of these:
 npm install -g @openai/codex          # Codex
 npm install -g @anthropic-ai/gemini-cli  # Gemini
-gh extension install github/gh-copilot   # Copilot
+npm install -g @github/copilot           # Copilot
 # Ollama: see https://ollama.com/download
 ```
 
