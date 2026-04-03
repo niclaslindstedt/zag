@@ -7,12 +7,10 @@ C# binding for [zag](https://github.com/niclaslindstedt/zag) — a unified CLI f
 - .NET 8.0+
 - The `zag` CLI binary installed and on your `PATH` (or set via `ZAG_BIN` env var)
 
-## Setup
-
-This binding is not published to NuGet. Reference the project directly:
+## Installation
 
 ```bash
-dotnet add reference bindings/csharp/src/Zag/Zag.csproj
+dotnet add package Zag
 ```
 
 ## Quick start
