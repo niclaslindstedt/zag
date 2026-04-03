@@ -55,6 +55,12 @@ sed -i.bak "s/<Version>[^<]*<\/Version>/<Version>$VERSION<\/Version>/" bindings/
 rm -f bindings/csharp/src/Zag/Zag.csproj.bak
 echo "  updated bindings/csharp/src/Zag/Zag.csproj"
 
+# --- Website ---
+
+sed -i.bak "s/v[0-9]\+\.[0-9]\+\.[0-9]\+ — Now available on crates\.io/v$VERSION — Now available on crates.io/" website/src/components/Hero.tsx
+rm -f website/src/components/Hero.tsx.bak
+echo "  updated website/src/components/Hero.tsx"
+
 # --- Regenerate Cargo.lock ---
 
 echo "  regenerating Cargo.lock..."
