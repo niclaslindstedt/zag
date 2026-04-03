@@ -14,7 +14,7 @@ The agent CLI binary isn't installed or isn't in your `PATH`. Install it using t
 which claude    # or codex, gemini, gh, ollama
 ```
 
-If installed via `npm install -g`, ensure your npm global bin directory is in your `PATH`.
+If installed via `npm install -g`, ensure your npm global bin directory is in your `PATH`. For Claude, the recommended install method is `curl -fsSL https://claude.ai/install.sh | bash`, which installs the native binary to `~/.claude/` and adds it to your `PATH` automatically.
 
 ## Invalid model
 
