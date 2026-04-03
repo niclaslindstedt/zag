@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      commit_sha: ${{ steps.push.outputs.commit_sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,13 +32,21 @@ jobs:
         run: scripts/update-versions.sh "${GITHUB_REF_NAME#v}"
 
       - name: Commit and push
+        id: push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git diff --cached --quiet && exit 0
-          git commit -m "chore(release): update changelog and versions for ${GITHUB_REF_NAME}"
-          git push origin main
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(release): update changelog and versions for ${GITHUB_REF_NAME}"
+            git push origin main
+          fi
+          echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Update tag to new commit
+        run: |
+          git tag -f "${GITHUB_REF_NAME}" HEAD
+          git push origin "${GITHUB_REF_NAME}" --force
 
       - name: Extract release notes
         id: notes
@@ -53,6 +63,7 @@ jobs:
 
   build:
     name: Build ${{ matrix.target }}
+    needs: update-repo
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -74,6 +85,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.update-repo.outputs.commit_sha }}
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -168,11 +181,13 @@ jobs:
 
   publish-crates:
     name: Publish to crates.io
-    needs: build
+    needs: [update-repo, build]
     runs-on: ubuntu-latest
     environment: crates-io
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.update-repo.outputs.commit_sha }}
 
       - uses: dtolnay/rust-toolchain@stable
 
