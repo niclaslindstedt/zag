@@ -39,9 +39,12 @@ fn test_codex_resolve_model() {
 
 #[test]
 fn test_gemini_resolve_model() {
-    assert_eq!(Gemini::resolve_model("small"), "gemini-2.5-flash-lite");
+    assert_eq!(
+        Gemini::resolve_model("small"),
+        "gemini-3.1-flash-lite-preview"
+    );
     assert_eq!(Gemini::resolve_model("medium"), "gemini-2.5-flash");
-    assert_eq!(Gemini::resolve_model("large"), "gemini-2.5-pro");
+    assert_eq!(Gemini::resolve_model("large"), "gemini-3.1-pro-preview");
     assert_eq!(Gemini::resolve_model("auto"), "auto"); // passthrough
 }
 

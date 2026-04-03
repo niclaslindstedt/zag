@@ -18,7 +18,7 @@ const providers = [
     org: "Google",
     color: "text-gemini border-gemini/30",
     models: { small: "flash-lite", medium: "flash", large: "pro" },
-    features: ["Interactive", "Streaming", "MCP"],
+    features: ["Interactive", "Streaming", "Resume", "MCP"],
   },
   {
     name: "Copilot",

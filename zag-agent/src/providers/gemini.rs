@@ -23,6 +23,8 @@ pub const DEFAULT_MODEL: &str = "auto";
 
 pub const AVAILABLE_MODELS: &[&str] = &[
     "auto",
+    "gemini-3.1-pro-preview",
+    "gemini-3.1-flash-lite-preview",
     "gemini-3-pro-preview",
     "gemini-3-flash-preview",
     "gemini-2.5-pro",
@@ -442,9 +444,9 @@ impl Agent for Gemini {
 
     fn model_for_size(size: ModelSize) -> &'static str {
         match size {
-            ModelSize::Small => "gemini-2.5-flash-lite",
+            ModelSize::Small => "gemini-3.1-flash-lite-preview",
             ModelSize::Medium => "gemini-2.5-flash",
-            ModelSize::Large => "gemini-2.5-pro",
+            ModelSize::Large => "gemini-3.1-pro-preview",
         }
     }
 

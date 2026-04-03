@@ -1,4 +1,5 @@
 use super::Gemini;
+use crate::agent::Agent;
 use crate::sandbox::SandboxConfig;
 
 #[test]
@@ -91,4 +92,40 @@ fn test_build_run_args_no_max_turns_by_default() {
     let gemini = Gemini::new();
     let args = gemini.build_run_args(false, Some("hello"));
     assert!(!args.contains(&"--max-turns".to_string()));
+}
+
+#[test]
+fn test_available_models_includes_3_1() {
+    let models = Gemini::available_models();
+    assert!(models.contains(&"gemini-3.1-pro-preview"));
+    assert!(models.contains(&"gemini-3.1-flash-lite-preview"));
+    assert!(models.contains(&"gemini-3-pro-preview"));
+    assert!(models.contains(&"gemini-2.5-pro"));
+}
+
+#[test]
+fn test_model_for_size_uses_latest() {
+    use crate::agent::ModelSize;
+    assert_eq!(
+        Gemini::model_for_size(ModelSize::Large),
+        "gemini-3.1-pro-preview"
+    );
+    assert_eq!(
+        Gemini::model_for_size(ModelSize::Medium),
+        "gemini-2.5-flash"
+    );
+    assert_eq!(
+        Gemini::model_for_size(ModelSize::Small),
+        "gemini-3.1-flash-lite-preview"
+    );
+}
+
+#[test]
+fn test_build_run_args_with_3_1_model() {
+    let mut gemini = Gemini::new();
+    gemini.model = "gemini-3.1-pro-preview".to_string();
+
+    let args = gemini.build_run_args(false, Some("hello"));
+    assert!(args.contains(&"--model".to_string()));
+    assert!(args.contains(&"gemini-3.1-pro-preview".to_string()));
 }
