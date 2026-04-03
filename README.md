@@ -1,10 +1,10 @@
 # zag
 
-[![CI](https://github.com/niclaslindstedt/zag/actions/workflows/ci.yml/badge.svg)](https://github.com/niclaslindstedt/zag/actions/workflows/ci.yml)
-[![Release](https://github.com/niclaslindstedt/zag/actions/workflows/release.yml/badge.svg)](https://github.com/niclaslindstedt/zag/actions/workflows/release.yml)
-[![Deploy static content to Pages](https://github.com/niclaslindstedt/zag/actions/workflows/static.yml/badge.svg)](https://github.com/niclaslindstedt/zag/actions/workflows/static.yml)
-[![Crates.io](https://img.shields.io/crates/v/zag-cli.svg)](https://crates.io/crates/zag-cli)
-[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![ci](https://github.com/niclaslindstedt/zag/actions/workflows/ci.yml/badge.svg)](https://github.com/niclaslindstedt/zag/actions/workflows/ci.yml)
+[![release](https://github.com/niclaslindstedt/zag/actions/workflows/release.yml/badge.svg)](https://github.com/niclaslindstedt/zag/actions/workflows/release.yml)
+[![pages](https://github.com/niclaslindstedt/zag/actions/workflows/static.yml/badge.svg)](https://github.com/niclaslindstedt/zag/actions/workflows/static.yml)
+[![crates](https://img.shields.io/crates/v/zag-cli.svg)](https://crates.io/crates/zag-cli)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 One CLI for all your AI coding agents.
 
