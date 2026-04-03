@@ -429,7 +429,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "toml",
- "zag",
+ "zag-agent",
 ]
 
 [[package]]
@@ -2659,6 +2659,14 @@ dependencies = [
 name = "zag"
 version = "0.1.0"
 dependencies = [
+ "zag-agent",
+ "zag-orch",
+]
+
+[[package]]
+name = "zag-agent"
+version = "0.1.0"
+dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
@@ -2693,7 +2701,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "uuid",
- "zag",
+ "zag-agent",
  "zag-orch",
 ]
 
@@ -2712,7 +2720,7 @@ dependencies = [
  "termimad",
  "tokio",
  "uuid",
- "zag",
+ "zag-agent",
 ]
 
 [[package]]

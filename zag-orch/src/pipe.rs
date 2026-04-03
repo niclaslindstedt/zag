@@ -6,7 +6,7 @@
 use crate::collect::extract_last_assistant_message;
 use anyhow::{Result, bail};
 use log::debug;
-use zag::session::SessionStore;
+use zag_agent::session::SessionStore;
 
 /// Parameters for the pipe command.
 pub struct PipeParams {
@@ -116,9 +116,9 @@ pub async fn run_pipe(params: PipeParams) -> Result<()> {
 
     // Resolve provider
     let provider =
-        zag::config::resolve_provider(params.provider.as_deref(), params.root.as_deref())?;
+        zag_agent::config::resolve_provider(params.provider.as_deref(), params.root.as_deref())?;
 
-    let mut builder = zag::builder::AgentBuilder::new().provider(&provider);
+    let mut builder = zag_agent::builder::AgentBuilder::new().provider(&provider);
 
     if let Some(ref model) = params.model {
         builder = builder.model(model);

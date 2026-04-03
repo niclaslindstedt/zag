@@ -3,8 +3,8 @@
 use crate::listen;
 use anyhow::{Result, bail};
 use std::io::{BufRead, BufReader};
-use zag::session::SessionStore;
-use zag::session_log::{AgentLogEvent, LogEventKind};
+use zag_agent::session::SessionStore;
+use zag_agent::session_log::{AgentLogEvent, LogEventKind};
 
 /// A collected result from a single session.
 #[derive(Debug, serde::Serialize)]

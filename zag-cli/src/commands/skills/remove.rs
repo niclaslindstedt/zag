@@ -1,5 +1,5 @@
 use anyhow::Result;
-use zag::skills;
+use zag_agent::skills;
 
 pub(crate) fn run(name: &str) -> Result<()> {
     skills::remove_skill(name)?;

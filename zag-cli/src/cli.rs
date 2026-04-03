@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use log::debug;
-use zag::json_validation;
+use zag_agent::json_validation;
 
 #[derive(Parser)]
 #[command(name = "zag")]
@@ -965,18 +965,18 @@ pub(crate) enum ToolKindArg {
     Other,
 }
 
-impl From<ToolKindArg> for zag::session_log::ToolKind {
+impl From<ToolKindArg> for zag_agent::session_log::ToolKind {
     fn from(a: ToolKindArg) -> Self {
         match a {
-            ToolKindArg::Shell => zag::session_log::ToolKind::Shell,
-            ToolKindArg::FileRead => zag::session_log::ToolKind::FileRead,
-            ToolKindArg::FileWrite => zag::session_log::ToolKind::FileWrite,
-            ToolKindArg::FileEdit => zag::session_log::ToolKind::FileEdit,
-            ToolKindArg::Search => zag::session_log::ToolKind::Search,
-            ToolKindArg::SubAgent => zag::session_log::ToolKind::SubAgent,
-            ToolKindArg::Web => zag::session_log::ToolKind::Web,
-            ToolKindArg::Notebook => zag::session_log::ToolKind::Notebook,
-            ToolKindArg::Other => zag::session_log::ToolKind::Other,
+            ToolKindArg::Shell => zag_agent::session_log::ToolKind::Shell,
+            ToolKindArg::FileRead => zag_agent::session_log::ToolKind::FileRead,
+            ToolKindArg::FileWrite => zag_agent::session_log::ToolKind::FileWrite,
+            ToolKindArg::FileEdit => zag_agent::session_log::ToolKind::FileEdit,
+            ToolKindArg::Search => zag_agent::session_log::ToolKind::Search,
+            ToolKindArg::SubAgent => zag_agent::session_log::ToolKind::SubAgent,
+            ToolKindArg::Web => zag_agent::session_log::ToolKind::Web,
+            ToolKindArg::Notebook => zag_agent::session_log::ToolKind::Notebook,
+            ToolKindArg::Other => zag_agent::session_log::ToolKind::Other,
         }
     }
 }

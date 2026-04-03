@@ -1,6 +1,6 @@
 use anyhow::Result;
 use log::debug;
-use zag::{sandbox, session, worktree};
+use zag_agent::{sandbox, session, worktree};
 
 use crate::resume::current_workspace;
 

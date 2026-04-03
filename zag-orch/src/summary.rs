@@ -8,8 +8,8 @@ use crate::listen;
 use anyhow::{Result, bail};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
-use zag::session::SessionStore;
-use zag::session_log::{AgentLogEvent, LogEventKind};
+use zag_agent::session::SessionStore;
+use zag_agent::session_log::{AgentLogEvent, LogEventKind};
 
 /// Parameters for the summary command.
 pub struct SummaryParams {

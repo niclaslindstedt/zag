@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use zag::process_store::{ProcessEntry, ProcessStore};
+use zag_agent::process_store::{ProcessEntry, ProcessStore};
 
 /// Resolve the live OS status for an entry that is marked "running".
 /// Returns "running", "dead", or the stored status unchanged.

@@ -7,7 +7,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use zag::providers::mock::{MockAgent, MockResponse};
+//! use zag_agent::providers::mock::{MockAgent, MockResponse};
 //!
 //! let agent = MockAgent::builder()
 //!     .respond_with_text("hello world")

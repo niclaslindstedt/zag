@@ -108,8 +108,8 @@ pub(crate) async fn run_review(params: ReviewParams) -> Result<()> {
 
     // Register process entry before execution.
     let review_proc_id = uuid::Uuid::new_v4().to_string();
-    if let Ok(mut pstore) = zag::process_store::ProcessStore::load() {
-        pstore.add(zag::process_store::ProcessEntry {
+    if let Ok(mut pstore) = zag_agent::process_store::ProcessStore::load() {
+        pstore.add(zag_agent::process_store::ProcessEntry {
             id: review_proc_id.clone(),
             pid: std::process::id(),
             session_id: None,
@@ -142,7 +142,7 @@ pub(crate) async fn run_review(params: ReviewParams) -> Result<()> {
             Ok(())
         }
         Err(err) => {
-            if let Ok(mut pstore) = zag::process_store::ProcessStore::load() {
+            if let Ok(mut pstore) = zag_agent::process_store::ProcessStore::load() {
                 pstore.update_status(&review_proc_id, "killed", Some(1));
                 let _ = pstore.save();
             }
@@ -151,7 +151,7 @@ pub(crate) async fn run_review(params: ReviewParams) -> Result<()> {
         }
     }?;
 
-    if let Ok(mut pstore) = zag::process_store::ProcessStore::load() {
+    if let Ok(mut pstore) = zag_agent::process_store::ProcessStore::load() {
         pstore.update_status(&review_proc_id, "exited", Some(0));
         let _ = pstore.save();
     }

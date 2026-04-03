@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use zag::session;
+use zag_agent::session;
 
 pub(crate) fn run(id: &str, json: bool, root: Option<&str>) -> Result<()> {
     let store = session::SessionStore::load(root)?;

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use zag::mcp;
+use zag_agent::mcp;
 
 pub(crate) fn run(provider: Option<String>, root: Option<&str>) -> Result<()> {
     let servers = mcp::load_all_servers(root)?;

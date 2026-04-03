@@ -2,8 +2,8 @@
 
 use anyhow::{Result, bail};
 use chrono::Utc;
-use zag::config::Config;
-use zag::process_store::ProcessStore;
+use zag_agent::config::Config;
+use zag_agent::process_store::ProcessStore;
 
 /// Parameters for the gc command.
 pub struct GcParams {

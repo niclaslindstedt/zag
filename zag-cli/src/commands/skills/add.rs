@@ -1,5 +1,5 @@
 use anyhow::Result;
-use zag::skills;
+use zag_agent::skills;
 
 pub(crate) fn run(name: &str, description: Option<String>) -> Result<()> {
     let description = description.unwrap_or_default();

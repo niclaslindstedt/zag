@@ -1,4 +1,4 @@
-pub use zag::output::*;
+pub use zag_agent::output::*;
 
 use anyhow::Result;
 use log::{debug, info};

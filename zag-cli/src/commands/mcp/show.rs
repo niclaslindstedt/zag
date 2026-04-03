@@ -1,5 +1,5 @@
 use anyhow::Result;
-use zag::mcp;
+use zag_agent::mcp;
 
 pub(crate) fn run(name: &str, json: bool, root: Option<&str>) -> Result<()> {
     let server = mcp::get_server(name, root)?;

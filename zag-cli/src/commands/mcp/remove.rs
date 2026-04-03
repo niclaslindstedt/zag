@@ -1,5 +1,5 @@
 use anyhow::Result;
-use zag::mcp;
+use zag_agent::mcp;
 
 pub(crate) fn run(name: &str, root: Option<&str>) -> Result<()> {
     mcp::remove_server(name, root)?;

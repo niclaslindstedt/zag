@@ -1,8 +1,8 @@
 //! Env command: export session environment variables for nested agent invocations.
 
 use anyhow::Result;
-use zag::process_store::ProcessStore;
-use zag::session::SessionStore;
+use zag_agent::process_store::ProcessStore;
+use zag_agent::session::SessionStore;
 
 /// Run the env command.
 pub fn run_env(session_id: Option<&str>, shell: bool, root: Option<&str>) -> Result<()> {

@@ -5,10 +5,10 @@ use chrono::{DateTime, Local};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-use zag::config::Config;
-use zag::process_store::ProcessStore;
-use zag::session_log::load_global_index;
-use zag::session_log::{AgentLogEvent, LogEventKind, SessionLogIndex};
+use zag_agent::config::Config;
+use zag_agent::process_store::ProcessStore;
+use zag_agent::session_log::load_global_index;
+use zag_agent::session_log::{AgentLogEvent, LogEventKind, SessionLogIndex};
 
 /// Output format for listen command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

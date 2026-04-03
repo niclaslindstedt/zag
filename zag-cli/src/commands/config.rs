@@ -1,5 +1,5 @@
 use anyhow::Result;
-use zag::config::Config;
+use zag_agent::config::Config;
 
 /// Handle `zag config` subcommand.
 pub(crate) fn run_config(args: Vec<String>, root: Option<&str>) -> Result<()> {

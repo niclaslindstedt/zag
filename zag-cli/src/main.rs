@@ -1,18 +1,18 @@
 // Re-export core modules from zag-agent
-use zag::agent;
-use zag::config;
-use zag::factory;
-use zag::json_validation;
-use zag::sandbox;
-use zag::session;
-use zag::worktree;
+use zag_agent::agent;
+use zag_agent::config;
+use zag_agent::factory;
+use zag_agent::json_validation;
+use zag_agent::sandbox;
+use zag_agent::session;
+use zag_agent::worktree;
 
 // Re-export provider modules
-use zag::providers::claude;
-use zag::providers::codex;
-use zag::providers::copilot;
-use zag::providers::gemini;
-use zag::providers::ollama;
+use zag_agent::providers::claude;
+use zag_agent::providers::codex;
+use zag_agent::providers::copilot;
+use zag_agent::providers::gemini;
+use zag_agent::providers::ollama;
 
 // Modules that remain in the binary crate
 mod cleanup;
@@ -46,7 +46,7 @@ use commands::{ReviewParams, run_review};
 
 /// Resolve the provider name from CLI flag, config, or default.
 pub(crate) fn resolve_provider(flag: Option<&str>, root: Option<&str>) -> Result<String> {
-    zag::config::resolve_provider(flag, root)
+    zag_agent::config::resolve_provider(flag, root)
 }
 
 /// Capitalize the first letter of a string.
@@ -264,7 +264,7 @@ async fn main() -> Result<()> {
                     provider,
                     role,
                     tool,
-                    tool_kind: tool_kind.map(zag::session_log::ToolKind::from),
+                    tool_kind: tool_kind.map(zag_agent::session_log::ToolKind::from),
                     from,
                     to,
                     session,

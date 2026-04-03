@@ -1,5 +1,5 @@
 use anyhow::Result;
-use zag::skills;
+use zag_agent::skills;
 
 pub(crate) fn run(from: &str) -> Result<()> {
     let imported = skills::import_skills(from)?;

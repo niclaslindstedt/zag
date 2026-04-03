@@ -1,20 +1,36 @@
 # Language Bindings
 
-Bindings for using [zag](https://github.com/niclaslindstedt/zag) from TypeScript, Python, and C#.
+Bindings for using [zag](https://github.com/niclaslindstedt/zag) from Rust, TypeScript, Python, and C#.
 
 ## SDKs
 
 | Language | Directory | Docs |
 |----------|-----------|------|
+| Rust | `bindings/rust/` | [README](rust/README.md) |
 | TypeScript | `bindings/typescript/` | [README](typescript/README.md) |
 | Python | `bindings/python/` | [README](python/README.md) |
 | C# | `bindings/csharp/` | [README](csharp/README.md) |
 
-> **Note:** These bindings are not published to any package registry. Use them directly from the source tree.
+> **Note:** The Rust binding is the published `zag` crate that re-exports `zag-agent` and `zag-orch`. The TypeScript, Python, and C# bindings are not published to any package registry.
 
 ## Quick start
 
-All three SDKs expose the same builder pattern. Here's the same task in each language:
+All four SDKs expose the same builder pattern. Here's the same task in each language:
+
+**Rust**
+
+```rust
+use zag::builder::AgentBuilder;
+
+let output = AgentBuilder::new()
+    .provider("claude")
+    .model("sonnet")
+    .auto_approve(true)
+    .exec("write a hello world program")
+    .await?;
+
+println!("{}", output.result);
+```
 
 **TypeScript**
 
@@ -62,7 +78,9 @@ Each SDK also supports streaming (NDJSON events), bidirectional streaming sessio
 
 ## How they work
 
-All SDKs spawn the `zag` CLI as a subprocess (`zag exec -o json` or `-o stream-json`), parse the JSON/NDJSON output into typed models, and expose a fluent builder API. Zero external runtime dependencies — only stdlib in each language.
+The **Rust** binding directly depends on the `zag-agent` and `zag-orch` workspace crates, giving native access to all types and async APIs.
+
+The **TypeScript**, **Python**, and **C#** SDKs spawn the `zag` CLI as a subprocess (`zag exec -o json` or `-o stream-json`), parse the JSON/NDJSON output into typed models, and expose a fluent builder API. Zero external runtime dependencies — only stdlib in each language.
 
 ## Prerequisites
 
@@ -88,7 +106,9 @@ cd bindings/csharp && dotnet test
 ## See also
 
 - [Root README](../README.md) — Full CLI documentation
-- [zag-agent](../zag-agent/README.md) — Rust library API (no CLI subprocess needed)
+- [zag (Rust binding)](rust/README.md) — Published Rust crate
+- [zag-agent](../zag-agent/README.md) — Core agent library
+- [zag-orch](../zag-orch/README.md) — Orchestration library
 
 ## License
 

@@ -6,7 +6,7 @@
 use crate::listen;
 use anyhow::Result;
 use std::io::{BufRead, BufReader};
-use zag::session_log::{AgentLogEvent, LogEventKind};
+use zag_agent::session_log::{AgentLogEvent, LogEventKind};
 
 /// Parameters for the events command.
 pub struct EventsParams {

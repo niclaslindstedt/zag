@@ -1,5 +1,5 @@
 use anyhow::Result;
-use zag::skills;
+use zag_agent::skills;
 
 pub(crate) fn run(json: bool) -> Result<()> {
     let skill_list = skills::list_skills()?;

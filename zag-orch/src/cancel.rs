@@ -8,9 +8,9 @@ use crate::listen;
 use anyhow::{Result, bail};
 use log::debug;
 use std::io::Write;
-use zag::process_store::ProcessStore;
-use zag::session::SessionStore;
-use zag::session_log::{AgentLogEvent, LogCompleteness, LogEventKind, LogSourceKind};
+use zag_agent::process_store::ProcessStore;
+use zag_agent::session::SessionStore;
+use zag_agent::session_log::{AgentLogEvent, LogCompleteness, LogEventKind, LogSourceKind};
 
 /// Parameters for the cancel command.
 pub struct CancelParams {
