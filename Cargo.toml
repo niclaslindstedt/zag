@@ -1,3 +1,3 @@
 [workspace]
-members = ["zag-cli", "zag-lib", "zag-orch", "examples/cv-review"]
+members = ["zag-cli", "zag-agent", "zag-orch", "examples/cv-review"]
 resolver = "3"

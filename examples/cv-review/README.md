@@ -58,7 +58,7 @@ When batch-reviewing, all CVs are processed in parallel. A summary table is prin
 
 ## See also
 
-- [zag-lib README](../../zag-lib/README.md) — Rust library API docs
+- [zag-agent README](../../zag-agent/README.md) — Rust library API docs
 - [Root README](../../README.md) — Full CLI documentation
 - [Other examples](../README.md)
 

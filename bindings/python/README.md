@@ -93,7 +93,7 @@ pytest
 
 - [TypeScript SDK](../typescript/README.md)
 - [C# SDK](../csharp/README.md)
-- [Rust API (zag-lib)](../../zag-lib/README.md)
+- [Rust API (zag-agent)](../../zag-agent/README.md)
 - [All bindings](../README.md)
 
 ## License

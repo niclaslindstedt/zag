@@ -40,5 +40,5 @@ cargo run -p cv-review -- --cv cvs/01_alex_chen.txt --job jobs/senior_backend.tx
 ## See also
 
 - [Root README](../README.md) — Full CLI documentation
-- [zag-lib](../zag-lib/README.md) — Rust library API
+- [zag-agent](../zag-agent/README.md) — Rust library API
 - [Language bindings](../bindings/) — TypeScript, Python, and C# SDKs

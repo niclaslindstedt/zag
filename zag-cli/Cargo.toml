@@ -16,7 +16,7 @@ name = "zag"
 path = "src/main.rs"
 
 [dependencies]
-zag = { version = "0.1.0", path = "../zag-lib" }
+zag = { version = "0.1.0", path = "../zag-agent" }
 zag-orch = { version = "0.1.0", path = "../zag-orch" }
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }

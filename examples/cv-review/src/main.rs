@@ -1,4 +1,4 @@
-//! CV Review Pipeline — Example using zag-lib's programmatic API
+//! CV Review Pipeline — Example using zag-agent's programmatic API
 //!
 //! Demonstrates a two-pass AI review pipeline:
 //! 1. **Recruiter Screen** — scores a CV against a job description

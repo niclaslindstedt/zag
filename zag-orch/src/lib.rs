@@ -2,7 +2,7 @@
 //!
 //! This crate provides the orchestration primitives: spawn, wait, collect, pipe,
 //! status, events, cancel, summary, watch, subscribe, retry, gc, and more.
-//! It depends on `zag` (zag-lib) for shared types (session_log, config, session,
+//! It depends on `zag` (zag-agent) for shared types (session_log, config, session,
 //! process_store) and for agent execution (AgentBuilder in pipe).
 
 pub mod types;
