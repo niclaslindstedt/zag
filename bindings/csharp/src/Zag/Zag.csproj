@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Zag</RootNamespace>
     <PackageId>Zag</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Description>C# SDK for zag — a unified CLI for AI coding agents</Description>
     <Authors>niclaslindstedt</Authors>
     <License>MIT</License>
