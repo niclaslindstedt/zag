@@ -219,3 +219,28 @@ jobs:
         run: cargo publish -p zag-cli --token "$CARGO_REGISTRY_TOKEN"
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  publish-npm:
+    name: Publish to npm
+    needs: [update-repo, build]
+    runs-on: ubuntu-latest
+    environment: npm-registry
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.update-repo.outputs.commit_sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        working-directory: bindings/typescript
+        run: npm install
+
+      - name: Publish zag-agent
+        working-directory: bindings/typescript
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

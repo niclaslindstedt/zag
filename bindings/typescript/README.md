@@ -7,9 +7,15 @@ TypeScript binding for [zag](https://github.com/niclaslindstedt/zag) — a unifi
 - Node.js 18+
 - The `zag` CLI binary installed and on your `PATH` (or set via `ZAG_BIN` env var)
 
-## Setup
+## Installation
 
-This binding is not published to npm. Use it directly from the source tree:
+```bash
+npm install zag-agent
+```
+
+### Development setup
+
+To work with the binding from source:
 
 ```bash
 cd bindings/typescript
