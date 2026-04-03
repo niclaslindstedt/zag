@@ -15,39 +15,34 @@ use zag::providers::gemini;
 use zag::providers::ollama;
 
 // Modules that remain in the binary crate
-mod agent_action;
-mod broadcast;
-mod capability;
 mod cleanup;
 mod cli;
 mod commands;
-mod input;
 mod json_mode;
 mod logging;
-mod manpage;
 mod output;
 mod resume;
-mod review;
 mod session_log;
 mod session_setup;
 
 // Re-export from sub-modules so main_tests.rs can use `super::*`
-pub(crate) use agent_action::{AgentActionParams, run_agent_action};
 pub(crate) use cli::{
     Cli, Commands, SessionIsolationArgs, command_agent_args, command_metadata_args,
     command_session_args, parse_json_schema,
 };
-pub(crate) use commands::{run_config, run_mcp, run_session, run_skills};
+pub(crate) use commands::{
+    AgentActionParams, run_agent_action, run_config, run_mcp, run_session, run_skills,
+};
 
 use anyhow::{Result, bail};
 use clap::Parser;
 use config::Config;
 use log::debug;
 
-use broadcast::{BroadcastParams, run_broadcast};
-use input::{InputParams, run_input};
-use manpage::{HELP_AGENT, print_manpage};
-use review::{ReviewParams, run_review};
+use commands::{BroadcastParams, run_broadcast};
+use commands::{HELP_AGENT, print_manpage};
+use commands::{InputParams, run_input};
+use commands::{ReviewParams, run_review};
 
 /// Resolve the provider name from CLI flag, config, or default.
 pub(crate) fn resolve_provider(flag: Option<&str>, root: Option<&str>) -> Result<String> {
@@ -291,8 +286,8 @@ async fn main() -> Result<()> {
         } => {
             let provider = resolve_provider(provider.as_deref(), root.as_deref())?;
             debug!("Showing capabilities for provider: {}", provider);
-            let cap = capability::get_capability(&provider)?;
-            let output = capability::format_capability(&cap, &format, pretty)?;
+            let cap = commands::capability::get_capability(&provider)?;
+            let output = commands::capability::format_capability(&cap, &format, pretty)?;
             println!("{}", output);
         }
         Commands::Listen {
