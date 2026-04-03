@@ -10,6 +10,47 @@ env:
   BINARY_NAME: zag
 
 jobs:
+  update-repo:
+    name: Update changelog and versions
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Generate changelog
+        run: scripts/generate-changelog.sh "${GITHUB_REF_NAME#v}"
+
+      - name: Update versions
+        run: scripts/update-versions.sh "${GITHUB_REF_NAME#v}"
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(release): update changelog and versions for ${GITHUB_REF_NAME}"
+          git push origin main
+
+      - name: Extract release notes
+        id: notes
+        run: |
+          # Extract the latest changelog section (between first and second ## [)
+          awk '/^## \[/{if(found) exit; found=1; next} found' CHANGELOG.md > release-notes.md
+          cat release-notes.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
+          retention-days: 1
+
   build:
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
@@ -94,7 +135,7 @@ jobs:
 
   release:
     name: GitHub Release
-    needs: build
+    needs: [update-repo, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -104,7 +145,23 @@ jobs:
           path: artifacts
           merge-multiple: true
 
+      - name: Prepare release body
+        id: body
+        run: |
+          if [ -f artifacts/release-notes.md ] && [ -s artifacts/release-notes.md ]; then
+            # Use changelog-generated notes
+            {
+              echo 'RELEASE_BODY<<RELEASE_EOF'
+              cat artifacts/release-notes.md
+              echo 'RELEASE_EOF'
+            } >> "$GITHUB_ENV"
+            rm -f artifacts/release-notes.md
+          else
+            echo 'RELEASE_BODY=' >> "$GITHUB_ENV"
+          fi
+
       - uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          body: ${{ env.RELEASE_BODY }}
+          generate_release_notes: ${{ env.RELEASE_BODY == '' }}
           files: artifacts/*
