@@ -24,8 +24,8 @@ const providers = [
     name: "Copilot",
     org: "GitHub",
     color: "text-copilot border-copilot/30",
-    models: { small: "—", medium: "—", large: "default" },
-    features: ["Interactive", "MCP"],
+    models: { small: "haiku-4.5", medium: "sonnet-4.6", large: "opus-4.6" },
+    features: ["Interactive", "Resume", "MCP"],
   },
   {
     name: "Ollama",

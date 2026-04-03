@@ -76,7 +76,7 @@ fn test_validate_model_valid() {
     assert!(AgentFactory::validate_model("claude", "sonnet").is_ok());
     assert!(AgentFactory::validate_model("codex", "gpt-5.4").is_ok());
     assert!(AgentFactory::validate_model("gemini", "auto").is_ok());
-    assert!(AgentFactory::validate_model("copilot", "claude-sonnet-4.5").is_ok());
+    assert!(AgentFactory::validate_model("copilot", "claude-sonnet-4.6").is_ok());
 }
 
 #[test]

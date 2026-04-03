@@ -20,7 +20,7 @@ const prereqs = [
   { name: "Claude", cmd: "curl -fsSL https://claude.ai/install.sh | bash" },
   { name: "Codex", cmd: "npm i -g @openai/codex" },
   { name: "Gemini", cmd: "npm i -g @anthropic-ai/gemini-cli" },
-  { name: "Copilot", cmd: "gh extension install github/gh-copilot" },
+  { name: "Copilot", cmd: "npm i -g @github/copilot" },
   { name: "Ollama", cmd: "# Download from ollama.com" },
 ];
 

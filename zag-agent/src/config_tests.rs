@@ -263,7 +263,7 @@ auto_approve = false
 claude = "opus"
 codex = "gpt-5.4"
 gemini = "auto"
-copilot = "claude-sonnet-4.5"
+copilot = "claude-sonnet-4.6"
 "#;
     let config: Config = toml::from_str(toml).unwrap();
     assert_eq!(config.defaults.provider, Some("codex".to_string()));
@@ -272,7 +272,7 @@ copilot = "claude-sonnet-4.5"
     assert_eq!(config.models.claude, Some("opus".to_string()));
     assert_eq!(config.models.codex, Some("gpt-5.4".to_string()));
     assert_eq!(config.models.gemini, Some("auto".to_string()));
-    assert_eq!(config.models.copilot, Some("claude-sonnet-4.5".to_string()));
+    assert_eq!(config.models.copilot, Some("claude-sonnet-4.6".to_string()));
 }
 
 #[test]

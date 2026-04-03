@@ -6,12 +6,12 @@ use std::collections::HashSet;
 #[test]
 fn test_build_run_args_non_interactive() {
     let mut copilot = Copilot::new();
-    copilot.model = "claude-sonnet-4.5".to_string();
+    copilot.model = "claude-sonnet-4.6".to_string();
 
     let args = copilot.build_run_args(false, Some("hello"));
-    assert!(args.contains(&"--allow-all-tools".to_string()));
+    assert!(args.contains(&"--allow-all".to_string()));
     assert!(args.contains(&"--model".to_string()));
-    assert!(args.contains(&"claude-sonnet-4.5".to_string()));
+    assert!(args.contains(&"claude-sonnet-4.6".to_string()));
     assert!(args.contains(&"-p".to_string()));
     assert!(args.contains(&"hello".to_string()));
 }
@@ -20,7 +20,7 @@ fn test_build_run_args_non_interactive() {
 fn test_build_run_args_interactive_with_prompt() {
     let copilot = Copilot::new();
     let args = copilot.build_run_args(true, Some("hello"));
-    assert!(!args.contains(&"--allow-all-tools".to_string()));
+    assert!(!args.contains(&"--allow-all".to_string()));
     assert!(args.contains(&"-i".to_string()));
     assert!(args.contains(&"hello".to_string()));
 }
@@ -39,7 +39,7 @@ fn test_build_run_args_skip_permissions() {
     copilot.skip_permissions = true;
 
     let args = copilot.build_run_args(true, None);
-    assert!(args.contains(&"--allow-all-tools".to_string()));
+    assert!(args.contains(&"--allow-all".to_string()));
 }
 
 #[test]

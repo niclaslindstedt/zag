@@ -502,7 +502,7 @@ model = "medium"
 # claude = "opus"
 # codex = "gpt-5.4"
 # gemini = "auto"
-# copilot = "claude-sonnet-4.5"
+# copilot = "claude-sonnet-4.6"
 
 [auto]
 # Settings for auto provider/model selection (-p auto / -m auto)

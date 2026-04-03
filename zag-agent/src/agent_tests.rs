@@ -48,8 +48,8 @@ fn test_gemini_resolve_model() {
 #[test]
 fn test_copilot_resolve_model() {
     assert_eq!(Copilot::resolve_model("small"), "claude-haiku-4.5");
-    assert_eq!(Copilot::resolve_model("medium"), "claude-sonnet-4.5");
-    assert_eq!(Copilot::resolve_model("large"), "claude-opus-4.5");
+    assert_eq!(Copilot::resolve_model("medium"), "claude-sonnet-4.6");
+    assert_eq!(Copilot::resolve_model("large"), "claude-opus-4.6");
     assert_eq!(Copilot::resolve_model("gpt-5"), "gpt-5"); // passthrough
 }
 
@@ -89,7 +89,7 @@ fn test_validate_model_all_agents() {
     assert!(Gemini::validate_model("auto", "Gemini").is_ok());
     assert!(Gemini::validate_model("invalid", "Gemini").is_err());
 
-    assert!(Copilot::validate_model("claude-sonnet-4.5", "Copilot").is_ok());
+    assert!(Copilot::validate_model("claude-sonnet-4.6", "Copilot").is_ok());
     assert!(Copilot::validate_model("invalid", "Copilot").is_err());
 }
 
@@ -98,7 +98,7 @@ fn test_default_models() {
     assert_eq!(Claude::default_model(), "default");
     assert_eq!(Codex::default_model(), "gpt-5.4");
     assert_eq!(Gemini::default_model(), "auto");
-    assert_eq!(Copilot::default_model(), "claude-sonnet-4.5");
+    assert_eq!(Copilot::default_model(), "claude-sonnet-4.6");
 }
 
 #[test]
@@ -109,7 +109,7 @@ fn test_available_models() {
 
     assert!(Codex::available_models().contains(&"gpt-5.4"));
     assert!(Gemini::available_models().contains(&"auto"));
-    assert!(Copilot::available_models().contains(&"claude-sonnet-4.5"));
+    assert!(Copilot::available_models().contains(&"claude-sonnet-4.6"));
 }
 
 #[test]

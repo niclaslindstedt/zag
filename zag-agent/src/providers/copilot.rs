@@ -34,13 +34,14 @@ pub fn session_state_dir() -> std::path::PathBuf {
         .join(".copilot/session-state")
 }
 
-pub const DEFAULT_MODEL: &str = "claude-sonnet-4.5";
+pub const DEFAULT_MODEL: &str = "claude-sonnet-4.6";
 
 pub const AVAILABLE_MODELS: &[&str] = &[
-    "claude-sonnet-4.5",
+    "claude-sonnet-4.6",
     "claude-haiku-4.5",
+    "claude-opus-4.6",
+    "claude-sonnet-4.5",
     "claude-opus-4.5",
-    "claude-sonnet-4",
     "gpt-5.1-codex-max",
     "gpt-5.1-codex",
     "gpt-5.2",
@@ -109,9 +110,9 @@ impl Copilot {
     fn build_run_args(&self, interactive: bool, prompt: Option<&str>) -> Vec<String> {
         let mut args = Vec::new();
 
-        // In non-interactive mode, --allow-all-tools is required
+        // In non-interactive mode, --allow-all is required
         if !interactive || self.skip_permissions {
-            args.push("--allow-all-tools".to_string());
+            args.push("--allow-all".to_string());
         }
 
         if !self.model.is_empty() {
@@ -712,8 +713,8 @@ impl Agent for Copilot {
     fn model_for_size(size: ModelSize) -> &'static str {
         match size {
             ModelSize::Small => "claude-haiku-4.5",
-            ModelSize::Medium => "claude-sonnet-4.5",
-            ModelSize::Large => "claude-opus-4.5",
+            ModelSize::Medium => "claude-sonnet-4.6",
+            ModelSize::Large => "claude-opus-4.6",
         }
     }
 
@@ -792,7 +793,7 @@ impl Agent for Copilot {
         };
 
         if self.skip_permissions {
-            args.push("--allow-all-tools".to_string());
+            args.push("--allow-all".to_string());
         }
 
         if !self.model.is_empty() {
