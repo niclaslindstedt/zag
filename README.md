@@ -2,7 +2,7 @@
 
 [![ci](https://github.com/niclaslindstedt/zag/actions/workflows/ci.yml/badge.svg)](https://github.com/niclaslindstedt/zag/actions/workflows/ci.yml)
 [![release](https://github.com/niclaslindstedt/zag/actions/workflows/release.yml/badge.svg)](https://github.com/niclaslindstedt/zag/actions/workflows/release.yml)
-[![deploy](https://github.com/niclaslindstedt/zag/actions/workflows/static.yml/badge.svg)](https://github.com/niclaslindstedt/zag/actions/workflows/static.yml)
+[![pages](https://github.com/niclaslindstedt/zag/actions/workflows/static.yml/badge.svg)](https://github.com/niclaslindstedt/zag/actions/workflows/static.yml)
 [![crates](https://img.shields.io/crates/v/zag-cli.svg)](https://crates.io/crates/zag-cli)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
