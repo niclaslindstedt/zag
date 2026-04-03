@@ -100,9 +100,9 @@ impl Gemini {
             args.extend(["--output-format".to_string(), format.clone()]);
         }
 
-        if let Some(turns) = self.max_turns {
-            args.extend(["--max-turns".to_string(), turns.to_string()]);
-        }
+        // Note: Gemini CLI does not support --max-turns as a CLI flag.
+        // Max turns is configured via settings.json (maxSessionTurns).
+        // The value is stored but not passed as an argument.
 
         if let Some(p) = prompt {
             args.push(p.to_string());

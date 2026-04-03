@@ -38,7 +38,7 @@ For Claude, `default` delegates model selection to the Claude CLI itself. For Ol
 | MCP servers | Yes | Yes | Yes | Yes | No |
 | Worktree isolation | Yes | Yes | Yes | Yes | Yes |
 | Docker sandbox | Yes | Yes | Yes | Yes | Yes |
-| Max turns | Yes | Yes | Yes | Yes | No |
+| Max turns | Yes | Yes | No | Yes | No |
 | System prompt | Yes | Yes | Yes | Yes | Yes |
 | Auto-approve | Yes | Yes | Yes | Yes | N/A |
 

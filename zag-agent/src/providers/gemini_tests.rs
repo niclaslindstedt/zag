@@ -78,13 +78,13 @@ fn test_make_command_with_sandbox() {
 }
 
 #[test]
-fn test_build_run_args_max_turns() {
+fn test_build_run_args_max_turns_not_passed() {
     let mut gemini = Gemini::new();
     gemini.max_turns = Some(10);
 
+    // Gemini CLI does not support --max-turns as a CLI flag
     let args = gemini.build_run_args(false, Some("hello"));
-    assert!(args.contains(&"--max-turns".to_string()));
-    assert!(args.contains(&"10".to_string()));
+    assert!(!args.contains(&"--max-turns".to_string()));
 }
 
 #[test]
