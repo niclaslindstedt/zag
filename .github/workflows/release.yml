@@ -244,3 +244,27 @@ jobs:
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-nuget:
+    name: Publish to NuGet
+    needs: [update-repo, build]
+    runs-on: ubuntu-latest
+    environment: nuget-registry
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.update-repo.outputs.commit_sha }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0'
+
+      - name: Pack
+        working-directory: bindings/csharp/src/Zag
+        run: dotnet pack -c Release
+
+      - name: Publish Zag
+        working-directory: bindings/csharp/src/Zag
+        run: dotnet nuget push bin/Release/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
