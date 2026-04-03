@@ -30,7 +30,7 @@ zag delegates to upstream agent CLIs. You need at least one installed:
 
 ```bash
 # Claude (recommended starting point)
-npm install -g @anthropic-ai/claude-code
+curl -fsSL https://claude.ai/install.sh | bash
 
 # Or any of these:
 npm install -g @openai/codex          # Codex

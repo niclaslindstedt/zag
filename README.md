@@ -56,7 +56,7 @@ You need at least one underlying agent CLI installed:
 
 | Provider | Install command | Link |
 |----------|----------------|------|
-| Claude | `npm install -g @anthropic-ai/claude-code` | [docs](https://docs.anthropic.com/en/docs/claude-code) |
+| Claude | `curl -fsSL https://claude.ai/install.sh \| bash` | [docs](https://docs.anthropic.com/en/docs/claude-code) |
 | Codex | `npm install -g @openai/codex` | [repo](https://github.com/openai/codex) |
 | Gemini | `npm install -g @anthropic-ai/gemini-cli` | [repo](https://github.com/google-gemini/gemini-cli) |
 | Copilot | `gh extension install github/gh-copilot` | [docs](https://docs.github.com/en/copilot/github-copilot-in-the-cli) |

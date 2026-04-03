@@ -6,7 +6,7 @@ zag supports five AI coding agent providers. Each provider wraps its respective 
 
 | Provider | CLI binary | Default model | Install |
 |----------|-----------|---------------|---------|
-| **claude** | `claude` | default | `npm install -g @anthropic-ai/claude-code` |
+| **claude** | `claude` | default | `curl -fsSL https://claude.ai/install.sh \| bash` |
 | **codex** | `codex` | gpt-5.4 | `npm install -g @openai/codex` |
 | **gemini** | `gemini` | auto | `npm install -g @anthropic-ai/gemini-cli` |
 | **copilot** | `gh copilot` | claude-sonnet-4.5 | `gh extension install github/gh-copilot` |
