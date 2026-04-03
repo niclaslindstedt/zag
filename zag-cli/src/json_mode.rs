@@ -6,7 +6,7 @@ use log::debug;
 
 const MAX_JSON_RETRIES: usize = 3;
 
-const JSON_WRAP_TEMPLATE: &str = include_str!("../prompts/json-wrap/1_0.md");
+const JSON_WRAP_TEMPLATE: &str = include_str!("../../prompts/json-wrap/1_0.md");
 
 /// Wrap a user prompt with explicit JSON instructions for non-Claude agents.
 pub fn wrap_prompt_for_json(prompt: &str) -> String {

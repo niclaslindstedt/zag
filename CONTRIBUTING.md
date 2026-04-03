@@ -49,7 +49,7 @@ make build && make test && make clippy && make fmt
 
 ```
 zag/
-├── src/              # Binary crate — thin CLI wrapper (argument parsing, dispatch)
+├── zag-cli/src/      # Binary crate — thin CLI wrapper (argument parsing, dispatch)
 ├── zag-lib/src/      # Library crate — agent trait, providers, builder API, config
 ├── zag-orch/src/     # Orchestration crate — spawn, wait, collect, pipe, and more
 ├── examples/         # Example projects (cv-review, orchestration scripts, React UI)

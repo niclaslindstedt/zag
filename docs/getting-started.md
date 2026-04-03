@@ -15,7 +15,7 @@ cargo install zag-cli
 ```bash
 git clone https://github.com/niclaslindstedt/zag.git
 cd zag
-cargo install --path .
+cargo install --path zag-cli
 ```
 
 ### Verify
