@@ -195,3 +195,54 @@ fn test_build_run_args_no_max_turns_by_default() {
     let args = codex.build_run_args(false, Some("hello"));
     assert!(!args.contains(&"--max-turns".to_string()));
 }
+
+#[test]
+fn test_build_run_args_full_auto() {
+    let mut codex = Codex::new();
+    codex.skip_permissions = true;
+
+    let args = codex.build_run_args(false, Some("hello"));
+    assert!(args.contains(&"--full-auto".to_string()));
+    assert!(!args.contains(&"--dangerously-bypass-approvals-and-sandbox".to_string()));
+    assert!(!args.contains(&"danger-full-access".to_string()));
+}
+
+#[test]
+fn test_build_run_args_ephemeral() {
+    let mut codex = Codex::new();
+    codex.set_ephemeral(true);
+
+    let args = codex.build_run_args(false, Some("hello"));
+    assert!(args.contains(&"--ephemeral".to_string()));
+}
+
+#[test]
+fn test_build_run_args_ephemeral_not_in_interactive() {
+    let mut codex = Codex::new();
+    codex.set_ephemeral(true);
+
+    let args = codex.build_run_args(true, Some("hello"));
+    assert!(!args.contains(&"--ephemeral".to_string()));
+}
+
+#[test]
+fn test_parse_ndjson_turn_failed() {
+    let raw = r#"{"type":"thread.started","thread_id":"t1"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"working on it"}}
+{"type":"turn.failed","error":"rate limit exceeded"}"#;
+
+    let (thread_id, text) = Codex::parse_ndjson_output(raw);
+    assert_eq!(thread_id.as_deref(), Some("t1"));
+    assert_eq!(
+        text.as_deref(),
+        Some("working on it\n[turn failed: rate limit exceeded]")
+    );
+}
+
+#[test]
+fn test_parse_ndjson_turn_failed_unknown_error() {
+    let raw = r#"{"type":"turn.failed"}"#;
+
+    let (_, text) = Codex::parse_ndjson_output(raw);
+    assert_eq!(text.as_deref(), Some("[turn failed: unknown error]"));
+}

@@ -46,9 +46,12 @@ pub const DEFAULT_MODEL: &str = "gpt-5.4";
 pub const AVAILABLE_MODELS: &[&str] = &[
     "gpt-5.4",
     "gpt-5.4-mini",
+    "gpt-5.3-codex-spark",
     "gpt-5.3-codex",
+    "gpt-5-codex",
     "gpt-5.2-codex",
     "gpt-5.2",
+    "o4-mini",
     "gpt-5.1-codex-max",
     "gpt-5.1-codex-mini",
 ];
@@ -63,6 +66,7 @@ pub struct Codex {
     capture_output: bool,
     sandbox: Option<SandboxConfig>,
     max_turns: Option<u32>,
+    ephemeral: bool,
 }
 
 pub struct CodexLiveLogAdapter {
@@ -87,7 +91,12 @@ impl Codex {
             capture_output: false,
             sandbox: None,
             max_turns: None,
+            ephemeral: false,
         }
+    }
+
+    pub fn set_ephemeral(&mut self, ephemeral: bool) {
+        self.ephemeral = ephemeral;
     }
 
     fn get_base_path(&self) -> &Path {
@@ -135,11 +144,7 @@ impl Codex {
         cmd.args(["--model", &self.model]);
 
         if self.skip_permissions {
-            cmd.args([
-                "--dangerously-bypass-approvals-and-sandbox",
-                "--sandbox",
-                "danger-full-access",
-            ]);
+            cmd.arg("--full-auto");
         }
 
         cmd.stdin(Stdio::inherit()).stdout(Stdio::inherit());
@@ -182,6 +187,18 @@ impl Codex {
                             agent_text.push_str(text);
                         }
                     }
+                    Some("turn.failed") => {
+                        let error_msg = event
+                            .get("error")
+                            .and_then(|e| e.as_str())
+                            .unwrap_or("unknown error");
+                        if !agent_text.is_empty() {
+                            agent_text.push('\n');
+                        }
+                        agent_text.push_str("[turn failed: ");
+                        agent_text.push_str(error_msg);
+                        agent_text.push(']');
+                    }
                     _ => {}
                 }
             }
@@ -223,6 +240,9 @@ impl Codex {
             {
                 args.push("--json".to_string());
             }
+            if self.ephemeral {
+                args.push("--ephemeral".to_string());
+            }
         }
 
         // Skip --cd in sandbox (workspace handles root)
@@ -237,14 +257,7 @@ impl Codex {
         }
 
         if self.skip_permissions {
-            args.extend(
-                [
-                    "--dangerously-bypass-approvals-and-sandbox",
-                    "--sandbox",
-                    "danger-full-access",
-                ]
-                .map(String::from),
-            );
+            args.push("--full-auto".to_string());
         }
 
         if let Some(turns) = self.max_turns {
@@ -670,6 +683,10 @@ impl Agent for Codex {
             args.push("--json".to_string());
         }
 
+        if self.ephemeral {
+            args.push("--ephemeral".to_string());
+        }
+
         if !in_sandbox && let Some(ref root) = self.root {
             args.extend(["--cd".to_string(), root.clone()]);
         }
@@ -681,14 +698,7 @@ impl Agent for Codex {
         }
 
         if self.skip_permissions {
-            args.extend(
-                [
-                    "--dangerously-bypass-approvals-and-sandbox",
-                    "--sandbox",
-                    "danger-full-access",
-                ]
-                .map(String::from),
-            );
+            args.push("--full-auto".to_string());
         }
 
         if let Some(turns) = self.max_turns {
@@ -724,14 +734,7 @@ impl Agent for Codex {
         }
 
         if self.skip_permissions {
-            args.extend(
-                [
-                    "--dangerously-bypass-approvals-and-sandbox",
-                    "--sandbox",
-                    "danger-full-access",
-                ]
-                .map(String::from),
-            );
+            args.push("--full-auto".to_string());
         }
 
         let mut cmd = self.make_command(args);
