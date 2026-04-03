@@ -29,10 +29,13 @@ for toml in zag-cli/Cargo.toml zag-agent/Cargo.toml zag-orch/Cargo.toml bindings
     echo "  updated $toml"
 done
 
-# Update dependency versions in bindings/rust/Cargo.toml
-sed -i.bak "s/zag-agent = { version = \"[^\"]*\"/zag-agent = { version = \"$VERSION\"/" bindings/rust/Cargo.toml
-sed -i.bak "s/zag-orch = { version = \"[^\"]*\"/zag-orch = { version = \"$VERSION\"/" bindings/rust/Cargo.toml
-rm -f bindings/rust/Cargo.toml.bak
+# Update internal dependency versions across all crates
+for toml in bindings/rust/Cargo.toml zag-orch/Cargo.toml zag-cli/Cargo.toml; do
+    sed -i.bak "s/zag-agent = { version = \"[^\"]*\"/zag-agent = { version = \"$VERSION\"/" "$toml"
+    sed -i.bak "s/zag-orch = { version = \"[^\"]*\"/zag-orch = { version = \"$VERSION\"/" "$toml"
+    rm -f "$toml.bak"
+    echo "  updated deps in $toml"
+done
 
 # --- TypeScript ---
 

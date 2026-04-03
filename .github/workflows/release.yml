@@ -176,8 +176,8 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Publish zag (zag-lib)
-        run: cargo publish -p zag --token "$CARGO_REGISTRY_TOKEN"
+      - name: Publish zag-agent
+        run: cargo publish -p zag-agent --token "$CARGO_REGISTRY_TOKEN"
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -186,6 +186,14 @@ jobs:
 
       - name: Publish zag-orch
         run: cargo publish -p zag-orch --token "$CARGO_REGISTRY_TOKEN"
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - name: Wait for crates.io index update
+        run: sleep 30
+
+      - name: Publish zag (facade)
+        run: cargo publish -p zag --token "$CARGO_REGISTRY_TOKEN"
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
