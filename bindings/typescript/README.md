@@ -1,16 +1,20 @@
-# zag-agent (TypeScript)
+# Zag TypeScript Binding
 
-TypeScript SDK for [zag](https://github.com/niclaslindstedt/zag) — a unified CLI for AI coding agents.
+TypeScript binding for [zag](https://github.com/niclaslindstedt/zag) — a unified CLI for AI coding agents.
 
 ## Prerequisites
 
 - Node.js 18+
 - The `zag` CLI binary installed and on your `PATH` (or set via `ZAG_BIN` env var)
 
-## Install
+## Setup
+
+This binding is not published to npm. Use it directly from the source tree:
 
 ```bash
-npm install zag-agent
+cd bindings/typescript
+npm install
+npm run build
 ```
 
 ## Quick start

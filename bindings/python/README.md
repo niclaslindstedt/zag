@@ -1,16 +1,19 @@
-# zag-agent (Python)
+# Zag Python Binding
 
-Python SDK for [zag](https://github.com/niclaslindstedt/zag) — a unified CLI for AI coding agents.
+Python binding for [zag](https://github.com/niclaslindstedt/zag) — a unified CLI for AI coding agents.
 
 ## Prerequisites
 
 - Python 3.10+
 - The `zag` CLI binary installed and on your `PATH` (or set via `ZAG_BIN` env var)
 
-## Install
+## Setup
+
+This binding is not published to PyPI. Use it directly from the source tree:
 
 ```bash
-pip install zag-agent
+cd bindings/python
+pip install -e .
 ```
 
 ## Quick start

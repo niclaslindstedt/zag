@@ -1,14 +1,16 @@
 # Language Bindings
 
-SDK packages for using [zag](https://github.com/niclaslindstedt/zag) from TypeScript, Python, and C#.
+Bindings for using [zag](https://github.com/niclaslindstedt/zag) from TypeScript, Python, and C#.
 
 ## SDKs
 
-| Language | Package | Install | Docs |
-|----------|---------|---------|------|
-| TypeScript | `zag-agent` | `npm install zag-agent` | [README](typescript/README.md) |
-| Python | `zag-agent` | `pip install zag-agent` | [README](python/README.md) |
-| C# | `Zag` | `dotnet add package Zag` | [README](csharp/README.md) |
+| Language | Directory | Docs |
+|----------|-----------|------|
+| TypeScript | `bindings/typescript/` | [README](typescript/README.md) |
+| Python | `bindings/python/` | [README](python/README.md) |
+| C# | `bindings/csharp/` | [README](csharp/README.md) |
+
+> **Note:** These bindings are not published to any package registry. Use them directly from the source tree.
 
 ## Quick start
 
@@ -67,7 +69,7 @@ All SDKs spawn the `zag` CLI as a subprocess (`zag exec -o json` or `-o stream-j
 The `zag` CLI binary must be installed and on your `PATH`. You can also set the `ZAG_BIN` environment variable to point to the binary.
 
 ```bash
-cargo install zag-cli
+cargo install --path zag-cli
 ```
 
 ## Testing

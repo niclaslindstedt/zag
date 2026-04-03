@@ -1,16 +1,18 @@
-# Zag (C#)
+# Zag C# Binding
 
-C# SDK for [zag](https://github.com/niclaslindstedt/zag) — a unified CLI for AI coding agents.
+C# binding for [zag](https://github.com/niclaslindstedt/zag) — a unified CLI for AI coding agents.
 
 ## Prerequisites
 
 - .NET 8.0+
 - The `zag` CLI binary installed and on your `PATH` (or set via `ZAG_BIN` env var)
 
-## Install
+## Setup
+
+This binding is not published to NuGet. Reference the project directly:
 
 ```bash
-dotnet add package Zag
+dotnet add reference bindings/csharp/src/Zag/Zag.csproj
 ```
 
 ## Quick start
