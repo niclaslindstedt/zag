@@ -5,8 +5,8 @@ mod tests;
 use anyhow::{Result, bail};
 use log::debug;
 
+use super::input::maybe_wrap_message;
 use crate::factory::AgentFactory;
-use crate::input::maybe_wrap_message;
 use crate::resume;
 
 pub(crate) struct BroadcastParams {
