@@ -7,7 +7,7 @@ release:
 	cargo build --release
 
 install:
-	cargo install --path .
+	cargo install --path zag-cli
 
 run:
 	cargo run

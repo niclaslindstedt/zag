@@ -41,7 +41,7 @@ Download a pre-built binary from [GitHub Releases](https://github.com/niclaslind
 ```bash
 git clone https://github.com/niclaslindstedt/zag.git
 cd zag
-cargo install --path .
+cargo install --path zag-cli
 ```
 
 ### As a library

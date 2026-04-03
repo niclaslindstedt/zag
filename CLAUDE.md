@@ -21,7 +21,7 @@
 
 Cargo workspace with three crates. Dependency graph: `zag-lib ← zag-orch ← zag (binary)`.
 
-- **`zag`** (binary) — Thin CLI wrapper: clap arg parsing (`src/cli.rs`), terminal logging (`src/logging.rs`), dispatch to lib/orch
+- **`zag`** (binary) — Thin CLI wrapper: clap arg parsing (`zag-cli/src/cli.rs`), terminal logging (`zag-cli/src/logging.rs`), dispatch to lib/orch
 - **`zag-lib`** (library) — Agent consolidation: `Agent` trait (`src/agent.rs`), provider implementations (`src/providers/`), `AgentFactory` (`src/factory.rs`), `AgentBuilder` (`src/builder.rs`), config, output types, session logs. Updated when upstream agent CLIs change.
 - **`zag-orch`** (library) — Orchestration: spawn, wait, collect, pipe, status, events, cancel, summary, watch, subscribe, retry, gc. Our own multi-session coordination code.
 
@@ -31,12 +31,12 @@ Key design: trait-based `Agent` abstraction, factory pattern, builder API, subpr
 
 1. **Agent/provider logic** → `zag-lib` (trait changes, provider impls, builder options, config, session logs)
 2. **Orchestration** → `zag-orch` (multi-session coordination primitives)
-3. **CLI flags/dispatch** → `src/cli.rs` + `src/main.rs`
+3. **CLI flags/dispatch** → `zag-cli/src/cli.rs` + `zag-cli/src/main.rs`
 4. **New builder option** → `zag-lib/src/builder.rs`, wire in `create_agent()` or terminal methods
-5. **New CLI flag** → `AgentArgs` in `src/cli.rs`, wire in `src/agent_action.rs`
+5. **New CLI flag** → `AgentArgs` in `zag-cli/src/cli.rs`, wire in `zag-cli/src/agent_action.rs`
 6. **Agent-specific feature** → `Agent` trait or downcast via `as_any_mut()`
 7. **New provider** → `zag-lib/src/providers/`, register in `zag-lib/src/factory.rs`
-8. **New orch command** → `zag-orch/src/`, declare in `zag-orch/src/lib.rs`, dispatch from `src/main.rs`
+8. **New orch command** → `zag-orch/src/`, declare in `zag-orch/src/lib.rs`, dispatch from `zag-cli/src/main.rs`
 9. **Website** → `website/src/` (React components, styles, content)
 
 ## Development Process
@@ -57,7 +57,7 @@ Key design: trait-based `Agent` abstraction, factory pattern, builder API, subpr
 When adding a new `AgentBuilder` setter, keep all layers in sync:
 
 1. Add setter to `zag-lib/src/builder.rs`, wire into `create_agent()` or terminal methods
-2. If CLI flag: add to `AgentArgs` in `src/cli.rs`, wire in `src/agent_action.rs`
+2. If CLI flag: add to `AgentArgs` in `zag-cli/src/cli.rs`, wire in `zag-cli/src/agent_action.rs`
 3. Add corresponding method to all three bindings:
    - `bindings/typescript/src/builder.ts` — field, method, `buildGlobalArgs()` or `buildExecArgs()`
    - `bindings/python/src/zag/builder.py` — field, method, `_global_args()` or `_exec_args()`
@@ -76,11 +76,11 @@ When adding a new `AgentBuilder` setter, keep all layers in sync:
 
 | Change type | Files to update |
 |-------------|----------------|
-| New CLI flag | `src/cli.rs`, `README.md`, relevant `man/*.md` |
+| New CLI flag | `zag-cli/src/cli.rs`, `README.md`, relevant `man/*.md` |
 | New builder option | `zag-lib/src/builder.rs`, all 3 bindings + tests + READMEs |
-| New command | `src/cli.rs`, `src/main.rs`, `man/<cmd>.md`, `README.md` |
+| New command | `zag-cli/src/cli.rs`, `zag-cli/src/main.rs`, `man/<cmd>.md`, `README.md` |
 | New provider | `zag-lib/src/providers/`, `zag-lib/src/factory.rs`, `README.md`, `docs/providers.md` |
-| New orch command | `zag-orch/src/`, `zag-orch/src/lib.rs`, `src/cli.rs`, `src/main.rs`, `man/`, `README.md` |
+| New orch command | `zag-orch/src/`, `zag-orch/src/lib.rs`, `zag-cli/src/cli.rs`, `zag-cli/src/main.rs`, `man/`, `README.md` |
 | Provider feature change | `docs/providers.md` |
 | Config key change | `docs/configuration.md`, `man/config.md` |
 | Event format change | `docs/events-and-logging.md` |

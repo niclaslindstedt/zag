@@ -56,7 +56,7 @@ detect_platform() {
 # --- Version management ---
 
 get_version() {
-    grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/'
+    grep '^version' zag-cli/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/'
 }
 
 set_version() {
@@ -69,9 +69,9 @@ set_version() {
 
     echo "setting version to $new_version"
 
-    # Update root Cargo.toml
-    sed -i.bak "0,/^version = \".*\"/s//version = \"$new_version\"/" Cargo.toml
-    rm -f Cargo.toml.bak
+    # Update zag-cli/Cargo.toml
+    sed -i.bak "0,/^version = \".*\"/s//version = \"$new_version\"/" zag-cli/Cargo.toml
+    rm -f zag-cli/Cargo.toml.bak
 
     # Update zag-lib/Cargo.toml
     sed -i.bak "0,/^version = \".*\"/s//version = \"$new_version\"/" zag-lib/Cargo.toml
@@ -173,8 +173,8 @@ create_release() {
     fi
 
     # Commit version changes if any files were modified
-    if ! git diff --quiet Cargo.toml zag-lib/Cargo.toml Cargo.lock 2>/dev/null; then
-        git add Cargo.toml zag-lib/Cargo.toml Cargo.lock
+    if ! git diff --quiet zag-cli/Cargo.toml zag-lib/Cargo.toml Cargo.lock 2>/dev/null; then
+        git add zag-cli/Cargo.toml zag-lib/Cargo.toml Cargo.lock
         git commit -m "chore(release): bump version to $version"
     fi
 
