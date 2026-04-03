@@ -88,7 +88,7 @@ cd bindings/csharp && dotnet test
 ## See also
 
 - [Root README](../README.md) — Full CLI documentation
-- [zag-lib](../zag-lib/README.md) — Rust library API (no CLI subprocess needed)
+- [zag-agent](../zag-agent/README.md) — Rust library API (no CLI subprocess needed)
 
 ## License
 

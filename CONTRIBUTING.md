@@ -50,7 +50,7 @@ make build && make test && make clippy && make fmt
 ```
 zag/
 ├── zag-cli/src/      # Binary crate — thin CLI wrapper (argument parsing, dispatch)
-├── zag-lib/src/      # Library crate — agent trait, providers, builder API, config
+├── zag-agent/src/      # Library crate — agent trait, providers, builder API, config
 ├── zag-orch/src/     # Orchestration crate — spawn, wait, collect, pipe, and more
 ├── examples/         # Example projects (cv-review, orchestration scripts, React UI)
 ├── bindings/         # Language SDKs (TypeScript, Python, C#)
@@ -58,7 +58,7 @@ zag/
 └── prompts/          # Prompt templates (auto-selector, json-wrap)
 ```
 
-Dependency graph: `zag-lib` ← `zag-orch` ← `zag` (binary). The binary also depends directly on `zag-lib`.
+Dependency graph: `zag-agent` ← `zag-orch` ← `zag` (binary). The binary also depends directly on `zag-agent`.
 
 See `CLAUDE.md` for detailed architecture documentation.
 
@@ -87,7 +87,7 @@ test(claude): add streaming session edge case tests
 - Run `make fmt` before committing
 - Run `make clippy` and fix all warnings
 - Tests live in separate `*_tests.rs` files, not inline
-- Core logic belongs in `zag-lib`; the binary crate is a thin CLI wrapper
+- Core logic belongs in `zag-agent`; the binary crate is a thin CLI wrapper
 - Follow existing patterns — check `CLAUDE.md` for architecture details
 
 ## Running individual tests
@@ -97,7 +97,7 @@ test(claude): add streaming session edge case tests
 cargo test test_name
 
 # Run tests in a specific crate
-cargo test -p zag          # zag-lib tests
+cargo test -p zag          # zag-agent tests
 cargo test -p zag-cli      # binary crate tests
 
 # Run tests with output shown
@@ -119,10 +119,10 @@ Install the coverage tool with: `cargo install cargo-llvm-cov`
 
 ## Adding a new provider
 
-1. Create `zag-lib/src/providers/<name>.rs` implementing the `Agent` trait
-2. Register the provider in `zag-lib/src/factory.rs`
+1. Create `zag-agent/src/providers/<name>.rs` implementing the `Agent` trait
+2. Register the provider in `zag-agent/src/factory.rs`
 3. Add model validation and size mappings
-4. Add tests in `zag-lib/src/providers/<name>_tests.rs`
+4. Add tests in `zag-agent/src/providers/<name>_tests.rs`
 5. Update `CLAUDE.md`, `README.md`, and `man/zag.md`
 
 ## Language bindings
@@ -142,7 +142,7 @@ cd bindings/python && pip install -e . && pytest
 cd bindings/csharp && dotnet test
 ```
 
-When modifying the `AgentOutput` or `Event` types in `zag-lib/src/output.rs`, update the corresponding type definitions in all three binding packages.
+When modifying the `AgentOutput` or `Event` types in `zag-agent/src/output.rs`, update the corresponding type definitions in all three binding packages.
 
 ## Release process
 

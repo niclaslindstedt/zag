@@ -23,7 +23,7 @@ Instead, use [GitHub's private vulnerability reporting](https://github.com/nicla
 
 ### Scope
 
-This policy covers the `zag` CLI binary and the `zag-lib` / `zag-orch` library crates. Vulnerabilities in upstream agent CLIs (Claude, Codex, Gemini, Copilot, Ollama) should be reported to their respective maintainers.
+This policy covers the `zag` CLI binary and the `zag-agent` / `zag-orch` library crates. Vulnerabilities in upstream agent CLIs (Claude, Codex, Gemini, Copilot, Ollama) should be reported to their respective maintainers.
 
 ### Safe harbor
 

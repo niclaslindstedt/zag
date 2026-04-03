@@ -473,5 +473,5 @@ When implementing parsers for this format:
 ## References
 
 - Main documentation: [Root README](../../README.md)
-- Struct implementations: [`zag-lib/src/providers/claude/models.rs`](../../zag-lib/src/providers/claude/models.rs)
-- Agent implementation: [`zag-lib/src/providers/claude/mod.rs`](../../zag-lib/src/providers/claude/mod.rs)
+- Struct implementations: [`zag-agent/src/providers/claude/models.rs`](../../zag-agent/src/providers/claude/models.rs)
+- Agent implementation: [`zag-agent/src/providers/claude/mod.rs`](../../zag-agent/src/providers/claude/mod.rs)

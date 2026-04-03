@@ -96,7 +96,7 @@ npm run build && npm test
 
 - [Python SDK](../python/README.md)
 - [C# SDK](../csharp/README.md)
-- [Rust API (zag-lib)](../../zag-lib/README.md)
+- [Rust API (zag-agent)](../../zag-agent/README.md)
 - [All bindings](../README.md)
 
 ## License

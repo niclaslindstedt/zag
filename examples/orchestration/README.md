@@ -148,5 +148,5 @@ zag ps kill <id>          # Force-kill a specific process
 
 ### Other examples
 
-- [CV Review](../cv-review/) — Programmatic `zag-lib` API usage with parallel agents
+- [CV Review](../cv-review/) — Programmatic `zag-agent` API usage with parallel agents
 - [React Claude Interface](../react-claude-interface/) — Web UI with streaming NDJSON events

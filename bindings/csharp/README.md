@@ -93,7 +93,7 @@ dotnet test
 
 - [TypeScript SDK](../typescript/README.md)
 - [Python SDK](../python/README.md)
-- [Rust API (zag-lib)](../../zag-lib/README.md)
+- [Rust API (zag-agent)](../../zag-agent/README.md)
 - [All bindings](../README.md)
 
 ## License

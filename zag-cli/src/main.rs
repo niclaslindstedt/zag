@@ -1,4 +1,4 @@
-// Re-export core modules from zag-lib
+// Re-export core modules from zag-agent
 use zag::agent;
 use zag::config;
 use zag::factory;

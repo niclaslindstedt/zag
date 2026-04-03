@@ -374,7 +374,7 @@ Supported providers: Claude (`~/.claude.json`), Gemini (`~/.gemini/settings.json
 
 ## Programmatic API
 
-The `zag-lib` crate exposes an `AgentBuilder` for driving agents from Rust code:
+The `zag-agent` crate exposes an `AgentBuilder` for driving agents from Rust code:
 
 ```rust
 use zag::builder::AgentBuilder;
@@ -389,7 +389,7 @@ let output = AgentBuilder::new()
 println!("{}", output.result.unwrap_or_default());
 ```
 
-See the [`zag-lib` crate](zag-lib/) for the full API including JSON schema validation, custom progress handlers, and interactive sessions.
+See the [`zag-agent` crate](zag-agent/) for the full API including JSON schema validation, custom progress handlers, and interactive sessions.
 
 ### Language bindings
 
@@ -488,10 +488,10 @@ See the [examples directory](examples/) for details on each.
 
 ```
 zag (binary crate)
-  CLI parsing (clap) → dispatch to zag-lib and zag-orch
+  CLI parsing (clap) → dispatch to zag-agent and zag-orch
   Session logs, worktree/sandbox lifecycle, JSON mode, auto-selection
 
-zag-lib (library crate)
+zag-agent (library crate)
   Agent trait, provider implementations, AgentBuilder API
   Config, output types, session logs, skills, process helpers
 

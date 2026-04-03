@@ -73,9 +73,9 @@ set_version() {
     sed -i.bak "0,/^version = \".*\"/s//version = \"$new_version\"/" zag-cli/Cargo.toml
     rm -f zag-cli/Cargo.toml.bak
 
-    # Update zag-lib/Cargo.toml
-    sed -i.bak "0,/^version = \".*\"/s//version = \"$new_version\"/" zag-lib/Cargo.toml
-    rm -f zag-lib/Cargo.toml.bak
+    # Update zag-agent/Cargo.toml
+    sed -i.bak "0,/^version = \".*\"/s//version = \"$new_version\"/" zag-agent/Cargo.toml
+    rm -f zag-agent/Cargo.toml.bak
 
     # Update Cargo.lock
     cargo generate-lockfile 2>/dev/null || cargo check 2>/dev/null || true
@@ -173,8 +173,8 @@ create_release() {
     fi
 
     # Commit version changes if any files were modified
-    if ! git diff --quiet zag-cli/Cargo.toml zag-lib/Cargo.toml Cargo.lock 2>/dev/null; then
-        git add zag-cli/Cargo.toml zag-lib/Cargo.toml Cargo.lock
+    if ! git diff --quiet zag-cli/Cargo.toml zag-agent/Cargo.toml Cargo.lock 2>/dev/null; then
+        git add zag-cli/Cargo.toml zag-agent/Cargo.toml Cargo.lock
         git commit -m "chore(release): bump version to $version"
     fi
 

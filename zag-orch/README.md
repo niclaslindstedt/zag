@@ -9,7 +9,7 @@ Orchestration library for zag — multi-session coordination for AI coding agent
 
 `zag-orch` provides the Rust implementation behind zag's orchestration CLI commands. It is the programmatic layer for launching, synchronizing, and collecting results from multiple agent sessions.
 
-This crate depends on [`zag`](../zag-lib/) (zag-lib) for shared types and agent execution.
+This crate depends on [`zag`](../zag-agent/) (zag-agent) for shared types and agent execution.
 
 ## Modules
 
@@ -108,7 +108,7 @@ zag output "$sid"
 
 - [Root README](../README.md) — Full CLI documentation and orchestration examples
 - [Orchestration shell scripts](../examples/orchestration/) — Runnable multi-agent patterns
-- [zag-lib README](../zag-lib/README.md) — Core library with `AgentBuilder` API
+- [zag-agent README](../zag-agent/README.md) — Core library with `AgentBuilder` API
 
 ## License
 

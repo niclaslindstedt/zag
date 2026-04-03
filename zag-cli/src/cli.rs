@@ -951,7 +951,7 @@ pub(crate) enum McpCommand {
 }
 
 /// Bridge enum for `ToolKind` that derives `clap::ValueEnum` (kept in the binary crate
-/// so `zag-lib` does not need a clap dependency).
+/// so `zag-agent` does not need a clap dependency).
 #[derive(clap::ValueEnum, Clone, Debug)]
 pub(crate) enum ToolKindArg {
     Shell,
