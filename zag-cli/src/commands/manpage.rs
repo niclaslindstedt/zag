@@ -1,41 +1,41 @@
 use anyhow::{Result, bail};
 
 /// Embedded manpages.
-const MAN_ZAG: &str = include_str!("../../../man/zag.md");
-const MAN_RUN: &str = include_str!("../../../man/run.md");
-const MAN_EXEC: &str = include_str!("../../../man/exec.md");
-const MAN_REVIEW: &str = include_str!("../../../man/review.md");
-const MAN_CONFIG: &str = include_str!("../../../man/config.md");
-const MAN_SESSION: &str = include_str!("../../../man/session.md");
-const MAN_CAPABILITY: &str = include_str!("../../../man/capability.md");
-const MAN_LISTEN: &str = include_str!("../../../man/listen.md");
-const MAN_MAN: &str = include_str!("../../../man/man.md");
-const MAN_SKILLS: &str = include_str!("../../../man/skills.md");
-const MAN_MCP: &str = include_str!("../../../man/mcp.md");
-const MAN_PS: &str = include_str!("../../../man/ps.md");
-const MAN_SEARCH: &str = include_str!("../../../man/search.md");
-const MAN_INPUT: &str = include_str!("../../../man/input.md");
-const MAN_BROADCAST: &str = include_str!("../../../man/broadcast.md");
-const MAN_WHOAMI: &str = include_str!("../../../man/whoami.md");
-const MAN_WAIT: &str = include_str!("../../../man/wait.md");
-const MAN_SPAWN: &str = include_str!("../../../man/spawn.md");
-const MAN_STATUS: &str = include_str!("../../../man/status.md");
-const MAN_COLLECT: &str = include_str!("../../../man/collect.md");
-const MAN_ENV: &str = include_str!("../../../man/env.md");
-const MAN_PIPE: &str = include_str!("../../../man/pipe.md");
-const MAN_EVENTS: &str = include_str!("../../../man/events.md");
-const MAN_CANCEL: &str = include_str!("../../../man/cancel.md");
-const MAN_SUMMARY: &str = include_str!("../../../man/summary.md");
-const MAN_WATCH: &str = include_str!("../../../man/watch.md");
-const MAN_SUBSCRIBE: &str = include_str!("../../../man/subscribe.md");
-const MAN_LOG: &str = include_str!("../../../man/log.md");
-const MAN_OUTPUT: &str = include_str!("../../../man/output.md");
-const MAN_RETRY: &str = include_str!("../../../man/retry.md");
-const MAN_GC: &str = include_str!("../../../man/gc.md");
-const MAN_ORCHESTRATION: &str = include_str!("../../../man/orchestration.md");
+const MAN_ZAG: &str = include_str!("../../man/zag.md");
+const MAN_RUN: &str = include_str!("../../man/run.md");
+const MAN_EXEC: &str = include_str!("../../man/exec.md");
+const MAN_REVIEW: &str = include_str!("../../man/review.md");
+const MAN_CONFIG: &str = include_str!("../../man/config.md");
+const MAN_SESSION: &str = include_str!("../../man/session.md");
+const MAN_CAPABILITY: &str = include_str!("../../man/capability.md");
+const MAN_LISTEN: &str = include_str!("../../man/listen.md");
+const MAN_MAN: &str = include_str!("../../man/man.md");
+const MAN_SKILLS: &str = include_str!("../../man/skills.md");
+const MAN_MCP: &str = include_str!("../../man/mcp.md");
+const MAN_PS: &str = include_str!("../../man/ps.md");
+const MAN_SEARCH: &str = include_str!("../../man/search.md");
+const MAN_INPUT: &str = include_str!("../../man/input.md");
+const MAN_BROADCAST: &str = include_str!("../../man/broadcast.md");
+const MAN_WHOAMI: &str = include_str!("../../man/whoami.md");
+const MAN_WAIT: &str = include_str!("../../man/wait.md");
+const MAN_SPAWN: &str = include_str!("../../man/spawn.md");
+const MAN_STATUS: &str = include_str!("../../man/status.md");
+const MAN_COLLECT: &str = include_str!("../../man/collect.md");
+const MAN_ENV: &str = include_str!("../../man/env.md");
+const MAN_PIPE: &str = include_str!("../../man/pipe.md");
+const MAN_EVENTS: &str = include_str!("../../man/events.md");
+const MAN_CANCEL: &str = include_str!("../../man/cancel.md");
+const MAN_SUMMARY: &str = include_str!("../../man/summary.md");
+const MAN_WATCH: &str = include_str!("../../man/watch.md");
+const MAN_SUBSCRIBE: &str = include_str!("../../man/subscribe.md");
+const MAN_LOG: &str = include_str!("../../man/log.md");
+const MAN_OUTPUT: &str = include_str!("../../man/output.md");
+const MAN_RETRY: &str = include_str!("../../man/retry.md");
+const MAN_GC: &str = include_str!("../../man/gc.md");
+const MAN_ORCHESTRATION: &str = include_str!("../../man/orchestration.md");
 
 /// AI-oriented reference document for `--help-agent`.
-pub(crate) const HELP_AGENT: &str = include_str!("../../../man/help-agent.md");
+pub(crate) const HELP_AGENT: &str = include_str!("../../man/help-agent.md");
 
 /// Print a manpage to stdout.
 pub(crate) fn print_manpage(command: Option<&str>) -> Result<()> {
