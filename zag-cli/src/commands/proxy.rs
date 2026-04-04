@@ -10,7 +10,10 @@ use crate::cli::Commands;
 pub(crate) fn should_proxy(command: &Commands) -> Option<ConnectConfig> {
     // These commands always run locally
     match command {
-        Commands::Connect { .. } | Commands::Disconnect | Commands::Serve { .. } => return None,
+        Commands::Connect { .. }
+        | Commands::Disconnect
+        | Commands::Serve { .. }
+        | Commands::Relay { .. } => return None,
         _ => {}
     }
 
@@ -86,6 +89,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
             json,
             depends_on,
             inject_context,
+            interactive,
         } => {
             let body = serde_json::json!({
                 "prompt": prompt,
@@ -102,6 +106,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
                 "tags": if metadata.tags.is_empty() { None } else { Some(&metadata.tags) },
                 "depends_on": if depends_on.is_empty() { None } else { Some(depends_on) },
                 "inject_context": inject_context,
+                "interactive": interactive,
             });
             proxy_post_json(&client, config, "/api/v1/sessions/spawn", &body, *json).await
         }

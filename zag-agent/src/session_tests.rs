@@ -38,6 +38,7 @@ fn sample_entry(id: &str) -> SessionEntry {
         tags: vec![],
         dependencies: vec![],
         retried_from: None,
+        interactive: false,
     }
 }
 

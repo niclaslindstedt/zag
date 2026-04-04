@@ -587,7 +587,14 @@ async fn main() -> Result<()> {
             json: spawn_json,
             depends_on,
             inject_context,
+            interactive,
         } => {
+            if prompt.is_none() && !interactive {
+                anyhow::bail!(
+                    "A prompt is required unless --interactive is set.\n\
+                     Use: zag spawn --interactive [-p provider] [prompt]"
+                );
+            }
             let provider = resolve_provider(agent.provider.as_deref(), agent.root.as_deref())?;
             zag_orch::spawn::run_spawn(zag_orch::spawn::SpawnParams {
                 prompt,
@@ -608,7 +615,26 @@ async fn main() -> Result<()> {
                 depends_on,
                 inject_context,
                 retried_from: None,
+                interactive,
             })?;
+        }
+        Commands::Relay {
+            session,
+            agent,
+            prompt,
+        } => {
+            let provider = resolve_provider(agent.provider.as_deref(), agent.root.as_deref())?;
+            commands::run_relay(commands::RelayParams {
+                session,
+                provider,
+                model: agent.model,
+                root: agent.root,
+                auto_approve: agent.auto_approve,
+                system_prompt: agent.system_prompt,
+                add_dirs: agent.add_dirs,
+                prompt,
+            })
+            .await?;
         }
         Commands::Review {
             uncommitted,

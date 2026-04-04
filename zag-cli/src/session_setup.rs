@@ -178,6 +178,7 @@ pub(crate) fn save_session_mapping(
             tags: metadata.tags.clone(),
             dependencies: vec![],
             retried_from: None,
+            interactive: false,
         });
         if let Err(e) = store.save(root) {
             log::warn!("Failed to save session mapping: {}", e);
@@ -213,6 +214,7 @@ pub(crate) fn save_session_mapping(
             tags: metadata.tags.clone(),
             dependencies: vec![],
             retried_from: None,
+            interactive: false,
         });
         if let Err(e) = store.save(root) {
             log::warn!("Failed to save session mapping: {}", e);
@@ -243,6 +245,7 @@ pub(crate) fn save_session_mapping(
             tags: metadata.tags.clone(),
             dependencies: vec![],
             retried_from: None,
+            interactive: false,
         });
         if let Err(e) = store.save(root) {
             log::warn!("Failed to save sandbox session mapping: {}", e);

@@ -184,6 +184,12 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
     )?;
     debug!("Input command: resolved session ID = {}", resolved_id);
 
+    // Check if this is an interactive session with a FIFO
+    let fifo = zag_orch::spawn::fifo_path(&resolved_id);
+    if fifo.exists() {
+        return send_via_fifo(&fifo, message.as_deref(), &resolved_id, raw, quiet).await;
+    }
+
     // Resolve the resume target to get provider, provider_session_id, model
     let target = resume::resolve_resume_target(&resolved_id, root.as_deref())
         .ok_or_else(|| anyhow::anyhow!("No session found for '{}'", resolved_id))?;
@@ -343,6 +349,58 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
             }
         }
     }
+
+    Ok(())
+}
+
+/// Send a message to an interactive session via its FIFO.
+async fn send_via_fifo(
+    fifo: &std::path::Path,
+    message: Option<&str>,
+    session_id: &str,
+    raw: bool,
+    quiet: bool,
+) -> Result<()> {
+    let msg = if let Some(m) = message {
+        m.to_string()
+    } else {
+        let mut buf = String::new();
+        std::io::Read::read_to_string(&mut std::io::stdin(), &mut buf)?;
+        let trimmed = buf.trim().to_string();
+        if trimmed.is_empty() {
+            bail!("No message provided. Pass a message argument or pipe to stdin.");
+        }
+        trimmed
+    };
+
+    let msg = maybe_wrap_message(&msg, raw);
+
+    debug!(
+        "Sending to interactive session {} via FIFO ({} bytes)",
+        session_id,
+        msg.len()
+    );
+
+    if !quiet {
+        log::info!(
+            "Sending to interactive session {}",
+            &session_id[..session_id.len().min(8)]
+        );
+    }
+
+    // Format as NDJSON and write to FIFO
+    let ndjson = serde_json::json!({
+        "type": "user_message",
+        "content": msg,
+    });
+    let line = format!("{}\n", serde_json::to_string(&ndjson)?);
+
+    // Open FIFO for writing (will block until a reader is available)
+    let mut fifo_file = tokio::fs::OpenOptions::new().write(true).open(fifo).await?;
+
+    use tokio::io::AsyncWriteExt;
+    fifo_file.write_all(line.as_bytes()).await?;
+    fifo_file.flush().await?;
 
     Ok(())
 }

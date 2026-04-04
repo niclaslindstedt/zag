@@ -435,6 +435,7 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Serve { .. } => "serve",
         Commands::Connect { .. } => "connect",
         Commands::Disconnect => "disconnect",
+        Commands::Relay { .. } => "relay",
     }
 }
 
