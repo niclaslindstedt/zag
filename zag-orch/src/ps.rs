@@ -48,6 +48,47 @@ fn send_signal(pid: u32, _signal_name: &str) -> Result<()> {
     );
 }
 
+/// A process entry with resolved live status.
+#[derive(Debug, serde::Serialize)]
+pub struct ProcessInfo {
+    #[serde(flatten)]
+    pub entry: serde_json::Value,
+    pub live_status: String,
+}
+
+/// List processes with resolved live status.
+pub fn list_processes(
+    running: bool,
+    limit: Option<usize>,
+    provider: Option<&str>,
+) -> Result<Vec<ProcessInfo>> {
+    let store = ProcessStore::load()?;
+    let mut entries: Vec<&ProcessEntry> = store.list_recent(limit);
+    if running {
+        entries.retain(|e| resolve_live_status(e) == "running");
+    }
+    if let Some(p) = provider {
+        entries.retain(|e| e.provider == p);
+    }
+    Ok(entries
+        .iter()
+        .map(|e| {
+            let mut v = serde_json::to_value(e).unwrap_or_default();
+            let live = resolve_live_status(e).to_string();
+            if let serde_json::Value::Object(ref mut m) = v {
+                m.insert(
+                    "live_status".to_string(),
+                    serde_json::Value::String(live.clone()),
+                );
+            }
+            ProcessInfo {
+                entry: v,
+                live_status: live,
+            }
+        })
+        .collect())
+}
+
 pub fn run_ps(command: PsCommand, json: bool) -> Result<()> {
     match command {
         PsCommand::List {

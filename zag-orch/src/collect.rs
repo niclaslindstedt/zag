@@ -92,10 +92,10 @@ fn extract_result(
     (status, last_assistant_msg, error)
 }
 
-/// Run the collect command.
-pub fn run_collect(params: CollectParams) -> Result<()> {
+/// Collect results from multiple sessions, returning structured data.
+pub fn collect_results(params: &CollectParams) -> Result<Vec<CollectedResult>> {
     let store = SessionStore::load(params.root.as_deref())?;
-    let mut session_ids: Vec<String> = params.session_ids;
+    let mut session_ids: Vec<String> = params.session_ids.clone();
 
     if let Some(ref tag) = params.tag {
         let tagged = store.find_by_tag(tag);
@@ -134,6 +134,13 @@ pub fn run_collect(params: CollectParams) -> Result<()> {
             error,
         });
     }
+
+    Ok(results)
+}
+
+/// Run the collect command (print output wrapper).
+pub fn run_collect(params: CollectParams) -> Result<()> {
+    let results = collect_results(&params)?;
 
     if params.json {
         println!("{}", serde_json::to_string(&results)?);

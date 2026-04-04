@@ -34,8 +34,16 @@ fn spawn_logs_dir() -> PathBuf {
     Config::global_base_dir().join("logs").join("spawn")
 }
 
-/// Run the spawn command.
-pub fn run_spawn(params: SpawnParams) -> Result<()> {
+/// Result of spawning a session.
+#[derive(Debug, serde::Serialize)]
+pub struct SpawnResult {
+    pub session_id: String,
+    pub pid: u32,
+    pub log_path: String,
+}
+
+/// Spawn a background session, returning structured result.
+pub fn spawn_session(params: &SpawnParams) -> Result<SpawnResult> {
     let session_id = uuid::Uuid::new_v4().to_string();
     let workspace = current_workspace(params.root.as_deref());
 
@@ -224,18 +232,22 @@ pub fn run_spawn(params: SpawnParams) -> Result<()> {
         log::warn!("Failed to save process store: {}", e);
     }
 
-    // Output the session ID
-    if params.json {
-        println!(
-            "{}",
-            serde_json::json!({
-                "session_id": session_id,
-                "pid": child_pid,
-                "log_path": log_path.to_string_lossy(),
-            })
-        );
+    Ok(SpawnResult {
+        session_id,
+        pid: child_pid,
+        log_path: log_path.to_string_lossy().to_string(),
+    })
+}
+
+/// Run the spawn command (print output wrapper).
+pub fn run_spawn(params: SpawnParams) -> Result<()> {
+    let json = params.json;
+    let result = spawn_session(&params)?;
+
+    if json {
+        println!("{}", serde_json::to_string(&result)?);
     } else {
-        println!("{}", session_id);
+        println!("{}", result.session_id);
     }
 
     Ok(())

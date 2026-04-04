@@ -130,6 +130,10 @@ zag output [<id>] [--latest]  Extract final result text from a session
 zag retry <id>... [--failed]  Re-run failed sessions with same config
 zag gc [--force] [--older-than]  Clean up old session data and logs
 
+zag serve [--port] [--token]   Start HTTP/WS server for remote access
+zag connect <url> --token     Connect to a remote zag server
+zag disconnect                Disconnect from remote server
+
 zag capability                Show provider capability declarations
 zag skills list|add|remove|sync|import   Manage provider-agnostic skills
 zag mcp list|add|remove|sync|import     Manage MCP servers across providers
@@ -263,6 +267,33 @@ sid_d=$(zag spawn --depends-on $sid_b --depends-on $sid_c "final report")
 ```
 
 Filesystem lifecycle markers are written to `~/.zag/events/` (`.started` and `.ended` files) for external non-Rust orchestrators that prefer `inotifywait` over polling.
+
+## Remote access
+
+Run agents on your home machine and control them from anywhere (mobile, laptop, another server).
+
+```bash
+# On the server machine — start the zag server
+zag serve --generate-token --port 2100
+# Output: Generated token: a1b2c3...
+
+# With TLS (recommended for non-VPN networks)
+zag serve --token a1b2c3... --tls-cert cert.pem --tls-key key.pem
+
+# On the client machine — connect to the server
+zag connect https://home.local:2100 --token a1b2c3...
+
+# Now all commands transparently proxy through the remote server
+zag spawn "write tests for the auth module"
+zag listen --latest
+zag session list
+zag status <session-id>
+
+# Disconnect when done
+zag disconnect
+```
+
+The server exposes REST and WebSocket endpoints at `/api/v1/`. See `zag man serve` and `zag man connect` for details.
 
 ## Worktree and sandbox isolation
 

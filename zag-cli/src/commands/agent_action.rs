@@ -432,6 +432,9 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Output { .. } => "output",
         Commands::Retry { .. } => "retry",
         Commands::Gc { .. } => "gc",
+        Commands::Serve { .. } => "serve",
+        Commands::Connect { .. } => "connect",
+        Commands::Disconnect => "disconnect",
     }
 }
 

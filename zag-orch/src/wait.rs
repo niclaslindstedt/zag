@@ -165,9 +165,10 @@ fn check_process_dead(session_id: &str) -> bool {
     }
 }
 
-/// Run the wait command.
-pub fn run_wait(params: WaitParams) -> Result<()> {
-    let session_ids = resolve_session_ids(&params)?;
+/// Wait for sessions to complete, returning structured results.
+/// Returns `Err` with a "timeout" message if the timeout expires.
+pub fn wait_for_sessions(params: &WaitParams) -> Result<Vec<WaitResult>> {
+    let session_ids = resolve_session_ids(params)?;
     let timeout = params.timeout.as_deref().map(parse_duration).transpose()?;
 
     debug!(
@@ -186,36 +187,21 @@ pub fn run_wait(params: WaitParams) -> Result<()> {
         // Check timeout
         if let Some(timeout_dur) = timeout {
             if start.elapsed() >= timeout_dur {
-                if params.json {
-                    // Output results collected so far
-                    for r in &results {
-                        println!("{}", serde_json::to_string(r)?);
-                    }
-                    // Mark remaining as timed out
-                    for id in &pending {
-                        let r = WaitResult {
-                            session_id: id.clone(),
-                            success: false,
-                            error: Some("timeout".to_string()),
-                        };
-                        println!("{}", serde_json::to_string(&r)?);
-                    }
-                } else {
-                    for r in &results {
-                        print_result(r);
-                    }
-                    for id in &pending {
-                        eprintln!("Timed out waiting for session {}", id);
-                    }
+                // Mark remaining as timed out
+                for id in &pending {
+                    results.push(WaitResult {
+                        session_id: id.clone(),
+                        success: false,
+                        error: Some("timeout".to_string()),
+                    });
                 }
-                std::process::exit(124);
+                return Ok(results);
             }
         }
 
         // Check each pending session
         let mut newly_done = Vec::new();
         for id in &pending {
-            // Try to find the log file
             let log_path =
                 listen::resolve_session_log(Some(id), false, false, params.root.as_deref());
 
@@ -226,9 +212,7 @@ pub fn run_wait(params: WaitParams) -> Result<()> {
                 }
             }
 
-            // No SessionEnded in log — check if process is dead
             if check_process_dead(id) {
-                // Process died without a clean SessionEnded
                 newly_done.push(WaitResult {
                     session_id: id.clone(),
                     success: false,
@@ -237,46 +221,51 @@ pub fn run_wait(params: WaitParams) -> Result<()> {
             }
         }
 
-        // Process newly completed sessions
         for result in newly_done {
             pending.retain(|id| *id != result.session_id);
-
-            if params.json {
-                println!("{}", serde_json::to_string(&result)?);
-            }
-
-            let is_any_done = params.any;
             results.push(result);
 
-            if is_any_done {
-                if !params.json {
-                    for r in &results {
-                        print_result(r);
-                    }
-                }
-                let exit_code = if results.iter().all(|r| r.success) {
-                    0
-                } else {
-                    1
-                };
-                std::process::exit(exit_code);
+            if params.any {
+                return Ok(results);
             }
         }
 
-        // All done?
         if pending.is_empty() {
-            if !params.json {
-                for r in &results {
-                    print_result(r);
-                }
-            }
-            let all_success = results.iter().all(|r| r.success);
-            std::process::exit(if all_success { 0 } else { 1 });
+            return Ok(results);
         }
 
-        // Poll interval
         std::thread::sleep(Duration::from_millis(500));
     }
+}
+
+/// Run the wait command (print output wrapper).
+pub fn run_wait(params: WaitParams) -> Result<()> {
+    let json = params.json;
+    let results = wait_for_sessions(&params)?;
+
+    let timed_out = results
+        .iter()
+        .any(|r| r.error.as_deref() == Some("timeout"));
+
+    if json {
+        for r in &results {
+            println!("{}", serde_json::to_string(r)?);
+        }
+    } else {
+        for r in &results {
+            if r.error.as_deref() == Some("timeout") {
+                eprintln!("Timed out waiting for session {}", r.session_id);
+            } else {
+                print_result(r);
+            }
+        }
+    }
+
+    if timed_out {
+        std::process::exit(124);
+    }
+    let all_success = results.iter().all(|r| r.success);
+    std::process::exit(if all_success { 0 } else { 1 });
 }
 
 fn print_result(result: &WaitResult) {

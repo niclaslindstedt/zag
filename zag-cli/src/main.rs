@@ -31,7 +31,8 @@ pub(crate) use cli::{
     command_session_args, parse_json_schema,
 };
 pub(crate) use commands::{
-    AgentActionParams, run_agent_action, run_config, run_mcp, run_session, run_skills,
+    AgentActionParams, run_agent_action, run_config, run_connect, run_disconnect, run_mcp,
+    run_session, run_skills,
 };
 
 use anyhow::{Result, bail};
@@ -43,6 +44,7 @@ use commands::{BroadcastParams, run_broadcast};
 use commands::{HELP_AGENT, print_manpage};
 use commands::{InputParams, run_input};
 use commands::{ReviewParams, run_review};
+use commands::{ServeParams, run_serve};
 
 /// Resolve the provider name from CLI flag, config, or default.
 pub(crate) fn resolve_provider(flag: Option<&str>, root: Option<&str>) -> Result<String> {
@@ -191,7 +193,36 @@ async fn main() -> Result<()> {
         }
     }
 
+    // Check if we're connected to a remote server — proxy the command if so
+    if let Some(connect_config) = commands::proxy::should_proxy(&cli.command) {
+        return commands::proxy::proxy_command(&connect_config, &cli.command).await;
+    }
+
     match cli.command {
+        Commands::Serve {
+            host,
+            port,
+            token,
+            generate_token,
+            tls_cert,
+            tls_key,
+        } => {
+            run_serve(ServeParams {
+                host,
+                port,
+                token,
+                generate_token,
+                tls_cert,
+                tls_key,
+            })
+            .await?;
+        }
+        Commands::Connect { url, token } => {
+            run_connect(url, token).await?;
+        }
+        Commands::Disconnect => {
+            run_disconnect()?;
+        }
         Commands::Man { command } => {
             debug!("Showing manpage for: {:?}", command);
             print_manpage(command.as_deref())?;
