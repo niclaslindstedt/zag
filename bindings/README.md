@@ -1,6 +1,6 @@
 # Language Bindings
 
-Bindings for using [zag](https://github.com/niclaslindstedt/zag) from Rust, TypeScript, Python, C#, Swift, and Java.
+Bindings for using [zag](https://github.com/niclaslindstedt/zag) from Rust, TypeScript, Python, C#, Swift, Java, and Kotlin.
 
 ## SDKs
 
@@ -12,8 +12,9 @@ Bindings for using [zag](https://github.com/niclaslindstedt/zag) from Rust, Type
 | C# | `bindings/csharp/` | [README](csharp/README.md) |
 | Swift | `bindings/swift/` | [README](swift/README.md) |
 | Java | `bindings/java/` | [README](java/README.md) |
+| Kotlin | `bindings/kotlin/` | [README](kotlin/README.md) |
 
-> **Note:** The Rust binding is the published `zag` crate that re-exports `zag-agent` and `zag-orch`. The TypeScript, Python, C#, Swift, and Java bindings are not published to any package registry.
+> **Note:** The Rust binding is the published `zag` crate that re-exports `zag-agent` and `zag-orch`. The TypeScript, Python, C#, Swift, Java, and Kotlin bindings are not published to any package registry.
 
 ## Quick start
 
@@ -104,13 +105,27 @@ var output = new ZagBuilder()
 System.out.println(output.result());
 ```
 
+**Kotlin**
+
+```kotlin
+import zag.ZagBuilder
+
+val output = ZagBuilder()
+    .provider("claude")
+    .model("sonnet")
+    .autoApprove()
+    .exec("write a hello world program")
+
+println(output.result)
+```
+
 Each SDK also supports streaming (NDJSON events), bidirectional streaming sessions (Claude only), and interactive sessions. See the individual README files for full API documentation.
 
 ## How they work
 
 The **Rust** binding directly depends on the `zag-agent` and `zag-orch` workspace crates, giving native access to all types and async APIs.
 
-The **TypeScript**, **Python**, **C#**, **Swift**, and **Java** SDKs spawn the `zag` CLI as a subprocess (`zag exec -o json` or `-o stream-json`), parse the JSON/NDJSON output into typed models, and expose a fluent builder API. Zero external runtime dependencies — only stdlib in each language.
+The **TypeScript**, **Python**, **C#**, **Swift**, **Java**, and **Kotlin** SDKs spawn the `zag` CLI as a subprocess (`zag exec -o json` or `-o stream-json`), parse the JSON/NDJSON output into typed models, and expose a fluent builder API. Zero external runtime dependencies — only stdlib in each language.
 
 ## Prerequisites
 
@@ -137,6 +152,9 @@ cd bindings/swift && swift test
 
 # Java
 cd bindings/java && mvn test
+
+# Kotlin
+cd bindings/kotlin && ./gradlew test
 ```
 
 ## See also

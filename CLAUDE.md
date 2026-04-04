@@ -26,7 +26,7 @@ Cargo workspace with four crates. Dependency graph: `zag-agent ← zag-orch ← 
 - **`zag-orch`** (library) — Orchestration: spawn, wait, collect, pipe, status, events, cancel, summary, watch, subscribe, retry, gc. Our own multi-session coordination code.
 - **`zag`** (published crate, `bindings/rust/`) — Facade that re-exports `zag-agent` (flat) and `zag-orch` (as `zag::orch`). This is the crate users depend on.
 
-Key design: trait-based `Agent` abstraction, factory pattern, builder API, subprocess delegation to upstream CLIs. `ProgressHandler` trait decouples library from terminal UI. Bindings in `bindings/` (Rust, TypeScript, Python, C#, Swift, Java) — Rust re-exports workspace crates directly; others mirror `AgentBuilder` via CLI subprocess.
+Key design: trait-based `Agent` abstraction, factory pattern, builder API, subprocess delegation to upstream CLIs. `ProgressHandler` trait decouples library from terminal UI. Bindings in `bindings/` (Rust, TypeScript, Python, C#, Swift, Java, Kotlin) — Rust re-exports workspace crates directly; others mirror `AgentBuilder` via CLI subprocess.
 
 ## Where New Code Goes
 
@@ -62,14 +62,15 @@ When adding a new `AgentBuilder` setter, keep all layers in sync:
 
 1. Add setter to `zag-agent/src/builder.rs`, wire into `create_agent()` or terminal methods
 2. If CLI flag: add to `AgentArgs` in `zag-cli/src/cli.rs`, wire in `zag-cli/src/commands/agent_action.rs`
-3. Add corresponding method to all five bindings:
+3. Add corresponding method to all six bindings:
    - `bindings/typescript/src/builder.ts` — field, method, `buildGlobalArgs()` or `buildExecArgs()`
    - `bindings/python/src/zag/builder.py` — field, method, `_global_args()` or `_exec_args()`
    - `bindings/csharp/src/Zag/ZagBuilder.cs` — field, method, `BuildGlobalArgs()` or `BuildExecArgs()`
    - `bindings/swift/Sources/Zag/ZagBuilder.swift` — field, method, `buildGlobalArgs()` or `buildExecArgs()`
    - `bindings/java/src/main/java/io/zag/ZagBuilder.java` — field, method, `buildGlobalArgs()` or `buildExecArgs()`
-4. Add tests in all five binding test suites
-5. Update builder methods table in all five binding READMEs
+   - `bindings/kotlin/src/main/kotlin/zag/ZagBuilder.kt` — field, method, `buildGlobalArgs()` or `buildExecArgs()`
+4. Add tests in all six binding test suites
+5. Update builder methods table in all six binding READMEs
 
 ### Test file conventions
 
@@ -79,13 +80,14 @@ When adding a new `AgentBuilder` setter, keep all layers in sync:
 - C#: `bindings/csharp/tests/Zag.Tests/ZagBuilderTests.cs`
 - Swift: `bindings/swift/Tests/ZagTests/ZagBuilderTests.swift`
 - Java: `bindings/java/src/test/java/io/zag/ZagBuilderTests.java`
+- Kotlin: `bindings/kotlin/src/test/kotlin/zag/ZagBuilderTests.kt`
 
 ### Documentation sync points
 
 | Change type | Files to update |
 |-------------|----------------|
 | New CLI flag | `zag-cli/src/cli.rs`, `README.md`, relevant `man/*.md` |
-| New builder option | `zag-agent/src/builder.rs`, all 5 bindings + tests + READMEs |
+| New builder option | `zag-agent/src/builder.rs`, all 6 bindings + tests + READMEs |
 | New command | `zag-cli/src/cli.rs`, `zag-cli/src/commands/`, `zag-cli/src/main.rs`, `man/<cmd>.md`, `README.md` |
 | New subcommand | `zag-cli/src/cli.rs` (enum variant), `zag-cli/src/commands/<parent>/<sub>.rs`, `zag-cli/src/commands/<parent>/mod.rs` (dispatch) |
 | New provider | `zag-agent/src/providers/`, `zag-agent/src/factory.rs`, `README.md`, `docs/providers.md` |

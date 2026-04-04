@@ -15,7 +15,7 @@ One CLI for all your AI coding agents.
 - **One CLI, five agents** — Switch between Claude, Codex, Gemini, Copilot, and Ollama without learning five different CLIs
 - **Cross-provider features** — Model size aliases, JSON schema validation, git worktree isolation, and Docker sandboxing work with every provider
 - **Orchestration primitives** — Spawn, wait, collect, pipe, and chain agents in shell scripts for multi-agent workflows
-- **Programmatic API** — Rust library crate plus TypeScript, Python, C#, Swift, and Java SDKs
+- **Programmatic API** — Rust library crate plus TypeScript, Python, C#, Swift, Java, and Kotlin SDKs
 
 ## Prerequisites
 
@@ -424,7 +424,7 @@ See the [`zag-agent` crate](zag-agent/) for the full API including JSON schema v
 
 ### Language bindings
 
-SDK packages are available for TypeScript, Python, C#, Swift, and Java. Each wraps the `zag` CLI and exposes a fluent builder API with typed output models.
+SDK packages are available for TypeScript, Python, C#, Swift, Java, and Kotlin. Each wraps the `zag` CLI and exposes a fluent builder API with typed output models.
 
 **TypeScript** (`bindings/typescript/`)
 
@@ -518,6 +518,25 @@ System.out.println(output.result());
 // Streaming
 for (var event : new ZagBuilder().provider("claude").stream("analyze code")) {
     System.out.println(event.type());
+}
+```
+
+**Kotlin** (`bindings/kotlin/`)
+
+```kotlin
+import zag.ZagBuilder
+
+val output = ZagBuilder()
+    .provider("claude")
+    .model("sonnet")
+    .autoApprove()
+    .exec("write a hello world program")
+
+println(output.result)
+
+// Streaming
+ZagBuilder().provider("claude").stream("analyze code").collect { event ->
+    println(event.type)
 }
 ```
 
