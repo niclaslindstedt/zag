@@ -398,7 +398,7 @@ SDK packages are available for TypeScript, Python, and C#. Each wraps the `zag` 
 **TypeScript** (`bindings/typescript/`)
 
 ```typescript
-import { ZagBuilder } from "zag-agent";
+import { ZagBuilder } from "@niclaslindstedt/zag-agent";
 
 const output = await new ZagBuilder()
   .provider("claude")

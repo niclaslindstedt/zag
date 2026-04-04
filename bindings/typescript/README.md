@@ -10,7 +10,7 @@ TypeScript binding for [zag](https://github.com/niclaslindstedt/zag) — a unifi
 ## Installation
 
 ```bash
-npm install zag-agent
+npm install @niclaslindstedt/zag-agent
 ```
 
 ### Development setup
@@ -26,7 +26,7 @@ npm run build
 ## Quick start
 
 ```typescript
-import { ZagBuilder } from "zag-agent";
+import { ZagBuilder } from "@niclaslindstedt/zag-agent";
 
 // Non-interactive execution
 const output = await new ZagBuilder()
@@ -41,7 +41,7 @@ console.log(output.result);
 ## Streaming
 
 ```typescript
-import { ZagBuilder } from "zag-agent";
+import { ZagBuilder } from "@niclaslindstedt/zag-agent";
 
 // Stream events as they arrive (NDJSON)
 for await (const event of new ZagBuilder().provider("claude").stream("analyze code")) {
