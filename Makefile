@@ -1,10 +1,13 @@
-.PHONY: build release install run clean test check fmt clippy coverage coverage-report website website-dev website-clean
+.PHONY: build release release-tag install run clean test check fmt clippy coverage coverage-report website website-dev website-clean
 
 build:
 	cargo build
 
 release:
 	cargo build --release
+
+release-tag:
+	scripts/release.sh $(BUMP)
 
 install:
 	cargo install --path zag-cli
