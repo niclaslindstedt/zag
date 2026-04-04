@@ -24,6 +24,10 @@ jobs:
         with:
           fetch-depth: 0
           ref: main
+          # A PAT (or GitHub App token) is required so that the tag push
+          # triggers the release workflow.  The default GITHUB_TOKEN
+          # deliberately does not trigger downstream workflows.
+          token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Configure git
         run: |
