@@ -16,10 +16,25 @@ The Claude provider wraps Anthropic's `claude` CLI. It is the most feature-rich 
 
 ## Discovery Process
 
-1. Fetch the changelog to identify new features, flags, or models since the last update
-2. Clone or pull https://github.com/anthropics/claude-code to read source code for detailed behavior
-3. Install/update the `claude` binary and run `claude --help` to discover new or changed flags
-4. Pay special attention to: new `--output-format` values, new `--model` options, changes to `--print` mode, streaming protocol changes, new `--input-format` values, MCP-related changes
+1. Run `scripts/check-provider-status.sh claude` to snapshot current source state vs upstream CLI
+2. Run `scripts/fetch-upstream-releases.sh claude` to check for new releases
+3. Fetch the changelog to identify new features, flags, or models since the last update
+4. Clone or pull https://github.com/anthropics/claude-code to read source code for detailed behavior
+5. Install/update the `claude` binary and run `claude --help` to discover new or changed flags
+6. Pay special attention to: new `--output-format` values, new `--model` options, changes to `--print` mode, streaming protocol changes, new `--input-format` values, MCP-related changes
+
+## Automated Discovery
+
+Run the discovery scripts before starting manual investigation:
+
+```sh
+scripts/check-provider-status.sh claude
+scripts/fetch-upstream-releases.sh claude
+```
+
+The first script extracts the current source state (models, defaults, size mappings, flags)
+and compares against the installed CLI's `--help` output. The second checks the latest
+GitHub release. Review the report before proceeding with manual changes.
 
 ## Implementation Files
 
@@ -82,6 +97,7 @@ These are Claude-only and use downcasting via `as_any_mut()` in `agent_action.rs
 
 ## Update Checklist
 
+- [ ] Update the `// provider-updated: YYYY-MM-DD` comment at the top of `claude/mod.rs`
 - [ ] Update `claude/models.rs` — new models, size alias changes
 - [ ] Update `claude/mod.rs` — new flags in arg builders, output parsing changes
 - [ ] Update `claude/claude_tests.rs` — test new arg combinations, new output formats

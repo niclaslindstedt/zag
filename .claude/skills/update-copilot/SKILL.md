@@ -15,11 +15,24 @@ The Copilot provider wraps GitHub's `gh copilot` CLI extension. It is not open s
 
 ## Discovery Process
 
-1. Check GitHub Copilot CLI documentation for announcements of new features
-2. Run `gh extension upgrade gh-copilot` to get the latest version
-3. Run `copilot --help` to discover new or changed flags
-4. Focus on: new `--model` options (Copilot supports models from multiple providers), changes to `-p`/`-i` flags, new `--resume` behavior, changes to `events.jsonl` format, new session state directory structure, MCP-related changes
-5. Since it's closed source, test behavior empirically by running commands and inspecting output
+1. Run `scripts/check-provider-status.sh copilot` to snapshot current source state vs upstream CLI
+2. Check GitHub Copilot CLI documentation for announcements of new features
+3. Run `gh extension upgrade gh-copilot` to get the latest version
+4. Run `copilot --help` to discover new or changed flags
+5. Focus on: new `--model` options (Copilot supports models from multiple providers), changes to `-p`/`-i` flags, new `--resume` behavior, changes to `events.jsonl` format, new session state directory structure, MCP-related changes
+6. Since it's closed source, test behavior empirically by running commands and inspecting output
+
+## Automated Discovery
+
+Run the discovery script before starting manual investigation:
+
+```sh
+scripts/check-provider-status.sh copilot
+```
+
+The script extracts the current source state (models, defaults, size mappings, flags)
+and compares against the installed CLI's `--help` output. Note: Copilot is closed source,
+so there is no GitHub release check. Review the report before proceeding with manual changes.
 
 ## Implementation Files
 
@@ -94,6 +107,7 @@ Copilot uniquely supports models from Claude, GPT, and Gemini families. When any
 
 ## Update Checklist
 
+- [ ] Update the `// provider-updated: YYYY-MM-DD` comment at the top of `copilot.rs`
 - [ ] Update `copilot.rs` — new flags in arg builders, model list, event parsing, workspace discovery
 - [ ] Update `copilot_tests.rs` — test new arg combinations, event format changes
 - [ ] Update `docs/providers.md` — feature matrix, available models, known limitations

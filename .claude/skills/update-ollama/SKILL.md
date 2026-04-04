@@ -17,12 +17,27 @@ The Ollama provider wraps the `ollama` CLI for local model execution. It is the 
 
 ## Discovery Process
 
-1. Check https://github.com/ollama/ollama/releases for new releases
-2. Clone or pull the repo to read source code for CLI flag changes
-3. Install/update `ollama` and run `ollama run --help` to discover new flags
-4. Focus on: new `ollama run` flags (especially `--system`, `--format`, `--json`), new default models on ollama.com/library, changes to model tag format, Docker/container changes
-5. Check if `ollama` has added a `--system` flag (currently missing — system prompts are prepended to the user prompt as a workaround)
-6. Check if `ollama` has added session/conversation resume capability
+1. Run `scripts/check-provider-status.sh ollama` to snapshot current source state vs upstream CLI
+2. Run `scripts/fetch-upstream-releases.sh ollama` to check for new releases
+3. Check https://github.com/ollama/ollama/releases for new releases
+4. Clone or pull the repo to read source code for CLI flag changes
+5. Install/update `ollama` and run `ollama run --help` to discover new flags
+6. Focus on: new `ollama run` flags (especially `--system`, `--format`, `--json`), new default models on ollama.com/library, changes to model tag format, Docker/container changes
+7. Check if `ollama` has added a `--system` flag (currently missing — system prompts are prepended to the user prompt as a workaround)
+8. Check if `ollama` has added session/conversation resume capability
+
+## Automated Discovery
+
+Run the discovery scripts before starting manual investigation:
+
+```sh
+scripts/check-provider-status.sh ollama
+scripts/fetch-upstream-releases.sh ollama
+```
+
+The first script extracts the current source state (sizes, defaults, size mappings, flags)
+and compares against the installed CLI's `--help` output. The second checks the latest
+GitHub release. Review the report before proceeding with manual changes.
 
 ## Implementation Files
 
@@ -123,6 +138,7 @@ The default model (`qwen3.5`) may need updating when better small models become 
 
 ## Update Checklist
 
+- [ ] Update the `// provider-updated: YYYY-MM-DD` comment at the top of `ollama.rs`
 - [ ] Update `ollama.rs` — new flags in arg builders, model/size defaults, sandbox wrapper
 - [ ] Update `ollama_tests.rs` — test new arg combinations, sandbox command construction
 - [ ] Update `docs/providers.md` — feature matrix, available sizes, known limitations

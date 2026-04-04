@@ -15,10 +15,25 @@ The Gemini provider wraps Google's `gemini` CLI. It uses a file-based system pro
 
 ## Discovery Process
 
-1. Check https://github.com/google-gemini/gemini-cli/releases for new releases
-2. Clone or pull the repo to read source code for detailed behavior
-3. Install/update `gemini` and run `gemini --help` to discover new or changed flags
-4. Focus on: new `--output-format` values, new model names, changes to `--approval-mode`, changes to session storage format in `~/.gemini/tmp/`, MCP-related changes, new `--resume` behavior
+1. Run `scripts/check-provider-status.sh gemini` to snapshot current source state vs upstream CLI
+2. Run `scripts/fetch-upstream-releases.sh gemini` to check for new releases
+3. Check https://github.com/google-gemini/gemini-cli/releases for new releases
+4. Clone or pull the repo to read source code for detailed behavior
+5. Install/update `gemini` and run `gemini --help` to discover new or changed flags
+6. Focus on: new `--output-format` values, new model names, changes to `--approval-mode`, changes to session storage format in `~/.gemini/tmp/`, MCP-related changes, new `--resume` behavior
+
+## Automated Discovery
+
+Run the discovery scripts before starting manual investigation:
+
+```sh
+scripts/check-provider-status.sh gemini
+scripts/fetch-upstream-releases.sh gemini
+```
+
+The first script extracts the current source state (models, defaults, size mappings, flags)
+and compares against the installed CLI's `--help` output. The second checks the latest
+GitHub release. Review the report before proceeding with manual changes.
 
 ## Implementation Files
 
@@ -86,6 +101,7 @@ Gemini does not have a native session list command. The provider scans `~/.gemin
 
 ## Update Checklist
 
+- [ ] Update the `// provider-updated: YYYY-MM-DD` comment at the top of `gemini.rs`
 - [ ] Update `gemini.rs` — new flags in arg builders, model list, session discovery, output parsing
 - [ ] Update `gemini_tests.rs` — test new arg combinations, session format changes
 - [ ] Update `docs/providers.md` — feature matrix, available models, known limitations
