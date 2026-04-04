@@ -21,6 +21,19 @@ pub mod skills;
 pub mod streaming;
 pub mod worktree;
 
+/// Truncate a string to at most `max_bytes` bytes, rounding down to a valid
+/// UTF-8 char boundary. Equivalent to `str::floor_char_boundary` (Rust 1.91+).
+pub(crate) fn truncate_str(s: &str, max_bytes: usize) -> &str {
+    if max_bytes >= s.len() {
+        return s;
+    }
+    let mut end = max_bytes;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    &s[..end]
+}
+
 #[cfg(test)]
 #[path = "mock_integration_tests.rs"]
 mod mock_integration_tests;
