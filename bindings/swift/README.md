@@ -2,11 +2,22 @@
 
 Swift binding for [zag](https://github.com/niclaslindstedt/zag) — a unified CLI for AI coding agents.
 
+## Platform support
+
+| Platform | Local mode | Remote mode |
+|----------|-----------|-------------|
+| macOS 13+ | Subprocess | HTTP/WebSocket |
+| iOS 16+ | — | HTTP/WebSocket |
+| Linux | Subprocess | HTTP/WebSocket |
+
+- **Local mode** spawns the `zag` CLI as a subprocess. Requires the binary on `PATH`.
+- **Remote mode** connects to a `zag serve` instance via HTTP/WebSocket. No local binary needed.
+
 ## Prerequisites
 
 - Swift 5.9+
-- macOS 13+ or Linux
-- The `zag` CLI binary installed and on your `PATH` (or set via `ZAG_BIN` env var)
+- **Local mode**: macOS 13+ or Linux, `zag` CLI binary installed (or set via `ZAG_BIN` env var)
+- **Remote mode**: A running `zag serve` instance (any platform including iOS)
 
 ## Installation
 
@@ -25,7 +36,7 @@ targets: [
 ]
 ```
 
-## Quick start
+## Quick start (local mode)
 
 ```swift
 import Zag
@@ -39,7 +50,77 @@ let output = try await ZagBuilder()
 print(output.result ?? "")
 ```
 
-## Streaming
+## Quick start (remote mode / iOS)
+
+Start a `zag serve` instance on a remote machine:
+
+```bash
+zag serve --generate-token
+# Server running at https://0.0.0.0:2100
+# Token: <your-token>
+```
+
+Then connect from Swift (works on iOS, macOS, and Linux):
+
+```swift
+import Zag
+
+let output = try await ZagBuilder()
+    .remote(url: "https://my-server:2100", token: "my-token")
+    .provider("claude")
+    .model("sonnet")
+    .autoApprove()
+    .exec("write a hello world program")
+
+print(output.result ?? "")
+```
+
+## Remote streaming
+
+```swift
+import Zag
+
+let builder = ZagBuilder()
+    .remote(url: "https://my-server:2100", token: "my-token")
+    .provider("claude")
+
+for try await event in builder.stream("analyze this code") {
+    switch event {
+    case .assistantMessage(let msg):
+        print(msg.content)
+    case .toolExecution(let tool):
+        print("\(tool.toolName): \(tool.result)")
+    default:
+        break
+    }
+}
+```
+
+## Direct remote client
+
+For full control over the remote API:
+
+```swift
+import Zag
+
+let client = try ZagRemoteClient(
+    connection: ZagConnection(url: "https://my-server:2100", token: "my-token")
+)
+
+// Spawn a session
+let spawn = try await client.spawn(SpawnParams(prompt: "analyze code", provider: "claude"))
+
+// Stream events via WebSocket
+for try await event in client.stream(spawn.sessionId) {
+    // handle events
+}
+
+// Or wait and get output
+_ = try await client.wait(sessionIds: [spawn.sessionId])
+let output = try await client.output(spawn.sessionId)
+```
+
+## Streaming (local mode)
 
 ```swift
 import Zag
@@ -82,22 +163,47 @@ for try await event in ZagBuilder().provider("claude").stream("analyze code") {
 | `.verbose()` | Enable verbose output |
 | `.quiet()` | Suppress non-essential output |
 | `.debug()` | Enable debug logging |
-| `.bin(path)` | Override the `zag` binary path |
+| `.bin(path)` | Override the `zag` binary path (local mode only) |
+| `.connection(conn)` | Set a `ZagConnection` for remote mode |
+| `.remote(url:token:)` | Convenience: configure remote mode from URL and token strings |
+| `.urlSession(session)` | Set a custom `URLSession` for remote requests |
 
 ## Terminal methods
 
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `.exec(prompt)` | `AgentOutput` | Run non-interactively, return structured output |
-| `.stream(prompt)` | `AsyncThrowingStream<Event, Error>` | Stream NDJSON events |
-| `.execStreaming(prompt)` | `StreamingSession` | Bidirectional streaming (Claude only) |
-| `.run(prompt?)` | `Void` | Start an interactive session (inherits stdio) |
-| `.resume(sessionId)` | `Void` | Resume a previous session by ID |
-| `.continueLast()` | `Void` | Resume the most recent session |
+| Method | Returns | Mode | Description |
+|--------|---------|------|-------------|
+| `.exec(prompt)` | `AgentOutput` | Local + Remote | Run non-interactively, return structured output |
+| `.stream(prompt)` | `AsyncThrowingStream<Event, Error>` | Local + Remote | Stream NDJSON events |
+| `.execStreaming(prompt)` | `StreamingSession` | Local only | Bidirectional streaming (Claude only) |
+| `.execStreamingRemote(prompt)` | `ZagRemoteSession` | Remote only | Bidirectional streaming via WebSocket |
+| `.run(prompt?)` | `Void` | Local only | Start an interactive session (inherits stdio) |
+| `.resume(sessionId)` | `Void` | Local only | Resume a previous session by ID |
+| `.continueLast()` | `Void` | Local only | Resume the most recent session |
+| `.remoteClient()` | `ZagRemoteClient` | Remote only | Get direct access to the HTTP client |
+
+## Remote client methods
+
+| Method | Description |
+|--------|-------------|
+| `spawn(params)` | Spawn a new background session |
+| `listSessions(...)` | List sessions with optional filters |
+| `status(sessionId)` | Get session status |
+| `events(sessionId, ...)` | Query session events |
+| `output(sessionId)` | Get final output |
+| `input(sessionId, message)` | Send message to running session |
+| `cancel(sessionId, reason?)` | Cancel a running session |
+| `collect(sessionIds:, tag:)` | Collect results from multiple sessions |
+| `wait(sessionIds:, ...)` | Wait for sessions to complete |
+| `stream(sessionId, filter?)` | Stream events via WebSocket |
+| `subscribe(tag:, type:)` | Subscribe to events across sessions |
+| `exec(params)` | Spawn + wait + output (convenience) |
 
 ## How it works
 
-The SDK spawns the `zag` CLI as a subprocess (`zag exec -o json` or `-o stream-json`) and parses the JSON/NDJSON output into typed Swift models. Zero external dependencies — only Foundation.
+- **Local mode**: Spawns the `zag` CLI as a subprocess (`zag exec -o json` or `-o stream-json`) and parses JSON/NDJSON output into typed Swift models.
+- **Remote mode**: Communicates with a `zag serve` HTTP/WebSocket API. Sessions are spawned and managed via REST endpoints; real-time events are streamed via WebSocket.
+
+Zero external dependencies — only Foundation.
 
 ## Testing
 

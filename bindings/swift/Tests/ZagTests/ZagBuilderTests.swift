@@ -147,6 +147,73 @@ struct ZagBuilderTests {
         #expect(globalArgs.contains("-p"))
         #expect(globalArgs.contains("claude"))
     }
+
+    @Test("remote connection setter")
+    func remoteConnectionSetter() throws {
+        let conn = try ZagConnection(url: "https://server:2100", token: "tok")
+        let builder = ZagBuilder().connection(conn).provider("claude")
+        // Builder should still produce valid global args (for arg building tests)
+        let args = builder.buildGlobalArgs()
+        #expect(args.contains("claude"))
+    }
+
+    @Test("remote convenience setter")
+    func remoteConvenienceSetter() {
+        let builder = ZagBuilder().remote(url: "https://server:2100", token: "tok")
+        // Should not crash, connection is set internally
+        let args = builder.buildGlobalArgs()
+        #expect(args.isEmpty)
+    }
+
+    @Test("buildSpawnParams maps builder state")
+    func buildSpawnParams() {
+        let builder = ZagBuilder()
+            .provider("claude")
+            .model("sonnet")
+            .root("/project")
+            .autoApprove()
+            .addDir("/docs")
+            .systemPrompt("Be helpful")
+            .maxTurns(10)
+            .size("9b")
+
+        let params = builder.buildSpawnParams(prompt: "hello")
+        #expect(params.prompt == "hello")
+        #expect(params.provider == "claude")
+        #expect(params.model == "sonnet")
+        #expect(params.root == "/project")
+        #expect(params.autoApprove == true)
+        #expect(params.addDirs == ["/docs"])
+        #expect(params.systemPrompt == "Be helpful")
+        #expect(params.maxTurns == 10)
+        #expect(params.size == "9b")
+    }
+
+    @Test("buildSpawnParams omits nil for defaults")
+    func buildSpawnParamsDefaults() {
+        let builder = ZagBuilder()
+        let params = builder.buildSpawnParams(prompt: "test")
+        #expect(params.prompt == "test")
+        #expect(params.provider == nil)
+        #expect(params.model == nil)
+        #expect(params.autoApprove == nil)
+        #expect(params.addDirs == nil)
+    }
+
+    @Test("remoteClient throws without connection")
+    func remoteClientThrowsWithoutConnection() {
+        let builder = ZagBuilder()
+        #expect(throws: ZagError.self) {
+            try builder.remoteClient()
+        }
+    }
+
+    @Test("remoteClient succeeds with connection")
+    func remoteClientSucceedsWithConnection() throws {
+        let builder = ZagBuilder().remote(url: "https://server:2100", token: "tok")
+        let client = try builder.remoteClient()
+        #expect(client is ZagRemoteClient)
+    }
 }
 
 // MARK: - ZagError tests
