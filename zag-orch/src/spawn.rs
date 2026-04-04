@@ -158,23 +158,25 @@ fn build_exec_args(params: &SpawnParams, session_id: &str) -> Vec<String> {
 
 /// Create a FIFO (named pipe) for the given session.
 fn create_fifo(session_id: &str) -> Result<PathBuf> {
-    let dir = fifos_dir();
-    fs::create_dir_all(&dir)?;
-    let path = dir.join(session_id);
+    #[cfg(not(unix))]
+    {
+        let _ = session_id;
+        anyhow::bail!("Interactive sessions require a Unix-like OS (FIFOs not available)");
+    }
+
     #[cfg(unix)]
     {
+        let dir = fifos_dir();
+        fs::create_dir_all(&dir)?;
+        let path = dir.join(session_id);
         // Remove stale FIFO if it exists
         let _ = fs::remove_file(&path);
         nix::unistd::mkfifo(
             &path,
             nix::sys::stat::Mode::S_IRUSR | nix::sys::stat::Mode::S_IWUSR,
         )?;
+        Ok(path)
     }
-    #[cfg(not(unix))]
-    {
-        anyhow::bail!("Interactive sessions require a Unix-like OS (FIFOs not available)");
-    }
-    Ok(path)
 }
 
 /// Spawn a background session, returning structured result.
