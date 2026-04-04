@@ -1,6 +1,6 @@
 # zag serve
 
-Start the zag HTTP/WebSocket server for remote access.
+Start the zag HTTPS/WebSocket server for remote access.
 
 ## Synopsis
 
@@ -8,7 +8,9 @@ Start the zag HTTP/WebSocket server for remote access.
 
 ## Description
 
-Starts an HTTP and WebSocket server that exposes zag's orchestration API over the network. This enables remote clients (mobile apps, other machines) to spawn and monitor agent sessions on the host machine.
+Starts an HTTPS and WebSocket server that exposes zag's orchestration API over the network. This enables remote clients (mobile apps, other machines) to spawn and monitor agent sessions on the host machine.
+
+The server always uses TLS (HTTPS). If no TLS certificate is provided, a self-signed certificate is automatically generated and saved to `~/.zag/tls/`. For production deployments, provide your own certificate via `--tls-cert` and `--tls-key`.
 
 The server requires authentication via a bearer token on all endpoints except `/api/v1/health`.
 
@@ -18,20 +20,28 @@ The server requires authentication via a bearer token on all endpoints except `/
     --port <PORT>            Port to listen on (default: 2100)
     --token <TOKEN>          Authentication token (or set ZAG_SERVE_TOKEN env var)
     --generate-token         Generate a new random token, save it, and start
-    --tls-cert <PATH>        TLS certificate file (PEM format)
-    --tls-key <PATH>         TLS private key file (PEM format)
+    --tls-cert <PATH>        TLS certificate file (PEM format); overrides auto-generated cert
+    --tls-key <PATH>         TLS private key file (PEM format); overrides auto-generated cert
 
 ## Authentication
 
-Every request (except `GET /api/v1/health`) must include an `Authorization: Bearer <token>` header. The token can be provided via:
+Every request (except `GET /api/v1/health`) must include an `Authorization: Bearer <token>` header. The token is resolved in this order:
 
 1. `--token` flag
 2. `ZAG_SERVE_TOKEN` environment variable
-3. Saved in `~/.zag/serve.toml` (written by `--generate-token`)
+3. Saved in `~/.zag/serve.toml` (written by `--generate-token` or auto-generated)
+
+If no token is found from any source, one is automatically generated, saved to `~/.zag/serve.toml`, and printed to stderr.
 
 ## TLS
 
-For encrypted connections, provide both `--tls-cert` and `--tls-key` pointing to PEM files. When TLS is enabled, the server listens on HTTPS. Without TLS flags, the server uses plain HTTP (recommended only behind a VPN or reverse proxy).
+The server always uses HTTPS. TLS certificates are resolved in this order:
+
+1. `--tls-cert` and `--tls-key` flags (must be provided together)
+2. `tls_cert` and `tls_key` in `~/.zag/serve.toml`
+3. Auto-generated self-signed certificate (saved to `~/.zag/tls/`)
+
+When using auto-generated certificates, a warning is printed. Self-signed certificates are suitable for local networks and development but should not be used in production.
 
 ## REST API Endpoints
 
@@ -55,14 +65,17 @@ For encrypted connections, provide both `--tls-cert` and `--tls-key` pointing to
 
 ## Examples
 
-    # Generate a token and start the server
-    zag serve --generate-token
+    # Start with auto-generated certificate and token (simplest)
+    zag serve
 
-    # Start with a specific token on a custom port
-    zag serve --token mysecrettoken --port 8080
+    # Start with a specific token
+    zag serve --token mysecrettoken
 
-    # Start with TLS
-    zag serve --token mysecrettoken --tls-cert cert.pem --tls-key key.pem
+    # Start with custom TLS certificate
+    zag serve --tls-cert cert.pem --tls-key key.pem
+
+    # Start on a custom port
+    zag serve --port 8080
 
 ## Configuration
 

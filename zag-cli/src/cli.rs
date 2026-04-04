@@ -804,7 +804,7 @@ pub enum Commands {
         #[arg(short, long)]
         root: Option<String>,
     },
-    /// Start the zag HTTP/WebSocket server for remote access
+    /// Start the zag HTTPS/WebSocket server for remote access
     Serve {
         /// Bind address
         #[arg(long, default_value = "0.0.0.0")]
@@ -822,11 +822,11 @@ pub enum Commands {
         #[arg(long)]
         generate_token: bool,
 
-        /// TLS certificate file path (PEM format)
+        /// TLS certificate file path (PEM format); overrides auto-generated certificate
         #[arg(long, value_name = "PATH")]
         tls_cert: Option<String>,
 
-        /// TLS private key file path (PEM format)
+        /// TLS private key file path (PEM format); overrides auto-generated certificate
         #[arg(long, value_name = "PATH")]
         tls_key: Option<String>,
     },

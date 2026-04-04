@@ -23,16 +23,17 @@ echo "updating all version files to $VERSION"
 
 # --- Rust crates ---
 
-for toml in zag-cli/Cargo.toml zag-agent/Cargo.toml zag-orch/Cargo.toml bindings/rust/Cargo.toml; do
+for toml in zag-cli/Cargo.toml zag-agent/Cargo.toml zag-orch/Cargo.toml zag-serve/Cargo.toml bindings/rust/Cargo.toml; do
     sed -i.bak "0,/^version = \".*\"/s//version = \"$VERSION\"/" "$toml"
     rm -f "$toml.bak"
     echo "  updated $toml"
 done
 
 # Update internal dependency versions across all crates
-for toml in bindings/rust/Cargo.toml zag-orch/Cargo.toml zag-cli/Cargo.toml examples/cv-review/Cargo.toml; do
+for toml in bindings/rust/Cargo.toml zag-orch/Cargo.toml zag-serve/Cargo.toml zag-cli/Cargo.toml examples/cv-review/Cargo.toml; do
     sed -i.bak "s/zag-agent = { version = \"[^\"]*\"/zag-agent = { version = \"$VERSION\"/" "$toml"
     sed -i.bak "s/zag-orch = { version = \"[^\"]*\"/zag-orch = { version = \"$VERSION\"/" "$toml"
+    sed -i.bak "s/zag-serve = { version = \"[^\"]*\"/zag-serve = { version = \"$VERSION\"/" "$toml"
     rm -f "$toml.bak"
     echo "  updated deps in $toml"
 done

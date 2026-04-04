@@ -207,6 +207,14 @@ jobs:
       - name: Wait for crates.io index update
         run: sleep 30
 
+      - name: Publish zag-serve
+        run: cargo publish -p zag-serve --token "$CARGO_REGISTRY_TOKEN"
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - name: Wait for crates.io index update
+        run: sleep 30
+
       - name: Publish zag (facade)
         run: cargo publish -p zag --token "$CARGO_REGISTRY_TOKEN"
         env:
