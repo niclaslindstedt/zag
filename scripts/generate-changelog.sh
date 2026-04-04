@@ -24,7 +24,7 @@ echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' || die "invalid semver: $V
 # --- Determine commit range ---
 
 if [ -z "$PREV_TAG" ]; then
-    PREV_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+    PREV_TAG="$(git describe --tags --abbrev=0 --exclude="v$VERSION" 2>/dev/null || true)"
 fi
 
 if [ -n "$PREV_TAG" ]; then

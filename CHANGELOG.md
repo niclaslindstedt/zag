@@ -7,36 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.4] - 2026-04-04
 
-- No notable changes
+### Fixed
+
+- Prevent panic on multi-byte UTF-8 truncation in debug logs (#39)
 
 ## [0.2.3] - 2026-04-04
 
-- No notable changes
+Initial public release.
 
-## [0.2.2] - 2026-04-04
+### Added
 
-- No notable changes
-
-## [0.2.1] - 2026-04-04
-
-- No notable changes
-
-## [0.2.0] - 2026-04-04
-
-- No notable changes
-
-## [0.1.3] - 2026-04-03
-
-- No notable changes
-
-## [0.1.2] - 2026-04-03
-
-- No notable changes
-
-## [0.1.1] - 2026-04-03
-
-- No notable changes
-
-## [0.1.0] - 2026-04-03
-
-- Initial release
+- Multi-agent orchestration: spawn, wait, collect, pipe, status, events, cancel, summary, watch, subscribe, retry, gc
+- Provider support for Claude, Copilot, Codex, Gemini, and Ollama
+- Language bindings for Rust, TypeScript, Python, and C#
+- Builder pattern API for agent configuration
+- CLI with session management, skills, and MCP support
+- Cross-platform release builds (Linux, macOS, Windows; x86_64 and aarch64)
+- Publishing to crates.io, npm, NuGet, and PyPI
+- GitHub Pages landing page
