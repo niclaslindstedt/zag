@@ -439,7 +439,7 @@ impl Claude {
                                 log::debug!(
                                     "Failed to parse streaming Claude event: {}. Line: {}",
                                     e,
-                                    &line[..line.len().min(200)]
+                                    crate::truncate_str(&line, 200)
                                 );
                             }
                         }
@@ -481,7 +481,7 @@ impl Claude {
                         log::debug!(
                             "Failed to parse Claude JSON output: {}. First 500 chars: {}",
                             e,
-                            &json_str[..json_str.len().min(500)]
+                            crate::truncate_str(&json_str, 500)
                         );
                         anyhow::anyhow!("Failed to parse Claude JSON output: {}", e)
                     })?;

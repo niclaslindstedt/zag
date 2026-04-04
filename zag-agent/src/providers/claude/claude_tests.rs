@@ -210,3 +210,33 @@ fn test_make_command_with_sandbox() {
     assert!(args.contains(&"--print"));
     assert!(args.contains(&"hello"));
 }
+
+#[test]
+fn test_truncate_str_multibyte_utf8() {
+    // Reproduces the panic from issue #35: slicing a string at a byte index
+    // that falls inside a multi-byte UTF-8 character (e.g. '…' = 3 bytes).
+    let mut s = "a".repeat(199);
+    s.push('…'); // U+2026, 3 bytes → bytes 199..202
+    s.push_str("trailing");
+    assert!(s.len() > 200);
+
+    // Before the fix, &s[..s.len().min(200)] panicked with
+    // "byte index 200 is not a char boundary".
+    let truncated = crate::truncate_str(&s, 200);
+    assert_eq!(truncated.len(), 199); // stops before the '…'
+    assert!(truncated.is_char_boundary(truncated.len()));
+}
+
+#[test]
+fn test_truncate_str_ascii_only() {
+    let s = "a".repeat(300);
+    let truncated = crate::truncate_str(&s, 200);
+    assert_eq!(truncated.len(), 200);
+}
+
+#[test]
+fn test_truncate_str_short_string() {
+    let s = "short";
+    let truncated = crate::truncate_str(s, 200);
+    assert_eq!(truncated, "short");
+}

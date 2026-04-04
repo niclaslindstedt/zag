@@ -108,7 +108,7 @@ impl StreamingSession {
                             log::debug!(
                                 "Skipping unparseable streaming event: {}. Line: {}",
                                 e,
-                                &trimmed[..trimmed.len().min(200)]
+                                crate::truncate_str(trimmed, 200)
                             );
                             continue;
                         }
