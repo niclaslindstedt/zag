@@ -10,11 +10,13 @@ Connect to a remote zag server.
 
 Connects to a remote zag server and saves the connection configuration. Once connected, all subsequent zag commands transparently proxy through the remote server until `zag disconnect` is called.
 
+If the URL does not include a scheme, `https://` is automatically prepended.
+
 The connection state is stored in `~/.zag/connect.json`. While connected, commands like `zag spawn`, `zag status`, `zag listen`, `zag session list`, and others are forwarded to the remote server's REST/WebSocket API.
 
 ## Arguments
 
-    url    Server URL (e.g., https://home.local:2100)
+    url    Server URL (e.g., home.local:2100 or https://home.local:2100)
 
 ## Flags
 
@@ -47,7 +49,10 @@ The connection state is stored in `~/.zag/connect.json`. While connected, comman
 
 ## Examples
 
-    # Connect to a remote server
+    # Connect to a remote server (https:// auto-prepended)
+    zag connect home.local:2100 --token mysecrettoken
+
+    # Connect with explicit scheme
     zag connect https://home.local:2100 --token mysecrettoken
 
     # Now all commands proxy through the remote server

@@ -2,6 +2,16 @@
 
 use anyhow::{Result, bail};
 
+/// Normalize a server URL: strip trailing slashes and prepend https:// if no scheme given.
+pub(crate) fn normalize_url(url: &str) -> String {
+    let url = url.trim_end_matches('/');
+    if url.starts_with("https://") || url.starts_with("http://") {
+        url.to_string()
+    } else {
+        format!("https://{}", url)
+    }
+}
+
 pub(crate) async fn run_connect(url: String, token: Option<String>) -> Result<()> {
     let token = if let Some(t) = token {
         t
@@ -11,8 +21,7 @@ pub(crate) async fn run_connect(url: String, token: Option<String>) -> Result<()
         bail!("No auth token provided. Use --token or set ZAG_CONNECT_TOKEN env var.");
     };
 
-    // Normalize URL (strip trailing slash)
-    let url = url.trim_end_matches('/').to_string();
+    let url = normalize_url(&url);
 
     // Validate connectivity by hitting the health endpoint
     let health_url = format!("{}/api/v1/health", url);
@@ -60,3 +69,7 @@ pub(crate) fn run_disconnect() -> Result<()> {
     eprintln!("Disconnected from remote server.");
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "connect_tests.rs"]
+mod tests;

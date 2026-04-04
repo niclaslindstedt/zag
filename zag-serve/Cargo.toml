@@ -24,6 +24,7 @@ anyhow = "1"
 log = "0.4"
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
+rcgen = "0.13"
 rand = "0.9"
 hex = "0.4"
 toml = "0.8"
