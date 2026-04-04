@@ -6,9 +6,9 @@ List, inspect, stop, and kill agent processes started by zag.
 
     zag ps
     zag ps list [--running] [-p <provider>] [-n <N>] [--json]
-    zag ps show <id> [--json]
-    zag ps stop <id>
-    zag ps kill <id>
+    zag ps show <id|self> [--json]
+    zag ps stop <id|self>
+    zag ps kill <id|self>
 
 ## Description
 
@@ -78,6 +78,20 @@ Send `SIGTERM` to a running process — a forceful termination request. Updates 
 
 Errors if the process is not currently running.
 
+---
+
+## Self-referencing
+
+The `show`, `stop`, and `kill` subcommands accept the special value `self` in place of a process ID. When `self` is used, zag resolves it from the `ZAG_PROCESS_ID` environment variable, which is automatically set inside every zag agent session.
+
+This allows an agent to inspect or terminate its own process:
+
+    zag ps show self
+    zag ps stop self
+    zag ps kill self
+
+If `self` is used outside a zag session (where `ZAG_PROCESS_ID` is not set), the command will error with a descriptive message.
+
 ## Status Values
 
 | Status    | Meaning |
@@ -111,6 +125,12 @@ Process entries are stored in `~/.zag/processes.json`. Entries accumulate over t
 
     # Forcefully terminate a process (SIGTERM)
     zag ps kill a1b2c3d4-...
+
+    # An agent can inspect its own process
+    zag ps show self
+
+    # An agent can terminate itself
+    zag ps kill self
 
     # JSON output for scripting
     zag ps list --json | jq '.[] | select(.live_status == "running")'

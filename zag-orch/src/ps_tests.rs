@@ -1,5 +1,44 @@
 use super::*;
 
+#[test]
+fn test_resolve_process_id_literal() {
+    let result = resolve_process_id("abc-123").unwrap();
+    assert_eq!(result, "abc-123");
+}
+
+#[test]
+fn test_resolve_process_id_not_self() {
+    // Any string that is not "self" should be returned as-is,
+    // regardless of environment state.
+    assert_eq!(resolve_process_id("some-uuid").unwrap(), "some-uuid");
+    assert_eq!(resolve_process_id("").unwrap(), "");
+    assert_eq!(resolve_process_id("Self").unwrap(), "Self");
+}
+
+/// Env-var-dependent tests are grouped in one test to avoid races with
+/// parallel tests that may also mutate the environment.
+#[test]
+fn test_resolve_process_id_self_env_variants() {
+    // Without the env var set, "self" should error.
+    unsafe {
+        std::env::remove_var("ZAG_PROCESS_ID");
+    }
+    let err = resolve_process_id("self").unwrap_err();
+    assert!(err.to_string().contains("ZAG_PROCESS_ID is not set"));
+
+    // With the env var set, "self" should resolve to its value.
+    unsafe {
+        std::env::set_var("ZAG_PROCESS_ID", "proc-self-test");
+    }
+    let result = resolve_process_id("self").unwrap();
+    assert_eq!(result, "proc-self-test");
+
+    // Clean up
+    unsafe {
+        std::env::remove_var("ZAG_PROCESS_ID");
+    }
+}
+
 fn make_entry(status: &str) -> ProcessEntry {
     ProcessEntry {
         id: "test-id".to_string(),

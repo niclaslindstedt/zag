@@ -1,6 +1,21 @@
 use anyhow::{Result, bail};
 use zag_agent::process_store::{ProcessEntry, ProcessStore};
 
+/// If `id` is the literal `"self"`, resolve it from the `ZAG_PROCESS_ID`
+/// environment variable. Otherwise return the id unchanged.
+fn resolve_process_id(id: &str) -> Result<String> {
+    if id == "self" {
+        std::env::var("ZAG_PROCESS_ID").map_err(|_| {
+            anyhow::anyhow!(
+                "Cannot resolve \"self\": ZAG_PROCESS_ID is not set. \
+                 Are you running inside a zag session?"
+            )
+        })
+    } else {
+        Ok(id.to_string())
+    }
+}
+
 /// Resolve the live OS status for an entry that is marked "running".
 /// Returns "running", "dead", or the stored status unchanged.
 pub fn resolve_live_status(entry: &ProcessEntry) -> &'static str {
@@ -160,6 +175,7 @@ pub fn run_ps(command: PsCommand, json: bool) -> Result<()> {
             }
         }
         PsCommand::Show { id } => {
+            let id = resolve_process_id(&id)?;
             let store = ProcessStore::load()?;
             match store.find(&id) {
                 Some(e) => {
@@ -204,6 +220,7 @@ pub fn run_ps(command: PsCommand, json: bool) -> Result<()> {
             }
         }
         PsCommand::Stop { id } => {
+            let id = resolve_process_id(&id)?;
             let entry = ProcessStore::load()?
                 .find(&id)
                 .ok_or_else(|| anyhow::anyhow!("Process not found: {}", id))?
@@ -220,6 +237,7 @@ pub fn run_ps(command: PsCommand, json: bool) -> Result<()> {
             println!("\x1b[32m✓\x1b[0m Stop signal sent");
         }
         PsCommand::Kill { id } => {
+            let id = resolve_process_id(&id)?;
             let mut store = ProcessStore::load()?;
             let entry = store
                 .find(&id)
@@ -229,13 +247,16 @@ pub fn run_ps(command: PsCommand, json: bool) -> Result<()> {
             if live != "running" {
                 bail!("Process {} is not running (status: {})", id, live);
             }
+            // Update store before sending the signal — if this is a self-kill,
+            // the SIGTERM will terminate this process and post-signal code may
+            // not execute.
+            store.update_status(&id, "killed", None);
+            store.save()?;
             println!(
                 "\x1b[33m>\x1b[0m Sending kill signal to process {} ({})",
                 entry.pid, entry.id
             );
             kill_process(entry.pid)?;
-            store.update_status(&id, "killed", None);
-            store.save()?;
             println!("\x1b[32m✓\x1b[0m Process killed");
         }
     }
@@ -281,17 +302,17 @@ pub enum PsCommand {
     },
     /// Show details of a specific process
     Show {
-        /// Process ID
+        /// Process ID (or "self" to use current process)
         id: String,
     },
     /// Send stop signal to a running process (graceful stop request)
     Stop {
-        /// Process ID
+        /// Process ID (or "self" to use current process)
         id: String,
     },
     /// Send kill signal to a running process (forceful termination)
     Kill {
-        /// Process ID
+        /// Process ID (or "self" to use current process)
         id: String,
     },
 }
