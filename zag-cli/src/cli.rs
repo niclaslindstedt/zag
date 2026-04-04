@@ -477,8 +477,8 @@ pub enum Commands {
     },
     /// Launch an agent session in the background, print session ID, and exit
     Spawn {
-        /// The prompt to send to the agent
-        prompt: String,
+        /// The prompt to send to the agent (optional with --interactive)
+        prompt: Option<String>,
 
         #[command(flatten)]
         agent: AgentArgs,
@@ -497,6 +497,10 @@ pub enum Commands {
         /// Auto-inject dependency session results as context
         #[arg(long)]
         inject_context: bool,
+
+        /// Spawn a long-lived interactive session (FIFO-based, usable with zag input)
+        #[arg(long, short = 'I')]
+        interactive: bool,
     },
     /// Block until one or more sessions complete
     Wait {
@@ -841,6 +845,19 @@ pub enum Commands {
     },
     /// Disconnect from the remote zag server
     Disconnect,
+    /// Internal: relay for interactive sessions (FIFO-based streaming)
+    #[command(hide = true)]
+    Relay {
+        /// Session ID
+        #[arg(long)]
+        session: String,
+
+        #[command(flatten)]
+        agent: AgentArgs,
+
+        /// Optional initial prompt
+        prompt: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]

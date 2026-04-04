@@ -51,8 +51,8 @@ When using auto-generated certificates, a warning is printed. Self-signed certif
     GET  /api/v1/sessions/:id/status    Get session status
     GET  /api/v1/sessions/:id/events    Query session events
     GET  /api/v1/sessions/:id/output    Get final result text
-    POST /api/v1/sessions/spawn         Spawn a background session
-    POST /api/v1/sessions/:id/input     Send a user message
+    POST /api/v1/sessions/spawn         Spawn a background session (supports interactive mode)
+    POST /api/v1/sessions/:id/input     Send a user message (FIFO-based for interactive sessions)
     POST /api/v1/sessions/:id/cancel    Cancel a session
     POST /api/v1/sessions/collect       Collect results from sessions
     POST /api/v1/sessions/wait          Wait for sessions to complete

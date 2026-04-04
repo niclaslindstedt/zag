@@ -49,6 +49,13 @@ pub struct SessionEntry {
     /// Session ID that this session is a retry of.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retried_from: Option<String>,
+    /// Whether this is a long-lived interactive session (FIFO-based).
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub interactive: bool,
+}
+
+fn is_false(v: &bool) -> bool {
+    !v
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

@@ -115,6 +115,7 @@ zag input [message]           Send a user message to a single session
 zag broadcast [message]       Send a message to all sessions in the project
 
 zag spawn <prompt>            Launch background agent, return session ID
+zag spawn -I [prompt]         Spawn long-lived interactive session (FIFO-based)
 zag wait <id>... [--timeout]  Block until session(s) complete
 zag status <id>               Machine-readable session health check
 zag collect [--tag <tag>]     Gather results from multiple sessions
@@ -259,6 +260,12 @@ zag watch --tag batch --on session_ended --filter 'success=false' --once
 # Subscribe to a multiplexed event stream from all sessions
 zag subscribe --tag batch --json | jq 'select(.type == "session_ended")'
 
+# Long-lived interactive sessions (Claude only)
+sid=$(zag spawn --interactive --name worker -p claude)
+zag input --name worker "analyze the auth module"
+zag input --name worker "now refactor the error handling"
+zag listen --name worker
+
 # DAG workflows with spawn dependencies
 sid_a=$(zag spawn "analyze code")
 sid_b=$(zag spawn --depends-on $sid_a "fix issues from analysis")
@@ -288,6 +295,11 @@ zag spawn "write tests for the auth module"
 zag listen --latest
 zag session list
 zag status <session-id>
+
+# Spawn an interactive session on the remote machine
+sid=$(zag spawn --interactive --name worker -p claude)
+zag input --name worker "analyze the auth module"
+zag listen --name worker
 
 # Disconnect when done
 zag disconnect

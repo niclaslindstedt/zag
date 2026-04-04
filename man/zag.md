@@ -51,7 +51,7 @@ These flags can be used with any subcommand.
     input        Send a user message to a running or resumable session
     broadcast    Send a message to all sessions in the project
     whoami       Show identity of the current zag session
-    spawn        Launch a background agent session, return session ID
+    spawn        Launch a background agent session (or --interactive for long-lived)
     wait         Block until session(s) complete
     status       Machine-readable session health check
     collect      Gather results from multiple sessions

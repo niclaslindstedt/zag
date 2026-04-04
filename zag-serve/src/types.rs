@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// Request body for POST /api/v1/sessions/spawn
 #[derive(Debug, Deserialize)]
 pub struct SpawnRequest {
-    pub prompt: String,
+    pub prompt: Option<String>,
     pub provider: Option<String>,
     pub model: Option<String>,
     pub root: Option<String>,
@@ -19,6 +19,7 @@ pub struct SpawnRequest {
     pub tags: Option<Vec<String>>,
     pub depends_on: Option<Vec<String>>,
     pub inject_context: Option<bool>,
+    pub interactive: Option<bool>,
 }
 
 /// Response for POST /api/v1/sessions/spawn
@@ -27,6 +28,7 @@ pub struct SpawnResponse {
     pub session_id: String,
     pub pid: u32,
     pub log_path: String,
+    pub interactive: bool,
 }
 
 /// Request body for POST /api/v1/sessions/:id/input

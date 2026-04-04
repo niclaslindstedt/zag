@@ -30,7 +30,7 @@ how to implement each pattern using zag's built-in primitives.
 Before diving into patterns, here are the zag commands that form the
 orchestration toolkit:
 
-    spawn       Launch a background agent session, return session ID
+    spawn       Launch a background agent session (or --interactive for long-lived sessions)
     wait        Block until session(s) complete
     status      Machine-readable session health check
     collect     Gather results from multiple sessions
@@ -398,6 +398,28 @@ read -p "Proceed with fixes? [y/n] " answer
 if [ "$answer" = "y" ]; then
   zag exec --context $sid "implement the security fixes you identified"
 fi
+```
+
+### Long-lived interactive session
+
+Use `spawn --interactive` to create a persistent FIFO-backed session that
+stays alive between messages — ideal for conversational workflows or remote
+sessions via `zag connect`:
+
+```sh
+# Spawn a persistent session (no initial prompt required)
+sid=$(zag spawn --interactive --name assistant -p claude)
+
+# Monitor in another terminal
+zag listen --name assistant --rich-text &
+
+# Send messages at any time — the agent stays alive
+zag input --name assistant "analyze the auth module"
+zag input --name assistant "now check the tests for that module"
+zag input --name assistant "write a summary of your findings"
+
+# Kill when done
+zag cancel $sid
 ```
 
 ## Pattern 8: Inter-Agent Communication (A2A)

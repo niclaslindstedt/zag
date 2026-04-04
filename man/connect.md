@@ -60,6 +60,11 @@ The connection state is stored in `~/.zag/connect.json`. While connected, comman
     zag listen --latest
     zag session list
 
+    # Spawn an interactive session on the remote machine
+    sid=$(zag spawn --interactive --name worker -p claude)
+    zag input --name worker "analyze the auth module"
+    zag listen --name worker
+
     # Disconnect when done
     zag disconnect
 

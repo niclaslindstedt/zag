@@ -3318,6 +3318,7 @@ dependencies = [
  "env_logger",
  "futures-util",
  "indicatif",
+ "libc",
  "log",
  "reqwest",
  "serde_json",

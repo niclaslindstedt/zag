@@ -135,6 +135,21 @@ Session detection uses the `ZAG_SESSION_ID` and `ZAG_SESSION_NAME` environment v
     # Agent-to-agent: send without envelope wrapping
     zag input --raw --session <target-session-id> "raw message"
 
+## Interactive Sessions
+
+When the target session was spawned with `zag spawn --interactive`, the session is backed by a FIFO (named pipe). In this case, `zag input` writes the message directly to the FIFO instead of using the resume mechanism. This is faster and keeps the long-lived agent process alive.
+
+Interactive sessions are detected automatically — if the FIFO exists at `~/.zag/fifos/<session_id>`, the message is sent via the pipe. No special flags are needed on the `zag input` side.
+
+```bash
+# Start an interactive session
+sid=$(zag spawn --interactive --name worker -p claude)
+
+# Send messages (automatically uses FIFO)
+zag input --name worker "analyze the auth module"
+zag input --name worker "now check the tests"
+```
+
 ## Provider Support
 
 - **Claude**: Full support including `--stream` and `-o stream-json`
@@ -146,6 +161,7 @@ Session detection uses the `ZAG_SESSION_ID` and `ZAG_SESSION_NAME` environment v
 
     zag man broadcast Send a message to multiple sessions by tag
     zag man listen    Tail session output in real-time
+    zag man spawn     Launch background sessions (including --interactive)
     zag man run       Start an interactive session
     zag man exec      Run non-interactively
     zag man ps        List and manage agent processes

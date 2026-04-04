@@ -114,6 +114,15 @@ In rich-text mode, the same icons are used with ANSI colors and markdown renderi
     # Show timestamps for each event
     zag listen --latest --timestamps
 
+## Interactive Sessions
+
+`zag listen` works with sessions spawned via `zag spawn --interactive`. These long-lived sessions write events to the same JSONL session log as regular sessions, so no special flags are needed:
+
+```bash
+sid=$(zag spawn --interactive --name worker -p claude)
+zag listen --name worker --rich-text
+```
+
 ## Exit Behavior
 
 The command exits when a `SessionEnded` event is received or when interrupted with Ctrl+C.
@@ -121,4 +130,6 @@ The command exits when a `SessionEnded` event is received or when interrupted wi
 ## See Also
 
     zag man session   List and inspect sessions
+    zag man spawn     Launch background sessions (including --interactive)
+    zag man input     Send messages to a session
     zag man run       Start an interactive session

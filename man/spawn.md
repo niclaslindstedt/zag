@@ -4,17 +4,17 @@ Launch an agent session in the background and return the session ID.
 
 ## Synopsis
 
-    zag spawn [flags] <prompt>
+    zag spawn [flags] [<prompt>]
 
 ## Description
 
-Spawns a new agent session as a background process and immediately prints the session ID. The spawned session runs `zag exec` under the hood with stdout/stderr redirected to a log file.
+Spawns a new agent session as a background process and immediately prints the session ID. By default the spawned session runs `zag exec` under the hood with stdout/stderr redirected to a log file.
 
-This is designed for orchestration scripts that need to launch multiple agents in parallel and later synchronize with `zag wait` or collect results with `zag collect`.
+With `--interactive`, spawns a long-lived FIFO-based streaming session that stays alive until killed. Interactive sessions can receive messages via `zag input` and be monitored with `zag listen`, making them ideal for `zag connect` workflows where you start a persistent session on a remote server and interact with it over time.
 
 ## Arguments
 
-    prompt    The prompt to send to the agent
+    prompt    The prompt to send to the agent (required unless --interactive)
 
 ## Flags
 
@@ -30,6 +30,7 @@ This is designed for orchestration scripts that need to launch multiple agents i
     --description <TEXT>         Session description
     --tag <TAG>                  Session tag (repeatable)
     --json                       Output session info as JSON
+    -I, --interactive            Spawn a long-lived interactive session (FIFO-based)
 
 ## Output
 
@@ -39,7 +40,19 @@ By default, prints the session ID to stdout:
 
 With `--json`, outputs:
 
-    {"session_id":"...","pid":12345,"log_path":"~/.zag/logs/spawn/....log"}
+    {"session_id":"...","pid":12345,"log_path":"~/.zag/logs/spawn/....log","interactive":false}
+
+## Interactive Sessions
+
+When `--interactive` is set, the session is backed by a FIFO (named pipe) at `~/.zag/fifos/<session_id>`. A background relay process streams messages between the FIFO and the agent's CLI in bidirectional NDJSON mode. The process stays alive until explicitly killed (via `zag cancel`) or the agent exits.
+
+Interactive sessions currently require the Claude provider.
+
+Use `zag input` to send messages and `zag listen` to monitor output:
+
+    sid=$(zag spawn --interactive --name worker -p claude)
+    zag input --name worker "analyze the auth module"
+    zag listen --name worker
 
 ## Examples
 
@@ -48,6 +61,19 @@ With `--json`, outputs:
 
     # Spawn with metadata
     sid=$(zag spawn --name analyzer --tag batch -p claude "analyze code")
+
+    # Spawn an interactive session (no initial prompt)
+    sid=$(zag spawn --interactive --name worker -p claude)
+
+    # Spawn an interactive session with an initial prompt
+    sid=$(zag spawn --interactive --name worker -p claude "set up the project")
+
+    # Send messages to an interactive session
+    zag input --name worker "analyze the auth module"
+    zag input --name worker "now check the tests"
+
+    # Monitor an interactive session
+    zag listen --name worker
 
     # Spawn multiple agents in parallel
     sid1=$(zag spawn --tag batch "analyze auth")
@@ -62,6 +88,8 @@ With `--json`, outputs:
 
 ## See Also
 
+    zag man input      Send messages to a session
+    zag man listen     Tail session output in real-time
     zag man wait       Block until sessions complete
     zag man status     Session health check
     zag man collect    Gather multi-session results

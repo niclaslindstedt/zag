@@ -9,12 +9,38 @@ use axum::{
 
 use crate::types::*;
 
+/// Send a message to an interactive session's FIFO.
+async fn send_via_fifo(fifo: &std::path::Path, message: &str) -> anyhow::Result<()> {
+    use tokio::io::AsyncWriteExt;
+    let ndjson = serde_json::json!({
+        "type": "user_message",
+        "content": message,
+    });
+    let line = format!("{}\n", serde_json::to_string(&ndjson)?);
+    let mut file = tokio::fs::OpenOptions::new().write(true).open(fifo).await?;
+    file.write_all(line.as_bytes()).await?;
+    file.flush().await?;
+    Ok(())
+}
+
 /// POST /api/v1/sessions/spawn
 pub async fn spawn(Json(req): Json<SpawnRequest>) -> impl IntoResponse {
     let provider = req.provider.unwrap_or_else(|| {
         zag_agent::config::resolve_provider(None, req.root.as_deref())
             .unwrap_or_else(|_| "claude".to_string())
     });
+
+    let interactive = req.interactive.unwrap_or(false);
+
+    if req.prompt.is_none() && !interactive {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: "A prompt is required unless interactive is set".to_string(),
+            }),
+        )
+            .into_response();
+    }
 
     let params = zag_orch::spawn::SpawnParams {
         prompt: req.prompt,
@@ -35,6 +61,7 @@ pub async fn spawn(Json(req): Json<SpawnRequest>) -> impl IntoResponse {
         depends_on: req.depends_on.unwrap_or_default(),
         inject_context: req.inject_context.unwrap_or(false),
         retried_from: None,
+        interactive,
     };
 
     match zag_orch::spawn::spawn_session(&params) {
@@ -44,6 +71,7 @@ pub async fn spawn(Json(req): Json<SpawnRequest>) -> impl IntoResponse {
                 session_id: result.session_id,
                 pid: result.pid,
                 log_path: result.log_path,
+                interactive: result.interactive,
             }),
         )
             .into_response(),
@@ -254,6 +282,23 @@ pub async fn wait(Json(req): Json<WaitRequest>) -> impl IntoResponse {
 
 /// POST /api/v1/sessions/:id/input
 pub async fn input(Path(id): Path<String>, Json(req): Json<InputRequest>) -> impl IntoResponse {
+    // Check if this is an interactive session with a FIFO
+    let fifo = zag_orch::spawn::fifo_path(&id);
+    if fifo.exists() {
+        return match send_via_fifo(&fifo, &req.message).await {
+            Ok(()) => {
+                Json(serde_json::json!({"status": "sent", "interactive": true})).into_response()
+            }
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: e.to_string(),
+                }),
+            )
+                .into_response(),
+        };
+    }
+
     // Resolve the session to find the provider and provider_session_id
     let store = match zag_agent::session::SessionStore::load(None) {
         Ok(s) => s,

@@ -148,7 +148,7 @@ pub fn run_retry(params: RetryParams) -> Result<()> {
 
         // Re-spawn with the same config
         let spawn_result = run_spawn(SpawnParams {
-            prompt,
+            prompt: Some(prompt),
             provider: entry.provider.clone(),
             model,
             root: params.root.clone(),
@@ -166,6 +166,7 @@ pub fn run_retry(params: RetryParams) -> Result<()> {
             depends_on: entry.dependencies.clone(),
             inject_context: false,
             retried_from: Some(id.clone()),
+            interactive: false,
         });
 
         match spawn_result {
