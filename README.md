@@ -94,7 +94,7 @@ zag review --uncommitted
 |----------|---------------|---------------------------------------|
 | **claude** | default | haiku / sonnet / default |
 | **codex** | gpt-5.4 | gpt-5.4-mini / gpt-5.3-codex / gpt-5.4 |
-| **gemini** | auto | gemini-2.5-flash-lite / gemini-2.5-flash / gemini-2.5-pro |
+| **gemini** | auto | gemini-3.1-flash-lite-preview / gemini-2.5-flash / gemini-3.1-pro-preview |
 | **copilot** | claude-sonnet-4.6 | claude-haiku-4.5 / claude-sonnet-4.6 / claude-opus-4.6 |
 | **ollama** | qwen3.5:9b | 2b / 9b / 35b (parameter sizes, any model from ollama.com) |
 

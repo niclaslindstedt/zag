@@ -74,7 +74,7 @@ Run `zag man <command>` for detailed help on each command.
 
     claude    Default. Models: default, haiku, sonnet, opus, sonnet-4.6, opus-4.6, haiku-4.5 (default: default)
     codex     Models: gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex-mini
-    gemini    Models: gemini-3-pro-preview, gemini-3-flash-preview, gemini-2.5-flash-lite, gemini-2.5-flash, gemini-2.5-pro, auto (default: auto)
+    gemini    Models: gemini-3.1-pro-preview, gemini-3.1-flash-lite-preview, gemini-3-pro-preview, gemini-3-flash-preview, gemini-2.5-flash-lite, gemini-2.5-flash, gemini-2.5-pro, auto (default: auto)
     copilot   Models: claude-haiku-4.5, claude-sonnet-4.6, claude-opus-4.6, and more
     ollama    Local models via Ollama. Default: qwen3.5:9b. Use --size for parameter size
 
@@ -82,9 +82,9 @@ Run `zag man <command>` for detailed help on each command.
 
 Size aliases resolve to the appropriate model for the active provider:
 
-    small  (s)     Lightweight, fast — haiku / gpt-5.4-mini / gemini-2.5-flash-lite
+    small  (s)     Lightweight, fast — haiku / gpt-5.4-mini / gemini-3.1-flash-lite-preview
     medium (m)     Balanced — sonnet / gpt-5.3-codex / gemini-2.5-flash
-    large  (l/max) Most capable — default / gpt-5.4 / gemini-2.5-pro
+    large  (l/max) Most capable — default / gpt-5.4 / gemini-3.1-pro-preview
 
 ## Configuration
 
