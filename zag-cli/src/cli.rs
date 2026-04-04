@@ -804,6 +804,43 @@ pub enum Commands {
         #[arg(short, long)]
         root: Option<String>,
     },
+    /// Start the zag HTTP/WebSocket server for remote access
+    Serve {
+        /// Bind address
+        #[arg(long, default_value = "0.0.0.0")]
+        host: String,
+
+        /// Port to listen on
+        #[arg(long, default_value_t = 2100)]
+        port: u16,
+
+        /// Authentication token (or use ZAG_SERVE_TOKEN env var)
+        #[arg(long)]
+        token: Option<String>,
+
+        /// Generate a new token, save it, and start the server
+        #[arg(long)]
+        generate_token: bool,
+
+        /// TLS certificate file path (PEM format)
+        #[arg(long, value_name = "PATH")]
+        tls_cert: Option<String>,
+
+        /// TLS private key file path (PEM format)
+        #[arg(long, value_name = "PATH")]
+        tls_key: Option<String>,
+    },
+    /// Connect to a remote zag server (all subsequent commands proxy through it)
+    Connect {
+        /// Server URL (e.g., https://home.local:2100)
+        url: String,
+
+        /// Authentication token (or use ZAG_CONNECT_TOKEN env var)
+        #[arg(long)]
+        token: Option<String>,
+    },
+    /// Disconnect from the remote zag server
+    Disconnect,
 }
 
 #[derive(Subcommand)]

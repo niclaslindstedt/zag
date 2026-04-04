@@ -293,6 +293,65 @@ fn matches_filter(kind: &LogEventKind, filters: Option<&[String]>) -> bool {
     }
 }
 
+/// Stream session events into a channel (for programmatic consumers like the HTTP server).
+/// Spawns a background task that polls the JSONL file and sends events into the channel.
+/// The task stops when the receiver is dropped or a SessionEnded event is seen.
+pub fn stream_session_events(
+    path: &Path,
+    filters: Option<Vec<String>>,
+) -> Result<tokio::sync::mpsc::Receiver<AgentLogEvent>> {
+    let (tx, rx) = tokio::sync::mpsc::channel::<AgentLogEvent>(256);
+    let path = path.to_path_buf();
+
+    tokio::spawn(async move {
+        let file = match File::open(&path) {
+            Ok(f) => f,
+            Err(_) => return,
+        };
+        let mut reader = BufReader::new(file);
+        let mut line = String::new();
+
+        loop {
+            line.clear();
+            let bytes_read = match reader.read_line(&mut line) {
+                Ok(n) => n,
+                Err(_) => break,
+            };
+
+            if bytes_read > 0 {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                if let Ok(event) = serde_json::from_str::<AgentLogEvent>(trimmed) {
+                    let is_ended = matches!(event.kind, LogEventKind::SessionEnded { .. });
+
+                    if matches_filter(&event.kind, filters.as_deref())
+                        && tx.send(event).await.is_err()
+                    {
+                        break; // receiver dropped
+                    }
+
+                    if is_ended {
+                        break;
+                    }
+                }
+            } else {
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                let pos = match reader.stream_position() {
+                    Ok(p) => p,
+                    Err(_) => break,
+                };
+                if reader.seek(SeekFrom::Start(pos)).is_err() {
+                    break;
+                }
+            }
+        }
+    });
+
+    Ok(rx)
+}
+
 /// Tail a session log file, printing events as they arrive.
 /// Returns when a SessionEnded event is seen or the process is interrupted.
 pub fn tail_session_log(

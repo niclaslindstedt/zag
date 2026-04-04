@@ -14,3 +14,4 @@ categories = ["command-line-utilities", "development-tools"]
 [dependencies]
 zag-agent = { version = "0.2.4", path = "../../zag-agent" }
 zag-orch = { version = "0.2.4", path = "../../zag-orch" }
+zag-serve = { version = "0.2.4", path = "../../zag-serve" }

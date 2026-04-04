@@ -42,7 +42,7 @@ fn event_type_name(kind: &LogEventKind) -> &'static str {
 }
 
 /// Read and filter events from a session log.
-fn read_events(params: &EventsParams) -> Result<Vec<AgentLogEvent>> {
+pub fn read_events(params: &EventsParams) -> Result<Vec<AgentLogEvent>> {
     let log_path = listen::resolve_session_log(
         Some(&params.session_id),
         false,

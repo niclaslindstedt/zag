@@ -61,6 +61,106 @@ fn discover_sessions(params: &SubscribeParams) -> Result<Vec<(String, std::path:
     Ok(result)
 }
 
+/// Subscribe to events from all active sessions, returning a channel.
+/// Spawns a background task that polls all JSONL files and sends events.
+pub fn subscribe_events(
+    params: &SubscribeParams,
+) -> Result<tokio::sync::mpsc::Receiver<AgentLogEvent>> {
+    let sessions = discover_sessions(params)?;
+
+    if sessions.is_empty() {
+        anyhow::bail!("No active sessions found to subscribe to");
+    }
+
+    let (tx, rx) = tokio::sync::mpsc::channel::<AgentLogEvent>(256);
+    let event_type_filter = params.event_type.clone();
+
+    // Open all log files and seek to end
+    let mut tracked: Vec<TrackedLog> = Vec::new();
+    for (session_id, path) in &sessions {
+        match std::fs::File::open(path) {
+            Ok(mut file) => {
+                let _ = file.seek(SeekFrom::End(0));
+                tracked.push(TrackedLog {
+                    session_id: session_id.clone(),
+                    reader: BufReader::new(file),
+                });
+            }
+            Err(e) => {
+                debug!("Failed to open log for session {}: {}", session_id, e);
+            }
+        }
+    }
+
+    if tracked.is_empty() {
+        anyhow::bail!("Could not open any session logs");
+    }
+
+    tokio::spawn(async move {
+        loop {
+            let mut had_data = false;
+
+            for log in &mut tracked {
+                loop {
+                    let mut line = String::new();
+                    match log.reader.read_line(&mut line) {
+                        Ok(0) => break,
+                        Ok(_) => {
+                            let trimmed = line.trim();
+                            if trimmed.is_empty() {
+                                continue;
+                            }
+                            let event: AgentLogEvent = match serde_json::from_str(trimmed) {
+                                Ok(e) => e,
+                                Err(_) => continue,
+                            };
+
+                            if let Some(ref type_filter) = event_type_filter {
+                                let event_type = match &event.kind {
+                                    zag_agent::session_log::LogEventKind::SessionStarted {
+                                        ..
+                                    } => "session_started",
+                                    zag_agent::session_log::LogEventKind::SessionEnded {
+                                        ..
+                                    } => "session_ended",
+                                    zag_agent::session_log::LogEventKind::UserMessage {
+                                        ..
+                                    } => "user_message",
+                                    zag_agent::session_log::LogEventKind::AssistantMessage {
+                                        ..
+                                    } => "assistant_message",
+                                    zag_agent::session_log::LogEventKind::ToolCall { .. } => {
+                                        "tool_call"
+                                    }
+                                    zag_agent::session_log::LogEventKind::ToolResult { .. } => {
+                                        "tool_result"
+                                    }
+                                    _ => "other",
+                                };
+                                if event_type != type_filter.as_str() {
+                                    continue;
+                                }
+                            }
+
+                            had_data = true;
+                            if tx.send(event).await.is_err() {
+                                return; // receiver dropped
+                            }
+                        }
+                        Err(_) => break,
+                    }
+                }
+            }
+
+            if !had_data {
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            }
+        }
+    });
+
+    Ok(rx)
+}
+
 /// Run the subscribe command.
 pub fn run_subscribe(params: SubscribeParams) -> Result<()> {
     let sessions = discover_sessions(&params)?;

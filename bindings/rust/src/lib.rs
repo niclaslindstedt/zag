@@ -17,3 +17,8 @@ pub use zag_agent::*;
 pub mod orch {
     pub use zag_orch::*;
 }
+
+/// Network server: remote access to AI agent orchestration over HTTP/WebSocket.
+pub mod serve {
+    pub use zag_serve::*;
+}
