@@ -1,3 +1,4 @@
+// provider-updated: 2026-04-04
 use crate::agent::{Agent, ModelSize};
 use crate::output::AgentOutput;
 use crate::sandbox::SandboxConfig;

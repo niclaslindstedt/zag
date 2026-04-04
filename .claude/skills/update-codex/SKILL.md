@@ -15,10 +15,25 @@ The Codex provider wraps OpenAI's `codex` CLI. It uses NDJSON output parsing, su
 
 ## Discovery Process
 
-1. Check https://github.com/openai/codex/releases for new releases and changelogs
-2. Clone or pull the repo to inspect source code for detailed CLI behavior
-3. Install/update `codex` and run `codex --help`, `codex exec --help` to discover new flags
-4. Focus on: new `exec` subcommand flags, changes to NDJSON event format, new model names, changes to `--sandbox` options, changes to `--json` output structure
+1. Run `scripts/check-provider-status.sh codex` to snapshot current source state vs upstream CLI
+2. Run `scripts/fetch-upstream-releases.sh codex` to check for new releases
+3. Check https://github.com/openai/codex/releases for new releases and changelogs
+4. Clone or pull the repo to inspect source code for detailed CLI behavior
+5. Install/update `codex` and run `codex --help`, `codex exec --help` to discover new flags
+6. Focus on: new `exec` subcommand flags, changes to NDJSON event format, new model names, changes to `--sandbox` options, changes to `--json` output structure
+
+## Automated Discovery
+
+Run the discovery scripts before starting manual investigation:
+
+```sh
+scripts/check-provider-status.sh codex
+scripts/fetch-upstream-releases.sh codex
+```
+
+The first script extracts the current source state (models, defaults, size mappings, flags)
+and compares against the installed CLI's `--help` output. The second checks the latest
+GitHub release. Review the report before proceeding with manual changes.
 
 ## Implementation Files
 
@@ -89,6 +104,7 @@ Uses thread IDs extracted from NDJSON output. The `resume` subcommand takes a se
 
 ## Update Checklist
 
+- [ ] Update the `// provider-updated: YYYY-MM-DD` comment at the top of `codex.rs`
 - [ ] Update `codex.rs` — new flags in arg builders, model list, NDJSON parsing
 - [ ] Update `codex_tests.rs` — test new arg combinations, new NDJSON event types
 - [ ] Update `docs/providers.md` — feature matrix, available models, known limitations
