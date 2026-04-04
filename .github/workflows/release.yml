@@ -265,9 +265,9 @@ jobs:
 
       - name: Publish Zag
         working-directory: bindings/csharp/src/Zag
-        run: dotnet nuget push bin/Release/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json
+        run: dotnet nuget push bin/Release/*.nupkg --api-key "$NUGET_TOKEN" --source https://api.nuget.org/v3/index.json
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
 
   publish-pypi:
     name: Publish to PyPI
