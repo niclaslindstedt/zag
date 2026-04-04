@@ -1,8 +1,8 @@
 const bindings = [
   {
     lang: "TypeScript",
-    install: "npm install @niclaslindstedt/zag-agent",
-    code: `import { ZagBuilder } from "@niclaslindstedt/zag-agent";
+    install: "npm install @nlindstedt/zag-agent",
+    code: `import { ZagBuilder } from "@nlindstedt/zag-agent";
 
 const result = await new ZagBuilder()
   .provider("claude")
