@@ -1,6 +1,6 @@
 [package]
 name = "zag-cli"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
@@ -16,8 +16,8 @@ name = "zag"
 path = "src/main.rs"
 
 [dependencies]
-zag-agent = { version = "0.2.1", path = "../zag-agent" }
-zag-orch = { version = "0.2.1", path = "../zag-orch" }
+zag-agent = { version = "0.2.2", path = "../zag-agent" }
+zag-orch = { version = "0.2.2", path = "../zag-orch" }
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 anyhow = "1"
