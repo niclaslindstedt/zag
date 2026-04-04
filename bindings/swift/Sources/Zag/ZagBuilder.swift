@@ -2,8 +2,21 @@ import Foundation
 
 /// Fluent builder for configuring and running zag agent sessions.
 ///
+/// **Local mode** (macOS/Linux — requires `zag` CLI on PATH):
 /// ```swift
 /// let output = try await ZagBuilder()
+///     .provider("claude")
+///     .model("sonnet")
+///     .autoApprove()
+///     .exec("write a hello world program")
+///
+/// print(output.result ?? "")
+/// ```
+///
+/// **Remote mode** (macOS/iOS/Linux — requires a `zag serve` instance):
+/// ```swift
+/// let output = try await ZagBuilder()
+///     .remote(url: "https://server:2100", token: "my-token")
 ///     .provider("claude")
 ///     .model("sonnet")
 ///     .autoApprove()
@@ -15,7 +28,11 @@ public final class ZagBuilder {
 
     // MARK: - Private state
 
+    #if os(macOS) || os(Linux)
     private var bin: String = ZagProcess.defaultBin
+    #else
+    private var bin: String = "zag"
+    #endif
     private var _provider: String?
     private var _model: String?
     private var _systemPrompt: String?
@@ -38,6 +55,8 @@ public final class ZagBuilder {
     private var _maxTurns: Int?
     private var _showUsage = false
     private var _size: String?
+    private var _connection: ZagConnection?
+    private var _urlSession: URLSession?
 
     private enum IsolationOption {
         case enabled
@@ -49,6 +68,7 @@ public final class ZagBuilder {
     // MARK: - Configuration methods
 
     /// Override the zag binary path (default: `ZAG_BIN` env or `"zag"`).
+    /// Only relevant for local execution mode.
     @discardableResult
     public func bin(_ path: String) -> Self { bin = path; return self }
 
@@ -146,6 +166,22 @@ public final class ZagBuilder {
     @discardableResult
     public func size(_ s: String) -> Self { _size = s; return self }
 
+    /// Configure a remote `zag serve` connection.
+    /// When set, terminal methods use HTTP/WebSocket instead of local subprocess.
+    @discardableResult
+    public func connection(_ c: ZagConnection) -> Self { _connection = c; return self }
+
+    /// Convenience: configure a remote `zag serve` connection from URL and token strings.
+    @discardableResult
+    public func remote(url: String, token: String) -> Self {
+        _connection = try? ZagConnection(url: url, token: token)
+        return self
+    }
+
+    /// Set a custom `URLSession` for remote requests (useful for testing).
+    @discardableResult
+    public func urlSession(_ s: URLSession) -> Self { _urlSession = s; return self }
+
     // MARK: - Arg building
 
     /// Build global CLI arguments shared across all commands.
@@ -196,22 +232,94 @@ public final class ZagBuilder {
         return args
     }
 
+    /// Build `SpawnParams` from builder state for remote execution.
+    public func buildSpawnParams(prompt: String) -> SpawnParams {
+        SpawnParams(
+            prompt: prompt,
+            provider: _provider,
+            model: _model,
+            root: _root,
+            autoApprove: _autoApprove ? true : nil,
+            systemPrompt: _systemPrompt,
+            addDirs: _addDirs.isEmpty ? nil : _addDirs,
+            size: _size,
+            maxTurns: _maxTurns.map { Int($0) }
+        )
+    }
+
     // MARK: - Terminal methods
 
     /// Run the agent non-interactively and return structured output.
+    ///
+    /// In remote mode, this spawns a session, waits for completion, and fetches the output
+    /// via the `zag serve` HTTP API.
     public func exec(_ prompt: String) async throws -> AgentOutput {
+        if let conn = _connection {
+            let client = ZagRemoteClient(connection: conn, session: _urlSession ?? .shared)
+            let params = buildSpawnParams(prompt: prompt)
+            let spawned = try await client.spawn(params)
+            _ = try await client.wait(sessionIds: [spawned.sessionId])
+            let out = try await client.output(spawned.sessionId)
+            // Build an AgentOutput from the remote response
+            return AgentOutput(
+                agent: _provider ?? "unknown",
+                sessionId: spawned.sessionId,
+                result: out.result,
+                isError: false)
+        }
+        #if os(macOS) || os(Linux)
         let args = buildExecArgs(prompt: prompt)
         return try await ZagProcess.exec(bin: bin, args: args)
+        #else
+        throw ZagError(message: "Local execution requires macOS or Linux. Use .connection() or .remote(url:token:) for remote execution.")
+        #endif
     }
 
     /// Run the agent in streaming mode, yielding events as they arrive.
+    ///
+    /// In remote mode, this spawns a session and streams events via WebSocket.
     public func stream(_ prompt: String) -> AsyncThrowingStream<Event, Error> {
+        if let conn = _connection {
+            let client = ZagRemoteClient(connection: conn, session: _urlSession ?? .shared)
+            let params = buildSpawnParams(prompt: prompt)
+            return AsyncThrowingStream { continuation in
+                Task {
+                    do {
+                        let spawned = try await client.spawn(params)
+                        let eventStream = client.stream(spawned.sessionId)
+                        for try await event in eventStream {
+                            continuation.yield(event)
+                        }
+                        continuation.finish()
+                    } catch {
+                        continuation.finish(throwing: error)
+                    }
+                }
+            }
+        }
+        #if os(macOS) || os(Linux)
         let args = buildExecArgs(prompt: prompt, streaming: true)
         return ZagProcess.stream(bin: bin, args: args)
+        #else
+        return AsyncThrowingStream { continuation in
+            continuation.finish(throwing: ZagError(
+                message: "Local execution requires macOS or Linux. Use .connection() or .remote(url:token:) for remote execution."))
+        }
+        #endif
     }
 
     /// Run the agent with streaming input and output (Claude only).
+    ///
+    /// In remote mode, this spawns a session and returns a `ZagRemoteSession`
+    /// backed by WebSocket for bidirectional communication.
+    /// In local mode, this returns a `StreamingSession` backed by subprocess pipes.
+    ///
+    /// - Note: On iOS, only remote mode is available.
+    #if os(macOS) || os(Linux)
     public func execStreaming(_ prompt: String) throws -> StreamingSession {
+        if _connection != nil {
+            fatalError("Use execStreamingRemote(_:) for remote streaming sessions.")
+        }
         var args = buildGlobalArgs()
         args.append("exec")
         args += ["-i", "stream-json"]
@@ -221,8 +329,35 @@ public final class ZagBuilder {
         args.append(prompt)
         return try ZagProcess.startStreamingProcess(bin: bin, args: args)
     }
+    #endif
+
+    /// Run the agent with streaming input and output via remote WebSocket.
+    public func execStreamingRemote(_ prompt: String) async throws -> ZagRemoteSession {
+        guard let conn = _connection else {
+            throw ZagError(message: "Remote streaming requires a connection. Use .connection() or .remote(url:token:) first.")
+        }
+        let client = ZagRemoteClient(connection: conn, session: _urlSession ?? .shared)
+        let params = buildSpawnParams(prompt: prompt)
+        let spawned = try await client.spawn(params)
+
+        // Create WebSocket connection for event streaming
+        let httpURL = conn.baseURL.appendingPathComponent("/api/v1/sessions/\(spawned.sessionId)/stream")
+        var components = URLComponents(url: httpURL, resolvingAgainstBaseURL: false)!
+        components.scheme = conn.baseURL.scheme == "https" ? "wss" : "ws"
+        let wsURL = components.url!
+
+        var request = URLRequest(url: wsURL)
+        request.setValue("Bearer \(conn.token)", forHTTPHeaderField: "Authorization")
+
+        let urlSession = _urlSession ?? .shared
+        let webSocketTask = urlSession.webSocketTask(with: request)
+
+        return ZagRemoteSession(webSocketTask: webSocketTask, client: client, sessionId: spawned.sessionId)
+    }
 
     /// Start an interactive agent session (inherits stdio).
+    /// Only available in local mode (macOS/Linux).
+    #if os(macOS) || os(Linux)
     public func run(_ prompt: String? = nil) async throws {
         var args = buildGlobalArgs()
         args.append("run")
@@ -246,5 +381,15 @@ public final class ZagBuilder {
         args.append("run")
         args.append("--continue")
         try await ZagProcess.runInteractive(bin: bin, args: args)
+    }
+    #endif
+
+    /// Get a configured `ZagRemoteClient` from this builder's connection settings.
+    /// Useful for direct access to the full remote API.
+    public func remoteClient() throws -> ZagRemoteClient {
+        guard let conn = _connection else {
+            throw ZagError(message: "No remote connection configured. Use .connection() or .remote(url:token:) first.")
+        }
+        return ZagRemoteClient(connection: conn, session: _urlSession ?? .shared)
     }
 }

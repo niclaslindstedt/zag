@@ -342,7 +342,7 @@ public struct AgentOutput: Codable, Equatable, Sendable {
     }
 }
 
-// MARK: - Shared decoder
+// MARK: - Shared decoder / encoder
 
 extension JSONDecoder {
     /// A pre-configured decoder for zag JSON output (snake_case keys).
@@ -350,5 +350,14 @@ extension JSONDecoder {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return decoder
+    }()
+}
+
+extension JSONEncoder {
+    /// A pre-configured encoder for zag JSON input (snake_case keys).
+    static let zag: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        return encoder
     }()
 }

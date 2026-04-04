@@ -1,6 +1,8 @@
+#if os(macOS) || os(Linux)
 import Foundation
 
 /// Subprocess helpers for invoking the zag CLI.
+/// Available on macOS and Linux only (requires Foundation.Process).
 public enum ZagProcess {
 
     /// Default zag binary path from `ZAG_BIN` env or `"zag"`.
@@ -278,3 +280,4 @@ public final class StreamingSession {
         }
     }
 }
+#endif
