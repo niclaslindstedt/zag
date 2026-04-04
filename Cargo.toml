@@ -1,3 +1,4 @@
 [workspace]
 members = ["zag-cli", "zag-agent", "zag-orch", "bindings/rust", "examples/cv-review"]
+default-members = ["zag-cli", "zag-agent", "zag-orch", "bindings/rust"]
 resolver = "3"
