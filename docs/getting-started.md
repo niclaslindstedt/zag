@@ -112,6 +112,22 @@ zag wait --tag review --timeout 5m
 zag collect --tag review
 ```
 
+### Long-lived interactive sessions
+
+Spawn a persistent session that stays alive for ongoing interaction:
+
+```bash
+# Spawn an interactive session
+sid=$(zag spawn --interactive --name worker -p claude)
+
+# Send messages to it
+zag input --name worker "analyze the auth module"
+zag input --name worker "now refactor the error handling"
+
+# Stream its output
+zag listen --name worker
+```
+
 See `zag man orchestration` for the full orchestration guide, or the [orchestration examples](../examples/orchestration/).
 
 ## Session management

@@ -41,6 +41,7 @@ For Claude, `default` delegates model selection to the Claude CLI itself. For Ol
 | Max turns | Yes | Yes | No | Yes | No |
 | System prompt | Yes | Yes | Yes | Yes | Yes |
 | Auto-approve | Yes | Yes | Yes | Yes | N/A |
+| Interactive spawn (`spawn -I`) | Yes | No | No | No | No |
 
 ### Notes
 
@@ -48,6 +49,7 @@ For Claude, `default` delegates model selection to the Claude CLI itself. For Ol
 - **JSON schema**: Claude supports `--json-schema` natively. For other providers, zag injects JSON instructions into the system prompt and validates the output, retrying up to 3 times on validation failure.
 - **MCP**: Ollama does not support Model Context Protocol. All other providers have native MCP support that zag manages via `zag mcp`.
 - **Resume**: Claude stores session state for `--resume`. Codex tracks thread IDs for resumable sessions. Gemini supports `--resume` with session ID or "latest". Copilot supports `--resume` and `--continue` for session resume.
+- **Interactive spawn**: Only Claude supports long-lived interactive sessions via `zag spawn --interactive`. The session stays alive and accepts messages via `zag input` until explicitly cancelled.
 
 ## Available models
 
