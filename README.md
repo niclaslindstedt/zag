@@ -393,7 +393,7 @@ See the [`zag-agent` crate](zag-agent/) for the full API including JSON schema v
 
 ### Language bindings
 
-SDK packages are available for TypeScript, Python, and C#. Each wraps the `zag` CLI and exposes a fluent builder API with typed output models.
+SDK packages are available for TypeScript, Python, C#, and Swift. Each wraps the `zag` CLI and exposes a fluent builder API with typed output models.
 
 **TypeScript** (`bindings/typescript/`)
 
@@ -449,6 +449,25 @@ Console.WriteLine(output.Result);
 await foreach (var evt in new ZagBuilder().Provider("claude").StreamAsync("analyze code"))
 {
     Console.WriteLine(evt.Type);
+}
+```
+
+**Swift** (`bindings/swift/`)
+
+```swift
+import Zag
+
+let output = try await ZagBuilder()
+    .provider("claude")
+    .model("sonnet")
+    .autoApprove()
+    .exec("write a hello world program")
+
+print(output.result ?? "")
+
+// Streaming
+for try await event in ZagBuilder().provider("claude").stream("analyze code") {
+    print(event)
 }
 ```
 
