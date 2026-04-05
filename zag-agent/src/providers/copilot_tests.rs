@@ -1,4 +1,4 @@
-use super::{Copilot, parse_copilot_event_line};
+use super::{AVAILABLE_MODELS, Copilot, parse_copilot_event_line};
 use crate::sandbox::SandboxConfig;
 use crate::session_log::LogEventKind;
 use std::collections::HashSet;
@@ -194,4 +194,13 @@ fn test_build_run_args_no_max_turns_by_default() {
     let copilot = Copilot::new();
     let args = copilot.build_run_args(false, Some("hello"));
     assert!(!args.contains(&"--max-turns".to_string()));
+}
+
+#[test]
+fn test_available_models_includes_gpt_5_4() {
+    assert!(AVAILABLE_MODELS.contains(&"gpt-5.4"));
+    assert!(AVAILABLE_MODELS.contains(&"gpt-5.4-mini"));
+    assert!(AVAILABLE_MODELS.contains(&"gpt-5.3-codex"));
+    assert!(AVAILABLE_MODELS.contains(&"gpt-5.2-codex"));
+    assert!(AVAILABLE_MODELS.contains(&"gemini-3.1-pro-preview"));
 }

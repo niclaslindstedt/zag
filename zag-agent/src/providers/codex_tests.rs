@@ -240,6 +240,25 @@ fn test_parse_ndjson_turn_failed() {
 }
 
 #[test]
+fn test_build_run_args_output_schema() {
+    let mut codex = Codex::new();
+    codex.set_output_schema(Some("/path/to/schema.json".to_string()));
+
+    let args = codex.build_run_args(false, Some("hello"));
+    assert!(args.contains(&"--output-schema".to_string()));
+    assert!(args.contains(&"/path/to/schema.json".to_string()));
+}
+
+#[test]
+fn test_build_run_args_output_schema_not_in_interactive() {
+    let mut codex = Codex::new();
+    codex.set_output_schema(Some("/path/to/schema.json".to_string()));
+
+    let args = codex.build_run_args(true, Some("hello"));
+    assert!(!args.contains(&"--output-schema".to_string()));
+}
+
+#[test]
 fn test_parse_ndjson_turn_failed_unknown_error() {
     let raw = r#"{"type":"turn.failed"}"#;
 
