@@ -20,6 +20,7 @@ zag-agent = { version = "0.5.0", path = "../zag-agent" }
 zag-orch = { version = "0.5.0", path = "../zag-orch" }
 zag-serve = { version = "0.5.0", path = "../zag-serve" }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+rustls = { version = "0.23", default-features = false }
 tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
 futures-util = "0.3"
 clap = { version = "4", features = ["derive"] }
