@@ -209,8 +209,8 @@ fn format_duration(secs: f64) -> String {
     }
 }
 
-/// Run the summary command.
-pub fn run_summary(params: SummaryParams) -> Result<()> {
+/// Collect summaries for the given sessions, returning structured data.
+pub fn summarize_sessions(params: &SummaryParams) -> Result<Vec<SessionSummary>> {
     let mut session_ids = params.session_ids.clone();
 
     if let Some(ref tag) = params.tag {
@@ -232,15 +232,17 @@ pub fn run_summary(params: SummaryParams) -> Result<()> {
 
     let mut summaries = Vec::new();
     for id in &session_ids {
-        match summarize_session(id, params.root.as_deref()) {
-            Ok(s) => summaries.push(s),
-            Err(e) => {
-                if !params.json {
-                    eprintln!("Warning: could not summarize session {}: {}", id, e);
-                }
-            }
+        if let Ok(s) = summarize_session(id, params.root.as_deref()) {
+            summaries.push(s);
         }
     }
+
+    Ok(summaries)
+}
+
+/// Run the summary command.
+pub fn run_summary(params: SummaryParams) -> Result<()> {
+    let summaries = summarize_sessions(&params)?;
 
     if params.json {
         if summaries.len() == 1 {

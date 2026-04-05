@@ -16,12 +16,12 @@ pub struct GcParams {
 
 /// Summary of what gc would/did clean.
 #[derive(Debug, Default, serde::Serialize)]
-struct GcReport {
-    process_entries_removed: usize,
-    lifecycle_markers_removed: usize,
-    spawn_logs_removed: usize,
-    session_logs_removed: usize,
-    dry_run: bool,
+pub struct GcReport {
+    pub process_entries_removed: usize,
+    pub lifecycle_markers_removed: usize,
+    pub spawn_logs_removed: usize,
+    pub session_logs_removed: usize,
+    pub dry_run: bool,
 }
 
 /// Parse a duration string like "7d", "30d", "24h" into seconds.
@@ -68,8 +68,8 @@ fn live_session_ids(root: Option<&str>) -> std::collections::HashSet<String> {
     live
 }
 
-/// Run the gc command.
-pub fn run_gc(params: GcParams) -> Result<()> {
+/// Run gc and return a structured report.
+pub fn gc_collect(params: &GcParams) -> Result<GcReport> {
     let threshold_secs = parse_duration_secs(&params.older_than)?;
     let cutoff =
         std::time::SystemTime::now() - std::time::Duration::from_secs(threshold_secs as u64);
@@ -83,9 +83,7 @@ pub fn run_gc(params: GcParams) -> Result<()> {
 
     let live = live_session_ids(params.root.as_deref());
 
-    // 1. Clean dead/exited process entries from processes.json
     if let Ok(mut proc_store) = ProcessStore::load() {
-        let before = proc_store.processes.len();
         let to_remove: Vec<String> = proc_store
             .processes
             .iter()
@@ -103,19 +101,15 @@ pub fn run_gc(params: GcParams) -> Result<()> {
             proc_store.processes.retain(|e| !to_remove.contains(&e.id));
             let _ = proc_store.save();
         }
-        let _ = before; // suppress unused warning
     }
 
-    // 2. Remove old lifecycle markers from ~/.zag/events/
     let events_dir = Config::global_base_dir().join("events");
     if events_dir.exists() {
         if let Ok(entries) = std::fs::read_dir(&events_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_file() && is_file_old(&path, cutoff) {
-                    // Check it's not for a live session
                     let fname = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-                    // Marker files are named <session_id>.started or <session_id>.ended
                     let session_id = fname.to_string();
                     if !live.contains(&session_id) {
                         report.lifecycle_markers_removed += 1;
@@ -128,7 +122,6 @@ pub fn run_gc(params: GcParams) -> Result<()> {
         }
     }
 
-    // 3. Remove old spawn logs from ~/.zag/logs/spawn/
     let spawn_dir = Config::global_base_dir().join("logs").join("spawn");
     if spawn_dir.exists() {
         if let Ok(entries) = std::fs::read_dir(&spawn_dir) {
@@ -144,7 +137,6 @@ pub fn run_gc(params: GcParams) -> Result<()> {
         }
     }
 
-    // 4. Remove ended session JSONL files (unless --keep-logs)
     if !params.keep_logs {
         let projects_dir = Config::global_base_dir().join("projects");
         if projects_dir.exists() {
@@ -160,11 +152,21 @@ pub fn run_gc(params: GcParams) -> Result<()> {
         }
     }
 
-    // Output
+    Ok(report)
+}
+
+/// Run the gc command.
+pub fn run_gc(params: GcParams) -> Result<()> {
+    let report = gc_collect(&params)?;
+
     if params.json {
         println!("{}", serde_json::to_string_pretty(&report)?);
     } else {
-        let action = if dry_run { "Would remove" } else { "Removed" };
+        let action = if report.dry_run {
+            "Would remove"
+        } else {
+            "Removed"
+        };
         if report.process_entries_removed > 0 {
             println!(
                 "{} {} process entries",
@@ -189,7 +191,7 @@ pub fn run_gc(params: GcParams) -> Result<()> {
             + report.session_logs_removed;
         if total == 0 {
             println!("Nothing to clean up.");
-        } else if dry_run {
+        } else if report.dry_run {
             println!("\nRun with --force to actually delete.");
         }
     }

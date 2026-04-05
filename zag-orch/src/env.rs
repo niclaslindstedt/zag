@@ -4,12 +4,11 @@ use anyhow::Result;
 use zag_agent::process_store::ProcessStore;
 use zag_agent::session::SessionStore;
 
-/// Run the env command.
-pub fn run_env(session_id: Option<&str>, shell: bool, root: Option<&str>) -> Result<()> {
+/// Get environment variables for a session as key-value pairs.
+pub fn get_env_vars(session_id: Option<&str>, root: Option<&str>) -> Result<Vec<(String, String)>> {
     let session_store = SessionStore::load(root).unwrap_or_default();
     let proc_store = ProcessStore::load().unwrap_or_default();
 
-    // Resolve session
     let session = if let Some(id) = session_id {
         session_store
             .find_by_any_id(id)
@@ -20,34 +19,40 @@ pub fn run_env(session_id: Option<&str>, shell: bool, root: Option<&str>) -> Res
             .ok_or_else(|| anyhow::anyhow!("No sessions found"))?
     };
 
-    // Find matching process entry
     let proc_entry = proc_store
         .processes
         .iter()
         .filter(|e| e.session_id.as_deref() == Some(&session.session_id))
         .max_by(|a, b| a.started_at.cmp(&b.started_at));
 
-    let mut vars: Vec<(&str, String)> = Vec::new();
+    let mut vars: Vec<(String, String)> = Vec::new();
 
-    vars.push(("ZAG_SESSION_ID", session.session_id.clone()));
+    vars.push(("ZAG_SESSION_ID".to_string(), session.session_id.clone()));
 
     if let Some(ref name) = session.name {
-        vars.push(("ZAG_SESSION_NAME", name.clone()));
+        vars.push(("ZAG_SESSION_NAME".to_string(), name.clone()));
     }
 
     if let Some(pe) = proc_entry {
-        vars.push(("ZAG_PROCESS_ID", pe.id.clone()));
+        vars.push(("ZAG_PROCESS_ID".to_string(), pe.id.clone()));
     }
 
-    vars.push(("ZAG_PROVIDER", session.provider.clone()));
+    vars.push(("ZAG_PROVIDER".to_string(), session.provider.clone()));
 
     if !session.model.is_empty() {
-        vars.push(("ZAG_MODEL", session.model.clone()));
+        vars.push(("ZAG_MODEL".to_string(), session.model.clone()));
     }
 
     if !session.worktree_path.is_empty() {
-        vars.push(("ZAG_ROOT", session.worktree_path.clone()));
+        vars.push(("ZAG_ROOT".to_string(), session.worktree_path.clone()));
     }
+
+    Ok(vars)
+}
+
+/// Run the env command.
+pub fn run_env(session_id: Option<&str>, shell: bool, root: Option<&str>) -> Result<()> {
+    let vars = get_env_vars(session_id, root)?;
 
     for (key, value) in &vars {
         if shell {

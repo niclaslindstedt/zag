@@ -4,7 +4,7 @@
 //! and session log, then re-spawns via `run_spawn`.
 
 use crate::listen;
-use crate::spawn::{SpawnParams, run_spawn};
+use crate::spawn::{SpawnParams, spawn_session};
 use crate::status::{SessionStatus, determine_status};
 use crate::types::SessionMetadata;
 use anyhow::{Result, bail};
@@ -25,12 +25,12 @@ pub struct RetryParams {
 
 /// Result of retrying a single session.
 #[derive(Debug, serde::Serialize)]
-struct RetryResult {
-    original_session_id: String,
-    new_session_id: Option<String>,
-    retried: bool,
+pub struct RetryResult {
+    pub original_session_id: String,
+    pub new_session_id: Option<String>,
+    pub retried: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    error: Option<String>,
+    pub error: Option<String>,
 }
 
 /// Extract the first user message from a session log (the original prompt).
@@ -57,8 +57,8 @@ fn extract_prompt(session_id: &str, root: Option<&str>) -> Option<String> {
     None
 }
 
-/// Run the retry command.
-pub fn run_retry(params: RetryParams) -> Result<()> {
+/// Retry sessions, returning structured results.
+pub fn retry_sessions(params: &RetryParams) -> Result<Vec<RetryResult>> {
     let store = SessionStore::load(params.root.as_deref()).unwrap_or_default();
     let mut session_ids = params.session_ids.clone();
 
@@ -81,7 +81,6 @@ pub fn run_retry(params: RetryParams) -> Result<()> {
     let mut results = Vec::new();
 
     for id in &session_ids {
-        // Check if session should be retried
         if params.failed {
             match determine_status(id, params.root.as_deref()) {
                 Ok(info) => {
@@ -102,7 +101,6 @@ pub fn run_retry(params: RetryParams) -> Result<()> {
             }
         }
 
-        // Look up the original session entry
         let entry = match store.find_by_any_id(id) {
             Some(e) => e,
             None => {
@@ -116,7 +114,6 @@ pub fn run_retry(params: RetryParams) -> Result<()> {
             }
         };
 
-        // Extract the original prompt
         let prompt = match extract_prompt(id, params.root.as_deref()) {
             Some(p) => p,
             None => {
@@ -146,8 +143,7 @@ pub fn run_retry(params: RetryParams) -> Result<()> {
             prompt.len()
         );
 
-        // Re-spawn with the same config
-        let spawn_result = run_spawn(SpawnParams {
+        let spawn_result = spawn_session(&SpawnParams {
             prompt: Some(prompt),
             provider: entry.provider.clone(),
             model,
@@ -170,10 +166,10 @@ pub fn run_retry(params: RetryParams) -> Result<()> {
         });
 
         match spawn_result {
-            Ok(()) => {
+            Ok(result) => {
                 results.push(RetryResult {
                     original_session_id: id.clone(),
-                    new_session_id: None, // spawn prints the ID itself
+                    new_session_id: Some(result.session_id),
                     retried: true,
                     error: None,
                 });
@@ -189,12 +185,22 @@ pub fn run_retry(params: RetryParams) -> Result<()> {
         }
     }
 
-    if !params.json {
+    Ok(results)
+}
+
+/// Run the retry command.
+pub fn run_retry(params: RetryParams) -> Result<()> {
+    let results = retry_sessions(&params)?;
+
+    if params.json {
+        println!("{}", serde_json::to_string(&results)?);
+    } else {
         for r in &results {
             if r.retried {
+                let new_id = r.new_session_id.as_deref().unwrap_or("?");
                 println!(
-                    "\x1b[32m\u{2713}\x1b[0m Retried session {}",
-                    r.original_session_id
+                    "\x1b[32m\u{2713}\x1b[0m Retried session {} \u{2192} {}",
+                    r.original_session_id, new_id
                 );
             } else {
                 println!(
