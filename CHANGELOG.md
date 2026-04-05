@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-04-05
+
+### Added
+
+- Add Manual page compiling CLI man pages (#73)
+- Add copy-to-clipboard buttons on docs code blocks (#72)
+- Add documentation pages with markdown rendering (#70)
+- Link crates.io release badge to crates.io page (#69)
+- Add copy button to install command in hero section (#67)
+- Add animated terminal component with tabbed demos (#65)
+- Add --env flag for passing environment variables to agent subprocesses (#63)
+- Add --mcp-config support for per-invocation MCP injection (#62)
+- Log spawned commands at info level and always print token
+
+### Fixed
+
+- Install rustls crypto provider to prevent startup panic (#60)
+- Integrate sync-releases.sh into release workflow (#59)
+
+### Documentation
+
+- Add comprehensive documentation for orchestration, bindings, and features (#68)
+- Sync --env/--mcp-config flags and add missing bindings (#64)
+- Document squash-merge PR workflow and add commit skill (#61)
+
 ## [0.5.0] - 2026-04-05
 
 ### Added
