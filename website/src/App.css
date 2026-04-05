@@ -30,3 +30,18 @@ body {
 code, pre {
   font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
 }
+
+@keyframes blink-cursor {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.animate-blink-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 1.1em;
+  background-color: var(--color-accent);
+  vertical-align: text-bottom;
+  margin-left: 1px;
+  animation: blink-cursor 1s step-end infinite;
+}
