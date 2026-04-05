@@ -1,6 +1,6 @@
 [package]
 name = "zag-cli"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
@@ -16,9 +16,9 @@ name = "zag"
 path = "src/main.rs"
 
 [dependencies]
-zag-agent = { version = "0.4.0", path = "../zag-agent" }
-zag-orch = { version = "0.4.0", path = "../zag-orch" }
-zag-serve = { version = "0.4.0", path = "../zag-serve" }
+zag-agent = { version = "0.5.0", path = "../zag-agent" }
+zag-orch = { version = "0.5.0", path = "../zag-orch" }
+zag-serve = { version = "0.5.0", path = "../zag-serve" }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
 futures-util = "0.3"
