@@ -2,12 +2,14 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Link } from "react-router-dom";
 import type { Components } from "react-markdown";
+import CodeBlock from "./CodeBlock";
 
 interface MarkdownRendererProps {
   content: string;
 }
 
 const components: Components = {
+  pre: CodeBlock,
   a({ href, children }) {
     if (href && href.endsWith(".md")) {
       const slug = href.replace(/\.md$/, "");
