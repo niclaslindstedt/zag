@@ -10,7 +10,7 @@ The Gemini provider wraps Google's `gemini` CLI. It uses a file-based system pro
 
 - **GitHub repository**: https://github.com/google-gemini/gemini-cli (open source)
 - **Changelog**: https://github.com/google-gemini/gemini-cli/releases
-- **Install/update binary**: `npm install -g @anthropic-ai/gemini-cli`
+- **Install/update binary**: `npm install -g @google/gemini-cli`
 - **Discover flags**: `gemini --help`
 
 ## Discovery Process
@@ -58,9 +58,10 @@ Gemini uses a single `build_run_args()` method:
 **Non-interactive**:
 ```
 gemini [--approval-mode yolo] [--model <model>] \
-  [--include-directories <dir>] [--output-format <format>] \
-  [--max-turns <n>] <prompt>
+  [--include-directories <dir>] [--output-format <format>] <prompt>
 ```
+
+Note: Gemini CLI does **not** support `--max-turns` as a CLI flag (checked as of v0.36.0, no results in the repo). Max turns must be configured via Gemini's `settings.json` (`maxSessionTurns`). The `set_max_turns()` value is stored but not passed as an argument.
 
 **Resume**:
 ```
@@ -78,9 +79,13 @@ Writes system prompt to `.gemini/system.md` in the working directory and sets th
 
 Uses `--approval-mode yolo` (not a `--dangerously-*` flag like Claude/Codex).
 
+### Output format
+
+Gemini supports `--output-format` with values including `json` and `stream-json`. The `stream-json` format enables streaming structured output similar to Claude's streaming mode.
+
 ### Directory inclusion
 
-Uses `--include-directories <dir>` (not `--add-dir` like other providers). Multiple directories are comma-separated in a single flag value.
+Uses `--include-directories <dir>` (not `--add-dir` like other providers). In the implementation, each directory is passed as a separate `--include-directories` argument (not comma-separated).
 
 ### Session discovery
 
@@ -111,6 +116,13 @@ Gemini does not have a native session list command. The provider scans `~/.gemin
 - [ ] Update `website/src/components/GettingStarted.tsx` — if install command changes
 - [ ] If new builder option: update all three bindings (see parity checklist in CLAUDE.md)
 
+## Web Discovery Tips
+
+- The Gemini CLI source lives under `packages/` in the monorepo. Exact file paths for CLI arg definitions may change between releases — if fetching source files returns 404, try searching the repo via GitHub's search API instead.
+- Use `https://github.com/google-gemini/gemini-cli/search?q=<term>` to search for specific flags or features (e.g., `max-turns`, `plan mode`).
+- The Gemini CLI README at `https://github.com/google-gemini/gemini-cli` lists supported flags and output formats.
+- Release notes at `https://github.com/google-gemini/gemini-cli/releases` include both stable and preview/nightly releases — focus on stable releases (no `-preview` or `-nightly` suffix).
+
 ## Verification
 
 ```sh
@@ -119,3 +131,13 @@ make test     # All tests must pass
 make clippy   # Zero warnings
 make fmt      # Format code
 ```
+
+## Skill Self-Improvement
+
+After completing an update session, improve this skill file:
+
+1. **Fix inaccuracies**: Correct any wrong URLs, flag names, method names, or behavioral descriptions discovered during the update.
+2. **Add discovery tips**: If you found useful search queries, source file paths, or workarounds for 404s, add them to the "Web Discovery Tips" section.
+3. **Update implementation patterns**: If the actual code differs from what's documented here (e.g., method names changed, new patterns emerged), update the patterns section.
+4. **Record known limitations**: If you confirmed that a feature is still missing (e.g., `--max-turns` not supported), note the version where this was verified so future updates don't re-investigate.
+5. **Commit the skill update** along with the provider update so the improvements are preserved.

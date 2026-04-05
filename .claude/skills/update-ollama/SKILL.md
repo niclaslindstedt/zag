@@ -149,6 +149,14 @@ The default model (`qwen3.5`) may need updating when better small models become 
 - [ ] Update `website/src/components/GettingStarted.tsx` — if install method changes
 - [ ] If new builder option: update all three bindings (see parity checklist in CLAUDE.md)
 
+## Web Discovery Tips
+
+- Ollama releases are frequent but most are minor (UI changes, model additions). Focus on releases that mention new CLI flags for `ollama run`.
+- The Ollama releases page at `https://github.com/ollama/ollama/releases` is reliable and shows clear changelogs.
+- Model additions (e.g., Gemma 4 in v0.20.0) don't require provider code changes since Ollama accepts any model name without validation.
+- As of v0.20.2, Ollama still does **not** have a `--system` flag for `ollama run`. System prompts are still prepended to the user prompt.
+- As of v0.20.2, Ollama still does **not** support session resume.
+
 ## Verification
 
 ```sh
@@ -157,3 +165,13 @@ make test     # All tests must pass
 make clippy   # Zero warnings
 make fmt      # Format code
 ```
+
+## Skill Self-Improvement
+
+After completing an update session, improve this skill file:
+
+1. **Fix inaccuracies**: Correct any wrong URLs, flag names, method names, or behavioral descriptions discovered during the update.
+2. **Add discovery tips**: If you found useful search queries, source file paths, or workarounds, add them to the "Web Discovery Tips" section.
+3. **Update implementation patterns**: If the actual code differs from what's documented here, update the patterns section.
+4. **Record known limitations**: Update the version-specific notes in "Web Discovery Tips" (e.g., "as of v0.20.2, no `--system` flag") so future updates don't re-investigate settled questions.
+5. **Commit the skill update** along with the provider update so the improvements are preserved.
