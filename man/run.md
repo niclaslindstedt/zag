@@ -30,6 +30,7 @@ All global flags apply (see `zag man zag`).
     --name <NAME>            Human-readable session name (for discovery)
     --description <TEXT>     Short description of the session's purpose
     --tag <TAG>              Session tag for discovery (repeatable)
+    --context <SESSION_ID>   Prepend the result of another session as context
     --max-turns <N>          Maximum number of agentic turns
 
 ## Behavior

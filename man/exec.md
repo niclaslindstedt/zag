@@ -20,6 +20,8 @@ By default, exec mode suppresses wrapper UI (spinners, status messages, icons) s
 
     -o, --output <FORMAT>         Output format (see Output Formats below)
     -i, --input-format <FORMAT>   Input format: text (default), stream-json (Claude only)
+    --exit-on-failure             Exit with code 1 if the agent reports failure
+    --context <SESSION_ID>        Prepend the result of another session as context
     --name <NAME>                 Human-readable session name (for discovery)
     --description <TEXT>          Short description of the session's purpose
     --tag <TAG>                   Session tag for discovery (repeatable)

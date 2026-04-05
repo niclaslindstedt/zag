@@ -53,6 +53,10 @@ Show thinking/reasoning content. By default, reasoning blocks are hidden.
 
 Show timestamps for each event. The timestamp format can be configured via the `listen.timestamp_format` config key (strftime-style, default: `%H:%M:%S`).
 
+### `--filter <EVENT_TYPE>`
+
+Filter by event type (repeatable). Only show events matching the specified type(s). Available types: session_started, user_message, assistant_message, reasoning, tool_call, tool_result, permission, session_ended.
+
 ### `-r, --root <PATH>`
 
 Root directory for session log resolution.

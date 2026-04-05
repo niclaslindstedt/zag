@@ -66,6 +66,9 @@ These flags can be used with any subcommand.
     output       Extract final result text from a session
     retry        Re-run failed sessions with the same configuration
     gc           Clean up old session data, logs, and process entries
+    serve        Start the zag HTTPS/WebSocket server for remote access
+    connect      Connect to a remote zag server
+    disconnect   Disconnect from a remote zag server
     man          Show manual pages for commands
 
 Run `zag man <command>` for detailed help on each command.
@@ -73,7 +76,7 @@ Run `zag man <command>` for detailed help on each command.
 ## Providers
 
     claude    Default. Models: default, haiku, sonnet, opus, sonnet-4.6, opus-4.6, haiku-4.5 (default: default)
-    codex     Models: gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex-mini
+    codex     Models: gpt-5.4, gpt-5.4-mini, gpt-5.3-codex-spark, gpt-5.3-codex, gpt-5-codex, gpt-5.2-codex, gpt-5.2, o4-mini, gpt-5.1-codex-max, gpt-5.1-codex-mini
     gemini    Models: gemini-3.1-pro-preview, gemini-3.1-flash-lite-preview, gemini-3-pro-preview, gemini-3-flash-preview, gemini-2.5-flash-lite, gemini-2.5-flash, gemini-2.5-pro, auto (default: auto)
     copilot   Models: claude-haiku-4.5, claude-sonnet-4.6, claude-opus-4.6, and more
     ollama    Local models via Ollama. Default: qwen3.5:9b. Use --size for parameter size
@@ -140,4 +143,6 @@ Settings priority: CLI flags > config file > agent defaults.
     zag man output
     zag man retry
     zag man gc
+    zag man serve
+    zag man connect
     zag man orchestration

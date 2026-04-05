@@ -18,7 +18,7 @@ Sessions are automatically created when running agents with `zag run` or `zag ex
 
 List all sessions, sorted by creation time (newest first).
 
-    zag session list [--json] [-p provider] [-n limit] [--global] [--name NAME] [--tag TAG]
+    zag session list [--json] [-p provider] [-n limit] [--global] [--name NAME] [--tag TAG] [--parent SESSION_ID]
 
 Options:
 - `--json` — Output as JSON array
@@ -27,6 +27,7 @@ Options:
 - `--global` — List sessions across all projects (not just the current one)
 - `--name` — Filter by session name (case-insensitive substring match)
 - `--tag` — Filter by tag (case-insensitive exact match)
+- `--parent` — Show only sessions spawned by this parent session ID
 
 ### show
 

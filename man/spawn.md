@@ -29,7 +29,10 @@ With `--interactive`, spawns a long-lived FIFO-based streaming session that stay
     --name <NAME>                Session name for discovery
     --description <TEXT>         Session description
     --tag <TAG>                  Session tag (repeatable)
+    --show-usage                 Show token usage statistics (JSON output mode only)
     --json                       Output session info as JSON
+    --depends-on <SESSION_ID>    Wait for these sessions to complete before starting (repeatable)
+    --inject-context             Auto-inject dependency session results as context
     -I, --interactive            Spawn a long-lived interactive session (FIFO-based)
 
 ## Output
