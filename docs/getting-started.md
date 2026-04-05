@@ -172,9 +172,15 @@ zag --sandbox exec "run untrusted code"
 
 ## Next steps
 
+- [Orchestration](orchestration.md) -- Multi-agent coordination patterns
+- [Sessions](sessions.md) -- Session lifecycle, naming, tagging, and resume
+- [Isolation](isolation.md) -- Worktree and sandbox isolation modes
 - [Providers](providers.md) -- Feature comparison and model recommendations
 - [Configuration](configuration.md) -- Customize defaults with config files
+- [Skills & MCP](skills-and-mcp.md) -- Extend agents with skills and tool servers
 - [Events & Logging](events-and-logging.md) -- Understand the NDJSON event format
+- [Language Bindings](language-bindings.md) -- SDKs for TypeScript, Python, C#, Swift, Java, Kotlin
+- [Remote Access](remote-access.md) -- Control agents over HTTPS/WebSocket
 - [Troubleshooting](troubleshooting.md) -- Common issues and solutions
 - `zag man <command>` -- Built-in manual pages for every command
 - [Examples](../examples/) -- Complete example projects
