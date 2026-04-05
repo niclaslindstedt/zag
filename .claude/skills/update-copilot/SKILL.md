@@ -122,7 +122,7 @@ The docs URL `https://docs.github.com/en/copilot/github-copilot-in-the-cli` may 
 - [ ] Update `copilot.rs` — new flags in arg builders, model list, event parsing, workspace discovery
 - [ ] Update `copilot_tests.rs` — test new arg combinations, event format changes
 - [ ] Update `docs/providers.md` — feature matrix, available models, known limitations
-- [ ] Update `man/run.md` and `man/exec.md` — if command behavior changes
+- [ ] Update `zag-cli/man/run.md` and `zag-cli/man/exec.md` — if command behavior changes
 - [ ] Update `README.md` — provider table, model size aliases
 - [ ] Update `website/src/components/Providers.tsx` — feature tags, model lists
 - [ ] Update `website/src/components/GettingStarted.tsx` — if install command changes

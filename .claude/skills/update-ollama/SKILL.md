@@ -143,7 +143,7 @@ The default model (`qwen3.5`) may need updating when better small models become 
 - [ ] Update `ollama_tests.rs` — test new arg combinations, sandbox command construction
 - [ ] Update `docs/providers.md` — feature matrix, available sizes, known limitations
 - [ ] Update `docs/configuration.md` — if new Ollama-specific config keys added
-- [ ] Update `man/run.md` and `man/exec.md` — if command behavior changes
+- [ ] Update `zag-cli/man/run.md` and `zag-cli/man/exec.md` — if command behavior changes
 - [ ] Update `README.md` — provider table, model size aliases
 - [ ] Update `website/src/components/Providers.tsx` — feature tags, size lists
 - [ ] Update `website/src/components/GettingStarted.tsx` — if install method changes

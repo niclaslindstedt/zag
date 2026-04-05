@@ -119,7 +119,7 @@ gh pr create \
 - [ ] Tests added/updated in separate `*_tests.rs` files
 - [ ] Documentation updated (if user-facing behavior changed):
   - [ ] `README.md`
-  - [ ] `man/*.md`
+  - [ ] `zag-cli/man/*.md`
   - [ ] Binding READMEs (if builder API changed)
 - [ ] Commit messages follow conventional commit style
 EOF
@@ -150,7 +150,7 @@ gh pr edit \
 - [ ] Tests added/updated in separate `*_tests.rs` files
 - [ ] Documentation updated (if user-facing behavior changed):
   - [ ] `README.md`
-  - [ ] `man/*.md`
+  - [ ] `zag-cli/man/*.md`
   - [ ] Binding READMEs (if builder API changed)
 - [ ] Commit messages follow conventional commit style
 EOF
