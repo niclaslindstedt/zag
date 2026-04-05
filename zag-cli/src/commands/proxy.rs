@@ -243,6 +243,13 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
                 bail!("Remote input requires --session and a message");
             }
         }
+        Commands::Exec {
+            prompt,
+            agent,
+            metadata,
+            output,
+            ..
+        } => proxy_exec(&client, config, prompt, agent, metadata, output.as_deref()).await,
         Commands::Whoami { json } => proxy_get_json(&client, config, "/api/v1/health", *json).await,
         _ => {
             bail!(
@@ -250,6 +257,93 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
             );
         }
     }
+}
+
+/// Exec in remote mode: spawn a session, wait for it, then print its output.
+async fn proxy_exec(
+    client: &reqwest::Client,
+    config: &ConnectConfig,
+    prompt: &str,
+    agent: &crate::cli::AgentArgs,
+    metadata: &crate::cli::SessionMetadataArgs,
+    output_format: Option<&str>,
+) -> Result<()> {
+    // 1. Spawn
+    let spawn_body = serde_json::json!({
+        "prompt": prompt,
+        "provider": agent.provider,
+        "model": agent.model,
+        "root": agent.root,
+        "auto_approve": agent.auto_approve,
+        "system_prompt": agent.system_prompt,
+        "add_dirs": if agent.add_dirs.is_empty() { None } else { Some(&agent.add_dirs) },
+        "size": agent.size,
+        "max_turns": agent.max_turns,
+        "name": metadata.name,
+        "description": metadata.description,
+        "tags": if metadata.tags.is_empty() { None } else { Some(&metadata.tags) },
+    });
+
+    let url = format!("{}/api/v1/sessions/spawn", config.url);
+    let resp = client
+        .post(&url)
+        .bearer_auth(&config.token)
+        .json(&spawn_body)
+        .send()
+        .await?;
+
+    let status = resp.status();
+    let body = resp.text().await?;
+    if !status.is_success() {
+        bail!("Spawn failed ({}): {}", status, body);
+    }
+
+    let spawn_resp: serde_json::Value = serde_json::from_str(&body)?;
+    let session_id = spawn_resp["session_id"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("No session_id in spawn response"))?;
+
+    // 2. Wait
+    let wait_body = serde_json::json!({
+        "session_ids": [session_id],
+    });
+    let url = format!("{}/api/v1/sessions/wait", config.url);
+    let resp = client
+        .post(&url)
+        .bearer_auth(&config.token)
+        .json(&wait_body)
+        .send()
+        .await?;
+
+    let status = resp.status();
+    let body = resp.text().await?;
+    if !status.is_success() {
+        bail!("Wait failed ({}): {}", status, body);
+    }
+
+    // 3. Get output
+    let url = format!("{}/api/v1/sessions/{}/output", config.url, session_id);
+    let resp = client.get(&url).bearer_auth(&config.token).send().await?;
+
+    let status = resp.status();
+    let body = resp.text().await?;
+    if !status.is_success() {
+        bail!("Output failed ({}): {}", status, body);
+    }
+
+    // Print based on output format
+    let is_json = matches!(output_format, Some("json" | "json-pretty"));
+    if is_json {
+        println!("{}", body);
+    } else {
+        // Extract just the result text for plain-text output
+        let output: serde_json::Value = serde_json::from_str(&body)?;
+        if let Some(result) = output["result"].as_str() {
+            println!("{}", result);
+        }
+    }
+
+    Ok(())
 }
 
 async fn proxy_get_json(
