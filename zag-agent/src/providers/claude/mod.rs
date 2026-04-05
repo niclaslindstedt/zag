@@ -56,6 +56,7 @@ pub struct Claude {
     include_partial_messages: bool,
     max_turns: Option<u32>,
     mcp_config_path: Option<String>,
+    env_vars: Vec<(String, String)>,
 }
 
 impl Claude {
@@ -78,6 +79,7 @@ impl Claude {
             include_partial_messages: false,
             max_turns: None,
             mcp_config_path: None,
+            env_vars: Vec::new(),
         }
     }
 
@@ -246,6 +248,9 @@ impl Claude {
                 cmd.current_dir(root);
             }
             cmd.args(&agent_args);
+            for (key, value) in &self.env_vars {
+                cmd.env(key, value);
+            }
             cmd
         }
     }
@@ -753,6 +758,10 @@ impl Agent for Claude {
 
     fn set_add_dirs(&mut self, dirs: Vec<String>) {
         self.add_dirs = dirs;
+    }
+
+    fn set_env_vars(&mut self, vars: Vec<(String, String)>) {
+        self.env_vars = vars;
     }
 
     fn as_any_ref(&self) -> &dyn std::any::Any {

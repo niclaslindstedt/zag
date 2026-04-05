@@ -47,6 +47,21 @@ class ZagBuilderTests {
     }
 
     @Test
+    fun `env vars produce correct args`() {
+        val builder = ZagBuilder()
+            .env("FOO", "bar")
+            .env("BAZ", "qux")
+
+        val args = builder.buildGlobalArgs()
+
+        assertTrue(args.contains("--env"))
+        val idx = args.indexOf("--env")
+        assertEquals("FOO=bar", args[idx + 1])
+        assertEquals("--env", args[idx + 2])
+        assertEquals("BAZ=qux", args[idx + 3])
+    }
+
+    @Test
     fun `exec args default to json`() {
         val builder = ZagBuilder().provider("claude")
         val args = builder.buildExecArgs("hello")

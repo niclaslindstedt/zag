@@ -25,6 +25,7 @@ class ZagBuilder {
     private var _root: String? = null
     private var _autoApprove: Boolean = false
     private val _addDirs: MutableList<String> = mutableListOf()
+    private val _envVars: MutableList<String> = mutableListOf()
     private var _json: Boolean = false
     private var _jsonSchema: Any? = null
     private var _jsonStream: Boolean = false
@@ -65,6 +66,9 @@ class ZagBuilder {
 
     /** Add an additional directory for the agent to include. */
     fun addDir(d: String) = apply { _addDirs.add(d) }
+
+    /** Add an environment variable for the agent subprocess. */
+    fun env(key: String, value: String) = apply { _envVars.add("$key=$value") }
 
     /** Request JSON output from the agent. */
     fun json() = apply { _json = true }
@@ -127,6 +131,7 @@ class ZagBuilder {
         _root?.let { args.addAll(listOf("--root", it)) }
         if (_autoApprove) args.add("--auto-approve")
         for (d in _addDirs) { args.addAll(listOf("--add-dir", d)) }
+        for (e in _envVars) { args.addAll(listOf("--env", e)) }
         when (val w = _worktree) {
             true -> args.add("-w")
             is String -> args.addAll(listOf("-w", w))

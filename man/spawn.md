@@ -24,6 +24,7 @@ With `--interactive`, spawns a long-lived FIFO-based streaming session that stay
     -a, --auto-approve           Skip permission prompts
     -s, --system-prompt <TEXT>   Custom system prompt
     --add-dir <PATH>             Additional directories (repeatable)
+    --env <KEY=VALUE>            Environment variable for subprocess (repeatable)
     --size <SIZE>                Ollama parameter size
     --max-turns <N>              Maximum number of agentic turns
     --name <NAME>                Session name for discovery

@@ -51,6 +51,14 @@ fn test_builder_add_dirs() {
 }
 
 #[test]
+fn test_builder_env_vars() {
+    let builder = AgentBuilder::new().env("FOO", "bar").env("BAZ", "qux");
+    assert_eq!(builder.env_vars.len(), 2);
+    assert_eq!(builder.env_vars[0], ("FOO".to_string(), "bar".to_string()));
+    assert_eq!(builder.env_vars[1], ("BAZ".to_string(), "qux".to_string()));
+}
+
+#[test]
 fn test_resolve_provider_default() {
     let builder = AgentBuilder::new();
     // Default provider is "claude" (or whatever is in config)

@@ -221,6 +221,7 @@ Config priority: CLI flags > `models.<agent>` > `defaults.model` > agent built-i
 -r, --root <PATH>            Root directory for the agent
 -a, --auto-approve           Skip permission prompts
     --add-dir <PATH>         Add extra directory (repeatable)
+    --env <KEY=VALUE>        Environment variable for subprocess (repeatable)
 -w, --worktree [NAME]        Run in isolated git worktree
     --sandbox [NAME]         Run in Docker sandbox
     --size <SIZE>            Ollama parameter size (2b, 9b, 35b, etc.)

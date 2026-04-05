@@ -42,6 +42,7 @@ pub(crate) struct AgentActionParams {
     pub(crate) mcp_config: Option<String>,
     pub(crate) exit_on_failure: bool,
     pub(crate) context_session: Option<String>,
+    pub(crate) env_vars: Vec<(String, String)>,
     pub(crate) session_metadata: SessionMetadata,
 }
 
@@ -158,6 +159,7 @@ struct AgentSetupParams {
     json_stream: bool,
     max_turns: Option<u32>,
     mcp_config: Option<String>,
+    env_vars: Vec<(String, String)>,
 }
 
 /// Create and configure the agent with all settings.
@@ -188,6 +190,10 @@ fn create_and_configure_agent(
 
     if let Some(turns) = p.max_turns {
         agent.set_max_turns(turns);
+    }
+
+    if !p.env_vars.is_empty() {
+        agent.set_env_vars(p.env_vars);
     }
 
     // Configure Claude-specific options in a single downcast
@@ -485,6 +491,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         mcp_config,
         exit_on_failure,
         context_session,
+        env_vars,
         session_metadata: _,
     } = params;
 
@@ -649,6 +656,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             json_stream,
             max_turns,
             mcp_config,
+            env_vars,
         },
         &json_schema,
         show_wrapper,

@@ -152,6 +152,7 @@ zag man [command]             Built-in manual pages
 | `--root <path>` | `-r` | Root directory for the agent |
 | `--auto-approve` | `-a` | Skip permission prompts |
 | `--add-dir <path>` | | Additional directories to include (repeatable) |
+| `--env <KEY=VALUE>` | | Environment variable for the agent subprocess (repeatable) |
 | `--worktree [name]` | `-w` | Run in an isolated git worktree |
 | `--sandbox [name]` | | Run inside a Docker sandbox |
 | `--json` | | Request structured JSON output |

@@ -129,6 +129,9 @@ pub trait Agent {
     /// Set additional directories for the agent to include.
     fn set_add_dirs(&mut self, dirs: Vec<String>);
 
+    /// Set environment variables to pass to the agent subprocess.
+    fn set_env_vars(&mut self, _vars: Vec<(String, String)>) {}
+
     /// Get a reference to the concrete agent type (for downcasting).
     fn as_any_ref(&self) -> &dyn std::any::Any;
 

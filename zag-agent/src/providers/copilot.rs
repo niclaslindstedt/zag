@@ -69,6 +69,7 @@ pub struct Copilot {
     capture_output: bool,
     sandbox: Option<SandboxConfig>,
     max_turns: Option<u32>,
+    env_vars: Vec<(String, String)>,
 }
 
 pub struct CopilotLiveLogAdapter {
@@ -92,6 +93,7 @@ impl Copilot {
             capture_output: false,
             sandbox: None,
             max_turns: None,
+            env_vars: Vec::new(),
         }
     }
 
@@ -153,6 +155,9 @@ impl Copilot {
                 cmd.current_dir(root);
             }
             cmd.args(&agent_args);
+            for (key, value) in &self.env_vars {
+                cmd.env(key, value);
+            }
             cmd
         }
     }
@@ -758,6 +763,10 @@ impl Agent for Copilot {
 
     fn set_add_dirs(&mut self, dirs: Vec<String>) {
         self.add_dirs = dirs;
+    }
+
+    fn set_env_vars(&mut self, vars: Vec<(String, String)>) {
+        self.env_vars = vars;
     }
 
     fn set_capture_output(&mut self, capture: bool) {

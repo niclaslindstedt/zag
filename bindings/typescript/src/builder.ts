@@ -32,6 +32,7 @@ export class ZagBuilder {
   private _root?: string;
   private _autoApprove = false;
   private _addDirs: string[] = [];
+  private _envVars: string[] = [];
   private _json = false;
   private _jsonSchema?: object;
   private _jsonStream = false;
@@ -89,6 +90,12 @@ export class ZagBuilder {
   /** Add an additional directory for the agent to include. */
   addDir(d: string): this {
     this._addDirs.push(d);
+    return this;
+  }
+
+  /** Add an environment variable for the agent subprocess. */
+  env(key: string, value: string): this {
+    this._envVars.push(`${key}=${value}`);
     return this;
   }
 
@@ -204,6 +211,7 @@ export class ZagBuilder {
     if (this._root) args.push("--root", this._root);
     if (this._autoApprove) args.push("--auto-approve");
     for (const d of this._addDirs) args.push("--add-dir", d);
+    for (const e of this._envVars) args.push("--env", e);
     if (this._worktree === true) {
       args.push("-w");
     } else if (typeof this._worktree === "string") {

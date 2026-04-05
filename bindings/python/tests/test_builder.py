@@ -55,6 +55,18 @@ class TestZagBuilder:
         assert builder._show_usage is True
         assert builder._size == "9b"
 
+    def test_env_vars(self) -> None:
+        builder = ZagBuilder().env("FOO", "bar").env("BAZ", "qux")
+        assert builder._env_vars == ["FOO=bar", "BAZ=qux"]
+
+    def test_env_vars_args(self) -> None:
+        args = ZagBuilder().env("FOO", "bar").env("BAZ", "qux")._global_args()
+        assert "--env" in args
+        idx = args.index("--env")
+        assert args[idx + 1] == "FOO=bar"
+        assert args[idx + 2] == "--env"
+        assert args[idx + 3] == "BAZ=qux"
+
     def test_json_options(self) -> None:
         builder = ZagBuilder().json_mode().json_schema({"type": "object"})
         assert builder._json is True

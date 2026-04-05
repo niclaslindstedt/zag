@@ -28,6 +28,7 @@ Results are wrapped in `<session-result>` XML tags with session ID prefixes so t
     -a, --auto-approve       Skip permission prompts
     -s, --system-prompt      Custom system prompt
     --add-dir <PATH>         Additional directories (repeatable)
+    --env <KEY=VALUE>        Environment variable for subprocess (repeatable)
     --size <SIZE>            Ollama model size
     --max-turns <N>          Maximum agentic turns
     -r, --root <PATH>        Root directory

@@ -52,6 +52,19 @@ pub(crate) fn resolve_provider(flag: Option<&str>, root: Option<&str>) -> Result
 }
 
 /// Capitalize the first letter of a string.
+fn parse_env_vars(env_vars: &[String]) -> Result<Vec<(String, String)>> {
+    env_vars
+        .iter()
+        .map(|pair| {
+            pair.split_once('=')
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .ok_or_else(|| {
+                    anyhow::anyhow!("invalid --env format '{}': expected KEY=VALUE", pair)
+                })
+        })
+        .collect()
+}
+
 pub(crate) fn capitalize(s: &str) -> String {
     let mut chars = s.chars();
     match chars.next() {
@@ -776,6 +789,7 @@ async fn main() -> Result<()> {
                 mcp_config: agent_args.mcp_config,
                 exit_on_failure,
                 context_session,
+                env_vars: parse_env_vars(&agent_args.env_vars)?,
                 session_metadata: {
                     let meta = metadata_args.unwrap_or_default();
                     crate::session_setup::SessionMetadata {
