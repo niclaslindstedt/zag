@@ -53,23 +53,17 @@ pub(crate) async fn run_serve(params: ServeParams) -> Result<()> {
     } else if let Ok(t) = std::env::var("ZAG_SERVE_TOKEN") {
         t
     } else {
-        if let Some(t) = config.server.token.clone() {
-            t
-        } else if params.generate_token {
-            let t = zag_serve::generate_token();
-            zag_serve::save_token_to_config(&t)?;
-            log::info!("Generated token: {}", t);
-            eprintln!("Generated token: {}", t);
-            t
-        } else {
-            let t = zag_serve::generate_token();
-            zag_serve::save_token_to_config(&t)?;
-            log::info!("Auto-generated token: {}", t);
-            eprintln!("Auto-generated token: {}", t);
-            t
+        match config.server.token {
+            Some(t) if !params.generate_token => t,
+            _ => {
+                let t = zag_serve::generate_token();
+                zag_serve::save_token_to_config(&t)?;
+                t
+            }
         }
     };
 
+    eprintln!("Token: {}", token);
     eprintln!("Starting zag server on https://{}:{}", host, port);
 
     zag_serve::start_server(zag_serve::ServerParams {

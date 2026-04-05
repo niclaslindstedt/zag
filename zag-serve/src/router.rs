@@ -5,6 +5,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 use crate::auth::{ServerState, auth_middleware};
 use crate::handlers::{health, processes, sessions};
+use crate::middleware::logging_middleware;
 use crate::ws;
 
 /// Build the complete axum router with all API routes.
@@ -103,5 +104,6 @@ pub fn build_router(state: ServerState) -> Router {
             auth_middleware,
         ))
         .layer(cors)
+        .layer(middleware::from_fn(logging_middleware))
         .with_state(state)
 }

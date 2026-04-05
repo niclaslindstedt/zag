@@ -184,15 +184,13 @@ pub fn spawn_session(params: &SpawnParams) -> Result<SpawnResult> {
     let session_id = uuid::Uuid::new_v4().to_string();
     let workspace = current_workspace(params.root.as_deref());
 
-    let prompt_preview = params
-        .prompt
-        .as_ref()
-        .map(|p| p.chars().take(100).collect::<String>())
-        .unwrap_or_else(|| "(interactive)".to_string());
-
-    debug!(
-        "Spawning background session: id={}, provider={}, interactive={}, prompt='{}'",
-        session_id, params.provider, params.interactive, prompt_preview
+    log::info!(
+        "Spawning session {}: provider={} model={} interactive={} prompt={}",
+        session_id,
+        params.provider,
+        params.model.as_deref().unwrap_or("default"),
+        params.interactive,
+        params.prompt.as_deref().unwrap_or("(none)")
     );
 
     // Register in session store

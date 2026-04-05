@@ -7,6 +7,7 @@
 pub mod auth;
 pub mod config;
 pub mod handlers;
+pub mod middleware;
 pub mod router;
 pub mod types;
 pub mod ws;
