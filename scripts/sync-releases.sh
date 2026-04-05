@@ -31,8 +31,8 @@ extract_notes() {
             if (index($0, "[" ver "]")) { found = 1; next }
         }
         found { print }
-    ' "$CHANGELOG" | sed -e :a -e '/^$/d;N;/\n$/ba' -e 's/\n$//'
-    # The sed trims leading/trailing blank lines
+    ' "$CHANGELOG" | sed '/./,$!d'
+    # Trim leading blank lines; trailing newlines are stripped by command substitution
 }
 
 # Collect versions to sync

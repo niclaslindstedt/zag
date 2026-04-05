@@ -179,6 +179,22 @@ jobs:
           generate_release_notes: ${{ env.RELEASE_BODY == '' }}
           files: artifacts/*
 
+  sync-release-notes:
+    name: Sync release notes
+    needs: [update-repo, release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.update-repo.outputs.commit_sha }}
+
+      - name: Sync release notes from CHANGELOG
+        run: scripts/sync-releases.sh "${GITHUB_REF_NAME#v}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   publish-crates:
     name: Publish to crates.io
     needs: [update-repo, build]
