@@ -3,9 +3,11 @@ import { Link, useLocation } from "react-router-dom";
 export default function Navbar() {
   const location = useLocation();
   const isDocsPage = location.pathname.startsWith("/docs");
+  const isManualPage = location.pathname.startsWith("/manual");
+  const isSubPage = isDocsPage || isManualPage;
 
-  // On docs pages, anchor links need to go back to the landing page
-  const sectionHref = (hash: string) => (isDocsPage ? `/${hash}` : hash);
+  // On sub-pages, anchor links need to go back to the landing page
+  const sectionHref = (hash: string) => (isSubPage ? `/${hash}` : hash);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-surface/80 backdrop-blur-md">
@@ -24,6 +26,12 @@ export default function Navbar() {
             className={`text-sm transition-colors ${isDocsPage ? "text-accent" : "text-text-secondary hover:text-text-primary"}`}
           >
             Docs
+          </Link>
+          <Link
+            to="/manual"
+            className={`text-sm transition-colors ${isManualPage ? "text-accent" : "text-text-secondary hover:text-text-primary"}`}
+          >
+            Manual
           </Link>
         </div>
         <a

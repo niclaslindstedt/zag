@@ -9,6 +9,7 @@ import Bindings from "./components/Bindings";
 import GettingStarted from "./components/GettingStarted";
 import Footer from "./components/Footer";
 import Documentation from "./components/Documentation";
+import Manual from "./components/Manual";
 
 function LandingPage() {
   return (
@@ -32,6 +33,8 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/docs" element={<Documentation />} />
         <Route path="/docs/:slug" element={<Documentation />} />
+        <Route path="/manual" element={<Manual />} />
+        <Route path="/manual/:slug" element={<Manual />} />
       </Routes>
       <Footer />
     </div>
