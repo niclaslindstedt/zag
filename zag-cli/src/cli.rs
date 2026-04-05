@@ -810,13 +810,13 @@ pub enum Commands {
     },
     /// Start the zag HTTPS/WebSocket server for remote access
     Serve {
-        /// Bind address
-        #[arg(long, default_value = "0.0.0.0")]
-        host: String,
+        /// Bind address (default: 0.0.0.0, or from ~/.zag/serve.toml)
+        #[arg(long)]
+        host: Option<String>,
 
-        /// Port to listen on
-        #[arg(long, default_value_t = 2100)]
-        port: u16,
+        /// Port to listen on (default: 2100, or from ~/.zag/serve.toml)
+        #[arg(long)]
+        port: Option<u16>,
 
         /// Authentication token (or use ZAG_SERVE_TOKEN env var)
         #[arg(long)]

@@ -3,8 +3,8 @@
 use anyhow::{Result, bail};
 
 pub(crate) struct ServeParams {
-    pub host: String,
-    pub port: u16,
+    pub host: Option<String>,
+    pub port: Option<u16>,
     pub token: Option<String>,
     pub generate_token: bool,
     pub tls_cert: Option<String>,
@@ -17,18 +17,27 @@ pub(crate) async fn run_serve(params: ServeParams) -> Result<()> {
         bail!("Both --tls-cert and --tls-key must be provided together");
     }
 
+    // Load config once for all fallbacks
+    let config = zag_serve::config::ServeConfig::load();
+
+    // Resolve host: flag > config > default (0.0.0.0)
+    let host = params.host.unwrap_or(config.server.host.clone());
+
+    // Resolve port: flag > config > default (2100)
+    let port = params.port.unwrap_or(config.server.port);
+
     // Resolve TLS: user-provided flags > config > auto-generated self-signed
     let (tls_cert, tls_key, is_self_signed) =
         if let (Some(cert), Some(key)) = (params.tls_cert, params.tls_key) {
             (cert, key, false)
+        } else if let (Some(cert), Some(key)) = (
+            config.server.tls_cert.clone(),
+            config.server.tls_key.clone(),
+        ) {
+            (cert, key, false)
         } else {
-            let config = zag_serve::config::ServeConfig::load();
-            if let (Some(cert), Some(key)) = (config.server.tls_cert, config.server.tls_key) {
-                (cert, key, false)
-            } else {
-                let (cert, key) = zag_serve::ensure_self_signed_cert(&params.host)?;
-                (cert, key, true)
-            }
+            let (cert, key) = zag_serve::ensure_self_signed_cert(&host)?;
+            (cert, key, true)
         };
 
     if is_self_signed {
@@ -44,8 +53,7 @@ pub(crate) async fn run_serve(params: ServeParams) -> Result<()> {
     } else if let Ok(t) = std::env::var("ZAG_SERVE_TOKEN") {
         t
     } else {
-        let config = zag_serve::config::ServeConfig::load();
-        if let Some(t) = config.server.token {
+        if let Some(t) = config.server.token.clone() {
             t
         } else if params.generate_token {
             let t = zag_serve::generate_token();
@@ -62,14 +70,11 @@ pub(crate) async fn run_serve(params: ServeParams) -> Result<()> {
         }
     };
 
-    eprintln!(
-        "Starting zag server on https://{}:{}",
-        params.host, params.port
-    );
+    eprintln!("Starting zag server on https://{}:{}", host, port);
 
     zag_serve::start_server(zag_serve::ServerParams {
-        host: params.host,
-        port: params.port,
+        host,
+        port,
         token,
         tls_cert,
         tls_key,

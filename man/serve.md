@@ -16,12 +16,20 @@ The server requires authentication via a bearer token on all endpoints except `/
 
 ## Flags
 
-    --host <HOST>            Bind address (default: 0.0.0.0)
-    --port <PORT>            Port to listen on (default: 2100)
+    --host <HOST>            Bind address (flag > config > default: 0.0.0.0)
+    --port <PORT>            Port to listen on (flag > config > default: 2100)
     --token <TOKEN>          Authentication token (or set ZAG_SERVE_TOKEN env var)
     --generate-token         Generate a new random token, save it, and start
     --tls-cert <PATH>        TLS certificate file (PEM format); overrides auto-generated cert
     --tls-key <PATH>         TLS private key file (PEM format); overrides auto-generated cert
+
+## Host and Port
+
+The bind address and port are resolved in this order:
+
+1. `--host` / `--port` flags
+2. `host` / `port` in `~/.zag/serve.toml`
+3. Defaults: `0.0.0.0` and `2100`
 
 ## Authentication
 
