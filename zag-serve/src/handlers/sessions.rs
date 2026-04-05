@@ -280,6 +280,103 @@ pub async fn wait(Json(req): Json<WaitRequest>) -> impl IntoResponse {
     }
 }
 
+/// DELETE /api/v1/sessions/:id
+pub async fn delete(Path(id): Path<String>) -> impl IntoResponse {
+    let mut store = match zag_agent::session::SessionStore::load(None) {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: e.to_string(),
+                }),
+            )
+                .into_response();
+        }
+    };
+
+    if store.get(&id).is_none() {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse {
+                error: format!("Session not found: {}", id),
+            }),
+        )
+            .into_response();
+    }
+
+    store.remove(&id);
+    match store.save(None) {
+        Ok(()) => Json(serde_json::json!({"deleted": id})).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: e.to_string(),
+            }),
+        )
+            .into_response(),
+    }
+}
+
+/// PATCH /api/v1/sessions/:id
+pub async fn update(
+    Path(id): Path<String>,
+    Json(req): Json<crate::types::SessionUpdateRequest>,
+) -> impl IntoResponse {
+    let mut store = match zag_agent::session::SessionStore::load(None) {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: e.to_string(),
+                }),
+            )
+                .into_response();
+        }
+    };
+
+    let entry = store.sessions.iter_mut().find(|e| e.session_id == id);
+    let entry = match entry {
+        Some(e) => e,
+        None => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse {
+                    error: format!("Session not found: {}", id),
+                }),
+            )
+                .into_response();
+        }
+    };
+
+    if req.name.is_some() {
+        entry.name = req.name;
+    }
+    if req.description.is_some() {
+        entry.description = req.description;
+    }
+    if req.clear_tags.unwrap_or(false) {
+        entry.tags.clear();
+    }
+    if let Some(tags) = req.tags {
+        entry.tags.extend(tags);
+    }
+
+    let updated = serde_json::to_value(&*entry).unwrap_or_default();
+
+    match store.save(None) {
+        Ok(()) => Json(updated).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: e.to_string(),
+            }),
+        )
+            .into_response(),
+    }
+}
+
 /// POST /api/v1/sessions/:id/input
 pub async fn input(Path(id): Path<String>, Json(req): Json<InputRequest>) -> impl IntoResponse {
     // Check if this is an interactive session with a FIFO

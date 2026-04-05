@@ -104,6 +104,60 @@ pub fn list_processes(
         .collect())
 }
 
+/// Get a single process by ID with live status.
+pub fn get_process(id: &str) -> Result<ProcessInfo> {
+    let id = resolve_process_id(id)?;
+    let store = ProcessStore::load()?;
+    match store.find(&id) {
+        Some(e) => {
+            let live = resolve_live_status(e).to_string();
+            let mut v = serde_json::to_value(e)?;
+            if let serde_json::Value::Object(ref mut m) = v {
+                m.insert(
+                    "live_status".to_string(),
+                    serde_json::Value::String(live.clone()),
+                );
+            }
+            Ok(ProcessInfo {
+                entry: v,
+                live_status: live,
+            })
+        }
+        None => bail!("Process not found: {}", id),
+    }
+}
+
+/// Send a stop signal (SIGHUP) to a process by ID.
+pub fn request_stop(id: &str) -> Result<()> {
+    let id = resolve_process_id(id)?;
+    let entry = ProcessStore::load()?
+        .find(&id)
+        .ok_or_else(|| anyhow::anyhow!("Process not found: {}", id))?
+        .clone();
+    let live = resolve_live_status(&entry);
+    if live != "running" {
+        bail!("Process {} is not running (status: {})", id, live);
+    }
+    stop_process(entry.pid)
+}
+
+/// Send a kill signal (SIGTERM) to a process by ID.
+pub fn request_kill(id: &str) -> Result<()> {
+    let id = resolve_process_id(id)?;
+    let mut store = ProcessStore::load()?;
+    let entry = store
+        .find(&id)
+        .ok_or_else(|| anyhow::anyhow!("Process not found: {}", id))?
+        .clone();
+    let live = resolve_live_status(&entry);
+    if live != "running" {
+        bail!("Process {} is not running (status: {})", id, live);
+    }
+    store.update_status(&id, "killed", None);
+    store.save()?;
+    kill_process(entry.pid)
+}
+
 pub fn run_ps(command: PsCommand, json: bool) -> Result<()> {
     match command {
         PsCommand::List {

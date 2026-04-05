@@ -90,8 +90,8 @@ fn build_context(session_ids: &[String], root: Option<&str>) -> Result<String> {
     Ok(parts.join("\n\n"))
 }
 
-/// Run the pipe command.
-pub async fn run_pipe(params: PipeParams) -> Result<()> {
+/// Pipe session results into a new agent and return the output.
+pub async fn pipe_sessions(params: &PipeParams) -> Result<zag_agent::output::AgentOutput> {
     let session_ids = resolve_pipe_sessions(
         &params.session_ids,
         params.tag.as_deref(),
@@ -114,7 +114,6 @@ pub async fn run_pipe(params: PipeParams) -> Result<()> {
         full_prompt.len()
     );
 
-    // Resolve provider
     let provider =
         zag_agent::config::resolve_provider(params.provider.as_deref(), params.root.as_deref())?;
 
@@ -145,9 +144,13 @@ pub async fn run_pipe(params: PipeParams) -> Result<()> {
         builder = builder.quiet(true);
     }
 
-    let output = builder.exec(&full_prompt).await?;
+    builder.exec(&full_prompt).await
+}
 
-    // Output the result
+/// Run the pipe command.
+pub async fn run_pipe(params: PipeParams) -> Result<()> {
+    let output = pipe_sessions(&params).await?;
+
     let format = params
         .output
         .as_deref()
