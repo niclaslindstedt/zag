@@ -55,6 +55,7 @@ pub struct Claude {
     replay_user_messages: bool,
     include_partial_messages: bool,
     max_turns: Option<u32>,
+    mcp_config_path: Option<String>,
 }
 
 impl Claude {
@@ -76,6 +77,7 @@ impl Claude {
             replay_user_messages: false,
             include_partial_messages: false,
             max_turns: None,
+            mcp_config_path: None,
         }
     }
 
@@ -101,6 +103,23 @@ impl Claude {
 
     pub fn set_include_partial_messages(&mut self, include: bool) {
         self.include_partial_messages = include;
+    }
+
+    /// Set MCP server config: a JSON string (written to a temp file) or a file path.
+    pub fn set_mcp_config(&mut self, config: Option<String>) {
+        self.mcp_config_path = config.map(|c| {
+            if c.trim_start().starts_with('{') {
+                let path =
+                    std::env::temp_dir().join(format!("zag-mcp-{}.json", uuid::Uuid::new_v4()));
+                if let Err(e) = std::fs::write(&path, &c) {
+                    log::warn!("Failed to write MCP config temp file: {}", e);
+                    return c;
+                }
+                path.to_string_lossy().into_owned()
+            } else {
+                c
+            }
+        });
     }
 
     /// Set a callback to receive streaming events during non-interactive execution.
@@ -179,6 +198,10 @@ impl Claude {
 
         if let Some(turns) = self.max_turns {
             args.extend(["--max-turns".to_string(), turns.to_string()]);
+        }
+
+        if let Some(ref path) = self.mcp_config_path {
+            args.extend(["--mcp-config".to_string(), path.clone()]);
         }
 
         if let Some(p) = prompt {

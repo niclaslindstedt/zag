@@ -59,6 +59,7 @@ await foreach (var evt in new ZagBuilder().Provider("claude").StreamAsync("analy
 | `.ReplayUserMessages()` | Re-emit user messages on stdout (Claude only) |
 | `.IncludePartialMessages()` | Include partial message chunks (Claude only) |
 | `.MaxTurns(n)` | Set the maximum number of agentic turns |
+| `.McpConfig(config)` | MCP server config: JSON string or file path (Claude only) |
 | `.ShowUsage()` | Show token usage statistics (JSON output mode) |
 | `.Size(size)` | Set Ollama model parameter size (e.g., `"2b"`, `"9b"`, `"35b"`) |
 | `.Verbose()` | Enable verbose output |

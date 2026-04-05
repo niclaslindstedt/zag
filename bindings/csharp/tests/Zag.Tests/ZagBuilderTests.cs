@@ -107,6 +107,14 @@ public class ZagBuilderTests
     }
 
     [Fact]
+    public void Builder_McpConfig()
+    {
+        var builder = new ZagBuilder().McpConfig("./mcp.json");
+        var args = builder.BuildGlobalArgs();
+        Assert.Equal(new[] { "--mcp-config", "./mcp.json" }, args);
+    }
+
+    [Fact]
     public void Builder_ShowUsage()
     {
         var builder = new ZagBuilder().ShowUsage();

@@ -39,6 +39,7 @@ pub(crate) struct AgentActionParams {
     pub(crate) json_stream: bool,
     pub(crate) session: Option<String>,
     pub(crate) max_turns: Option<u32>,
+    pub(crate) mcp_config: Option<String>,
     pub(crate) exit_on_failure: bool,
     pub(crate) context_session: Option<String>,
     pub(crate) session_metadata: SessionMetadata,
@@ -156,6 +157,7 @@ struct AgentSetupParams {
     json_mode: bool,
     json_stream: bool,
     max_turns: Option<u32>,
+    mcp_config: Option<String>,
 }
 
 /// Create and configure the agent with all settings.
@@ -210,6 +212,9 @@ fn create_and_configure_agent(
         {
             let schema_str = serde_json::to_string(schema).unwrap_or_default();
             claude_agent.set_json_schema(Some(schema_str));
+        }
+        if p.mcp_config.is_some() {
+            claude_agent.set_mcp_config(p.mcp_config);
         }
 
         // Set up event handler for streaming output (text or stream-json modes)
@@ -477,6 +482,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         json_stream,
         session,
         max_turns,
+        mcp_config,
         exit_on_failure,
         context_session,
         session_metadata: _,
@@ -642,6 +648,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             json_mode,
             json_stream,
             max_turns,
+            mcp_config,
         },
         &json_schema,
         show_wrapper,

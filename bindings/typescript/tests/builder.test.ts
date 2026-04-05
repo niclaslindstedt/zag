@@ -56,6 +56,11 @@ describe("ZagBuilder", () => {
     const builder = new ZagBuilder().bin("/usr/local/bin/zag");
     assert.ok(builder);
   });
+
+  it("should support mcpConfig", () => {
+    const builder = new ZagBuilder().mcpConfig("./mcp.json");
+    assert.ok(builder);
+  });
 });
 
 describe("ZagError", () => {

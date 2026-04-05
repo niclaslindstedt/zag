@@ -39,6 +39,7 @@ class ZagBuilder {
     private var _replayUserMessages: Boolean = false
     private var _includePartialMessages: Boolean = false
     private var _maxTurns: Int? = null
+    private var _mcpConfig: String? = null
     private var _showUsage: Boolean = false
     private var _size: String? = null
 
@@ -107,6 +108,9 @@ class ZagBuilder {
     /** Set the maximum number of agentic turns. */
     fun maxTurns(n: Int) = apply { _maxTurns = n }
 
+    /** Set MCP server config for this invocation: JSON string or file path (Claude only). */
+    fun mcpConfig(c: String) = apply { _mcpConfig = c }
+
     /** Show token usage statistics (only applies to JSON output mode). */
     fun showUsage(s: Boolean = true) = apply { _showUsage = s }
 
@@ -136,6 +140,7 @@ class ZagBuilder {
         if (_debug) args.add("--debug")
         _sessionId?.let { args.addAll(listOf("--session", it)) }
         _maxTurns?.let { args.addAll(listOf("--max-turns", it.toString())) }
+        _mcpConfig?.let { args.addAll(listOf("--mcp-config", it)) }
         if (_showUsage) args.add("--show-usage")
         _size?.let { args.addAll(listOf("--size", it)) }
         return args

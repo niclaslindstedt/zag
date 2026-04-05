@@ -102,6 +102,13 @@ class ZagBuilderTests {
     }
 
     @Test
+    fun `mcp config`() {
+        val builder = ZagBuilder().mcpConfig("./mcp.json")
+        val args = builder.buildGlobalArgs()
+        assertEquals(listOf("--mcp-config", "./mcp.json"), args)
+    }
+
+    @Test
     fun `show usage`() {
         val builder = ZagBuilder().showUsage()
         val args = builder.buildGlobalArgs()

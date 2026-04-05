@@ -105,6 +105,10 @@ class TestZagBuilder:
         args = ZagBuilder().max_turns(10)._global_args()
         assert ["--max-turns", "10"] == args[-2:]
 
+    def test_mcp_config_args(self) -> None:
+        args = ZagBuilder().mcp_config("./mcp.json")._global_args()
+        assert ["--mcp-config", "./mcp.json"] == args[-2:]
+
     def test_show_usage_args(self) -> None:
         args = ZagBuilder().show_usage()._global_args()
         assert "--show-usage" in args

@@ -19,7 +19,26 @@ make fmt     # code formatted
 
 Stop if any check fails. Fix the issue, then re-run.
 
-## Step 2: Review Changes
+## Step 2: Create a Feature Branch
+
+**Always work on a feature branch — never commit directly to `main`.**
+
+Check the current branch:
+
+```sh
+git branch --show-current
+```
+
+If already on `main` (or any protected branch), create and switch to a feature branch before staging anything. Derive the branch name from the commit type and a short summary of the change (kebab-case, no special characters):
+
+```sh
+git checkout -b type/short-description
+# e.g.: feat/serve-logging, fix/token-output, refactor/spawn-args
+```
+
+If already on a feature branch, continue with that branch — do not create another one.
+
+## Step 3: Review Changes
 
 ```sh
 git status
@@ -29,7 +48,7 @@ git diff
 
 Understand what changed so you can write an accurate commit message and PR title.
 
-## Step 3: Stage & Commit
+## Step 4: Stage & Commit
 
 Stage relevant files (prefer specific paths over `git add -A` to avoid accidentally including secrets or build artifacts):
 
@@ -62,13 +81,13 @@ Scopes are lowercase, comma-separated if multiple: `feat(serve,connect): ...`
 git commit -m "type(scope): summary"
 ```
 
-## Step 4: Push
+## Step 5: Push
 
 ```sh
 git push -u origin HEAD
 ```
 
-## Step 5: Create or Update the PR
+## Step 6: Create or Update the PR
 
 **Check if a PR already exists for this branch:**
 

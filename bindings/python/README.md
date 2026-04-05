@@ -64,6 +64,7 @@ async for event in await ZagBuilder().provider("claude").stream("analyze code"):
 | `.replay_user_messages()` | Re-emit user messages on stdout (Claude only) |
 | `.include_partial_messages()` | Include partial message chunks (Claude only) |
 | `.max_turns(n)` | Set the maximum number of agentic turns |
+| `.mcp_config(config)` | MCP server config: JSON string or file path (Claude only) |
 | `.show_usage()` | Show token usage statistics (JSON output mode) |
 | `.size(size)` | Set Ollama model parameter size (e.g., `"2b"`, `"9b"`, `"35b"`) |
 | `.verbose()` | Enable verbose output |

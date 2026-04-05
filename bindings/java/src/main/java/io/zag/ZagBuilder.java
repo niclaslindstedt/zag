@@ -42,6 +42,7 @@ public class ZagBuilder {
     private boolean replayUserMessages;
     private boolean includePartialMessages;
     private Integer maxTurns;
+    private String mcpConfig;
     private boolean showUsage;
     private String size;
 
@@ -134,6 +135,9 @@ public class ZagBuilder {
     /** Set the maximum number of agentic turns. */
     public ZagBuilder maxTurns(int n) { this.maxTurns = n; return this; }
 
+    /** Set MCP server config for this invocation: JSON string or file path (Claude only). */
+    public ZagBuilder mcpConfig(String c) { this.mcpConfig = c; return this; }
+
     /** Show token usage statistics (only applies to JSON output mode). */
     public ZagBuilder showUsage() { this.showUsage = true; return this; }
 
@@ -169,6 +173,7 @@ public class ZagBuilder {
         if (debug) args.add("--debug");
         if (sessionId != null) { args.add("--session"); args.add(sessionId); }
         if (maxTurns != null) { args.add("--max-turns"); args.add(String.valueOf(maxTurns)); }
+        if (mcpConfig != null) { args.add("--mcp-config"); args.add(mcpConfig); }
         if (showUsage) args.add("--show-usage");
         if (size != null) { args.add("--size"); args.add(size); }
         return args;
