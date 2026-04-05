@@ -68,7 +68,7 @@ Key design: trait-based `Agent` abstraction, factory pattern, builder API, subpr
 6. `make fmt`
 7. Update `README.md` if user-facing behavior changed
 8. Update `CLAUDE.md` if architecture changed
-9. Update `man/*.md` if commands/flags/behavior changed
+9. Update `zag-cli/man/*.md` if commands/flags/behavior changed
 10. **Do not manually edit `CHANGELOG.md`** — it is auto-generated from conventional commits at release time by CI
 11. Commit, push, and open/update PR with `/commit` (handles conventional commit format, PR title, and changelog-eligible type selection)
 
@@ -102,14 +102,14 @@ When adding a new `AgentBuilder` setter, keep all layers in sync:
 
 | Change type | Files to update |
 |-------------|----------------|
-| New CLI flag | `zag-cli/src/cli.rs`, `README.md`, relevant `man/*.md` |
+| New CLI flag | `zag-cli/src/cli.rs`, `README.md`, relevant `zag-cli/man/*.md` |
 | New builder option | `zag-agent/src/builder.rs`, all 6 bindings + tests + READMEs |
-| New command | `zag-cli/src/cli.rs`, `zag-cli/src/commands/`, `zag-cli/src/main.rs`, `man/<cmd>.md`, `README.md` |
+| New command | `zag-cli/src/cli.rs`, `zag-cli/src/commands/`, `zag-cli/src/main.rs`, `zag-cli/man/<cmd>.md`, `README.md` |
 | New subcommand | `zag-cli/src/cli.rs` (enum variant), `zag-cli/src/commands/<parent>/<sub>.rs`, `zag-cli/src/commands/<parent>/mod.rs` (dispatch) |
 | New provider | `zag-agent/src/providers/`, `zag-agent/src/factory.rs`, `README.md`, `docs/providers.md` |
-| New orch command | `zag-orch/src/`, `zag-orch/src/lib.rs`, `zag-cli/src/cli.rs`, `zag-cli/src/main.rs`, `man/`, `README.md` |
+| New orch command | `zag-orch/src/`, `zag-orch/src/lib.rs`, `zag-cli/src/cli.rs`, `zag-cli/src/main.rs`, `zag-cli/man/`, `README.md` |
 | Provider feature change | `docs/providers.md` |
-| Config key change | `docs/configuration.md`, `man/config.md` |
+| Config key change | `docs/configuration.md`, `zag-cli/man/config.md` |
 | Event format change | `docs/events-and-logging.md` |
 | Website content change | `website/src/`, deployed automatically via GitHub Actions on push to `main` |
 | README staleness | Run `update-readme` skill — tracks last update via `.claude/skills/update-readme/.last-updated` |

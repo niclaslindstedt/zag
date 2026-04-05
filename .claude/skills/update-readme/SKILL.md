@@ -71,7 +71,7 @@ Use this table to map changed files/scopes to README sections:
 | `zag-agent/src/builder.rs` | Builder API fields and methods |
 | `zag-orch/src/lib.rs` | Orchestration primitives |
 | `bindings/*/README.md` | Binding-specific examples and API |
-| `man/*.md` | Detailed command documentation |
+| `zag-cli/man/*.md` | Detailed command documentation |
 | `docs/*.md` | Feature-specific documentation |
 
 ## Implementation Patterns

@@ -41,7 +41,7 @@ make build && make test && make clippy && make fmt
 5. Update documentation if your change affects user-facing behavior:
    - `README.md` for usage changes
    - `CLAUDE.md` for architecture or development pattern changes
-   - `man/*.md` for command/flag changes
+   - `zag-cli/man/*.md` for command/flag changes
 6. Commit with a conventional commit message
 7. Open a pull request
 
@@ -54,7 +54,7 @@ zag/
 ├── zag-orch/src/     # Orchestration crate — spawn, wait, collect, pipe, and more
 ├── examples/         # Example projects (cv-review, orchestration scripts, React UI)
 ├── bindings/         # Language SDKs (TypeScript, Python, C#)
-├── man/              # Manpages (embedded in `zag man`)
+├── zag-cli/man/      # Manpages (embedded in `zag man`)
 └── prompts/          # Prompt templates (auto-selector, json-wrap)
 ```
 
@@ -123,7 +123,7 @@ Install the coverage tool with: `cargo install cargo-llvm-cov`
 2. Register the provider in `zag-agent/src/factory.rs`
 3. Add model validation and size mappings
 4. Add tests in `zag-agent/src/providers/<name>_tests.rs`
-5. Update `CLAUDE.md`, `README.md`, and `man/zag.md`
+5. Update `CLAUDE.md`, `README.md`, and `zag-cli/man/zag.md`
 
 ## Language bindings
 

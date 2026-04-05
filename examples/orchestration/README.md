@@ -1,6 +1,6 @@
 # Orchestration Examples
 
-Shell scripts demonstrating multi-agent orchestration patterns using zag's CLI primitives. Each script is self-contained and showcases one or more patterns from the [orchestration guide](../../man/orchestration.md).
+Shell scripts demonstrating multi-agent orchestration patterns using zag's CLI primitives. Each script is self-contained and showcases one or more patterns from the [orchestration guide](../../zag-cli/man/orchestration.md).
 
 ## Prerequisites
 

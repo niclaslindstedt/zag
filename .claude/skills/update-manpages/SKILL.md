@@ -1,10 +1,10 @@
 ---
-description: "Use when manpages may be stale. Discovers commits since the last manpage update, identifies what changed (commands, flags, providers, orchestration, etc.), and updates the affected man/*.md files to match the current CLI implementation."
+description: "Use when manpages may be stale. Discovers commits since the last manpage update, identifies what changed (commands, flags, providers, orchestration, etc.), and updates the affected zag-cli/man/*.md files to match the current CLI implementation."
 ---
 
 # Updating the Manpages
 
-The `man/` directory contains 35 markdown manpages embedded at compile time via `include_str!()` in `zag-cli/src/commands/manpage.rs` and accessed via `zag man <command>`. They are the authoritative command-level reference documentation. They get stale when CLI flags, commands, behaviors, or providers change without updating the corresponding manpage.
+The `zag-cli/man/` directory contains 35 markdown manpages embedded at compile time via `include_str!()` in `zag-cli/src/commands/manpage.rs` and accessed via `zag man <command>`. They are the authoritative command-level reference documentation. They get stale when CLI flags, commands, behaviors, or providers change without updating the corresponding manpage.
 
 ## Tracking Mechanism
 
@@ -73,7 +73,7 @@ Use this table to map changed files/scopes to affected manpages:
 | `zag-cli/src/cli.rs` (Commands::Skills / SkillsCommand) | `skills.md` |
 | `zag-cli/src/cli.rs` (Commands::Mcp / McpCommand) | `mcp.md` |
 | `zag-cli/src/cli.rs` (Commands::Ps) | `ps.md` |
-| `zag-cli/src/cli.rs` (new Command variant) | New `man/<cmd>.md` + `zag.md` (Commands list, See Also) + `manpage.rs` (const, match arm, error list) |
+| `zag-cli/src/cli.rs` (new Command variant) | New `zag-cli/man/<cmd>.md` + `zag.md` (Commands list, See Also) + `manpage.rs` (const, match arm, error list) |
 | `zag-cli/src/cli.rs` (new subcommand enum) | Parent command's manpage (add subcommand section) |
 | `zag-cli/src/commands/` (behavior changes) | Corresponding command manpage(s) |
 | `zag-agent/src/providers/*/mod.rs` | `zag.md` (Providers, Model Size Aliases sections) |
@@ -95,7 +95,7 @@ These structs in `cli.rs` are flattened into multiple commands. When they change
 
 ### Primary
 
-- `man/*.md` — the 35 manpage files being updated
+- `zag-cli/man/*.md` — the 35 manpage files being updated
 - `zag-cli/src/commands/manpage.rs` — must be updated when adding new manpages (const, match arm, error message)
 
 ### Secondary (read-only, for reference)
@@ -157,7 +157,7 @@ When a new field is added to a specific `Commands::*` variant:
 
 When a new variant is added to the `Commands` enum:
 
-1. Create `man/<cmd>.md` following the standard structure:
+1. Create `zag-cli/man/<cmd>.md` following the standard structure:
    ```markdown
    # zag <cmd>
 
@@ -187,7 +187,7 @@ When a new variant is added to the `Commands` enum:
    ```
 2. Update `zag.md` Commands list (keep alphabetical within category groups)
 3. Update `zag-cli/src/commands/manpage.rs`:
-   - Add `const MAN_<CMD>: &str = include_str!("../../man/<cmd>.md");`
+   - Add `const MAN_<CMD>: &str = include_str!("../../man/<cmd>.md");` (path is relative to `manpage.rs`)
    - Add match arm: `Some("<cmd>") => MAN_<CMD>,`
    - Update the error message "Available:" list
 4. Update `help-agent.md` if the command is commonly used
@@ -223,7 +223,7 @@ When new primitives or patterns are added to `zag-orch`:
 - [ ] Read all affected manpages and source-of-truth files
 - [ ] Update `zag.md` if global flags, commands, providers, or model aliases changed
 - [ ] Update command-specific manpages for changed flags or behavior
-- [ ] Create new `man/<cmd>.md` for any new commands
+- [ ] Create new `zag-cli/man/<cmd>.md` for any new commands
 - [ ] Update parent command manpages for any new subcommands
 - [ ] Update `orchestration.md` if orchestration primitives changed
 - [ ] Update `help-agent.md` if commonly-used commands changed
