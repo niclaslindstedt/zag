@@ -32,7 +32,7 @@ const features = [
   {
     title: "SDKs & Library",
     description:
-      "Use as a Rust library with zero subprocess overhead, or from TypeScript, Python, and C# via lightweight SDKs that wrap the CLI.",
+      "Use as a Rust library with zero subprocess overhead, or from TypeScript, Python, C#, Swift, Java, and Kotlin via lightweight SDKs that wrap the CLI.",
     icon: "📦",
   },
   {

@@ -19,7 +19,7 @@ At least one of `--uncommitted`, `--base`, or `--commit` must be provided.
     --commit <SHA>         Review changes from a specific commit
     --title <TEXT>         Optional title for the review summary
 
-Global flags that apply: `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir`, `--env`, `--debug`, `--quiet`.
+Global flags that apply: `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir`, `--env`, `--mcp-config`, `--debug`, `--quiet`.
 
 Flags that cannot be used with review: `--worktree`, `--sandbox`, `--json`, `--json-schema`, `--json-stream`, `-p auto`, `-m auto`.
 

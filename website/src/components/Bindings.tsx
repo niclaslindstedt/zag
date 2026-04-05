@@ -43,6 +43,48 @@ var result = await new ZagBuilder()
 
 Console.WriteLine(result.Output);`,
   },
+  {
+    lang: "Swift",
+    install: ".package(url: \"https://github.com/niclaslindstedt/zag\", from: \"0.5.0\")",
+    code: `import Zag
+
+let result = try await ZagBuilder()
+    .provider("claude")
+    .model("sonnet")
+    .systemPrompt("You are a code reviewer")
+    .json()
+    .exec("Review this pull request")
+
+print(result.output ?? "")`,
+  },
+  {
+    lang: "Java",
+    install: "io.zag:zag:0.5.0",
+    code: `import io.zag.ZagBuilder;
+
+var result = new ZagBuilder()
+    .provider("claude")
+    .model("sonnet")
+    .systemPrompt("You are a code reviewer")
+    .json()
+    .exec("Review this pull request");
+
+System.out.println(result.getOutput());`,
+  },
+  {
+    lang: "Kotlin",
+    install: "io.zag:zag:0.5.0",
+    code: `import zag.ZagBuilder
+
+val result = ZagBuilder()
+    .provider("claude")
+    .model("sonnet")
+    .systemPrompt("You are a code reviewer")
+    .json()
+    .exec("Review this pull request")
+
+println(result.output)`,
+  },
 ];
 
 export default function Bindings() {
@@ -57,7 +99,7 @@ export default function Bindings() {
           simply wraps the zag CLI via subprocess.
         </p>
 
-        <div className="mt-14 grid gap-6 lg:grid-cols-3">
+        <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {bindings.map((b) => (
             <div key={b.lang} className="overflow-hidden rounded-xl border border-border bg-surface-alt">
               <div className="flex items-center justify-between border-b border-border px-5 py-3">
@@ -72,7 +114,7 @@ export default function Bindings() {
         </div>
 
         <p className="mt-8 text-center text-sm text-text-dim">
-          Also available as a native Rust library:{" "}
+          Also available as a native Rust crate:{" "}
           <code className="rounded bg-surface-alt px-1.5 py-0.5 text-accent">cargo add zag</code>
           {" "}— zero subprocess overhead.
         </p>

@@ -32,6 +32,7 @@ All global flags apply (see `zag man zag`).
     --tag <TAG>              Session tag for discovery (repeatable)
     --context <SESSION_ID>   Prepend the result of another session as context
     --max-turns <N>          Maximum number of agentic turns
+    --env <KEY=VALUE>        Environment variable for the agent subprocess (repeatable)
     --mcp-config <CONFIG>    MCP server config: JSON string or path to a JSON file (Claude only)
 
 ## Behavior
