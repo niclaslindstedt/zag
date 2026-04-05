@@ -773,6 +773,7 @@ async fn main() -> Result<()> {
                 json_stream,
                 session: session_isolation.session,
                 max_turns: agent_args.max_turns,
+                mcp_config: agent_args.mcp_config,
                 exit_on_failure,
                 context_session,
                 session_metadata: {

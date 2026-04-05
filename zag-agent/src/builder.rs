@@ -68,6 +68,7 @@ pub struct AgentBuilder {
     quiet: bool,
     show_usage: bool,
     max_turns: Option<u32>,
+    mcp_config: Option<String>,
     progress: Box<dyn ProgressHandler>,
 }
 
@@ -102,6 +103,7 @@ impl AgentBuilder {
             quiet: false,
             show_usage: false,
             max_turns: None,
+            mcp_config: None,
             progress: Box::new(SilentProgress),
         }
     }
@@ -238,6 +240,14 @@ impl AgentBuilder {
         self
     }
 
+    /// Set MCP server config for this invocation (Claude only).
+    ///
+    /// Accepts either a JSON string (`{"mcpServers": {...}}`) or a path to a JSON file.
+    pub fn mcp_config(mut self, config: &str) -> Self {
+        self.mcp_config = Some(config.to_string());
+        self
+    }
+
     /// Set a custom progress handler for status reporting.
     pub fn on_progress(mut self, handler: Box<dyn ProgressHandler>) -> Self {
         self.progress = handler;
@@ -351,6 +361,9 @@ impl AgentBuilder {
             {
                 let schema_str = serde_json::to_string(schema).unwrap_or_default();
                 claude_agent.set_json_schema(Some(schema_str));
+            }
+            if self.mcp_config.is_some() {
+                claude_agent.set_mcp_config(self.mcp_config.clone());
             }
         }
 

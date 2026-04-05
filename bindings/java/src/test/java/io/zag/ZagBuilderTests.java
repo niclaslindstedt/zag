@@ -98,6 +98,13 @@ class ZagBuilderTests {
     }
 
     @Test
+    void builderMcpConfig() {
+        var builder = new ZagBuilder().mcpConfig("./mcp.json");
+        var args = builder.buildGlobalArgs();
+        assertEquals(List.of("--mcp-config", "./mcp.json"), args);
+    }
+
+    @Test
     void builderShowUsage() {
         var builder = new ZagBuilder().showUsage();
         var args = builder.buildGlobalArgs();

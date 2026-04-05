@@ -71,6 +71,7 @@ for (var event : new ZagBuilder().provider("claude").stream("analyze code")) {
 | `.replayUserMessages()` | Re-emit user messages on stdout (Claude only) |
 | `.includePartialMessages()` | Include partial message chunks (Claude only) |
 | `.maxTurns(n)` | Set the maximum number of agentic turns |
+| `.mcpConfig(config)` | MCP server config: JSON string or file path (Claude only) |
 | `.showUsage()` | Show token usage statistics (JSON output mode) |
 | `.size(size)` | Set Ollama model parameter size (e.g., `"2b"`, `"9b"`, `"35b"`) |
 | `.verbose()` | Enable verbose output |

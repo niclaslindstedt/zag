@@ -61,6 +61,10 @@ pub(crate) struct AgentArgs {
     /// Maximum number of agentic turns
     #[arg(long)]
     pub(crate) max_turns: Option<u32>,
+
+    /// MCP server config for this invocation: JSON string or path to a JSON file (Claude only)
+    #[arg(long)]
+    pub(crate) mcp_config: Option<String>,
 }
 
 /// Arguments for session discovery metadata (name, description, tags)

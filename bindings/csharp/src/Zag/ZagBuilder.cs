@@ -39,6 +39,7 @@ public class ZagBuilder
     private bool _replayUserMessages;
     private bool _includePartialMessages;
     private int? _maxTurns;
+    private string? _mcpConfig;
     private bool _showUsage;
     private string? _size;
 
@@ -107,6 +108,9 @@ public class ZagBuilder
     /// <summary>Set the maximum number of agentic turns.</summary>
     public ZagBuilder MaxTurns(int n) { _maxTurns = n; return this; }
 
+    /// <summary>Set MCP server config for this invocation: JSON string or file path (Claude only).</summary>
+    public ZagBuilder McpConfig(string c) { _mcpConfig = c; return this; }
+
     /// <summary>Show token usage statistics (only applies to JSON output mode).</summary>
     public ZagBuilder ShowUsage(bool s = true) { _showUsage = s; return this; }
 
@@ -133,6 +137,7 @@ public class ZagBuilder
         if (_debug) args.Add("--debug");
         if (_sessionId != null) { args.Add("--session"); args.Add(_sessionId); }
         if (_maxTurns.HasValue) { args.Add("--max-turns"); args.Add(_maxTurns.Value.ToString()); }
+        if (_mcpConfig != null) { args.Add("--mcp-config"); args.Add(_mcpConfig); }
         if (_showUsage) args.Add("--show-usage");
         if (_size != null) { args.Add("--size"); args.Add(_size); }
         return args;

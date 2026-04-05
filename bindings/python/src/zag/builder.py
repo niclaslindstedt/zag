@@ -47,6 +47,7 @@ class ZagBuilder:
         self._replay_user_messages: bool = False
         self._include_partial_messages: bool = False
         self._max_turns: int | None = None
+        self._mcp_config: str | None = None
         self._show_usage: bool = False
         self._size: str | None = None
 
@@ -158,6 +159,11 @@ class ZagBuilder:
         self._max_turns = n
         return self
 
+    def mcp_config(self, c: str) -> ZagBuilder:
+        """Set MCP server config for this invocation: JSON string or file path (Claude only)."""
+        self._mcp_config = c
+        return self
+
     def show_usage(self, s: bool = True) -> ZagBuilder:
         """Show token usage statistics (only applies to JSON output mode)."""
         self._show_usage = s
@@ -202,6 +208,8 @@ class ZagBuilder:
             args.extend(["--session", self._session_id])
         if self._max_turns is not None:
             args.extend(["--max-turns", str(self._max_turns)])
+        if self._mcp_config:
+            args.extend(["--mcp-config", self._mcp_config])
         if self._show_usage:
             args.append("--show-usage")
         if self._size:

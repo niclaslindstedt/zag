@@ -95,6 +95,13 @@ struct ZagBuilderTests {
         #expect(args == ["--max-turns", "10"])
     }
 
+    @Test("mcp config")
+    func mcpConfig() {
+        let builder = ZagBuilder().mcpConfig("./mcp.json")
+        let args = builder.buildGlobalArgs()
+        #expect(args == ["--mcp-config", "./mcp.json"])
+    }
+
     @Test("show usage")
     func showUsage() {
         let builder = ZagBuilder().showUsage()

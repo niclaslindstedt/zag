@@ -46,6 +46,7 @@ export class ZagBuilder {
   private _replayUserMessages = false;
   private _includePartialMessages = false;
   private _maxTurns?: number;
+  private _mcpConfig?: string;
   private _showUsage = false;
   private _size?: string;
 
@@ -176,6 +177,12 @@ export class ZagBuilder {
     return this;
   }
 
+  /** Set MCP server config for this invocation: JSON string or file path (Claude only). */
+  mcpConfig(c: string): this {
+    this._mcpConfig = c;
+    return this;
+  }
+
   /** Show token usage statistics (only applies to JSON output mode). */
   showUsage(s = true): this {
     this._showUsage = s;
@@ -212,6 +219,7 @@ export class ZagBuilder {
     if (this._debug) args.push("--debug");
     if (this._sessionId) args.push("--session", this._sessionId);
     if (this._maxTurns != null) args.push("--max-turns", String(this._maxTurns));
+    if (this._mcpConfig) args.push("--mcp-config", this._mcpConfig);
     if (this._showUsage) args.push("--show-usage");
     if (this._size) args.push("--size", this._size);
     return args;
