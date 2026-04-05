@@ -81,9 +81,13 @@ These are Claude-only and use downcasting via `as_any_mut()` in `agent_action.rs
 - `set_json_schema()` — native structured output
 - `set_event_handler()` — callback for streaming events
 
+### Model naming
+
+Claude's `AVAILABLE_MODELS` contains model **aliases** (e.g., `"sonnet"`, `"opus"`, `"haiku"`) not full model IDs (e.g., `"claude-sonnet-4-6"`). The Claude CLI resolves aliases to specific model IDs internally. When adding models, use the alias form.
+
 ### Adding a new model
 
-1. Add model name to `AVAILABLE_MODELS` in `claude/models.rs`
+1. Add model name to `AVAILABLE_MODELS` in `claude/mod.rs` (not `models.rs` — that file contains output parsing structures)
 2. Update `model_for_size()` if the new model should be a size alias target
 3. Update `default_model()` if it replaces the default
 
@@ -109,6 +113,13 @@ These are Claude-only and use downcasting via `as_any_mut()` in `agent_action.rs
 - [ ] Update `website/src/components/GettingStarted.tsx` — if install command changes
 - [ ] If new builder option: update all six bindings (TypeScript, Python, C#, Swift, Java, Kotlin) + their tests + READMEs (see parity checklist in CLAUDE.md and the `update-bindings` skill)
 
+## Web Discovery Tips
+
+- The Claude CLI binary is the most reliable source for flag discovery since it's installed locally. Run `claude --help` to get the full 70+ line help output — it includes all flags with descriptions and allowed values.
+- GitHub release notes at `https://github.com/anthropics/claude-code/releases/tag/v<version>` focus on user-facing changes (bug fixes, UI improvements). Most releases are bug fix releases without new CLI flags.
+- The Claude CLI has many flags not used by our provider (e.g., `--effort`, `--bare`, `--worktree`, `--mcp-config`, `--allowed-tools`). Only add support for flags that are useful for programmatic/non-interactive execution.
+- The Anthropic docs changelog at `https://docs.anthropic.com/en/docs/claude-code/changelog` may duplicate the GitHub releases.
+
 ## Verification
 
 ```sh
@@ -117,3 +128,13 @@ make test     # All tests must pass
 make clippy   # Zero warnings
 make fmt      # Format code
 ```
+
+## Skill Self-Improvement
+
+After completing an update session, improve this skill file:
+
+1. **Fix inaccuracies**: Correct any wrong URLs, flag names, method names, or behavioral descriptions discovered during the update.
+2. **Add discovery tips**: If you found useful search queries, source file paths, or workarounds, add them to the "Web Discovery Tips" section.
+3. **Update implementation patterns**: If the actual code differs from what's documented here (e.g., method names changed, new patterns emerged), update the patterns section.
+4. **Record known limitations**: Document any verified behavioral limitations with the version they were checked against.
+5. **Commit the skill update** along with the provider update so the improvements are preserved.

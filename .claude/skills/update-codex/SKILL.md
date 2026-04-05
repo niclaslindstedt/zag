@@ -39,7 +39,7 @@ GitHub release. Review the report before proceeding with manual changes.
 
 ### Primary
 
-- **Provider**: `zag-agent/src/providers/codex.rs` — `build_exec_args()`, `build_interactive_args()`, `build_resume_args()`, `parse_ndjson_output()`
+- **Provider**: `zag-agent/src/providers/codex.rs` — `build_run_args()`, `run_resume()`, `run_resume_with_prompt()`, `parse_ndjson_output()`
 - **Tests**: `zag-agent/src/providers/codex_tests.rs`
 
 ### Secondary (touch only if adding new capabilities)
@@ -57,10 +57,12 @@ Codex uses separate methods for different modes:
 
 **Non-interactive (exec)**:
 ```
-codex exec --skip-git-repo-check [--json] --cd <root> --model <model> \
-  [--add-dir <dir>] [--max-turns <n>] \
-  [--dangerously-bypass-approvals-and-sandbox --sandbox danger-full-access] <prompt>
+codex exec --skip-git-repo-check [--json] [--ephemeral] --cd <root> --model <model> \
+  [--add-dir <dir>] [--max-turns <n>] [--output-schema <path>] \
+  [--full-auto] <prompt>
 ```
+
+Note: Permission skipping uses `--full-auto` (not `--dangerously-bypass-approvals-and-sandbox`).
 
 **Interactive**:
 ```
@@ -95,10 +97,14 @@ Uses thread IDs extracted from NDJSON output. The `resume` subcommand takes a se
 2. Update `model_for_size()` if the new model should be a size alias target
 3. Update `default_model()` if it replaces the default
 
+### Structured output
+
+Codex supports `--output-schema <path>` to constrain the model's response to a JSON schema. Unlike Claude's `--json-schema` which takes inline JSON, Codex takes a file path to a schema file. The `set_output_schema()` setter stores this path and wires it into `build_run_args()` for non-interactive mode only.
+
 ### Adding a new flag
 
 1. Add field to `Codex` struct
-2. Wire into the appropriate arg builder (`build_exec_args()`, `build_interactive_args()`, or `build_resume_args()`)
+2. Wire into `build_run_args()` (handles both interactive and non-interactive via the `interactive` parameter) and/or `run_resume()` / `run_resume_with_prompt()`
 3. Add setter method following the existing pattern
 4. If user-facing: add to CLI args and agent_action wiring
 
@@ -114,6 +120,13 @@ Uses thread IDs extracted from NDJSON output. The `resume` subcommand takes a se
 - [ ] Update `website/src/components/GettingStarted.tsx` — if install command changes
 - [ ] If new builder option: update all six bindings (see parity checklist in CLAUDE.md and the `update-bindings` skill)
 
+## Web Discovery Tips
+
+- Codex has both JS/npm releases and Rust releases. The Rust CLI releases use tags like `rust-v0.118.0`. The npm releases are separate.
+- The Rust CLI source is at `codex-rs/exec/src/cli.rs` in the repo. Use `https://raw.githubusercontent.com/openai/codex/main/codex-rs/exec/src/cli.rs` to fetch the CLI definition directly.
+- The GitHub releases page sometimes has loading errors. If detailed release notes aren't visible, check individual release tags.
+- Alpha releases (e.g., `0.119.0-alpha.x`) are published frequently but should not be tracked — focus on stable releases.
+
 ## Verification
 
 ```sh
@@ -122,3 +135,13 @@ make test     # All tests must pass
 make clippy   # Zero warnings
 make fmt      # Format code
 ```
+
+## Skill Self-Improvement
+
+After completing an update session, improve this skill file:
+
+1. **Fix inaccuracies**: Correct any wrong URLs, flag names, method names, or behavioral descriptions discovered during the update.
+2. **Add discovery tips**: If you found useful search queries, source file paths, or workarounds for 404s, add them to the "Web Discovery Tips" section.
+3. **Update implementation patterns**: If the actual code differs from what's documented here (e.g., method names changed, new patterns emerged), update the patterns section.
+4. **Record known limitations**: Document any verified behavioral limitations with the version they were checked against.
+5. **Commit the skill update** along with the provider update so the improvements are preserved.

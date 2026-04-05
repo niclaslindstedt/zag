@@ -11,7 +11,7 @@ const providers = [
     org: "OpenAI",
     color: "text-codex border-codex/30",
     models: { small: "gpt-5.4-mini", medium: "gpt-5.3-codex", large: "gpt-5.4" },
-    features: ["Interactive", "Streaming", "Resume", "MCP"],
+    features: ["Interactive", "Streaming", "Resume", "JSON Schema", "MCP"],
   },
   {
     name: "Gemini",

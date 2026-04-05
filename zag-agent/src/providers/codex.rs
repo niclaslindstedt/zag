@@ -1,4 +1,4 @@
-// provider-updated: 2026-04-04
+// provider-updated: 2026-04-05
 use crate::agent::{Agent, ModelSize};
 use crate::output::AgentOutput;
 use crate::sandbox::SandboxConfig;
@@ -68,6 +68,7 @@ pub struct Codex {
     sandbox: Option<SandboxConfig>,
     max_turns: Option<u32>,
     ephemeral: bool,
+    output_schema: Option<String>,
 }
 
 pub struct CodexLiveLogAdapter {
@@ -93,11 +94,20 @@ impl Codex {
             sandbox: None,
             max_turns: None,
             ephemeral: false,
+            output_schema: None,
         }
     }
 
     pub fn set_ephemeral(&mut self, ephemeral: bool) {
         self.ephemeral = ephemeral;
+    }
+
+    /// Set a JSON Schema file path for structured output validation.
+    ///
+    /// The Codex CLI's `--output-schema` flag accepts a path to a JSON Schema
+    /// file that constrains the model's response shape.
+    pub fn set_output_schema(&mut self, schema: Option<String>) {
+        self.output_schema = schema;
     }
 
     fn get_base_path(&self) -> &Path {
@@ -263,6 +273,10 @@ impl Codex {
 
         if let Some(turns) = self.max_turns {
             args.extend(["--max-turns".to_string(), turns.to_string()]);
+        }
+
+        if !interactive && let Some(ref schema) = self.output_schema {
+            args.extend(["--output-schema".to_string(), schema.clone()]);
         }
 
         if let Some(p) = prompt {
@@ -704,6 +718,10 @@ impl Agent for Codex {
 
         if let Some(turns) = self.max_turns {
             args.extend(["--max-turns".to_string(), turns.to_string()]);
+        }
+
+        if let Some(ref schema) = self.output_schema {
+            args.extend(["--output-schema".to_string(), schema.clone()]);
         }
 
         args.extend(["--resume".to_string(), session_id.to_string()]);
