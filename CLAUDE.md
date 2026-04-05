@@ -10,12 +10,28 @@
 - `make website` — Build the website locally (output to `website/dist/`, gitignored)
 - `make website-dev` — Start website dev server
 
-## Commit Messages
+## Commits & Pull Requests
 
 - Conventional commit style: `type(scope): summary`
-- Types: `feat`, `fix`, `refactor`, `docs`, `test` (lowercase)
+- Types: `feat`, `fix`, `refactor`, `docs`, `test`, `perf`, `chore` (lowercase)
 - Scopes: lowercase, comma-separated if multiple (e.g. `refactor(codex,docs): update lineup`)
 - Imperative mood, specific to the change
+- Breaking changes: `type!: summary` or add `BREAKING CHANGE:` footer → major version bump
+
+**PRs are squash-merged.** The PR title becomes the single commit message on `main` — so PR titles must also follow `type(scope): summary` format. Individual commits within the branch don't affect the changelog; only the squashed commit does. **Use `/commit` to handle the full commit → push → PR workflow.**
+
+When adding commits to an existing PR, update the PR title and description to reflect the new combined scope of all changes.
+
+**Changelog impact** (driven by the squashed commit type):
+
+| Type | Changelog section | Version bump |
+|------|-------------------|--------------|
+| `feat` | Added | minor |
+| `fix` | Fixed | patch |
+| `perf` | Performance | patch |
+| `docs` | Documentation | none |
+| `test` | Tests | none |
+| `refactor`, `chore`, `ci`, `style`, `build` | *(not included)* | none |
 
 ## Architecture
 
@@ -54,7 +70,7 @@ Key design: trait-based `Agent` abstraction, factory pattern, builder API, subpr
 8. Update `CLAUDE.md` if architecture changed
 9. Update `man/*.md` if commands/flags/behavior changed
 10. **Do not manually edit `CHANGELOG.md`** — it is auto-generated from conventional commits at release time by CI
-11. Commit with `/commit`
+11. Commit, push, and open/update PR with `/commit` (handles conventional commit format, PR title, and changelog-eligible type selection)
 
 ## Parity Checklist
 
