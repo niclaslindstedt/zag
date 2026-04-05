@@ -62,6 +62,11 @@ pub(crate) fn capitalize(s: &str) -> String {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Explicitly select aws-lc-rs as the rustls crypto provider. Both aws-lc-rs
+    // and ring are transitively compiled in via different deps (reqwest vs
+    // tokio-tungstenite), causing a runtime panic unless one is installed first.
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+
     // Handle --help-agent before clap parsing so it works without a subcommand.
     if std::env::args().any(|a| a == "--help-agent") {
         print!("{}", HELP_AGENT);

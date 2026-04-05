@@ -3395,6 +3395,7 @@ dependencies = [
  "libc",
  "log",
  "reqwest",
+ "rustls",
  "serde_json",
  "tempfile",
  "tokio",
