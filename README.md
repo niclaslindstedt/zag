@@ -107,7 +107,7 @@ zag run [prompt]              Interactive session (optional initial prompt)
 zag exec <prompt>             Non-interactive — print output and exit
 zag review                    Code review (--uncommitted, --base, --commit)
 zag config [key] [value]      View or set configuration
-zag session list|show|import  List/inspect sessions, import historical logs
+zag session list|show|import|delete|update  List/inspect/manage sessions
 zag listen <id>               Tail a session's log events in real-time
 zag ps list|show|stop|kill    List, inspect, and manage agent processes
 zag search <query>            Search through session logs
@@ -136,8 +136,8 @@ zag connect <url> --token     Connect to a remote zag server
 zag disconnect                Disconnect from remote server
 
 zag capability                Show provider capability declarations
-zag skills list|add|remove|sync|import   Manage provider-agnostic skills
-zag mcp list|add|remove|sync|import     Manage MCP servers across providers
+zag skills list|show|add|remove|sync|import   Manage provider-agnostic skills
+zag mcp list|show|add|remove|sync|import     Manage MCP servers across providers
 zag whoami                    Show current session identity (for agents)
 zag man [command]             Built-in manual pages
 ```
