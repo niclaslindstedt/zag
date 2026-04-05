@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 export default function Footer() {
   return (
     <footer className="border-t border-border py-12">
@@ -19,14 +21,12 @@ export default function Footer() {
             >
               GitHub
             </a>
-            <a
-              href="https://github.com/niclaslindstedt/zag/tree/main/docs"
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              to="/docs/getting-started"
               className="hover:text-text-primary transition-colors"
             >
               Documentation
-            </a>
+            </Link>
             <a
               href="https://crates.io/crates/zag-cli"
               target="_blank"
