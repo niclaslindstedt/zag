@@ -16,9 +16,9 @@ export default function Hero() {
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-[600px] w-[800px] rounded-full bg-accent/5 blur-3xl" />
 
       <div className="relative mx-auto max-w-6xl px-6 text-center">
-        <div className="mb-6 inline-block rounded-full border border-border bg-surface-alt px-4 py-1.5 text-xs text-text-secondary">
+        <a href="https://crates.io/crates/zag" target="_blank" rel="noopener noreferrer" className="mb-6 inline-block rounded-full border border-border bg-surface-alt px-4 py-1.5 text-xs text-text-secondary hover:border-accent/50 hover:text-text-primary transition-colors">
           v0.5.0 — Now available on crates.io
-        </div>
+        </a>
 
         <h1 className="mx-auto max-w-4xl text-4xl leading-tight font-extrabold tracking-tight text-text-primary md:text-6xl md:leading-tight">
           One CLI for{" "}
