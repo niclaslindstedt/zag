@@ -3,7 +3,7 @@ const providers = [
     name: "Claude",
     org: "Anthropic",
     color: "text-claude border-claude/30",
-    models: { small: "haiku", medium: "sonnet", large: "opus / sonnet" },
+    models: { small: "haiku", medium: "sonnet", large: "default" },
     features: ["Interactive", "Streaming", "Resume", "JSON Schema", "MCP"],
   },
   {
@@ -17,14 +17,14 @@ const providers = [
     name: "Gemini",
     org: "Google",
     color: "text-gemini border-gemini/30",
-    models: { small: "flash-lite", medium: "flash", large: "pro" },
+    models: { small: "3.1-flash-lite", medium: "2.5-flash", large: "3.1-pro" },
     features: ["Interactive", "Streaming", "Resume", "MCP"],
   },
   {
     name: "Copilot",
     org: "GitHub",
     color: "text-copilot border-copilot/30",
-    models: { small: "haiku-4.5", medium: "sonnet-4.6", large: "opus-4.6" },
+    models: { small: "claude-haiku-4.5", medium: "claude-sonnet-4.6", large: "claude-opus-4.6" },
     features: ["Interactive", "Resume", "MCP"],
   },
   {
