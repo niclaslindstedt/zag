@@ -115,7 +115,7 @@ Copilot uniquely supports models from Claude, GPT, and Gemini families. When any
 - [ ] Update `README.md` — provider table, model size aliases
 - [ ] Update `website/src/components/Providers.tsx` — feature tags, model lists
 - [ ] Update `website/src/components/GettingStarted.tsx` — if install command changes
-- [ ] If new builder option: update all three bindings (see parity checklist in CLAUDE.md)
+- [ ] If new builder option: update all six bindings (see parity checklist in CLAUDE.md and the `update-bindings` skill)
 
 ## Verification
 

@@ -147,7 +147,7 @@ The default model (`qwen3.5`) may need updating when better small models become 
 - [ ] Update `README.md` — provider table, model size aliases
 - [ ] Update `website/src/components/Providers.tsx` — feature tags, size lists
 - [ ] Update `website/src/components/GettingStarted.tsx` — if install method changes
-- [ ] If new builder option: update all three bindings (see parity checklist in CLAUDE.md)
+- [ ] If new builder option: update all six bindings (see parity checklist in CLAUDE.md and the `update-bindings` skill)
 
 ## Verification
 
