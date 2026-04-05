@@ -6,7 +6,7 @@ export default function Hero() {
 
       <div className="relative mx-auto max-w-6xl px-6 text-center">
         <div className="mb-6 inline-block rounded-full border border-border bg-surface-alt px-4 py-1.5 text-xs text-text-secondary">
-          v0.3.0 — Now available on crates.io
+          v0.4.0 — Now available on crates.io
         </div>
 
         <h1 className="mx-auto max-w-4xl text-4xl leading-tight font-extrabold tracking-tight text-text-primary md:text-6xl md:leading-tight">
