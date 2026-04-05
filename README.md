@@ -163,6 +163,7 @@ zag man [command]             Built-in manual pages
 | `--description <text>` | | Short description of the session's purpose |
 | `--tag <tag>` | | Session tag (repeatable, for discovery/filtering) |
 | `--max-turns <n>` | | Maximum number of agentic turns |
+| `--mcp-config <config>` | | MCP server config: JSON string or file path (Claude only) |
 | `--size <size>` | | Ollama parameter size (e.g., 2b, 9b, 35b) |
 | `--show-usage` | | Show token usage statistics (JSON output mode) |
 | `--debug` | `-d` | Debug logging |
