@@ -1,3 +1,6 @@
+import Terminal from "./Terminal";
+import { terminalDemos } from "../data/terminalDemos";
+
 export default function Hero() {
   return (
     <section className="relative overflow-hidden pt-32 pb-20 md:pt-44 md:pb-32">
@@ -36,40 +39,8 @@ export default function Hero() {
           ))}
         </div>
 
-        {/* Terminal mockup */}
-        <div className="mx-auto mt-12 max-w-2xl overflow-hidden rounded-xl border border-border bg-surface-alt shadow-2xl">
-          <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-            <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
-            <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
-            <div className="h-3 w-3 rounded-full bg-[#28c840]" />
-            <span className="ml-2 text-xs text-text-dim">terminal</span>
-          </div>
-          <div className="p-5 text-left text-sm leading-relaxed">
-            <div className="text-text-dim">{"# Run with any provider"}</div>
-            <div>
-              <span className="text-accent">$</span>{" "}
-              <span className="text-text-primary">zag exec -p claude </span>
-              <span className="text-text-secondary">"Add error handling to src/api.rs"</span>
-            </div>
-            <div className="mt-3 text-text-dim">{"# Or let zag pick the best one"}</div>
-            <div>
-              <span className="text-accent">$</span>{" "}
-              <span className="text-text-primary">zag exec -p auto -m auto </span>
-              <span className="text-text-secondary">"Refactor the auth module"</span>
-            </div>
-            <div className="mt-3 text-text-dim">{"# Orchestrate multi-agent workflows"}</div>
-            <div>
-              <span className="text-accent">$</span>{" "}
-              <span className="text-text-primary">SID=$(zag spawn -p codex </span>
-              <span className="text-text-secondary">"Write tests"</span>
-              <span className="text-text-primary">)</span>
-            </div>
-            <div>
-              <span className="text-accent">$</span>{" "}
-              <span className="text-text-primary">zag wait $SID && zag collect $SID</span>
-            </div>
-          </div>
-        </div>
+        {/* Animated terminal */}
+        <Terminal tabs={terminalDemos} className="mx-auto mt-12 max-w-2xl" />
 
         {/* Install CTA */}
         <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
