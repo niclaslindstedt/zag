@@ -28,6 +28,7 @@ public class ZagBuilder {
     private String root;
     private boolean autoApprove;
     private final List<String> addDirs = new ArrayList<>();
+    private final List<String> envVars = new ArrayList<>();
     private boolean json;
     private Object jsonSchema;
     private boolean jsonStream;
@@ -71,6 +72,9 @@ public class ZagBuilder {
 
     /** Add an additional directory for the agent to include. */
     public ZagBuilder addDir(String d) { this.addDirs.add(d); return this; }
+
+    /** Add an environment variable for the agent subprocess. */
+    public ZagBuilder env(String key, String value) { this.envVars.add(key + "=" + value); return this; }
 
     /** Request JSON output from the agent. */
     public ZagBuilder json() { this.json = true; return this; }
@@ -158,6 +162,7 @@ public class ZagBuilder {
         if (root != null) { args.add("--root"); args.add(root); }
         if (autoApprove) args.add("--auto-approve");
         for (String d : addDirs) { args.add("--add-dir"); args.add(d); }
+        for (String e : envVars) { args.add("--env"); args.add(e); }
         if (worktree instanceof Boolean) {
             args.add("-w");
         } else if (worktree instanceof String wt) {

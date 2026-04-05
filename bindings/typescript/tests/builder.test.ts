@@ -24,9 +24,16 @@ describe("ZagBuilder", () => {
       .sessionId("abc-123")
       .maxTurns(5)
       .showUsage()
-      .size("9b");
+      .size("9b")
+      .env("FOO", "bar");
 
     assert.ok(builder);
+  });
+
+  it("should support env vars", () => {
+    const builder = new ZagBuilder().env("FOO", "bar").env("BAZ", "qux");
+    // @ts-expect-error -- accessing private for test
+    assert.deepStrictEqual(builder._envVars, ["FOO=bar", "BAZ=qux"]);
   });
 
   it("should support json options", () => {

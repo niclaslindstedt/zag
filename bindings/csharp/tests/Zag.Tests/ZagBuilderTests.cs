@@ -45,6 +45,22 @@ public class ZagBuilderTests
     }
 
     [Fact]
+    public void Builder_EnvVars_ProduceCorrectArgs()
+    {
+        var builder = new ZagBuilder()
+            .Env("FOO", "bar")
+            .Env("BAZ", "qux");
+
+        var args = builder.BuildGlobalArgs();
+
+        Assert.Contains("--env", args);
+        var idx = args.IndexOf("--env");
+        Assert.Equal("FOO=bar", args[idx + 1]);
+        Assert.Equal("--env", args[idx + 2]);
+        Assert.Equal("BAZ=qux", args[idx + 3]);
+    }
+
+    [Fact]
     public void Builder_ExecArgs_DefaultsToJson()
     {
         var builder = new ZagBuilder().Provider("claude");

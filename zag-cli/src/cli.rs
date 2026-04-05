@@ -65,6 +65,10 @@ pub(crate) struct AgentArgs {
     /// MCP server config for this invocation: JSON string or path to a JSON file (Claude only)
     #[arg(long)]
     pub(crate) mcp_config: Option<String>,
+
+    /// Environment variable to set for the agent subprocess (repeatable, KEY=VALUE format)
+    #[arg(long = "env", value_name = "KEY=VALUE")]
+    pub(crate) env_vars: Vec<String>,
 }
 
 /// Arguments for session discovery metadata (name, description, tags)

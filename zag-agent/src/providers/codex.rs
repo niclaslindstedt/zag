@@ -69,6 +69,7 @@ pub struct Codex {
     max_turns: Option<u32>,
     ephemeral: bool,
     output_schema: Option<String>,
+    env_vars: Vec<(String, String)>,
 }
 
 pub struct CodexLiveLogAdapter {
@@ -95,6 +96,7 @@ impl Codex {
             max_turns: None,
             ephemeral: false,
             output_schema: None,
+            env_vars: Vec::new(),
         }
     }
 
@@ -294,6 +296,9 @@ impl Codex {
         } else {
             let mut cmd = Command::new("codex");
             cmd.args(&agent_args);
+            for (key, value) in &self.env_vars {
+                cmd.env(key, value);
+            }
             cmd
         }
     }
@@ -646,6 +651,10 @@ impl Agent for Codex {
 
     fn set_add_dirs(&mut self, dirs: Vec<String>) {
         self.add_dirs = dirs;
+    }
+
+    fn set_env_vars(&mut self, vars: Vec<(String, String)>) {
+        self.env_vars = vars;
     }
 
     fn set_capture_output(&mut self, capture: bool) {

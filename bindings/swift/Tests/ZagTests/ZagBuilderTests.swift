@@ -40,6 +40,22 @@ struct ZagBuilderTests {
         ])
     }
 
+    @Test("env vars produce correct args")
+    func envVarsProduceCorrectArgs() {
+        let builder = ZagBuilder()
+            .env("FOO", "bar")
+            .env("BAZ", "qux")
+
+        let args = builder.buildGlobalArgs()
+
+        #expect(args.contains("--env"))
+        if let idx = args.firstIndex(of: "--env") {
+            #expect(args[idx + 1] == "FOO=bar")
+            #expect(args[idx + 2] == "--env")
+            #expect(args[idx + 3] == "BAZ=qux")
+        }
+    }
+
     @Test("exec args default to json output")
     func execArgsDefaultToJson() {
         let builder = ZagBuilder().provider("claude")

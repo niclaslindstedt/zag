@@ -22,6 +22,7 @@ These flags can be used with any subcommand.
     -r, --root <PATH>           Root directory to run the agent in
     -a, --auto-approve          Skip permission prompts (auto-approve all actions)
         --add-dir <PATH>        Additional directories to include (repeatable)
+        --env <KEY=VALUE>       Environment variable for the agent subprocess (repeatable)
     -w, --worktree [NAME]       Run in an isolated git worktree (optional name)
         --sandbox [NAME]        Run inside a Docker sandbox (optional name)
         --size <SIZE>           Model parameter size for Ollama (e.g., 2b, 9b, 35b)

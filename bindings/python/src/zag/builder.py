@@ -33,6 +33,7 @@ class ZagBuilder:
         self._root: str | None = None
         self._auto_approve: bool = False
         self._add_dirs: list[str] = []
+        self._env_vars: list[str] = []
         self._json: bool = False
         self._json_schema: dict | None = None
         self._json_stream: bool = False
@@ -86,6 +87,11 @@ class ZagBuilder:
     def add_dir(self, d: str) -> ZagBuilder:
         """Add an additional directory for the agent to include."""
         self._add_dirs.append(d)
+        return self
+
+    def env(self, key: str, value: str) -> ZagBuilder:
+        """Add an environment variable for the agent subprocess."""
+        self._env_vars.append(f"{key}={value}")
         return self
 
     def json_mode(self) -> ZagBuilder:
@@ -190,6 +196,8 @@ class ZagBuilder:
             args.append("--auto-approve")
         for d in self._add_dirs:
             args.extend(["--add-dir", d])
+        for e in self._env_vars:
+            args.extend(["--env", e])
         if self._worktree is True:
             args.append("-w")
         elif isinstance(self._worktree, str):

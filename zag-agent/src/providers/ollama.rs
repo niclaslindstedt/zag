@@ -24,6 +24,7 @@ pub struct Ollama {
     capture_output: bool,
     max_turns: Option<u32>,
     sandbox: Option<SandboxConfig>,
+    env_vars: Vec<(String, String)>,
 }
 
 pub struct OllamaHistoricalLogAdapter;
@@ -41,6 +42,7 @@ impl Ollama {
             capture_output: false,
             max_turns: None,
             sandbox: None,
+            env_vars: Vec::new(),
         }
     }
 
@@ -130,6 +132,9 @@ impl Ollama {
                 cmd.current_dir(root);
             }
             cmd.args(&agent_args);
+            for (key, value) in &self.env_vars {
+                cmd.env(key, value);
+            }
             cmd
         }
     }
@@ -294,6 +299,10 @@ impl Agent for Ollama {
 
     fn set_add_dirs(&mut self, dirs: Vec<String>) {
         self.add_dirs = dirs;
+    }
+
+    fn set_env_vars(&mut self, vars: Vec<(String, String)>) {
+        self.env_vars = vars;
     }
 
     fn as_any_ref(&self) -> &dyn std::any::Any {

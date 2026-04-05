@@ -53,6 +53,7 @@ pub struct AgentBuilder {
     root: Option<String>,
     auto_approve: bool,
     add_dirs: Vec<String>,
+    env_vars: Vec<(String, String)>,
     worktree: Option<Option<String>>,
     sandbox: Option<Option<String>>,
     size: Option<String>,
@@ -88,6 +89,7 @@ impl AgentBuilder {
             root: None,
             auto_approve: false,
             add_dirs: Vec::new(),
+            env_vars: Vec::new(),
             worktree: None,
             sandbox: None,
             size: None,
@@ -141,6 +143,12 @@ impl AgentBuilder {
     /// Add an additional directory for the agent to include.
     pub fn add_dir(mut self, dir: &str) -> Self {
         self.add_dirs.push(dir.to_string());
+        self
+    }
+
+    /// Add an environment variable for the agent subprocess.
+    pub fn env(mut self, key: &str, value: &str) -> Self {
+        self.env_vars.push((key.to_string(), value.to_string()));
         self
     }
 
@@ -391,6 +399,10 @@ impl AgentBuilder {
                 template: template.to_string(),
                 workspace,
             });
+        }
+
+        if !self.env_vars.is_empty() {
+            agent.set_env_vars(self.env_vars.clone());
         }
 
         self.progress.on_spinner_finish();

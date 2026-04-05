@@ -46,6 +46,50 @@ fn test_run_resume_rejects_continue() {
     assert!(Cli::try_parse_from(["zag", "run", "--resume", "sess-123", "--continue"]).is_err());
 }
 
+// --- parse_env_vars ---
+
+#[test]
+fn test_parse_env_vars_valid() {
+    let vars = vec!["FOO=bar".to_string(), "BAZ=qux".to_string()];
+    let result = parse_env_vars(&vars).unwrap();
+    assert_eq!(result.len(), 2);
+    assert_eq!(result[0], ("FOO".to_string(), "bar".to_string()));
+    assert_eq!(result[1], ("BAZ".to_string(), "qux".to_string()));
+}
+
+#[test]
+fn test_parse_env_vars_empty_value() {
+    let vars = vec!["FOO=".to_string()];
+    let result = parse_env_vars(&vars).unwrap();
+    assert_eq!(result[0], ("FOO".to_string(), String::new()));
+}
+
+#[test]
+fn test_parse_env_vars_value_with_equals() {
+    let vars = vec!["FOO=a=b".to_string()];
+    let result = parse_env_vars(&vars).unwrap();
+    assert_eq!(result[0], ("FOO".to_string(), "a=b".to_string()));
+}
+
+#[test]
+fn test_parse_env_vars_missing_equals() {
+    let vars = vec!["INVALID".to_string()];
+    assert!(parse_env_vars(&vars).is_err());
+}
+
+#[test]
+fn test_env_cli_parsing() {
+    let cli = Cli::try_parse_from(["zag", "run", "--env", "FOO=bar", "--env", "BAZ=qux"]).unwrap();
+    match cli.command {
+        Commands::Run { agent, .. } => {
+            assert_eq!(agent.env_vars.len(), 2);
+            assert_eq!(agent.env_vars[0], "FOO=bar");
+            assert_eq!(agent.env_vars[1], "BAZ=qux");
+        }
+        _ => panic!("expected run command"),
+    }
+}
+
 // --- resolve_provider ---
 
 #[test]

@@ -43,6 +43,21 @@ class ZagBuilderTests {
     }
 
     @Test
+    void builderEnvVars_produceCorrectArgs() {
+        var builder = new ZagBuilder()
+                .env("FOO", "bar")
+                .env("BAZ", "qux");
+
+        var args = builder.buildGlobalArgs();
+
+        assertTrue(args.contains("--env"));
+        int idx = args.indexOf("--env");
+        assertEquals("FOO=bar", args.get(idx + 1));
+        assertEquals("--env", args.get(idx + 2));
+        assertEquals("BAZ=qux", args.get(idx + 3));
+    }
+
+    @Test
     void builderExecArgs_defaultsToJson() {
         var builder = new ZagBuilder().provider("claude");
         var args = builder.buildExecArgs("hello", false);
