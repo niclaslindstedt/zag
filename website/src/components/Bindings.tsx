@@ -8,7 +8,7 @@ const result = await new ZagBuilder()
   .provider("claude")
   .model("sonnet")
   .systemPrompt("You are a code reviewer")
-  .jsonOutput()
+  .json()
   .exec("Review this pull request");
 
 console.log(result.output);`,
@@ -23,7 +23,7 @@ result = await (
     .provider("claude")
     .model("sonnet")
     .system_prompt("You are a code reviewer")
-    .json_output()
+    .json_mode()
     .exec("Review this pull request")
 )
 
@@ -38,7 +38,7 @@ var result = await new ZagBuilder()
     .Provider("claude")
     .Model("sonnet")
     .SystemPrompt("You are a code reviewer")
-    .JsonOutput()
+    .Json()
     .Exec("Review this pull request");
 
 Console.WriteLine(result.Output);`,
