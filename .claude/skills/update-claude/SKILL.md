@@ -107,7 +107,7 @@ These are Claude-only and use downcasting via `as_any_mut()` in `agent_action.rs
 - [ ] Update `README.md` — provider table, model size aliases
 - [ ] Update `website/src/components/Providers.tsx` — feature tags, model lists
 - [ ] Update `website/src/components/GettingStarted.tsx` — if install command changes
-- [ ] If new builder option: update all three bindings (TypeScript, Python, C#) + their tests + READMEs (see parity checklist in CLAUDE.md)
+- [ ] If new builder option: update all six bindings (TypeScript, Python, C#, Swift, Java, Kotlin) + their tests + READMEs (see parity checklist in CLAUDE.md and the `update-bindings` skill)
 
 ## Verification
 
