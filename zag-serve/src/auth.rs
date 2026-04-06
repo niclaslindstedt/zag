@@ -25,6 +25,8 @@ pub struct ServerState {
     pub token: Option<String>,
     pub user_store: Option<Arc<UserStore>>,
     pub token_store: Option<Arc<RwLock<TokenStore>>>,
+    /// When true, all connected users' agent sessions are forced to run inside a Docker sandbox.
+    pub force_sandbox: bool,
 }
 
 /// User context attached to requests when user-account mode is active.

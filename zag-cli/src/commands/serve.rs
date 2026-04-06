@@ -9,6 +9,7 @@ pub(crate) struct ServeParams {
     pub generate_token: bool,
     pub tls_cert: Option<String>,
     pub tls_key: Option<String>,
+    pub force_sandbox: bool,
 }
 
 pub(crate) async fn run_serve(params: ServeParams) -> Result<()> {
@@ -70,6 +71,9 @@ pub(crate) async fn run_serve(params: ServeParams) -> Result<()> {
         }
     };
 
+    // Resolve force_sandbox: flag > config
+    let force_sandbox = params.force_sandbox || config.server.force_sandbox;
+
     if has_user_accounts {
         eprintln!(
             "User accounts mode: loaded from {}",
@@ -79,6 +83,9 @@ pub(crate) async fn run_serve(params: ServeParams) -> Result<()> {
     if let Some(ref t) = token {
         eprintln!("Token: {}", t);
     }
+    if force_sandbox {
+        eprintln!("Force sandbox: enabled (all connected users run in Docker sandboxes)");
+    }
     eprintln!("Starting zag server on https://{}:{}", host, port);
 
     zag_serve::start_server(zag_serve::ServerParams {
@@ -87,6 +94,7 @@ pub(crate) async fn run_serve(params: ServeParams) -> Result<()> {
         token,
         tls_cert,
         tls_key,
+        force_sandbox,
     })
     .await
 }

@@ -15,6 +15,7 @@ fn test_app() -> axum::Router {
         token: Some("test-token-123".to_string()),
         user_store: None,
         token_store: None,
+        force_sandbox: false,
     })
 }
 

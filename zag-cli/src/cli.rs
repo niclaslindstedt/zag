@@ -852,6 +852,10 @@ pub enum Commands {
         /// TLS private key file path (PEM format); overrides auto-generated certificate
         #[arg(long, value_name = "PATH")]
         tls_key: Option<String>,
+
+        /// Force all connected users' agent sessions to run inside a Docker sandbox
+        #[arg(long)]
+        force_sandbox: bool,
     },
     /// Connect to a remote zag server (all subsequent commands proxy through it)
     Connect {

@@ -32,6 +32,8 @@ pub struct ServerParams {
     pub token: Option<String>,
     pub tls_cert: String,
     pub tls_key: String,
+    /// When true, all connected users' agent sessions are forced to run inside a Docker sandbox.
+    pub force_sandbox: bool,
 }
 
 /// Generate a cryptographically random 32-byte hex token.
@@ -118,6 +120,7 @@ pub async fn start_server(params: ServerParams) -> Result<()> {
         token: params.token,
         user_store,
         token_store,
+        force_sandbox: params.force_sandbox,
     };
 
     let app = router::build_router(state);
