@@ -462,6 +462,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
             base,
             commit,
             title,
+            prompt,
             agent,
         } => {
             let body = serde_json::json!({
@@ -469,6 +470,8 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
                 "base": base,
                 "commit": commit,
                 "title": title,
+                "prompt": prompt,
+                "provider": agent.provider,
                 "model": agent.model,
                 "root": agent.root,
                 "auto_approve": agent.auto_approve,
