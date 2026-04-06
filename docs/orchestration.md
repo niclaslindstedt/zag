@@ -45,6 +45,15 @@ Use `--json` to get structured output including the PID and log path:
 zag spawn --json -p claude "analyze performance" | jq .session_id
 ```
 
+### Timeout
+
+Set a per-agent timeout to automatically kill agents that run too long:
+
+```bash
+zag spawn --timeout 5m -p claude "quick review"
+zag exec --timeout 30s "simple question"
+```
+
 ### Tags and naming
 
 Tag and name sessions for easy discovery:

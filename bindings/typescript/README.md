@@ -71,6 +71,7 @@ for await (const event of new ZagBuilder().provider("claude").stream("analyze co
 | `.replayUserMessages()` | Re-emit user messages on stdout (Claude only) |
 | `.includePartialMessages()` | Include partial message chunks (Claude only) |
 | `.maxTurns(n)` | Set the maximum number of agentic turns |
+| `.timeout(duration)` | Set a timeout duration (e.g., "30s", "5m", "1h"). Kills the agent if exceeded. |
 | `.mcpConfig(config)` | MCP server config: JSON string or file path (Claude only) |
 | `.showUsage()` | Show token usage statistics (JSON output mode) |
 | `.size(size)` | Set Ollama model parameter size (e.g., `"2b"`, `"9b"`, `"35b"`) |

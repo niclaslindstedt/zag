@@ -23,6 +23,7 @@ describe("ZagBuilder", () => {
       .debug()
       .sessionId("abc-123")
       .maxTurns(5)
+      .timeout("5m")
       .showUsage()
       .size("9b")
       .env("FOO", "bar");
@@ -67,6 +68,13 @@ describe("ZagBuilder", () => {
   it("should support mcpConfig", () => {
     const builder = new ZagBuilder().mcpConfig("./mcp.json");
     assert.ok(builder);
+  });
+
+  it("should include timeout in exec args", () => {
+    const builder = new ZagBuilder().timeout("5m");
+    const args = (builder as any).buildExecArgs("test", false);
+    assert.ok(args.includes("--timeout"));
+    assert.ok(args.includes("5m"));
   });
 });
 

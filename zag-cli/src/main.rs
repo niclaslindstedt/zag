@@ -605,6 +605,7 @@ async fn main() -> Result<()> {
             json: spawn_json,
             depends_on,
             inject_context,
+            timeout,
             interactive,
         } => {
             if prompt.is_none() && !interactive {
@@ -624,6 +625,7 @@ async fn main() -> Result<()> {
                 add_dirs: agent.add_dirs,
                 size: agent.size,
                 max_turns: agent.max_turns,
+                timeout,
                 json: spawn_json,
                 metadata: zag_orch::types::SessionMetadata {
                     name: metadata.name,
@@ -753,6 +755,10 @@ async fn main() -> Result<()> {
                 Commands::Run { context, .. } => context.clone(),
                 _ => None,
             };
+            let timeout = match &action {
+                Commands::Exec { timeout, .. } => timeout.clone(),
+                _ => None,
+            };
             let session_isolation = session_args.unwrap_or(SessionIsolationArgs {
                 worktree: None,
                 sandbox: None,
@@ -787,6 +793,7 @@ async fn main() -> Result<()> {
                 session: session_isolation.session,
                 max_turns: agent_args.max_turns,
                 mcp_config: agent_args.mcp_config,
+                timeout,
                 exit_on_failure,
                 context_session,
                 env_vars: parse_env_vars(&agent_args.env_vars)?,

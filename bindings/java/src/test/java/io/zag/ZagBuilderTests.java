@@ -25,7 +25,8 @@ class ZagBuilderTests {
                 .addDir("/docs")
                 .verbose()
                 .debug()
-                .sessionId("sess-1");
+                .sessionId("sess-1")
+                .timeout("5m");
 
         var args = builder.buildGlobalArgs();
 
@@ -131,6 +132,13 @@ class ZagBuilderTests {
         var builder = new ZagBuilder().size("35b");
         var args = builder.buildGlobalArgs();
         assertEquals(List.of("--size", "35b"), args);
+    }
+
+    @Test
+    void timeout_includedInExecArgs() {
+        var args = new ZagBuilder().timeout("5m").buildExecArgs("test", false);
+        assertTrue(args.contains("--timeout"));
+        assertTrue(args.contains("5m"));
     }
 }
 

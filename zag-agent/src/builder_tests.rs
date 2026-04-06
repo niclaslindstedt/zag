@@ -136,6 +136,38 @@ fn test_builder_max_turns_setter() {
 }
 
 #[test]
+fn test_builder_timeout_setter() {
+    let builder = AgentBuilder::new().timeout(std::time::Duration::from_secs(300));
+    assert_eq!(builder.timeout, Some(std::time::Duration::from_secs(300)));
+}
+
+#[test]
+fn test_format_duration_seconds() {
+    assert_eq!(format_duration(std::time::Duration::from_secs(30)), "30s");
+}
+
+#[test]
+fn test_format_duration_minutes() {
+    assert_eq!(format_duration(std::time::Duration::from_secs(300)), "5m");
+}
+
+#[test]
+fn test_format_duration_hours_and_minutes() {
+    assert_eq!(
+        format_duration(std::time::Duration::from_secs(5400)),
+        "1h30m"
+    );
+}
+
+#[test]
+fn test_format_duration_combined() {
+    assert_eq!(
+        format_duration(std::time::Duration::from_secs(3661)),
+        "1h1m1s"
+    );
+}
+
+#[test]
 fn test_builder_size_setter() {
     let builder = AgentBuilder::new().size("2b");
     assert_eq!(builder.size.as_deref(), Some("2b"));
@@ -214,6 +246,7 @@ fn test_builder_default_impl() {
     assert_eq!(from_default.json_mode, from_new.json_mode);
     assert_eq!(from_default.json_stream, from_new.json_stream);
     assert_eq!(from_default.max_turns, from_new.max_turns);
+    assert_eq!(from_default.timeout, from_new.timeout);
     assert_eq!(from_default.show_usage, from_new.show_usage);
     assert_eq!(
         from_default.replay_user_messages,

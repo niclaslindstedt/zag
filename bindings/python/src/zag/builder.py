@@ -48,6 +48,7 @@ class ZagBuilder:
         self._replay_user_messages: bool = False
         self._include_partial_messages: bool = False
         self._max_turns: int | None = None
+        self._timeout: str | None = None
         self._mcp_config: str | None = None
         self._show_usage: bool = False
         self._size: str | None = None
@@ -165,6 +166,11 @@ class ZagBuilder:
         self._max_turns = n
         return self
 
+    def timeout(self, t: str) -> ZagBuilder:
+        """Set a timeout duration (e.g., ``"30s"``, ``"5m"``, ``"1h"``). Kills the agent if exceeded."""
+        self._timeout = t
+        return self
+
     def mcp_config(self, c: str) -> ZagBuilder:
         """Set MCP server config for this invocation: JSON string or file path (Claude only)."""
         self._mcp_config = c
@@ -241,6 +247,8 @@ class ZagBuilder:
             args.append("--replay-user-messages")
         if self._include_partial_messages:
             args.append("--include-partial-messages")
+        if self._timeout:
+            args.extend(["--timeout", self._timeout])
         # Default to json output for structured parsing
         if not streaming and not self._output_format and not self._json_stream:
             args.extend(["-o", "json"])

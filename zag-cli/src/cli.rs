@@ -173,6 +173,10 @@ pub enum Commands {
         #[arg(long, value_name = "SESSION_ID")]
         context: Option<String>,
 
+        /// Timeout duration (e.g., 30s, 5m, 1h). Kills the agent if exceeded.
+        #[arg(long, value_name = "DURATION")]
+        timeout: Option<String>,
+
         #[command(flatten)]
         agent: AgentArgs,
 
@@ -505,6 +509,10 @@ pub enum Commands {
         /// Auto-inject dependency session results as context
         #[arg(long)]
         inject_context: bool,
+
+        /// Timeout duration (e.g., 30s, 5m, 1h). Kills the agent if exceeded.
+        #[arg(long, value_name = "DURATION")]
+        timeout: Option<String>,
 
         /// Spawn a long-lived interactive session (FIFO-based, usable with zag input)
         #[arg(long, short = 'I')]

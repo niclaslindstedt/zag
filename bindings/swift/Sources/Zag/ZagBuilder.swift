@@ -54,6 +54,7 @@ public final class ZagBuilder {
     private var _replayUserMessages = false
     private var _includePartialMessages = false
     private var _maxTurns: Int?
+    private var _timeout: String?
     private var _mcpConfig: String?
     private var _showUsage = false
     private var _size: String?
@@ -164,6 +165,10 @@ public final class ZagBuilder {
     @discardableResult
     public func maxTurns(_ n: Int) -> Self { _maxTurns = n; return self }
 
+    /// Set a timeout duration (e.g., `"30s"`, `"5m"`, `"1h"`). Kills the agent if exceeded.
+    @discardableResult
+    public func timeout(_ t: String) -> Self { _timeout = t; return self }
+
     /// Set MCP server config for this invocation: JSON string or file path (Claude only).
     @discardableResult
     public func mcpConfig(_ c: String) -> Self { _mcpConfig = c; return self }
@@ -236,6 +241,7 @@ public final class ZagBuilder {
         if let f = _inputFormat { args += ["-i", f] }
         if _replayUserMessages { args.append("--replay-user-messages") }
         if _includePartialMessages { args.append("--include-partial-messages") }
+        if let t = _timeout { args += ["--timeout", t] }
         // Default to json output for structured parsing
         if !streaming && _outputFormat == nil && !_jsonStream {
             args += ["-o", "json"]
@@ -255,7 +261,8 @@ public final class ZagBuilder {
             systemPrompt: _systemPrompt,
             addDirs: _addDirs.isEmpty ? nil : _addDirs,
             size: _size,
-            maxTurns: _maxTurns.map { Int($0) }
+            maxTurns: _maxTurns.map { Int($0) },
+            timeout: _timeout
         )
     }
 

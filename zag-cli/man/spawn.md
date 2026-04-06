@@ -28,6 +28,7 @@ With `--interactive`, spawns a long-lived FIFO-based streaming session that stay
     --mcp-config <CONFIG>        MCP server config: JSON string or path to a JSON file (Claude only)
     --size <SIZE>                Ollama parameter size
     --max-turns <N>              Maximum number of agentic turns
+    --timeout <DURATION>         Timeout duration (e.g., 30s, 5m, 1h). Kills the agent if exceeded.
     --name <NAME>                Session name for discovery
     --description <TEXT>         Session description
     --tag <TAG>                  Session tag (repeatable)

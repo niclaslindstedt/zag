@@ -14,6 +14,7 @@ pub struct SpawnRequest {
     pub add_dirs: Option<Vec<String>>,
     pub size: Option<String>,
     pub max_turns: Option<u32>,
+    pub timeout: Option<String>,
     pub name: Option<String>,
     pub description: Option<String>,
     pub tags: Option<Vec<String>>,
