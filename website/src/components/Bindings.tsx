@@ -102,9 +102,9 @@ export default function Bindings() {
         <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {bindings.map((b) => (
             <div key={b.lang} className="overflow-hidden rounded-xl border border-border bg-surface-alt">
-              <div className="flex items-center justify-between border-b border-border px-5 py-3">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between border-b border-border px-5 py-3">
                 <span className="text-sm font-semibold text-text-primary">{b.lang}</span>
-                <code className="text-xs text-text-dim">{b.install}</code>
+                <code className="truncate text-xs text-text-dim">{b.install}</code>
               </div>
               <pre className="overflow-x-auto p-5 text-xs leading-relaxed text-text-secondary">
                 <code>{b.code}</code>
