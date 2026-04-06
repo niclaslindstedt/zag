@@ -25,7 +25,8 @@ public class ZagBuilderTests
             .AddDir("/docs")
             .Verbose()
             .Debug()
-            .SessionId("sess-1");
+            .SessionId("sess-1")
+            .Timeout("5m");
 
         var args = builder.BuildGlobalArgs();
 
@@ -144,6 +145,15 @@ public class ZagBuilderTests
         var builder = new ZagBuilder().Size("35b");
         var args = builder.BuildGlobalArgs();
         Assert.Equal(new[] { "--size", "35b" }, args);
+    }
+
+    [Fact]
+    public void Timeout_IncludedInExecArgs()
+    {
+        var builder = new ZagBuilder().Timeout("5m");
+        var args = builder.BuildExecArgs("test");
+        Assert.Contains("--timeout", args);
+        Assert.Contains("5m", args);
     }
 }
 

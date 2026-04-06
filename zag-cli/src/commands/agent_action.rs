@@ -40,6 +40,7 @@ pub(crate) struct AgentActionParams {
     pub(crate) session: Option<String>,
     pub(crate) max_turns: Option<u32>,
     pub(crate) mcp_config: Option<String>,
+    pub(crate) timeout: Option<String>,
     pub(crate) exit_on_failure: bool,
     pub(crate) context_session: Option<String>,
     pub(crate) env_vars: Vec<(String, String)>,
@@ -489,6 +490,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         session,
         max_turns,
         mcp_config,
+        timeout,
         exit_on_failure,
         context_session,
         env_vars,
@@ -920,13 +922,21 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         show_usage,
         verbose,
     };
-    let action_result = execute_action(
+    let action_future = execute_action(
         action,
         &mut *agent,
         &exec_ctx,
         Some(log_coordinator.writer()),
-    )
-    .await;
+    );
+    let action_result = if let Some(ref timeout_str) = timeout {
+        let duration = zag_orch::duration::parse_duration(timeout_str)?;
+        match tokio::time::timeout(duration, action_future).await {
+            Ok(r) => r,
+            Err(_) => Err(anyhow::anyhow!("Agent timed out after {}", timeout_str)),
+        }
+    } else {
+        action_future.await
+    };
 
     // Always run agent cleanup regardless of action result to prevent resource leaks.
     debug!("Cleaning up agent resources");

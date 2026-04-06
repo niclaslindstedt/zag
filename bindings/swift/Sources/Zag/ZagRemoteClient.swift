@@ -13,6 +13,7 @@ public struct SpawnParams: Codable, Sendable {
     public var addDirs: [String]?
     public var size: String?
     public var maxTurns: Int?
+    public var timeout: String?
     public var name: String?
     public var description: String?
     public var tags: [String]?
@@ -29,6 +30,7 @@ public struct SpawnParams: Codable, Sendable {
         addDirs: [String]? = nil,
         size: String? = nil,
         maxTurns: Int? = nil,
+        timeout: String? = nil,
         name: String? = nil,
         description: String? = nil,
         tags: [String]? = nil,
@@ -44,6 +46,7 @@ public struct SpawnParams: Codable, Sendable {
         self.addDirs = addDirs
         self.size = size
         self.maxTurns = maxTurns
+        self.timeout = timeout
         self.name = name
         self.description = description
         self.tags = tags

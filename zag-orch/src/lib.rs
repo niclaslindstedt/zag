@@ -8,6 +8,8 @@
 pub mod types;
 pub mod util;
 
+pub mod duration;
+
 pub mod cancel;
 pub mod collect;
 pub mod env;

@@ -52,6 +52,7 @@ pub async fn spawn(Json(req): Json<SpawnRequest>) -> impl IntoResponse {
         add_dirs: req.add_dirs.unwrap_or_default(),
         size: req.size,
         max_turns: req.max_turns,
+        timeout: req.timeout,
         json: true,
         metadata: zag_orch::types::SessionMetadata {
             name: req.name,

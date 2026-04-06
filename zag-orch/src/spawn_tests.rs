@@ -26,6 +26,7 @@ fn test_build_relay_args() {
         add_dirs: vec![],
         size: None,
         max_turns: None,
+        timeout: None,
         json: false,
         metadata: SessionMetadata {
             name: None,
@@ -61,6 +62,7 @@ fn test_build_relay_args_no_prompt() {
         add_dirs: vec![],
         size: None,
         max_turns: None,
+        timeout: None,
         json: false,
         metadata: SessionMetadata {
             name: None,
@@ -91,6 +93,7 @@ fn test_build_exec_args_has_prompt() {
         add_dirs: vec![],
         size: None,
         max_turns: Some(5),
+        timeout: None,
         json: false,
         metadata: SessionMetadata {
             name: Some("test".to_string()),

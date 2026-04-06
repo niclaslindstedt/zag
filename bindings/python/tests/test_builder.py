@@ -38,6 +38,7 @@ class TestZagBuilder:
             .debug()
             .session_id("abc-123")
             .max_turns(5)
+            .timeout("5m")
             .show_usage()
             .size("9b")
         )
@@ -52,6 +53,7 @@ class TestZagBuilder:
         assert builder._debug is True
         assert builder._session_id == "abc-123"
         assert builder._max_turns == 5
+        assert builder._timeout == "5m"
         assert builder._show_usage is True
         assert builder._size == "9b"
 
@@ -155,6 +157,12 @@ class TestZagBuilder:
 
         args = ZagBuilder().sandbox("box1")._global_args()
         assert ["--sandbox", "box1"] == args[-2:]
+
+    def test_timeout_in_exec_args(self) -> None:
+        builder = ZagBuilder().timeout("5m")
+        args = builder._exec_args("test")
+        assert "--timeout" in args
+        assert "5m" in args
 
     def test_bin_override(self) -> None:
         builder = ZagBuilder().bin("/usr/local/bin/zag")

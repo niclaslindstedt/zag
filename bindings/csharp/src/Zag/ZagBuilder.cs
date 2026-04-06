@@ -40,6 +40,7 @@ public class ZagBuilder
     private bool _replayUserMessages;
     private bool _includePartialMessages;
     private int? _maxTurns;
+    private string? _timeout;
     private string? _mcpConfig;
     private bool _showUsage;
     private string? _size;
@@ -112,6 +113,9 @@ public class ZagBuilder
     /// <summary>Set the maximum number of agentic turns.</summary>
     public ZagBuilder MaxTurns(int n) { _maxTurns = n; return this; }
 
+    /// <summary>Set a timeout duration (e.g., "30s", "5m", "1h"). Kills the agent if exceeded.</summary>
+    public ZagBuilder Timeout(string t) { _timeout = t; return this; }
+
     /// <summary>Set MCP server config for this invocation: JSON string or file path (Claude only).</summary>
     public ZagBuilder McpConfig(string c) { _mcpConfig = c; return this; }
 
@@ -163,6 +167,7 @@ public class ZagBuilder
         if (_inputFormat != null) { args.Add("-i"); args.Add(_inputFormat); }
         if (_replayUserMessages) args.Add("--replay-user-messages");
         if (_includePartialMessages) args.Add("--include-partial-messages");
+        if (_timeout != null) { args.Add("--timeout"); args.Add(_timeout); }
         // Default to json output for structured parsing
         if (!streaming && _outputFormat == null && !_jsonStream)
         {

@@ -47,6 +47,7 @@ export class ZagBuilder {
   private _replayUserMessages = false;
   private _includePartialMessages = false;
   private _maxTurns?: number;
+  private _timeout?: string;
   private _mcpConfig?: string;
   private _showUsage = false;
   private _size?: string;
@@ -184,6 +185,12 @@ export class ZagBuilder {
     return this;
   }
 
+  /** Set a timeout duration (e.g., "30s", "5m", "1h"). Kills the agent if exceeded. */
+  timeout(t: string): this {
+    this._timeout = t;
+    return this;
+  }
+
   /** Set MCP server config for this invocation: JSON string or file path (Claude only). */
   mcpConfig(c: string): this {
     this._mcpConfig = c;
@@ -246,6 +253,7 @@ export class ZagBuilder {
     if (this._inputFormat) args.push("-i", this._inputFormat);
     if (this._replayUserMessages) args.push("--replay-user-messages");
     if (this._includePartialMessages) args.push("--include-partial-messages");
+    if (this._timeout) args.push("--timeout", this._timeout);
     // For non-streaming exec, default to json output for structured parsing
     if (!streaming && !this._outputFormat && !this._jsonStream) {
       args.push("-o", "json");

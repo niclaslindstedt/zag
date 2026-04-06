@@ -89,6 +89,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
             json,
             depends_on,
             inject_context,
+            timeout,
             interactive,
         } => {
             let body = serde_json::json!({
@@ -101,6 +102,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
                 "add_dirs": if agent.add_dirs.is_empty() { None } else { Some(&agent.add_dirs) },
                 "size": agent.size,
                 "max_turns": agent.max_turns,
+                "timeout": timeout,
                 "name": metadata.name,
                 "description": metadata.description,
                 "tags": if metadata.tags.is_empty() { None } else { Some(&metadata.tags) },

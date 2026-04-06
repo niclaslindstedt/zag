@@ -22,6 +22,7 @@ pub struct SpawnParams {
     pub add_dirs: Vec<String>,
     pub size: Option<String>,
     pub max_turns: Option<u32>,
+    pub timeout: Option<String>,
     pub json: bool,
     pub metadata: SessionMetadata,
     pub depends_on: Vec<String>,
@@ -132,6 +133,12 @@ fn build_exec_args(params: &SpawnParams, session_id: &str) -> Vec<String> {
     if let Some(max_turns) = params.max_turns {
         args.push("--max-turns".to_string());
         args.push(max_turns.to_string());
+    }
+
+    // Timeout
+    if let Some(ref timeout) = params.timeout {
+        args.push("--timeout".to_string());
+        args.push(timeout.clone());
     }
 
     // Session metadata

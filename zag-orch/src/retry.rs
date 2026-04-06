@@ -153,6 +153,7 @@ pub fn retry_sessions(params: &RetryParams) -> Result<Vec<RetryResult>> {
             add_dirs: vec![],
             size: None,
             max_turns: None,
+            timeout: None,
             json: params.json,
             metadata: SessionMetadata {
                 name: entry.name.clone(),

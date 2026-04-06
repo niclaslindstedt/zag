@@ -26,6 +26,7 @@ By default, exec mode suppresses wrapper UI (spinners, status messages, icons) s
     --description <TEXT>          Short description of the session's purpose
     --tag <TAG>                   Session tag for discovery (repeatable)
     --max-turns <N>               Maximum number of agentic turns
+    --timeout <DURATION>          Timeout duration (e.g., 30s, 5m, 1h). Kills the agent if exceeded.
     --env <KEY=VALUE>             Environment variable for the agent subprocess (repeatable)
     --mcp-config <CONFIG>         MCP server config: JSON string or path to a JSON file (Claude only)
 
@@ -118,6 +119,7 @@ In exec mode, the sandbox is kept after execution (no cleanup prompt). Resume wi
     zag --sandbox exec "write tests"                  Run in Docker sandbox
     zag --session $(uuidgen) exec "say hello"          Pre-set session ID
     zag exec --name backend --tag api "implement API"  Named and tagged session
+    zag exec --timeout 5m "complex task"               Kill agent after 5 minutes
     zag -p ollama exec "explain this code"            Ollama non-interactive
     zag -p ollama --size 35b exec "complex task"      Ollama with large size
 

@@ -41,6 +41,26 @@ use crate::streaming::StreamingSession;
 use crate::worktree;
 use anyhow::{Result, bail};
 use log::{debug, warn};
+use std::time::Duration;
+
+/// Format a Duration as a human-readable string (e.g., "5m", "1h30m").
+fn format_duration(d: Duration) -> String {
+    let total_secs = d.as_secs();
+    let h = total_secs / 3600;
+    let m = (total_secs % 3600) / 60;
+    let s = total_secs % 60;
+    let mut parts = Vec::new();
+    if h > 0 {
+        parts.push(format!("{h}h"));
+    }
+    if m > 0 {
+        parts.push(format!("{m}m"));
+    }
+    if s > 0 || parts.is_empty() {
+        parts.push(format!("{s}s"));
+    }
+    parts.join("")
+}
 
 /// Builder for configuring and running agent sessions.
 ///
@@ -69,6 +89,7 @@ pub struct AgentBuilder {
     quiet: bool,
     show_usage: bool,
     max_turns: Option<u32>,
+    timeout: Option<std::time::Duration>,
     mcp_config: Option<String>,
     progress: Box<dyn ProgressHandler>,
 }
@@ -105,6 +126,7 @@ impl AgentBuilder {
             quiet: false,
             show_usage: false,
             max_turns: None,
+            timeout: None,
             mcp_config: None,
             progress: Box::new(SilentProgress),
         }
@@ -245,6 +267,13 @@ impl AgentBuilder {
     /// Set the maximum number of agentic turns.
     pub fn max_turns(mut self, turns: u32) -> Self {
         self.max_turns = Some(turns);
+        self
+    }
+
+    /// Set a timeout for exec. If the agent doesn't complete within this
+    /// duration, it will be killed and an error returned.
+    pub fn timeout(mut self, duration: std::time::Duration) -> Self {
+        self.timeout = Some(duration);
         self
     }
 
@@ -455,7 +484,17 @@ impl AgentBuilder {
             prompt.to_string()
         };
 
-        let result = agent.run(Some(&effective_prompt)).await?;
+        let result = if let Some(timeout_dur) = builder.timeout {
+            match tokio::time::timeout(timeout_dur, agent.run(Some(&effective_prompt))).await {
+                Ok(r) => r?,
+                Err(_) => {
+                    agent.cleanup().await.ok();
+                    bail!("Agent timed out after {}", format_duration(timeout_dur));
+                }
+            }
+        } else {
+            agent.run(Some(&effective_prompt)).await?
+        };
 
         // Clean up
         agent.cleanup().await?;

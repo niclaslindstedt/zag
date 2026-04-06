@@ -28,6 +28,7 @@ class ZagBuilderTests {
             .verbose()
             .debug()
             .sessionId("sess-1")
+            .timeout("5m")
 
         val args = builder.buildGlobalArgs()
 
@@ -135,6 +136,13 @@ class ZagBuilderTests {
         val builder = ZagBuilder().size("35b")
         val args = builder.buildGlobalArgs()
         assertEquals(listOf("--size", "35b"), args)
+    }
+
+    @Test
+    fun `timeout included in exec args`() {
+        val args = ZagBuilder().timeout("5m").buildExecArgs("test")
+        assertTrue(args.contains("--timeout"))
+        assertTrue(args.contains("5m"))
     }
 }
 

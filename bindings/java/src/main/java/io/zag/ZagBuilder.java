@@ -43,6 +43,7 @@ public class ZagBuilder {
     private boolean replayUserMessages;
     private boolean includePartialMessages;
     private Integer maxTurns;
+    private String timeout;
     private String mcpConfig;
     private boolean showUsage;
     private String size;
@@ -139,6 +140,9 @@ public class ZagBuilder {
     /** Set the maximum number of agentic turns. */
     public ZagBuilder maxTurns(int n) { this.maxTurns = n; return this; }
 
+    /** Set a timeout duration (e.g., "30s", "5m", "1h"). Kills the agent if exceeded. */
+    public ZagBuilder timeout(String t) { this.timeout = t; return this; }
+
     /** Set MCP server config for this invocation: JSON string or file path (Claude only). */
     public ZagBuilder mcpConfig(String c) { this.mcpConfig = c; return this; }
 
@@ -202,6 +206,7 @@ public class ZagBuilder {
         if (inputFormat != null) { args.add("-i"); args.add(inputFormat); }
         if (replayUserMessages) args.add("--replay-user-messages");
         if (includePartialMessages) args.add("--include-partial-messages");
+        if (timeout != null) { args.add("--timeout"); args.add(timeout); }
         // Default to json output for structured parsing
         if (!streaming && outputFormat == null && !jsonStream) {
             args.add("-o"); args.add("json");

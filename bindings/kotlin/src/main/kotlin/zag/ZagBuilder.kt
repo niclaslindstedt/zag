@@ -40,6 +40,7 @@ class ZagBuilder {
     private var _replayUserMessages: Boolean = false
     private var _includePartialMessages: Boolean = false
     private var _maxTurns: Int? = null
+    private var _timeout: String? = null
     private var _mcpConfig: String? = null
     private var _showUsage: Boolean = false
     private var _size: String? = null
@@ -112,6 +113,9 @@ class ZagBuilder {
     /** Set the maximum number of agentic turns. */
     fun maxTurns(n: Int) = apply { _maxTurns = n }
 
+    /** Set a timeout duration (e.g., "30s", "5m", "1h"). Kills the agent if exceeded. */
+    fun timeout(t: String) = apply { _timeout = t }
+
     /** Set MCP server config for this invocation: JSON string or file path (Claude only). */
     fun mcpConfig(c: String) = apply { _mcpConfig = c }
 
@@ -164,6 +168,7 @@ class ZagBuilder {
         _inputFormat?.let { args.addAll(listOf("-i", it)) }
         if (_replayUserMessages) args.add("--replay-user-messages")
         if (_includePartialMessages) args.add("--include-partial-messages")
+        _timeout?.let { args.addAll(listOf("--timeout", it)) }
         // Default to json output for structured parsing
         if (!streaming && _outputFormat == null && !_jsonStream) {
             args.addAll(listOf("-o", "json"))

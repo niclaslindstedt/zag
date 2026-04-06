@@ -25,6 +25,7 @@ struct ZagBuilderTests {
             .verbose()
             .debug()
             .sessionId("sess-1")
+            .timeout("5m")
 
         let args = builder.buildGlobalArgs()
 
@@ -132,6 +133,13 @@ struct ZagBuilderTests {
         #expect(args == ["--size", "35b"])
     }
 
+    @Test("timeout included in exec args")
+    func timeoutInExecArgs() {
+        let args = ZagBuilder().timeout("5m").buildExecArgs(prompt: "test")
+        #expect(args.contains("--timeout"))
+        #expect(args.contains("5m"))
+    }
+
     @Test("system prompt")
     func systemPrompt() {
         let builder = ZagBuilder().systemPrompt("You are helpful")
@@ -198,6 +206,7 @@ struct ZagBuilderTests {
             .addDir("/docs")
             .systemPrompt("Be helpful")
             .maxTurns(10)
+            .timeout("5m")
             .size("9b")
 
         let params = builder.buildSpawnParams(prompt: "hello")
@@ -209,6 +218,7 @@ struct ZagBuilderTests {
         #expect(params.addDirs == ["/docs"])
         #expect(params.systemPrompt == "Be helpful")
         #expect(params.maxTurns == 10)
+        #expect(params.timeout == "5m")
         #expect(params.size == "9b")
     }
 
