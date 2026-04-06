@@ -81,7 +81,7 @@ export default function Navbar() {
             onClick={() => setMenuOpen(false)}
           />
           <div className="relative z-50 border-t border-border bg-surface/95 backdrop-blur-md px-6 py-4 md:hidden">
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4" onClick={() => setMenuOpen(false)}>
               {navLinks}
             </div>
           </div>

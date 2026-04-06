@@ -26,11 +26,10 @@ export default function CodeBlock({ children, ...props }: CodeBlockProps) {
   };
 
   return (
-    <pre {...props}>
-      {children}
+    <div className="relative">
       <button
         onClick={handleCopy}
-        className="absolute top-2 right-2 p-1.5 rounded text-text-dim hover:text-text-primary transition-colors cursor-pointer"
+        className="absolute top-2 right-2 z-10 p-1.5 rounded text-text-dim hover:text-text-primary transition-colors cursor-pointer"
         aria-label="Copy code"
       >
         {copied ? (
@@ -43,6 +42,9 @@ export default function CodeBlock({ children, ...props }: CodeBlockProps) {
           </svg>
         )}
       </button>
-    </pre>
+      <pre {...props}>
+        {children}
+      </pre>
+    </div>
   );
 }
