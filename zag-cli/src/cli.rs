@@ -135,6 +135,10 @@ pub enum Commands {
         #[arg(long, value_name = "SESSION_ID")]
         context: Option<String>,
 
+        /// Path to a plan file to prepend as context
+        #[arg(long, value_name = "PATH")]
+        plan: Option<String>,
+
         #[command(flatten)]
         agent: AgentArgs,
 
@@ -173,6 +177,10 @@ pub enum Commands {
         #[arg(long, value_name = "SESSION_ID")]
         context: Option<String>,
 
+        /// Path to a plan file to prepend as context
+        #[arg(long, value_name = "PATH")]
+        plan: Option<String>,
+
         /// Timeout duration (e.g., 30s, 5m, 1h). Kills the agent if exceeded.
         #[arg(long, value_name = "DURATION")]
         timeout: Option<String>,
@@ -206,6 +214,22 @@ pub enum Commands {
 
         /// Additional instructions for the review
         prompt: Option<String>,
+
+        #[command(flatten)]
+        agent: AgentArgs,
+    },
+    /// Generate an implementation plan
+    Plan {
+        /// What to plan (goal or task description)
+        goal: String,
+
+        /// Output path (file or directory; streams to stdout if omitted)
+        #[arg(short = 'o', long)]
+        output: Option<String>,
+
+        /// Additional planning instructions
+        #[arg(long)]
+        instructions: Option<String>,
 
         #[command(flatten)]
         agent: AgentArgs,
@@ -494,6 +518,10 @@ pub enum Commands {
     Spawn {
         /// The prompt to send to the agent (optional with --interactive)
         prompt: Option<String>,
+
+        /// Path to a plan file to prepend as context
+        #[arg(long, value_name = "PATH")]
+        plan: Option<String>,
 
         #[command(flatten)]
         agent: AgentArgs,
@@ -1081,6 +1109,7 @@ pub(crate) fn command_agent_args(cmd: &Commands) -> Option<&AgentArgs> {
         Commands::Run { agent, .. } => Some(agent),
         Commands::Exec { agent, .. } => Some(agent),
         Commands::Review { agent, .. } => Some(agent),
+        Commands::Plan { agent, .. } => Some(agent),
         Commands::Spawn { agent, .. } => Some(agent),
         Commands::Pipe { agent, .. } => Some(agent),
         _ => None,
