@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-04-06
+
+### Added
+
+- Add user account support with per-user isolation (#81)
+- Extract code-sourced data from Rust source for website (#80)
+- Add CLI version tracking and compatibility checking (#79)
+- Add prompt-based review support for all providers (#78)
+- Add --timeout flag to exec and spawn commands (#76)
+
+### Fixed
+
+- Improve mobile responsiveness across landing page (#77)
+- Add id attributes to headings for in-page anchor links (#75)
+- Improve mobile support and UI fixes (#74)
+
 ## [0.6.0] - 2026-04-05
 
 ### Added

@@ -64,7 +64,7 @@ export interface ConfigSection {
 
 // --- Data ---
 
-export const version = "0.6.0";
+export const version = "0.7.0";
 
 export const providerCount = 5;
 
@@ -581,7 +581,7 @@ export const commands: CommandData[] = [
   },
   {
     "name": "review",
-    "description": "Review code changes (uses Codex under the hood)",
+    "description": "Review code changes",
     "category": "core"
   },
   {
@@ -733,6 +733,11 @@ export const commands: CommandData[] = [
     "name": "disconnect",
     "description": "Disconnect from the remote zag server",
     "category": "remote"
+  },
+  {
+    "name": "user",
+    "description": "Manage user accounts on the server",
+    "category": "core"
   }
 ];
 
@@ -906,12 +911,12 @@ export const bindings: BindingData[] = [
   {
     "language": "Swift",
     "directory": "swift",
-    "installCommand": ".package(url: \"https://github.com/niclaslindstedt/zag\", from: \"0.6.0\")"
+    "installCommand": ".package(url: \"https://github.com/niclaslindstedt/zag\", from: \"0.7.0\")"
   },
   {
     "language": "Java",
     "directory": "java",
-    "installCommand": "io.zag:zag:0.6.0"
+    "installCommand": "io.zag:zag:0.7.0"
   },
   {
     "language": "Kotlin",
