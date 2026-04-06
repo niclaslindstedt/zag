@@ -30,6 +30,7 @@ fn connect_config_round_trip() {
     let config = ConnectConfig {
         url: "https://example.com:2100".to_string(),
         token: "abc123".to_string(),
+        username: None,
     };
     let json = serde_json::to_string(&config).unwrap();
     let parsed: ConnectConfig = serde_json::from_str(&json).unwrap();

@@ -260,3 +260,24 @@ pub struct SessionUpdateRequest {
 pub struct EnvQuery {
     pub shell: Option<bool>,
 }
+
+/// Request body for POST /api/v1/login
+#[derive(Debug, Deserialize)]
+pub struct LoginRequest {
+    pub username: String,
+    pub password: String,
+}
+
+/// Response for POST /api/v1/login
+#[derive(Debug, Serialize)]
+pub struct LoginResponse {
+    pub token: String,
+    pub username: String,
+    pub home_dir: String,
+}
+
+/// Response for POST /api/v1/logout
+#[derive(Debug, Serialize)]
+pub struct LogoutResponse {
+    pub message: String,
+}

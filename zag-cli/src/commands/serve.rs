@@ -48,22 +48,37 @@ pub(crate) async fn run_serve(params: ServeParams) -> Result<()> {
     }
 
     // Resolve token: flag > env > config > auto-generate
+    // In user-accounts mode (users.json exists) the legacy token is optional.
+    let has_user_accounts = zag_serve::user::UserStore::exists();
     let token = if let Some(t) = params.token {
-        t
+        Some(t)
     } else if let Ok(t) = std::env::var("ZAG_SERVE_TOKEN") {
-        t
+        Some(t)
     } else {
         match config.server.token {
-            Some(t) if !params.generate_token => t,
+            Some(t) if !params.generate_token => Some(t),
             _ => {
-                let t = zag_serve::generate_token();
-                zag_serve::save_token_to_config(&t)?;
-                t
+                if has_user_accounts {
+                    // No legacy token needed in user-accounts mode
+                    None
+                } else {
+                    let t = zag_serve::generate_token();
+                    zag_serve::save_token_to_config(&t)?;
+                    Some(t)
+                }
             }
         }
     };
 
-    eprintln!("Token: {}", token);
+    if has_user_accounts {
+        eprintln!(
+            "User accounts mode: loaded from {}",
+            zag_serve::user::UserStore::path().display()
+        );
+    }
+    if let Some(ref t) = token {
+        eprintln!("Token: {}", t);
+    }
     eprintln!("Starting zag server on https://{}:{}", host, port);
 
     zag_serve::start_server(zag_serve::ServerParams {

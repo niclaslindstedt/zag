@@ -5,6 +5,10 @@ use anyhow::Result;
 use std::path::PathBuf;
 
 pub fn logs_dir(root: Option<&str>) -> PathBuf {
+    // Per-user log directory override (set by zag serve in user-account mode)
+    if let Ok(user_log_dir) = std::env::var("ZAG_USER_LOG_DIR") {
+        return PathBuf::from(user_log_dir);
+    }
     Config::agent_dir(root).join("logs")
 }
 

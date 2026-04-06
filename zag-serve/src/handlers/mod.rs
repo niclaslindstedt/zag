@@ -1,3 +1,4 @@
+pub mod auth_handler;
 pub mod capability;
 pub mod config;
 pub mod health;

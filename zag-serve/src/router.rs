@@ -17,9 +17,14 @@ pub fn build_router(state: ServerState) -> Router {
 
     use crate::handlers::{capability, config, mcp, orchestration, skills};
 
+    use crate::handlers::auth_handler;
+
     Router::new()
         // Health check (no auth)
         .route("/api/v1/health", routing::get(health::health))
+        // Login/logout (login skips auth via middleware)
+        .route("/api/v1/login", routing::post(auth_handler::login))
+        .route("/api/v1/logout", routing::post(auth_handler::logout))
         // Session management
         .route("/api/v1/sessions", routing::get(sessions::list))
         .route("/api/v1/sessions/spawn", routing::post(sessions::spawn))

@@ -37,6 +37,7 @@ fn test_build_relay_args() {
         inject_context: false,
         retried_from: None,
         interactive: true,
+        env_vars: vec![],
     };
     let args = build_relay_args(&params, "test-session-id");
     assert!(args.contains(&"relay".to_string()));
@@ -73,6 +74,7 @@ fn test_build_relay_args_no_prompt() {
         inject_context: false,
         retried_from: None,
         interactive: true,
+        env_vars: vec![],
     };
     let args = build_relay_args(&params, "test-id");
     assert!(args.contains(&"relay".to_string()));
@@ -104,6 +106,7 @@ fn test_build_exec_args_has_prompt() {
         inject_context: false,
         retried_from: None,
         interactive: false,
+        env_vars: vec![],
     };
     let args = build_exec_args(&params, "test-id");
     assert!(args.contains(&"exec".to_string()));

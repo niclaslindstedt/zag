@@ -9,21 +9,27 @@ pub mod config;
 pub mod handlers;
 pub mod middleware;
 pub mod router;
+pub mod session_token;
 pub mod types;
+pub mod user;
 pub mod ws;
 
 use anyhow::Result;
 use log::info;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 use auth::ServerState;
+use session_token::TokenStore;
+use user::UserStore;
 
 /// Parameters for starting the server.
 pub struct ServerParams {
     pub host: String,
     pub port: u16,
-    pub token: String,
+    pub token: Option<String>,
     pub tls_cert: String,
     pub tls_key: String,
 }
@@ -92,8 +98,26 @@ pub fn ensure_self_signed_cert(host: &str) -> Result<(String, String)> {
 
 /// Start the zag server. This function blocks until the server is shut down.
 pub async fn start_server(params: ServerParams) -> Result<()> {
+    // Determine auth mode: user accounts (if users.json exists) or legacy token
+    let (user_store, token_store) = if UserStore::exists() {
+        let store = UserStore::load()?;
+        info!(
+            "User accounts mode: loaded {} user(s) from {}",
+            store.users.len(),
+            UserStore::path().display()
+        );
+        (
+            Some(Arc::new(store)),
+            Some(Arc::new(RwLock::new(TokenStore::new()))),
+        )
+    } else {
+        (None, None)
+    };
+
     let state = ServerState {
         token: params.token,
+        user_store,
+        token_store,
     };
 
     let app = router::build_router(state);

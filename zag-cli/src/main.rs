@@ -32,7 +32,7 @@ pub(crate) use cli::{
 };
 pub(crate) use commands::{
     AgentActionParams, run_agent_action, run_config, run_connect, run_disconnect, run_mcp,
-    run_session, run_skills,
+    run_session, run_skills, run_user,
 };
 
 use anyhow::{Result, bail};
@@ -235,8 +235,16 @@ async fn main() -> Result<()> {
             })
             .await?;
         }
-        Commands::Connect { url, token } => {
-            run_connect(url, token).await?;
+        Commands::Connect {
+            url,
+            token,
+            username,
+            password,
+        } => {
+            run_connect(url, token, username, password).await?;
+        }
+        Commands::User { command, json } => {
+            run_user(command, json)?;
         }
         Commands::Disconnect => {
             run_disconnect()?;
@@ -636,6 +644,7 @@ async fn main() -> Result<()> {
                 inject_context,
                 retried_from: None,
                 interactive,
+                env_vars: vec![],
             })?;
         }
         Commands::Relay {

@@ -74,6 +74,9 @@ impl ServeConfig {
 pub struct ConnectConfig {
     pub url: String,
     pub token: String,
+    /// Username of the authenticated user (present in user-account mode).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub username: Option<String>,
 }
 
 impl ConnectConfig {
