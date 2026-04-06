@@ -55,7 +55,7 @@ export default function GettingStarted() {
           </h3>
           <div className="mx-auto max-w-2xl space-y-2">
             {prereqs.map((p) => (
-              <div key={p.name} className="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-2.5">
+              <div key={p.name} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-border bg-surface px-4 py-2.5">
                 <span className="text-sm font-medium text-text-secondary">{p.name}</span>
                 <code className="text-xs text-text-dim">{p.cmd}</code>
               </div>
@@ -66,7 +66,7 @@ export default function GettingStarted() {
         {/* Quick verify */}
         <div className="mx-auto mt-12 max-w-lg rounded-xl border border-border bg-surface p-5">
           <p className="mb-3 text-center text-sm text-text-secondary">Verify your installation:</p>
-          <pre className="overflow-x-auto text-center text-sm text-text-secondary">
+          <pre className="overflow-x-auto text-sm text-text-secondary">
             <code>
               <span className="text-accent">$</span> zag exec -p claude "Hello from zag!"
             </code>

@@ -27,7 +27,7 @@ function LandingPage() {
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-surface overflow-x-hidden">
       <Navbar />
       <Routes>
         <Route path="/" element={<LandingPage />} />

@@ -83,12 +83,12 @@ export default function CodeExamples() {
 
         <div className="mt-12 overflow-hidden rounded-xl border border-border bg-surface shadow-2xl">
           {/* Tab bar */}
-          <div className="flex border-b border-border">
+          <div className="flex overflow-x-auto border-b border-border">
             {tabs.map((t, i) => (
               <button
                 key={t.label}
                 onClick={() => setActive(i)}
-                className={`px-5 py-3 text-sm font-medium transition-colors ${
+                className={`shrink-0 whitespace-nowrap px-5 py-3 text-sm font-medium transition-colors ${
                   i === active
                     ? "border-b-2 border-accent text-accent bg-surface-alt"
                     : "text-text-dim hover:text-text-secondary"

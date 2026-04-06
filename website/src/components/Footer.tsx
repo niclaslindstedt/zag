@@ -12,7 +12,7 @@ export default function Footer() {
             <p className="mt-1 text-sm text-text-dim">One CLI for all your AI coding agents</p>
           </div>
 
-          <div className="flex gap-8 text-sm text-text-secondary">
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-text-secondary">
             <a
               href="https://github.com/niclaslindstedt/zag"
               target="_blank"
