@@ -34,6 +34,7 @@ fn test_app_user_mode_with_legacy_token() -> axum::Router {
         token: Some("super-token-456".to_string()),
         user_store: Some(Arc::new(user_store)),
         token_store: Some(Arc::new(RwLock::new(TokenStore::new()))),
+        force_sandbox: false,
     })
 }
 
@@ -141,6 +142,7 @@ async fn session_token_still_works_in_user_account_mode() {
         token: Some("super-token-456".to_string()),
         user_store: Some(Arc::new(user_store)),
         token_store: Some(token_store),
+        force_sandbox: false,
     });
 
     let req = Request::builder()

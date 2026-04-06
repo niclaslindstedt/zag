@@ -109,6 +109,26 @@ The version is detected once (by running `zag --version`) and cached for the lif
 
 All other methods are available since the initial release (0.2.3).
 
+## Discovery
+
+Standalone functions for discovering available providers, models, and capabilities:
+
+```ts
+import { listProviders, getCapability, getAllCapabilities, resolveModel } from "zag-agent";
+
+const providers = await listProviders();
+const cap = await getCapability("claude");
+const all = await getAllCapabilities();
+const resolved = await resolveModel("claude", "small"); // { input: "small", resolved: "haiku", is_alias: true }
+```
+
+| Function | Description |
+|----------|-------------|
+| `listProviders(bin?)` | List available provider names |
+| `getCapability(provider, bin?)` | Get capabilities for a provider |
+| `getAllCapabilities(bin?)` | Get capabilities for all providers |
+| `resolveModel(provider, model, bin?)` | Resolve a model alias |
+
 ## How it works
 
 The SDK spawns the `zag` CLI as a subprocess (`zag exec -o json` or `-o stream-json`) and parses the JSON/NDJSON output into typed models. Zero external runtime dependencies — only Node.js built-ins.

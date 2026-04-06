@@ -110,6 +110,26 @@ The version is detected once (by running `zag --version`) and cached for the lif
 
 All other methods are available since the initial release (0.2.3).
 
+## Discovery
+
+Static methods for discovering available providers, models, and capabilities:
+
+```java
+import io.zag.ZagDiscover;
+
+List<String> providers = ZagDiscover.listProviders();
+ProviderCapability cap = ZagDiscover.getCapability("claude");
+List<ProviderCapability> all = ZagDiscover.getAllCapabilities();
+ResolvedModel resolved = ZagDiscover.resolveModel("claude", "small");
+```
+
+| Method | Description |
+|--------|-------------|
+| `ZagDiscover.listProviders(bin?)` | List available provider names |
+| `ZagDiscover.getCapability(provider, bin?)` | Get capabilities for a provider |
+| `ZagDiscover.getAllCapabilities(bin?)` | Get capabilities for all providers |
+| `ZagDiscover.resolveModel(provider, model, bin?)` | Resolve a model alias |
+
 ## How it works
 
 The SDK spawns the `zag` CLI as a subprocess (`zag exec -o json` or `-o stream-json`) and parses the JSON/NDJSON output into typed models. Uses Jackson for JSON parsing.

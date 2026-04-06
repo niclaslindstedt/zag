@@ -300,3 +300,145 @@ class AgentOutput:
             total_cost_usd=data.get("total_cost_usd"),
             usage=usage,
         )
+
+
+# ---------------------------------------------------------------------------
+# Discovery Types
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class FeatureSupport:
+    """Feature support declaration for a provider capability."""
+
+    supported: bool = False
+    native: bool = False
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> FeatureSupport:
+        return cls(
+            supported=data.get("supported", False),
+            native=data.get("native", False),
+        )
+
+
+@dataclass
+class SessionLogSupport:
+    """Session log support with completeness level."""
+
+    supported: bool = False
+    native: bool = False
+    completeness: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> SessionLogSupport:
+        return cls(
+            supported=data.get("supported", False),
+            native=data.get("native", False),
+            completeness=data.get("completeness"),
+        )
+
+
+@dataclass
+class SizeMappings:
+    """Size alias mappings (small/medium/large to actual model names)."""
+
+    small: str = ""
+    medium: str = ""
+    large: str = ""
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> SizeMappings:
+        return cls(
+            small=data.get("small", ""),
+            medium=data.get("medium", ""),
+            large=data.get("large", ""),
+        )
+
+
+@dataclass
+class Features:
+    """All feature flags for a provider."""
+
+    interactive: FeatureSupport = field(default_factory=FeatureSupport)
+    non_interactive: FeatureSupport = field(default_factory=FeatureSupport)
+    resume: FeatureSupport = field(default_factory=FeatureSupport)
+    resume_with_prompt: FeatureSupport = field(default_factory=FeatureSupport)
+    session_logs: SessionLogSupport = field(default_factory=SessionLogSupport)
+    json_output: FeatureSupport = field(default_factory=FeatureSupport)
+    stream_json: FeatureSupport = field(default_factory=FeatureSupport)
+    json_schema: FeatureSupport = field(default_factory=FeatureSupport)
+    input_format: FeatureSupport = field(default_factory=FeatureSupport)
+    streaming_input: FeatureSupport = field(default_factory=FeatureSupport)
+    worktree: FeatureSupport = field(default_factory=FeatureSupport)
+    sandbox: FeatureSupport = field(default_factory=FeatureSupport)
+    system_prompt: FeatureSupport = field(default_factory=FeatureSupport)
+    auto_approve: FeatureSupport = field(default_factory=FeatureSupport)
+    review: FeatureSupport = field(default_factory=FeatureSupport)
+    add_dirs: FeatureSupport = field(default_factory=FeatureSupport)
+    max_turns: FeatureSupport = field(default_factory=FeatureSupport)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Features:
+        def fs(key: str) -> FeatureSupport:
+            return FeatureSupport.from_dict(data.get(key, {}))
+
+        return cls(
+            interactive=fs("interactive"),
+            non_interactive=fs("non_interactive"),
+            resume=fs("resume"),
+            resume_with_prompt=fs("resume_with_prompt"),
+            session_logs=SessionLogSupport.from_dict(data.get("session_logs", {})),
+            json_output=fs("json_output"),
+            stream_json=fs("stream_json"),
+            json_schema=fs("json_schema"),
+            input_format=fs("input_format"),
+            streaming_input=fs("streaming_input"),
+            worktree=fs("worktree"),
+            sandbox=fs("sandbox"),
+            system_prompt=fs("system_prompt"),
+            auto_approve=fs("auto_approve"),
+            review=fs("review"),
+            add_dirs=fs("add_dirs"),
+            max_turns=fs("max_turns"),
+        )
+
+
+@dataclass
+class ProviderCapability:
+    """Full capability declaration for a provider."""
+
+    provider: str = ""
+    default_model: str = ""
+    available_models: list[str] = field(default_factory=list)
+    size_mappings: SizeMappings = field(default_factory=SizeMappings)
+    features: Features = field(default_factory=Features)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ProviderCapability:
+        return cls(
+            provider=data.get("provider", ""),
+            default_model=data.get("default_model", ""),
+            available_models=data.get("available_models", []),
+            size_mappings=SizeMappings.from_dict(data.get("size_mappings", {})),
+            features=Features.from_dict(data.get("features", {})),
+        )
+
+
+@dataclass
+class ResolvedModel:
+    """Result of resolving a model alias."""
+
+    input: str = ""
+    resolved: str = ""
+    is_alias: bool = False
+    provider: str = ""
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ResolvedModel:
+        return cls(
+            input=data.get("input", ""),
+            resolved=data.get("resolved", ""),
+            is_alias=data.get("is_alias", False),
+            provider=data.get("provider", ""),
+        )

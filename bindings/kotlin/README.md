@@ -102,6 +102,26 @@ The version is detected once (by running `zag --version`) and cached for the lif
 
 All other methods are available since the initial release (0.2.3).
 
+## Discovery
+
+Suspend functions for discovering available providers, models, and capabilities:
+
+```kotlin
+import zag.ZagDiscover
+
+val providers = ZagDiscover.listProviders()
+val cap = ZagDiscover.getCapability("claude")
+val all = ZagDiscover.getAllCapabilities()
+val resolved = ZagDiscover.resolveModel("claude", "small")
+```
+
+| Method | Description |
+|--------|-------------|
+| `ZagDiscover.listProviders(bin?)` | List available provider names |
+| `ZagDiscover.getCapability(provider, bin?)` | Get capabilities for a provider |
+| `ZagDiscover.getAllCapabilities(bin?)` | Get capabilities for all providers |
+| `ZagDiscover.resolveModel(provider, model, bin?)` | Resolve a model alias |
+
 ## How it works
 
 The SDK spawns the `zag` CLI as a subprocess (`zag exec -o json` or `-o stream-json`) and parses the JSON/NDJSON output into typed models. Uses `kotlinx.serialization` for JSON parsing and `kotlinx.coroutines` for async operations.

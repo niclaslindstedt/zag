@@ -298,6 +298,145 @@ pub fn format_capability(cap: &ProviderCapability, format: &str, pretty: bool) -
     }
 }
 
+/// Canonical list of provider names (excludes "auto" and "mock").
+pub const PROVIDERS: &[&str] = &["claude", "codex", "gemini", "copilot", "ollama"];
+
+/// List all available provider names.
+pub fn list_providers() -> Vec<String> {
+    PROVIDERS.iter().map(|s| s.to_string()).collect()
+}
+
+/// Get capabilities for all providers.
+pub fn get_all_capabilities() -> Vec<ProviderCapability> {
+    PROVIDERS
+        .iter()
+        .filter_map(|p| get_capability(p).ok())
+        .collect()
+}
+
+/// Result of resolving a model alias.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResolvedModel {
+    pub input: String,
+    pub resolved: String,
+    pub is_alias: bool,
+    pub provider: String,
+}
+
+/// Resolve a model name or alias for a given provider.
+///
+/// Size aliases (`small`/`s`, `medium`/`m`/`default`, `large`/`l`/`max`) are
+/// resolved to the provider-specific model. Non-alias names pass through unchanged.
+pub fn resolve_model(provider: &str, model_input: &str) -> Result<ResolvedModel> {
+    use crate::agent::Agent;
+    use crate::providers::{
+        claude::Claude, codex::Codex, copilot::Copilot, gemini::Gemini, ollama::Ollama,
+    };
+
+    let resolved = match provider {
+        "claude" => Claude::resolve_model(model_input),
+        "codex" => Codex::resolve_model(model_input),
+        "gemini" => Gemini::resolve_model(model_input),
+        "copilot" => Copilot::resolve_model(model_input),
+        "ollama" => Ollama::resolve_model(model_input),
+        _ => bail!(
+            "Unknown provider '{}'. Available: {}",
+            provider,
+            PROVIDERS.join(", ")
+        ),
+    };
+
+    Ok(ResolvedModel {
+        input: model_input.to_string(),
+        is_alias: resolved != model_input,
+        resolved,
+        provider: provider.to_string(),
+    })
+}
+
+/// Format a resolved model into the requested output format.
+pub fn format_resolved_model(rm: &ResolvedModel, format: &str, pretty: bool) -> Result<String> {
+    match format {
+        "json" => {
+            if pretty {
+                Ok(serde_json::to_string_pretty(rm)?)
+            } else {
+                Ok(serde_json::to_string(rm)?)
+            }
+        }
+        "yaml" => Ok(serde_yaml::to_string(rm)?),
+        "toml" => Ok(toml::to_string_pretty(rm)?),
+        _ => bail!(
+            "Unsupported format '{}'. Available: json, yaml, toml",
+            format
+        ),
+    }
+}
+
+/// Format a list of capabilities into the requested output format.
+pub fn format_capabilities(
+    caps: &[ProviderCapability],
+    format: &str,
+    pretty: bool,
+) -> Result<String> {
+    match format {
+        "json" => {
+            if pretty {
+                Ok(serde_json::to_string_pretty(caps)?)
+            } else {
+                Ok(serde_json::to_string(caps)?)
+            }
+        }
+        "yaml" => Ok(serde_yaml::to_string(caps)?),
+        "toml" => {
+            #[derive(Serialize)]
+            struct Wrapper<'a> {
+                providers: &'a [ProviderCapability],
+            }
+            Ok(toml::to_string_pretty(&Wrapper { providers: caps })?)
+        }
+        _ => bail!(
+            "Unsupported format '{}'. Available: json, yaml, toml",
+            format
+        ),
+    }
+}
+
+/// Format a models listing into the requested output format.
+pub fn format_models(caps: &[ProviderCapability], format: &str, pretty: bool) -> Result<String> {
+    #[derive(Serialize)]
+    struct ModelEntry {
+        provider: String,
+        default_model: String,
+        models: Vec<String>,
+    }
+
+    let entries: Vec<ModelEntry> = caps
+        .iter()
+        .map(|c| ModelEntry {
+            provider: c.provider.clone(),
+            default_model: c.default_model.clone(),
+            models: c.available_models.clone(),
+        })
+        .collect();
+
+    match format {
+        "json" => {
+            if pretty {
+                Ok(serde_json::to_string_pretty(&entries)?)
+            } else {
+                Ok(serde_json::to_string(&entries)?)
+            }
+        }
+        "yaml" => Ok(serde_yaml::to_string(&entries)?),
+        "toml" => bail!("TOML does not support top-level arrays. Use json or yaml"),
+        _ => bail!(
+            "Unsupported format '{}'. Available: json, yaml, toml",
+            format
+        ),
+    }
+}
+
 /// Convert a slice of string references into a Vec of owned Strings.
 pub fn models_to_vec(models: &[&str]) -> Vec<String> {
     models.iter().map(|s| s.to_string()).collect()

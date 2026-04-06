@@ -103,6 +103,26 @@ The version is detected once (by running `zag --version`) and cached for the lif
 
 All other methods are available since the initial release (0.2.3).
 
+## Discovery
+
+Standalone async functions for discovering available providers, models, and capabilities:
+
+```python
+from zag import list_providers, get_capability, get_all_capabilities, resolve_model
+
+providers = await list_providers()
+cap = await get_capability("claude")
+all_caps = await get_all_capabilities()
+resolved = await resolve_model("claude", "small")  # ResolvedModel(input="small", resolved="haiku", is_alias=True)
+```
+
+| Function | Description |
+|----------|-------------|
+| `list_providers(bin=None)` | List available provider names |
+| `get_capability(provider, bin=None)` | Get capabilities for a provider |
+| `get_all_capabilities(bin=None)` | Get capabilities for all providers |
+| `resolve_model(provider, model, bin=None)` | Resolve a model alias |
+
 ## How it works
 
 The SDK spawns the `zag` CLI as a subprocess (`zag exec -o json` or `-o stream-json`) and parses the JSON/NDJSON output into typed dataclasses. Zero external dependencies — only the Python standard library.

@@ -1,15 +1,27 @@
 """Python SDK for zag — a unified CLI for AI coding agents."""
 
 from .builder import ZagBuilder
+from .discover import (
+    get_all_capabilities,
+    get_capability,
+    list_providers,
+    resolve_model,
+)
 from .types import (
     AgentOutput,
     AssistantMessageEvent,
     ContentBlock,
     ErrorEvent,
     Event,
+    FeatureSupport,
+    Features,
     InitEvent,
     PermissionRequestEvent,
+    ProviderCapability,
+    ResolvedModel,
     ResultEvent,
+    SessionLogSupport,
+    SizeMappings,
     TextBlock,
     ToolExecutionEvent,
     ToolResult,
@@ -34,4 +46,14 @@ __all__ = [
     "ToolUseBlock",
     "ToolResult",
     "ZagError",
+    "list_providers",
+    "get_capability",
+    "get_all_capabilities",
+    "resolve_model",
+    "ProviderCapability",
+    "Features",
+    "FeatureSupport",
+    "SessionLogSupport",
+    "SizeMappings",
+    "ResolvedModel",
 ]

@@ -13,5 +13,17 @@ export type {
   TextBlock,
   ToolUseBlock,
   ToolResult,
+  ProviderCapability,
+  Features,
+  FeatureSupport,
+  SizeMappings,
+  SessionLogSupport,
+  ResolvedModel,
 } from "./types.js";
 export { ZagError } from "./types.js";
+export {
+  listProviders,
+  getCapability,
+  getAllCapabilities,
+  resolveModel,
+} from "./discover.js";
