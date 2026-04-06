@@ -221,6 +221,26 @@ All other methods are available since the initial release (0.2.3).
 
 Version checks only apply to local execution mode. Remote mode handles compatibility on the server side.
 
+## Discovery
+
+Static async functions for discovering available providers, models, and capabilities:
+
+```swift
+import Zag
+
+let providers = try await ZagDiscover.listProviders()
+let cap = try await ZagDiscover.getCapability(provider: "claude")
+let all = try await ZagDiscover.getAllCapabilities()
+let resolved = try await ZagDiscover.resolveModel(provider: "claude", model: "small")
+```
+
+| Method | Description |
+|--------|-------------|
+| `ZagDiscover.listProviders(bin:)` | List available provider names |
+| `ZagDiscover.getCapability(provider:bin:)` | Get capabilities for a provider |
+| `ZagDiscover.getAllCapabilities(bin:)` | Get capabilities for all providers |
+| `ZagDiscover.resolveModel(provider:model:bin:)` | Resolve a model alias |
+
 ## How it works
 
 - **Local mode**: Spawns the `zag` CLI as a subprocess (`zag exec -o json` or `-o stream-json`) and parses JSON/NDJSON output into typed Swift models.

@@ -349,6 +349,24 @@ async fn main() -> Result<()> {
             let output = commands::capability::format_capability(&cap, &format, pretty)?;
             println!("{}", output);
         }
+        Commands::Discover {
+            provider,
+            models,
+            resolve,
+            json,
+            format,
+            pretty,
+            root: _,
+        } => {
+            commands::run_discover(
+                provider.as_deref(),
+                models,
+                resolve.as_deref(),
+                json,
+                format.as_deref(),
+                pretty,
+            )?;
+        }
         Commands::Listen {
             session_id,
             latest,

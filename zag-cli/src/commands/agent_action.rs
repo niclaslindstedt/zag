@@ -421,6 +421,7 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Config { .. } => "config",
         Commands::Session { .. } => "session",
         Commands::Capability { .. } => "capability",
+        Commands::Discover { .. } => "discover",
         Commands::Listen { .. } => "listen",
         Commands::Man { .. } => "man",
         Commands::Skills { .. } => "skills",

@@ -98,6 +98,26 @@ The version is detected once (by running `zag --version`) and cached for the lif
 
 All other methods are available since the initial release (0.2.3).
 
+## Discovery
+
+Static async methods for discovering available providers, models, and capabilities:
+
+```csharp
+using Zag;
+
+string[] providers = await ZagDiscover.ListProvidersAsync();
+ProviderCapability cap = await ZagDiscover.GetCapabilityAsync("claude");
+ProviderCapability[] all = await ZagDiscover.GetAllCapabilitiesAsync();
+ResolvedModel resolved = await ZagDiscover.ResolveModelAsync("claude", "small");
+```
+
+| Method | Description |
+|--------|-------------|
+| `ZagDiscover.ListProvidersAsync(bin?, ct?)` | List available provider names |
+| `ZagDiscover.GetCapabilityAsync(provider, bin?, ct?)` | Get capabilities for a provider |
+| `ZagDiscover.GetAllCapabilitiesAsync(bin?, ct?)` | Get capabilities for all providers |
+| `ZagDiscover.ResolveModelAsync(provider, model, bin?, ct?)` | Resolve a model alias |
+
 ## How it works
 
 The SDK spawns the `zag` CLI as a subprocess (`zag exec -o json` or `-o stream-json`) and parses the JSON/NDJSON output into typed models. Zero external dependencies — only the .NET standard library.

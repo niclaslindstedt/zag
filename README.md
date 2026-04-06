@@ -135,6 +135,7 @@ zag serve [--port] [--token]   Start HTTP/WS server for remote access
 zag connect <url> --token     Connect to a remote zag server
 zag disconnect                Disconnect from remote server
 
+zag discover                  Discover providers, models, and capabilities
 zag capability                Show provider capability declarations
 zag skills list|show|add|remove|sync|import   Manage provider-agnostic skills
 zag mcp list|show|add|remove|sync|import     Manage MCP servers across providers
@@ -569,7 +570,7 @@ See the [examples directory](examples/) for details on each.
 
 **"CLI not found in PATH"** — The agent CLI binary isn't installed or isn't in your `PATH`. Install it using the commands in the [Agent CLIs](#agent-clis) table above.
 
-**"Invalid model 'X' for Y"** — You specified a model name that the provider doesn't recognize. Use `zag capability -p <provider> --pretty` to see available models, or use size aliases (`small`, `medium`, `large`).
+**"Invalid model 'X' for Y"** — You specified a model name that the provider doesn't recognize. Use `zag discover --models -p <provider>` to see available models, or use size aliases (`small`, `medium`, `large`). Use `zag discover --resolve <alias> -p <provider>` to trace what an alias resolves to.
 
 **`--worktree` fails** — You must be inside a git repository. The worktree is created under `~/.zag/worktrees/`.
 

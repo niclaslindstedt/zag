@@ -100,6 +100,64 @@ export interface ToolResult {
   data: unknown | null;
 }
 
+/** Feature support declaration for a provider capability. */
+export interface FeatureSupport {
+  supported: boolean;
+  native: boolean;
+}
+
+/** Session log support with completeness level. */
+export interface SessionLogSupport {
+  supported: boolean;
+  native: boolean;
+  completeness?: string;
+}
+
+/** Size alias mappings (small/medium/large to actual model names). */
+export interface SizeMappings {
+  small: string;
+  medium: string;
+  large: string;
+}
+
+/** All feature flags for a provider. */
+export interface Features {
+  interactive: FeatureSupport;
+  non_interactive: FeatureSupport;
+  resume: FeatureSupport;
+  resume_with_prompt: FeatureSupport;
+  session_logs: SessionLogSupport;
+  json_output: FeatureSupport;
+  stream_json: FeatureSupport;
+  json_schema: FeatureSupport;
+  input_format: FeatureSupport;
+  streaming_input: FeatureSupport;
+  worktree: FeatureSupport;
+  sandbox: FeatureSupport;
+  system_prompt: FeatureSupport;
+  auto_approve: FeatureSupport;
+  review: FeatureSupport;
+  add_dirs: FeatureSupport;
+  max_turns: FeatureSupport;
+}
+
+/** Full capability declaration for a provider. */
+export interface ProviderCapability {
+  provider: string;
+  default_model: string;
+  available_models: string[];
+  size_mappings: SizeMappings;
+  features: Features;
+}
+
+/** Result of resolving a model alias. */
+export interface ResolvedModel {
+  input: string;
+  resolved: string;
+  is_alias: boolean;
+  provider: string;
+}
+
 /** Error thrown when the zag process fails. */
 export class ZagError extends Error {
   constructor(

@@ -274,6 +274,36 @@ pub enum Commands {
         #[arg(short, long)]
         root: Option<String>,
     },
+    /// Discover available providers, models, and capabilities
+    Discover {
+        /// Filter to a specific provider
+        #[arg(short = 'p', long)]
+        provider: Option<String>,
+
+        /// Show only model listings
+        #[arg(long)]
+        models: bool,
+
+        /// Resolve a model alias (e.g. "default", "small", "large")
+        #[arg(long, value_name = "MODEL")]
+        resolve: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Output format (json, yaml, toml)
+        #[arg(short = 'f', long)]
+        format: Option<String>,
+
+        /// Pretty-print output (applies to JSON)
+        #[arg(long)]
+        pretty: bool,
+
+        /// Root directory for config file resolution
+        #[arg(short, long)]
+        root: Option<String>,
+    },
     /// Listen to a session's log events in real-time
     Listen {
         /// Session ID to listen to

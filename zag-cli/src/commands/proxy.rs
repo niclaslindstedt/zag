@@ -430,6 +430,41 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
             };
             proxy_get_json(&client, config, &format!("/api/v1/capability{}", qs), true).await
         }
+        Commands::Discover {
+            provider,
+            models,
+            resolve,
+            json,
+            format,
+            pretty,
+            ..
+        } => {
+            let mut params = vec![];
+            if let Some(p) = provider {
+                params.push(format!("provider={}", p));
+            }
+            if *models {
+                params.push("models=true".to_string());
+            }
+            if let Some(r) = resolve {
+                params.push(format!("resolve={}", r));
+            }
+            if *json {
+                params.push("json=true".to_string());
+            }
+            if let Some(f) = format {
+                params.push(format!("format={}", f));
+            }
+            if *pretty {
+                params.push("pretty=true".to_string());
+            }
+            let qs = if params.is_empty() {
+                String::new()
+            } else {
+                format!("?{}", params.join("&"))
+            };
+            proxy_get_json(&client, config, &format!("/api/v1/discover{}", qs), true).await
+        }
         Commands::Skills { command: sub, json } => {
             let body = proxy_skills_body(sub);
             proxy_post_json(&client, config, "/api/v1/skills", &body, *json).await

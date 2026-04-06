@@ -176,3 +176,71 @@ fn feature_support_serialization_roundtrip() {
         assert_eq!(parsed.native, support.native);
     }
 }
+
+#[test]
+fn list_providers_returns_all_real_providers() {
+    let providers = list_providers();
+    assert_eq!(providers.len(), 5);
+    assert!(providers.contains(&"claude".to_string()));
+    assert!(providers.contains(&"codex".to_string()));
+    assert!(providers.contains(&"gemini".to_string()));
+    assert!(providers.contains(&"copilot".to_string()));
+    assert!(providers.contains(&"ollama".to_string()));
+    assert!(!providers.contains(&"auto".to_string()));
+    assert!(!providers.contains(&"mock".to_string()));
+}
+
+#[test]
+fn get_all_capabilities_returns_all_providers() {
+    let caps = get_all_capabilities();
+    assert_eq!(caps.len(), 5);
+    let names: Vec<&str> = caps.iter().map(|c| c.provider.as_str()).collect();
+    assert!(names.contains(&"claude"));
+    assert!(names.contains(&"codex"));
+    assert!(names.contains(&"gemini"));
+    assert!(names.contains(&"copilot"));
+    assert!(names.contains(&"ollama"));
+    for cap in &caps {
+        assert!(!cap.available_models.is_empty());
+        assert!(!cap.default_model.is_empty());
+    }
+}
+
+#[test]
+fn resolve_model_alias() {
+    let rm = resolve_model("claude", "default").unwrap();
+    assert_eq!(rm.resolved, "sonnet");
+    assert!(rm.is_alias);
+    assert_eq!(rm.provider, "claude");
+}
+
+#[test]
+fn resolve_model_size_alias() {
+    let rm = resolve_model("codex", "small").unwrap();
+    assert_eq!(rm.resolved, "gpt-5.4-mini");
+    assert!(rm.is_alias);
+}
+
+#[test]
+fn resolve_model_passthrough() {
+    let rm = resolve_model("claude", "opus").unwrap();
+    assert_eq!(rm.resolved, "opus");
+    assert!(!rm.is_alias);
+}
+
+#[test]
+fn resolve_model_unknown_provider() {
+    let result = resolve_model("nonexistent", "model");
+    assert!(result.is_err());
+}
+
+#[test]
+fn resolved_model_serialization() {
+    let rm = resolve_model("claude", "small").unwrap();
+    let json = serde_json::to_string(&rm).unwrap();
+    let parsed: ResolvedModel = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed.input, "small");
+    assert_eq!(parsed.resolved, "haiku");
+    assert!(parsed.is_alias);
+    assert_eq!(parsed.provider, "claude");
+}
