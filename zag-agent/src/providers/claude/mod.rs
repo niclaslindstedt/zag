@@ -419,7 +419,12 @@ impl Claude {
                 .await
                 .context("Failed to execute 'claude' CLI. Is it installed and in PATH?")?;
             if !status.success() {
-                anyhow::bail!("Claude command failed with status: {}", status);
+                return Err(crate::process::ProcessError {
+                    exit_code: status.code(),
+                    stderr: String::new(),
+                    agent_name: "Claude".to_string(),
+                }
+                .into());
             }
             Ok(None)
         } else if is_native_json {
@@ -794,7 +799,12 @@ impl Agent for Claude {
             .await
             .context("Failed to execute 'claude' CLI. Is it installed and in PATH?")?;
         if !status.success() {
-            anyhow::bail!("Claude resume failed with status: {}", status);
+            return Err(crate::process::ProcessError {
+                exit_code: status.code(),
+                stderr: String::new(),
+                agent_name: "Claude".to_string(),
+            }
+            .into());
         }
         Ok(())
     }

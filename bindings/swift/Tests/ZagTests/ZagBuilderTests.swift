@@ -428,6 +428,8 @@ struct ModelsTests {
         #expect(output.events.count == 7)
         #expect(output.result == "Hello!")
         #expect(output.isError == false)
+        #expect(output.exitCode == nil)
+        #expect(output.errorMessage == nil)
         #expect(output.totalCostUsd == 0.01)
         #expect(output.usage != nil)
         #expect(output.usage?.inputTokens == 100)

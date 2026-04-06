@@ -124,6 +124,8 @@ impl MockResponse {
             events: self.events,
             result: self.result,
             is_error: self.is_error,
+            exit_code: None,
+            error_message: None,
             total_cost_usd: self.total_cost_usd,
             usage: self.usage,
         }

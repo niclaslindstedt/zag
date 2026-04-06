@@ -198,7 +198,12 @@ impl Copilot {
                 .await
                 .context("Failed to execute 'copilot' CLI. Is it installed and in PATH?")?;
             if !status.success() {
-                anyhow::bail!("Copilot command failed with status: {}", status);
+                return Err(crate::process::ProcessError {
+                    exit_code: status.code(),
+                    stderr: String::new(),
+                    agent_name: "Copilot".to_string(),
+                }
+                .into());
             }
             Ok(None)
         } else if self.capture_output {
@@ -830,7 +835,12 @@ impl Agent for Copilot {
             .await
             .context("Failed to execute 'copilot' CLI. Is it installed and in PATH?")?;
         if !status.success() {
-            anyhow::bail!("Copilot resume failed with status: {}", status);
+            return Err(crate::process::ProcessError {
+                exit_code: status.code(),
+                stderr: String::new(),
+                agent_name: "Copilot".to_string(),
+            }
+            .into());
         }
         Ok(())
     }

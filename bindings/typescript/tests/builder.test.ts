@@ -226,6 +226,8 @@ describe("AgentOutput type", () => {
     assert.equal(output.events.length, 4);
     assert.equal(output.result, "Hello!");
     assert.equal(output.is_error, false);
+    assert.equal(output.exit_code, undefined);
+    assert.equal(output.error_message, undefined);
     assert.equal(output.total_cost_usd, 0.01);
     assert.equal(output.usage?.input_tokens, 100);
 
@@ -234,6 +236,25 @@ describe("AgentOutput type", () => {
     assert.equal(output.events[1].type, "assistant_message");
     assert.equal(output.events[2].type, "tool_execution");
     assert.equal(output.events[3].type, "result");
+  });
+
+  it("should parse output with exit_code and error_message", () => {
+    const raw = `{
+      "agent": "codex",
+      "session_id": "sess-456",
+      "events": [],
+      "result": null,
+      "is_error": true,
+      "exit_code": 2,
+      "error_message": "provider crashed",
+      "total_cost_usd": null,
+      "usage": null
+    }`;
+
+    const output: AgentOutput = JSON.parse(raw);
+    assert.equal(output.is_error, true);
+    assert.equal(output.exit_code, 2);
+    assert.equal(output.error_message, "provider crashed");
   });
 });
 

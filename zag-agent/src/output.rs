@@ -29,6 +29,14 @@ pub struct AgentOutput {
     /// Whether the session ended in an error
     pub is_error: bool,
 
+    /// Process exit code from the underlying provider (if available)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exit_code: Option<i32>,
+
+    /// Human-readable error message from the provider (if any)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
+
     /// Total cost in USD (if available)
     pub total_cost_usd: Option<f64>,
 
@@ -194,6 +202,8 @@ impl AgentOutput {
             }],
             result: Some(text.to_string()),
             is_error: false,
+            exit_code: None,
+            error_message: None,
             total_cost_usd: None,
             usage: None,
         }

@@ -21,6 +21,12 @@ public record AgentOutput
     [JsonPropertyName("is_error")]
     public bool IsError { get; init; }
 
+    [JsonPropertyName("exit_code")]
+    public int? ExitCode { get; init; }
+
+    [JsonPropertyName("error_message")]
+    public string? ErrorMessage { get; init; }
+
     [JsonPropertyName("total_cost_usd")]
     public double? TotalCostUsd { get; init; }
 

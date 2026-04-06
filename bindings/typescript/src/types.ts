@@ -5,6 +5,8 @@ export interface AgentOutput {
   events: Event[];
   result: string | null;
   is_error: boolean;
+  exit_code?: number | null;
+  error_message?: string | null;
   total_cost_usd: number | null;
   usage: Usage | null;
 }

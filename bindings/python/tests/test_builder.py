@@ -304,6 +304,8 @@ class TestAgentOutput:
         assert len(output.events) == 4
         assert output.result == "Hello!"
         assert output.is_error is False
+        assert output.exit_code is None
+        assert output.error_message is None
         assert output.total_cost_usd == 0.01
         assert output.usage is not None
         assert output.usage.input_tokens == 100
@@ -312,6 +314,40 @@ class TestAgentOutput:
         assert isinstance(output.events[1], AssistantMessageEvent)
         assert isinstance(output.events[2], ToolExecutionEvent)
         assert isinstance(output.events[3], ResultEvent)
+
+    def test_from_dict_with_exit_info(self) -> None:
+        raw = {
+            "agent": "codex",
+            "session_id": "sess-456",
+            "events": [],
+            "result": None,
+            "is_error": True,
+            "exit_code": 2,
+            "error_message": "provider crashed",
+            "total_cost_usd": None,
+            "usage": None,
+        }
+
+        output = AgentOutput.from_dict(raw)
+        assert output.is_error is True
+        assert output.exit_code == 2
+        assert output.error_message == "provider crashed"
+
+    def test_from_dict_without_exit_fields(self) -> None:
+        """Backwards compatibility: old JSON without exit_code/error_message."""
+        raw = {
+            "agent": "test",
+            "session_id": "",
+            "events": [],
+            "result": None,
+            "is_error": False,
+            "total_cost_usd": None,
+            "usage": None,
+        }
+
+        output = AgentOutput.from_dict(raw)
+        assert output.exit_code is None
+        assert output.error_message is None
 
 
 class TestEventParsing:

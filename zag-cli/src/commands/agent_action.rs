@@ -18,6 +18,12 @@ use crate::session_setup::{
     update_provider_session_id, update_session_log_metadata,
 };
 
+/// Exit code: agent reported failure (is_error = true in AgentOutput).
+const EXIT_AGENT_FAILURE: i32 = 1;
+
+/// Exit code: underlying provider process crashed or exited with non-zero status.
+const EXIT_PROVIDER_ERROR: i32 = 2;
+
 pub(crate) struct AgentActionParams {
     pub(crate) agent_name: String,
     pub(crate) provider: String,
@@ -975,15 +981,28 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
 
     let agent_success = match &action_result {
         Err(err) => {
+            // Extract structured error info if available
+            let process_err = err.downcast_ref::<zag_agent::process::ProcessError>();
+            let exit_code = process_err.and_then(|pe| pe.exit_code).unwrap_or(1);
+
             if let Ok(mut pstore) = zag_agent::process_store::ProcessStore::load() {
-                pstore.update_status(&proc_id, "killed", Some(1));
+                pstore.update_status(&proc_id, "killed", Some(exit_code));
                 let _ = pstore.save();
             }
             // Use ok() to avoid masking the original error if log finishing also fails
             if let Err(log_err) = log_coordinator.finish(false, Some(err.to_string())).await {
                 log::warn!("Failed to finish session log: {}", log_err);
             }
-            zag_orch::lifecycle::write_ended_marker(&lifecycle_session_id, false, Some(1));
+            zag_orch::lifecycle::write_ended_marker(&lifecycle_session_id, false, Some(exit_code));
+
+            // Show the error to the user on stderr
+            eprintln!("\x1b[31merror\x1b[0m: {}", err);
+            eprintln!("\x1b[2mRun with --debug for full details\x1b[0m");
+
+            // Exit with structured code: 2 for provider process crash
+            if process_err.is_some() {
+                std::process::exit(EXIT_PROVIDER_ERROR);
+            }
             return Err(anyhow::anyhow!(err.to_string()));
         }
         Ok(success) => *success,
@@ -1029,16 +1048,22 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         "partial",
         root.as_deref(),
     );
-    log_coordinator.finish(true, None).await?;
+    let final_exit_code = if agent_success { 0 } else { EXIT_AGENT_FAILURE };
+    log_coordinator.finish(agent_success, None).await?;
     zag_orch::lifecycle::write_ended_marker(
         &lifecycle_session_id,
         agent_success,
-        Some(if agent_success { 0 } else { 1 }),
+        Some(final_exit_code),
     );
 
     if let Ok(mut pstore) = zag_agent::process_store::ProcessStore::load() {
-        pstore.update_status(&proc_id, "exited", Some(0));
+        pstore.update_status(&proc_id, "exited", Some(final_exit_code));
         let _ = pstore.save();
+    }
+
+    if !agent_success {
+        eprintln!("\x1b[31merror\x1b[0m: agent exited with failure");
+        eprintln!("\x1b[2mRun with --debug for full details\x1b[0m");
     }
 
     if show_wrapper {
@@ -1144,7 +1169,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
 
     // Exit with code 1 if agent reported failure and --exit-on-failure is set
     if exit_on_failure && !agent_success {
-        std::process::exit(1);
+        std::process::exit(EXIT_AGENT_FAILURE);
     }
 
     Ok(())

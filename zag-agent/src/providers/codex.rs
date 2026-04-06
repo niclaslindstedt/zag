@@ -332,7 +332,12 @@ impl Codex {
                 .await
                 .context("Failed to execute 'codex' CLI. Is it installed and in PATH?")?;
             if !status.success() {
-                anyhow::bail!("Codex command failed with status: {}", status);
+                return Err(crate::process::ProcessError {
+                    exit_code: status.code(),
+                    stderr: String::new(),
+                    agent_name: "Codex".to_string(),
+                }
+                .into());
             }
             Ok(None)
         } else if self.capture_output {
@@ -776,7 +781,12 @@ impl Agent for Codex {
             .await
             .context("Failed to execute 'codex' CLI. Is it installed and in PATH?")?;
         if !status.success() {
-            anyhow::bail!("Codex resume failed with status: {}", status);
+            return Err(crate::process::ProcessError {
+                exit_code: status.code(),
+                stderr: String::new(),
+                agent_name: "Codex".to_string(),
+            }
+            .into());
         }
         Ok(())
     }

@@ -10,6 +10,8 @@ fn test_extract_response_from_agent_output() {
         events: vec![],
         result: Some(r#"{"provider": "claude"}"#.to_string()),
         is_error: false,
+        exit_code: None,
+        error_message: None,
         total_cost_usd: None,
         usage: None,
     };
@@ -44,6 +46,8 @@ fn test_extract_response_no_result() {
         events: vec![],
         result: None,
         is_error: false,
+        exit_code: None,
+        error_message: None,
         total_cost_usd: None,
         usage: None,
     };
