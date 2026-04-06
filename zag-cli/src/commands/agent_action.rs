@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use log::{debug, info};
 use zag_agent::config::Config;
 use zag_agent::factory::AgentFactory;
@@ -43,6 +43,7 @@ pub(crate) struct AgentActionParams {
     pub(crate) timeout: Option<String>,
     pub(crate) exit_on_failure: bool,
     pub(crate) context_session: Option<String>,
+    pub(crate) plan_path: Option<String>,
     pub(crate) env_vars: Vec<(String, String)>,
     pub(crate) session_metadata: SessionMetadata,
 }
@@ -449,6 +450,7 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Disconnect => "disconnect",
         Commands::Relay { .. } => "relay",
         Commands::User { .. } => "user",
+        Commands::Plan { .. } => "plan",
     }
 }
 
@@ -494,6 +496,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         timeout,
         exit_on_failure,
         context_session,
+        plan_path,
         env_vars,
         session_metadata: _,
     } = params;
@@ -907,6 +910,30 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
                 }
                 _ => {}
             }
+        }
+    }
+
+    // Resolve --plan: prepend a plan file's content to the prompt
+    if let Some(ref plan_file) = plan_path {
+        let plan_content = std::fs::read_to_string(plan_file)
+            .with_context(|| format!("Failed to read plan file: {}", plan_file))?;
+        let prefix = format!(
+            "Implementation plan:\n\n{}\n\n---\n\nFollow the plan above.\n\n",
+            plan_content
+        );
+        match &mut action {
+            Commands::Exec { prompt, .. } => {
+                *prompt = format!("{}{}", prefix, prompt);
+            }
+            Commands::Run {
+                prompt: Some(p), ..
+            } => {
+                *p = format!("{}{}", prefix, p);
+            }
+            Commands::Run { prompt, .. } => {
+                *prompt = Some(prefix);
+            }
+            _ => {}
         }
     }
 

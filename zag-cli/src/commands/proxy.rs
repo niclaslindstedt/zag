@@ -85,6 +85,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
         }
         Commands::Spawn {
             prompt,
+            plan: _,
             agent,
             metadata,
             json,

@@ -114,12 +114,18 @@ pub async fn spawn(
             None => Some(restriction),
         };
 
-        // Set env var for per-user log directory
+        // Set env vars for per-user log directory and home directory restriction
         let user_log_dir = UserStore::user_logs_dir(&ctx.username);
-        let env_vars = vec![(
-            "ZAG_USER_LOG_DIR".to_string(),
-            user_log_dir.to_string_lossy().to_string(),
-        )];
+        let env_vars = vec![
+            (
+                "ZAG_USER_LOG_DIR".to_string(),
+                user_log_dir.to_string_lossy().to_string(),
+            ),
+            (
+                "ZAG_USER_HOME_DIR".to_string(),
+                ctx.home_dir.to_string_lossy().to_string(),
+            ),
+        ];
 
         (
             Some(effective_root_str),

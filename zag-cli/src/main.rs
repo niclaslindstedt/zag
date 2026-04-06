@@ -35,7 +35,7 @@ pub(crate) use commands::{
     run_session, run_skills, run_user,
 };
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use clap::Parser;
 use config::Config;
 use log::debug;
@@ -43,7 +43,7 @@ use log::debug;
 use commands::{BroadcastParams, run_broadcast};
 use commands::{HELP_AGENT, print_manpage};
 use commands::{InputParams, run_input};
-use commands::{ReviewParams, run_review};
+use commands::{PlanParams, ReviewParams, run_plan, run_review};
 use commands::{ServeParams, run_serve};
 
 /// Resolve the provider name from CLI flag, config, or default.
@@ -607,7 +607,8 @@ async fn main() -> Result<()> {
             })?;
         }
         Commands::Spawn {
-            prompt,
+            mut prompt,
+            plan: spawn_plan,
             agent,
             metadata,
             json: spawn_json,
@@ -616,11 +617,24 @@ async fn main() -> Result<()> {
             timeout,
             interactive,
         } => {
-            if prompt.is_none() && !interactive {
+            if prompt.is_none() && spawn_plan.is_none() && !interactive {
                 anyhow::bail!(
-                    "A prompt is required unless --interactive is set.\n\
+                    "A prompt is required unless --interactive or --plan is set.\n\
                      Use: zag spawn --interactive [-p provider] [prompt]"
                 );
+            }
+            // Prepend plan file content to prompt if --plan is specified
+            if let Some(ref plan_file) = spawn_plan {
+                let plan_content = std::fs::read_to_string(plan_file)
+                    .with_context(|| format!("Failed to read plan file: {}", plan_file))?;
+                let prefix = format!(
+                    "Implementation plan:\n\n{}\n\n---\n\nFollow the plan above.\n\n",
+                    plan_content
+                );
+                prompt = Some(match prompt {
+                    Some(p) => format!("{}{}", prefix, p),
+                    None => prefix,
+                });
             }
             let provider = resolve_provider(agent.provider.as_deref(), agent.root.as_deref())?;
             zag_orch::spawn::run_spawn(zag_orch::spawn::SpawnParams {
@@ -681,6 +695,27 @@ async fn main() -> Result<()> {
                 commit,
                 title,
                 prompt,
+                system_prompt: agent.system_prompt,
+                model: agent.model,
+                root: agent.root,
+                auto_approve: agent.auto_approve,
+                add_dirs: agent.add_dirs,
+                quiet,
+            })
+            .await?;
+        }
+        Commands::Plan {
+            goal,
+            output,
+            instructions,
+            agent,
+        } => {
+            let provider = resolve_provider(agent.provider.as_deref(), agent.root.as_deref())?;
+            run_plan(PlanParams {
+                provider,
+                goal,
+                output,
+                instructions,
                 system_prompt: agent.system_prompt,
                 model: agent.model,
                 root: agent.root,
@@ -768,6 +803,12 @@ async fn main() -> Result<()> {
                 Commands::Run { context, .. } => context.clone(),
                 _ => None,
             };
+            let plan_path = match &action {
+                Commands::Run { plan, .. } => plan.clone(),
+                Commands::Exec { plan, .. } => plan.clone(),
+                Commands::Spawn { plan, .. } => plan.clone(),
+                _ => None,
+            };
             let timeout = match &action {
                 Commands::Exec { timeout, .. } => timeout.clone(),
                 _ => None,
@@ -809,6 +850,7 @@ async fn main() -> Result<()> {
                 timeout,
                 exit_on_failure,
                 context_session,
+                plan_path,
                 env_vars: parse_env_vars(&agent_args.env_vars)?,
                 session_metadata: {
                     let meta = metadata_args.unwrap_or_default();
