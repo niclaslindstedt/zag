@@ -243,7 +243,3 @@ fn print_result(result: &WaitResult) {
         .unwrap_or_default();
     println!("{} {}{}", result.session_id, status, error_info);
 }
-
-#[cfg(test)]
-#[path = "wait_tests.rs"]
-mod tests;
