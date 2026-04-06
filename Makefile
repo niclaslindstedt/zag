@@ -1,4 +1,4 @@
-.PHONY: build release release-tag install run clean test check fmt clippy coverage coverage-report website website-dev website-clean
+.PHONY: build release release-tag install run clean test check fmt clippy coverage coverage-report extract-website-data website website-dev website-clean
 
 build:
 	cargo build
@@ -36,6 +36,9 @@ coverage:
 coverage-report:
 	cargo llvm-cov --html --output-dir .coverage
 	@echo "Report: .coverage/html/index.html"
+
+extract-website-data:
+	cd website && npm run extract
 
 website:
 	cd website && npm install && npm run build

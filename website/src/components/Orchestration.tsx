@@ -34,22 +34,13 @@ zag wait $REVIEW && zag collect $REVIEW`,
   },
 ];
 
-const commands = [
-  { cmd: "spawn", desc: "Launch background agent session" },
-  { cmd: "wait", desc: "Block until session(s) complete" },
-  { cmd: "collect", desc: "Gather results from sessions" },
-  { cmd: "pipe", desc: "Chain output into new session" },
-  { cmd: "status", desc: "Check session health" },
-  { cmd: "input", desc: "Send message to running session" },
-  { cmd: "broadcast", desc: "Message all sessions by tag" },
-  { cmd: "events", desc: "Query structured event logs" },
-  { cmd: "watch", desc: "React to log events" },
-  { cmd: "subscribe", desc: "Multiplexed event stream" },
-  { cmd: "cancel", desc: "Gracefully stop sessions" },
-  { cmd: "retry", desc: "Re-run failed sessions" },
-  { cmd: "summary", desc: "Log-based session summary" },
-  { cmd: "gc", desc: "Clean up old session data" },
-];
+import { commands as allCommands } from "../data/sourceData";
+
+// Show orchestration + session-adjacent commands in the orchestration section
+const orchCategories = new Set(["orchestration", "session", "process"]);
+const commands = allCommands
+  .filter((c) => orchCategories.has(c.category))
+  .map((c) => ({ cmd: c.name, desc: c.description }));
 
 export default function Orchestration() {
   return (

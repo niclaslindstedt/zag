@@ -1,8 +1,9 @@
-const bindings = [
-  {
-    lang: "TypeScript",
-    install: "npm install @nlindstedt/zag-agent",
-    code: `import { ZagBuilder } from "@nlindstedt/zag-agent";
+import { bindings as sourceBindings } from "../data/sourceData";
+
+// Code examples are editorial content — they demonstrate idiomatic usage per language.
+// Install commands come from sourceData (extracted from binding package manifests).
+const codeExamples: Record<string, string> = {
+  TypeScript: `import { ZagBuilder } from "@nlindstedt/zag-agent";
 
 const result = await new ZagBuilder()
   .provider("claude")
@@ -12,11 +13,7 @@ const result = await new ZagBuilder()
   .exec("Review this pull request");
 
 console.log(result.output);`,
-  },
-  {
-    lang: "Python",
-    install: "pip install zag-agent",
-    code: `from zag import ZagBuilder
+  Python: `from zag import ZagBuilder
 
 result = await (
     ZagBuilder()
@@ -28,11 +25,7 @@ result = await (
 )
 
 print(result.output)`,
-  },
-  {
-    lang: "C#",
-    install: "dotnet add package Zag",
-    code: `using Zag;
+  "C#": `using Zag;
 
 var result = await new ZagBuilder()
     .Provider("claude")
@@ -42,11 +35,7 @@ var result = await new ZagBuilder()
     .Exec("Review this pull request");
 
 Console.WriteLine(result.Output);`,
-  },
-  {
-    lang: "Swift",
-    install: ".package(url: \"https://github.com/niclaslindstedt/zag\", from: \"0.5.0\")",
-    code: `import Zag
+  Swift: `import Zag
 
 let result = try await ZagBuilder()
     .provider("claude")
@@ -56,11 +45,7 @@ let result = try await ZagBuilder()
     .exec("Review this pull request")
 
 print(result.output ?? "")`,
-  },
-  {
-    lang: "Java",
-    install: "io.zag:zag:0.5.0",
-    code: `import io.zag.ZagBuilder;
+  Java: `import io.zag.ZagBuilder;
 
 var result = new ZagBuilder()
     .provider("claude")
@@ -70,11 +55,7 @@ var result = new ZagBuilder()
     .exec("Review this pull request");
 
 System.out.println(result.getOutput());`,
-  },
-  {
-    lang: "Kotlin",
-    install: "io.zag:zag:0.5.0",
-    code: `import zag.ZagBuilder
+  Kotlin: `import zag.ZagBuilder
 
 val result = ZagBuilder()
     .provider("claude")
@@ -84,8 +65,13 @@ val result = ZagBuilder()
     .exec("Review this pull request")
 
 println(result.output)`,
-  },
-];
+};
+
+const bindings = sourceBindings.map((b) => ({
+  lang: b.language,
+  install: b.installCommand,
+  code: codeExamples[b.language] ?? `// See bindings/${b.directory}/`,
+}));
 
 export default function Bindings() {
   return (

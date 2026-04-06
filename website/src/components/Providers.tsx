@@ -1,47 +1,27 @@
-const providers = [
-  {
-    name: "Claude",
-    org: "Anthropic",
-    color: "text-claude border-claude/30",
-    models: { small: "haiku", medium: "sonnet", large: "default" },
-    features: ["Interactive", "Streaming", "Resume", "JSON Schema", "MCP"],
-  },
-  {
-    name: "Codex",
-    org: "OpenAI",
-    color: "text-codex border-codex/30",
-    models: { small: "gpt-5.4-mini", medium: "gpt-5.3-codex", large: "gpt-5.4" },
-    features: ["Interactive", "Streaming", "Resume", "JSON Schema", "MCP"],
-  },
-  {
-    name: "Gemini",
-    org: "Google",
-    color: "text-gemini border-gemini/30",
-    models: { small: "3.1-flash-lite", medium: "2.5-flash", large: "3.1-pro" },
-    features: ["Interactive", "Streaming", "Resume", "MCP"],
-  },
-  {
-    name: "Copilot",
-    org: "GitHub",
-    color: "text-copilot border-copilot/30",
-    models: { small: "claude-haiku-4.5", medium: "claude-sonnet-4.6", large: "claude-opus-4.6" },
-    features: ["Interactive", "Resume", "MCP"],
-  },
-  {
-    name: "Ollama",
-    org: "Local",
-    color: "text-ollama border-ollama/30",
-    models: { small: "auto (by size)", medium: "auto (by size)", large: "auto (by size)" },
-    features: ["Interactive", "No API key needed"],
-  },
-];
+import { providers as sourceProviders, providerCount } from "../data/sourceData";
+
+const colorMap: Record<string, string> = {
+  claude:  "text-claude border-claude/30",
+  codex:   "text-codex border-codex/30",
+  gemini:  "text-gemini border-gemini/30",
+  copilot: "text-copilot border-copilot/30",
+  ollama:  "text-ollama border-ollama/30",
+};
+
+const providers = sourceProviders.map((p) => ({
+  name: p.displayName,
+  org: p.org,
+  color: colorMap[p.name] ?? "text-text-primary border-border",
+  models: p.sizeMap,
+  features: p.cardFeatures,
+}));
 
 export default function Providers() {
   return (
     <section id="providers" className="border-t border-border bg-surface-alt py-20 md:py-28">
       <div className="mx-auto max-w-6xl px-6">
         <h2 className="text-center text-3xl font-bold text-text-primary md:text-4xl">
-          Five providers, one interface
+          {providerCount} providers, one interface
         </h2>
         <p className="mx-auto mt-4 max-w-2xl text-center text-text-secondary">
           Use portable size aliases — <code className="rounded bg-surface px-1.5 py-0.5 text-xs text-accent">small</code>,{" "}
