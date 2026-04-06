@@ -661,13 +661,17 @@ async fn main() -> Result<()> {
             base,
             commit,
             title,
+            prompt,
             agent,
         } => {
+            let provider = resolve_provider(agent.provider.as_deref(), agent.root.as_deref())?;
             run_review(ReviewParams {
+                provider,
                 uncommitted,
                 base,
                 commit,
                 title,
+                prompt,
                 system_prompt: agent.system_prompt,
                 model: agent.model,
                 root: agent.root,

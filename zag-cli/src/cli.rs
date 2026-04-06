@@ -186,7 +186,7 @@ pub enum Commands {
         #[command(flatten)]
         metadata: SessionMetadataArgs,
     },
-    /// Review code changes (uses Codex under the hood)
+    /// Review code changes
     Review {
         /// Review staged/unstaged/untracked changes
         #[arg(long)]
@@ -203,6 +203,9 @@ pub enum Commands {
         /// Optional title for the review summary
         #[arg(long)]
         title: Option<String>,
+
+        /// Additional instructions for the review
+        prompt: Option<String>,
 
         #[command(flatten)]
         agent: AgentArgs,
