@@ -157,6 +157,114 @@ public class ZagBuilderTests
     }
 }
 
+public class VersionCheckTests
+{
+    [Fact]
+    public void ParseSemver_Valid()
+    {
+        var v = VersionCheck.ParseSemver("0.6.0");
+        Assert.Equal(0, v.Major);
+        Assert.Equal(6, v.Minor);
+        Assert.Equal(0, v.Patch);
+    }
+
+    [Fact]
+    public void ParseSemver_Invalid()
+    {
+        Assert.Throws<ZagException>(() => VersionCheck.ParseSemver("invalid"));
+        Assert.Throws<ZagException>(() => VersionCheck.ParseSemver("1.2"));
+        Assert.Throws<ZagException>(() => VersionCheck.ParseSemver("a.b.c"));
+    }
+
+    [Fact]
+    public void SemVer_Comparison()
+    {
+        var v050 = VersionCheck.ParseSemver("0.5.0");
+        var v060 = VersionCheck.ParseSemver("0.6.0");
+        var v070 = VersionCheck.ParseSemver("0.7.0");
+
+        Assert.True(v050.CompareTo(v060) < 0);
+        Assert.Equal(0, v060.CompareTo(v060));
+        Assert.True(v070.CompareTo(v060) > 0);
+    }
+
+    [Fact]
+    public async Task Check_NoActiveRequirements_Passes()
+    {
+        VersionCheck.SetVersionForTesting("zag", "0.5.0");
+        try
+        {
+            await VersionCheck.CheckAsync("zag", new[]
+            {
+                new VersionCheck.Requirement("Env()", "0.6.0", false),
+            });
+        }
+        finally
+        {
+            VersionCheck.ClearVersionCache();
+        }
+    }
+
+    [Fact]
+    public async Task Check_SufficientVersion_Passes()
+    {
+        VersionCheck.SetVersionForTesting("zag", "0.6.0");
+        try
+        {
+            await VersionCheck.CheckAsync("zag", new[]
+            {
+                new VersionCheck.Requirement("Env()", "0.6.0", true),
+            });
+        }
+        finally
+        {
+            VersionCheck.ClearVersionCache();
+        }
+    }
+
+    [Fact]
+    public async Task Check_InsufficientVersion_Throws()
+    {
+        VersionCheck.SetVersionForTesting("zag", "0.5.0");
+        try
+        {
+            var ex = await Assert.ThrowsAsync<ZagException>(() =>
+                VersionCheck.CheckAsync("zag", new[]
+                {
+                    new VersionCheck.Requirement("Env()", "0.6.0", true),
+                }));
+            Assert.Contains("Env()", ex.Message);
+            Assert.Contains("0.6.0", ex.Message);
+            Assert.Contains("0.5.0", ex.Message);
+        }
+        finally
+        {
+            VersionCheck.ClearVersionCache();
+        }
+    }
+
+    [Fact]
+    public async Task Check_MultipleFailures_ReportsAll()
+    {
+        VersionCheck.SetVersionForTesting("zag", "0.5.0");
+        try
+        {
+            var ex = await Assert.ThrowsAsync<ZagException>(() =>
+                VersionCheck.CheckAsync("zag", new[]
+                {
+                    new VersionCheck.Requirement("Env()", "0.6.0", true),
+                    new VersionCheck.Requirement("McpConfig()", "0.6.0", true),
+                }));
+            Assert.Contains("Env()", ex.Message);
+            Assert.Contains("McpConfig()", ex.Message);
+        }
+        finally
+        {
+            VersionCheck.ClearVersionCache();
+        }
+    }
+}
+
 public class ZagExceptionTests
 {
     [Fact]

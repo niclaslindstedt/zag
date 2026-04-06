@@ -7,6 +7,10 @@ import {
   streamWithInput,
 } from "./process.js";
 import type { StreamingSession } from "./process.js";
+import {
+  checkVersion,
+  type VersionRequirement,
+} from "./version.js";
 
 /**
  * Fluent builder for configuring and running zag agent sessions.
@@ -209,6 +213,14 @@ export class ZagBuilder {
     return this;
   }
 
+  /** Collect version requirements for features that were added after the initial release. */
+  private versionRequirements(): VersionRequirement[] {
+    return [
+      { method: "env()", version: "0.6.0", isSet: this._envVars.length > 0 },
+      { method: "mcpConfig()", version: "0.6.0", isSet: this._mcpConfig != null },
+    ];
+  }
+
   /** Build the shared CLI flags (before the subcommand). */
   private buildGlobalArgs(): string[] {
     const args: string[] = [];
@@ -274,6 +286,7 @@ export class ZagBuilder {
    * ```
    */
   async exec(prompt: string): Promise<AgentOutput> {
+    await checkVersion(this._bin, this.versionRequirements());
     const args = this.buildExecArgs(prompt, false);
     return execZag(this._bin, args);
   }
@@ -291,6 +304,7 @@ export class ZagBuilder {
    * ```
    */
   async *stream(prompt: string): AsyncGenerator<Event> {
+    await checkVersion(this._bin, this.versionRequirements());
     const args = this.buildExecArgs(prompt, true);
     yield* streamZag(this._bin, args);
   }
@@ -318,7 +332,8 @@ export class ZagBuilder {
    * await session.wait();
    * ```
    */
-  execStreaming(prompt: string): StreamingSession {
+  async execStreaming(prompt: string): Promise<StreamingSession> {
+    await checkVersion(this._bin, this.versionRequirements());
     const args = this.buildGlobalArgs();
     args.push("exec");
     args.push("-i", "stream-json");
@@ -335,6 +350,7 @@ export class ZagBuilder {
    * Inherits stdin/stdout/stderr.
    */
   async run(prompt?: string): Promise<void> {
+    await checkVersion(this._bin, this.versionRequirements());
     const args = this.buildGlobalArgs();
     args.push("run");
     if (this._json) args.push("--json");
@@ -347,6 +363,7 @@ export class ZagBuilder {
 
   /** Resume a previous session by ID. */
   async resume(sessionId: string): Promise<void> {
+    await checkVersion(this._bin, this.versionRequirements());
     const args = this.buildGlobalArgs();
     args.push("run", "--resume", sessionId);
     return runZag(this._bin, args);
@@ -354,6 +371,7 @@ export class ZagBuilder {
 
   /** Resume the most recent session. */
   async continueLast(): Promise<void> {
+    await checkVersion(this._bin, this.versionRequirements());
     const args = this.buildGlobalArgs();
     args.push("run", "--continue");
     return runZag(this._bin, args);

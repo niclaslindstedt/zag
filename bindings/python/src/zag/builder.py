@@ -20,6 +20,7 @@ from collections.abc import AsyncGenerator
 
 from .process import default_bin, exec_zag, run_zag, stream_zag, stream_with_input
 from .types import AgentOutput, Event
+from .version import VersionRequirement, check_version
 
 
 class ZagBuilder:
@@ -186,6 +187,14 @@ class ZagBuilder:
         self._size = s
         return self
 
+    # -- Version checking ----------------------------------------------------
+
+    def _version_requirements(self) -> list[VersionRequirement]:
+        return [
+            VersionRequirement("env()", "0.6.0", is_set=len(self._env_vars) > 0),
+            VersionRequirement("mcp_config()", "0.6.0", is_set=self._mcp_config is not None),
+        ]
+
     # -- Arg building --------------------------------------------------------
 
     def _global_args(self) -> list[str]:
@@ -265,6 +274,7 @@ class ZagBuilder:
             output = await ZagBuilder().provider("claude").exec("say hello")
             print(output.result)
         """
+        await check_version(self._bin, self._version_requirements())
         args = self._exec_args(prompt)
         return await exec_zag(self._bin, args)
 
@@ -281,6 +291,7 @@ class ZagBuilder:
                 print(event.type)
             await session.wait()
         """
+        await check_version(self._bin, self._version_requirements())
         from .process import StreamingSession as _StreamingSession
 
         args = self._global_args()
@@ -301,12 +312,14 @@ class ZagBuilder:
             async for event in await ZagBuilder().provider("claude").stream("analyze"):
                 print(event.type)
         """
+        await check_version(self._bin, self._version_requirements())
         args = self._exec_args(prompt, streaming=True)
         async for event in stream_zag(self._bin, args):
             yield event
 
     async def run(self, prompt: str | None = None) -> None:
         """Start an interactive agent session (inherits stdio)."""
+        await check_version(self._bin, self._version_requirements())
         args = self._global_args()
         args.append("run")
         if self._json:
@@ -319,12 +332,14 @@ class ZagBuilder:
 
     async def resume(self, session_id: str) -> None:
         """Resume a previous session by ID."""
+        await check_version(self._bin, self._version_requirements())
         args = self._global_args()
         args.extend(["run", "--resume", session_id])
         await run_zag(self._bin, args)
 
     async def continue_last(self) -> None:
         """Resume the most recent session."""
+        await check_version(self._bin, self._version_requirements())
         args = self._global_args()
         args.extend(["run", "--continue"])
         await run_zag(self._bin, args)

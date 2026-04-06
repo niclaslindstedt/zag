@@ -1,6 +1,8 @@
 package zag
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -177,22 +179,32 @@ class ZagBuilder {
         return args
     }
 
+    // -- Version checking ---------------------------------------------------
+
+    private fun versionRequirements() = listOf(
+        VersionCheck.Requirement("env()", "0.6.0", _envVars.isNotEmpty()),
+        VersionCheck.Requirement("mcpConfig()", "0.6.0", _mcpConfig != null),
+    )
+
     // -- Terminal methods ----------------------------------------------------
 
     /** Run the agent non-interactively and return structured output. */
     suspend fun exec(prompt: String): AgentOutput {
+        VersionCheck.check(_bin, versionRequirements())
         val args = buildExecArgs(prompt)
         return ZagProcess.exec(_bin, args)
     }
 
     /** Run the agent in streaming mode, yielding events as they arrive. */
-    fun stream(prompt: String): Flow<Event> {
+    fun stream(prompt: String): Flow<Event> = kotlinx.coroutines.flow.flow {
+        VersionCheck.check(_bin, versionRequirements())
         val args = buildExecArgs(prompt, streaming = true)
-        return ZagProcess.stream(_bin, args)
+        kotlinx.coroutines.flow.emitAll(ZagProcess.stream(_bin, args))
     }
 
     /** Run the agent with streaming input and output (Claude only). */
-    fun execStreaming(prompt: String): StreamingSession {
+    suspend fun execStreaming(prompt: String): StreamingSession {
+        VersionCheck.check(_bin, versionRequirements())
         val args = buildGlobalArgs().toMutableList()
         args.add("exec")
         args.addAll(listOf("-i", "stream-json"))
@@ -205,6 +217,7 @@ class ZagBuilder {
 
     /** Start an interactive agent session (inherits stdio). */
     suspend fun run(prompt: String? = null) {
+        VersionCheck.check(_bin, versionRequirements())
         val args = buildGlobalArgs().toMutableList()
         args.add("run")
         if (_json) args.add("--json")
@@ -218,6 +231,7 @@ class ZagBuilder {
 
     /** Resume a previous session by ID. */
     suspend fun resume(sessionId: String) {
+        VersionCheck.check(_bin, versionRequirements())
         val args = buildGlobalArgs().toMutableList()
         args.add("run")
         args.add("--resume")
@@ -227,6 +241,7 @@ class ZagBuilder {
 
     /** Resume the most recent session. */
     suspend fun continueLast() {
+        VersionCheck.check(_bin, versionRequirements())
         val args = buildGlobalArgs().toMutableList()
         args.add("run")
         args.add("--continue")

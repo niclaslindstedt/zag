@@ -80,6 +80,24 @@ await foreach (var evt in new ZagBuilder().Provider("claude").StreamAsync("analy
 | `.ResumeAsync(sessionId)` | `Task` | Resume a previous session by ID |
 | `.ContinueLastAsync()` | `Task` | Resume the most recent session |
 
+## Version checking
+
+The SDK automatically checks the installed `zag` CLI version before running commands. If you use a builder method that requires a newer CLI version than what's installed, a clear error is raised:
+
+```
+Env() requires zag CLI >= 0.6.0, but the installed version is 0.5.0.
+Please update the zag binary.
+```
+
+The version is detected once (by running `zag --version`) and cached for the lifetime of the process.
+
+| Method | Minimum CLI version |
+|--------|-------------------|
+| `.Env()` | 0.6.0 |
+| `.McpConfig()` | 0.6.0 |
+
+All other methods are available since the initial release (0.2.3).
+
 ## How it works
 
 The SDK spawns the `zag` CLI as a subprocess (`zag exec -o json` or `-o stream-json`) and parses the JSON/NDJSON output into typed models. Zero external dependencies — only the .NET standard library.

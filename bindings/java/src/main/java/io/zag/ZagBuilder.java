@@ -215,6 +215,15 @@ public class ZagBuilder {
         return args;
     }
 
+    // -- Version requirements -------------------------------------------------
+
+    private List<VersionCheck.Requirement> versionRequirements() {
+        return List.of(
+            new VersionCheck.Requirement("env()", "0.6.0", !envVars.isEmpty()),
+            new VersionCheck.Requirement("mcpConfig()", "0.6.0", mcpConfig != null)
+        );
+    }
+
     // -- Terminal methods ----------------------------------------------------
 
     /**
@@ -228,6 +237,7 @@ public class ZagBuilder {
      * }</pre>
      */
     public AgentOutput exec(String prompt) throws ZagException {
+        VersionCheck.check(bin, versionRequirements());
         List<String> args = buildExecArgs(prompt, false);
         return ZagProcess.exec(bin, args);
     }
@@ -244,6 +254,7 @@ public class ZagBuilder {
      * }</pre>
      */
     public Iterable<Event> stream(String prompt) throws ZagException {
+        VersionCheck.check(bin, versionRequirements());
         List<String> args = buildExecArgs(prompt, true);
         return ZagProcess.stream(bin, args);
     }
@@ -269,6 +280,7 @@ public class ZagBuilder {
      * }</pre>
      */
     public StreamingSession execStreaming(String prompt) throws ZagException {
+        VersionCheck.check(bin, versionRequirements());
         List<String> args = buildGlobalArgs();
         args.add("exec");
         args.add("-i"); args.add("stream-json");
@@ -282,6 +294,7 @@ public class ZagBuilder {
 
     /** Start an interactive agent session (inherits stdio). */
     public void run(String prompt) throws ZagException {
+        VersionCheck.check(bin, versionRequirements());
         List<String> args = buildGlobalArgs();
         args.add("run");
         if (json) args.add("--json");
@@ -299,11 +312,13 @@ public class ZagBuilder {
 
     /** Start an interactive agent session without a prompt. */
     public void run() throws ZagException {
+        VersionCheck.check(bin, versionRequirements());
         run(null);
     }
 
     /** Resume a previous session by ID. */
     public void resume(String sessionId) throws ZagException {
+        VersionCheck.check(bin, versionRequirements());
         List<String> args = buildGlobalArgs();
         args.add("run");
         args.add("--resume");
@@ -313,6 +328,7 @@ public class ZagBuilder {
 
     /** Resume the most recent session. */
     public void continueLast() throws ZagException {
+        VersionCheck.check(bin, versionRequirements());
         List<String> args = buildGlobalArgs();
         args.add("run");
         args.add("--continue");

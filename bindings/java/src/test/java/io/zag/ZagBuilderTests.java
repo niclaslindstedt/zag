@@ -142,6 +142,91 @@ class ZagBuilderTests {
     }
 }
 
+class VersionCheckTests {
+
+    @Test
+    void parseSemver_valid() throws Exception {
+        var v = VersionCheck.parseSemver("0.6.0");
+        assertEquals(0, v.major());
+        assertEquals(6, v.minor());
+        assertEquals(0, v.patch());
+    }
+
+    @Test
+    void parseSemver_invalid() {
+        assertThrows(ZagException.class, () -> VersionCheck.parseSemver("invalid"));
+        assertThrows(ZagException.class, () -> VersionCheck.parseSemver("1.2"));
+        assertThrows(ZagException.class, () -> VersionCheck.parseSemver("a.b.c"));
+    }
+
+    @Test
+    void semverComparison() throws Exception {
+        var v050 = VersionCheck.parseSemver("0.5.0");
+        var v060 = VersionCheck.parseSemver("0.6.0");
+        var v070 = VersionCheck.parseSemver("0.7.0");
+
+        assertTrue(v050.compareTo(v060) < 0);
+        assertEquals(0, v060.compareTo(v060));
+        assertTrue(v070.compareTo(v060) > 0);
+    }
+
+    @Test
+    void check_noActiveRequirements_passes() throws Exception {
+        VersionCheck.setVersionForTesting("zag", "0.5.0");
+        try {
+            VersionCheck.check("zag", List.of(
+                new VersionCheck.Requirement("env()", "0.6.0", false)
+            ));
+        } finally {
+            VersionCheck.clearVersionCache();
+        }
+    }
+
+    @Test
+    void check_sufficientVersion_passes() throws Exception {
+        VersionCheck.setVersionForTesting("zag", "0.6.0");
+        try {
+            VersionCheck.check("zag", List.of(
+                new VersionCheck.Requirement("env()", "0.6.0", true)
+            ));
+        } finally {
+            VersionCheck.clearVersionCache();
+        }
+    }
+
+    @Test
+    void check_insufficientVersion_throws() {
+        VersionCheck.setVersionForTesting("zag", "0.5.0");
+        try {
+            var ex = assertThrows(ZagException.class, () ->
+                VersionCheck.check("zag", List.of(
+                    new VersionCheck.Requirement("env()", "0.6.0", true)
+                )));
+            assertTrue(ex.getMessage().contains("env()"));
+            assertTrue(ex.getMessage().contains("0.6.0"));
+            assertTrue(ex.getMessage().contains("0.5.0"));
+        } finally {
+            VersionCheck.clearVersionCache();
+        }
+    }
+
+    @Test
+    void check_multipleFailures_reportsAll() {
+        VersionCheck.setVersionForTesting("zag", "0.5.0");
+        try {
+            var ex = assertThrows(ZagException.class, () ->
+                VersionCheck.check("zag", List.of(
+                    new VersionCheck.Requirement("env()", "0.6.0", true),
+                    new VersionCheck.Requirement("mcpConfig()", "0.6.0", true)
+                )));
+            assertTrue(ex.getMessage().contains("env()"));
+            assertTrue(ex.getMessage().contains("mcpConfig()"));
+        } finally {
+            VersionCheck.clearVersionCache();
+        }
+    }
+}
+
 class ZagExceptionTests {
 
     @Test

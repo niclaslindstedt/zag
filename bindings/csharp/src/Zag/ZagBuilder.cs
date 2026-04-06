@@ -125,6 +125,12 @@ public class ZagBuilder
     /// <summary>Set the Ollama model parameter size (e.g., "2b", "9b", "35b").</summary>
     public ZagBuilder Size(string s) { _size = s; return this; }
 
+    private IReadOnlyList<VersionCheck.Requirement> VersionRequirements() => new[]
+    {
+        new VersionCheck.Requirement("Env()", "0.6.0", _envVars.Count > 0),
+        new VersionCheck.Requirement("McpConfig()", "0.6.0", _mcpConfig != null),
+    };
+
     // -- Arg building --------------------------------------------------------
 
     internal List<string> BuildGlobalArgs()
@@ -183,20 +189,26 @@ public class ZagBuilder
     /// <summary>Run the agent non-interactively and return structured output.</summary>
     public async Task<AgentOutput> ExecAsync(string prompt, CancellationToken ct = default)
     {
+        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
         var args = BuildExecArgs(prompt);
         return await ZagProcess.ExecAsync(_bin, [.. args], ct);
     }
 
     /// <summary>Run the agent in streaming mode, yielding events as they arrive.</summary>
-    public IAsyncEnumerable<Event> StreamAsync(string prompt, CancellationToken ct = default)
+    public async IAsyncEnumerable<Event> StreamAsync(string prompt, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
+        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
         var args = BuildExecArgs(prompt, streaming: true);
-        return ZagProcess.StreamAsync(_bin, [.. args], ct);
+        await foreach (var evt in ZagProcess.StreamAsync(_bin, [.. args], ct).WithCancellation(ct))
+        {
+            yield return evt;
+        }
     }
 
     /// <summary>Run the agent with streaming input and output (Claude only).</summary>
-    public StreamingSession ExecStreaming(string prompt)
+    public async Task<StreamingSession> ExecStreaming(string prompt)
     {
+        await VersionCheck.CheckAsync(_bin, VersionRequirements());
         var args = BuildGlobalArgs();
         args.Add("exec");
         args.Add("-i"); args.Add("stream-json");
@@ -210,6 +222,7 @@ public class ZagBuilder
     /// <summary>Start an interactive agent session (inherits stdio).</summary>
     public async Task RunAsync(string? prompt = null, CancellationToken ct = default)
     {
+        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
         var args = BuildGlobalArgs();
         args.Add("run");
         if (_json) args.Add("--json");
@@ -225,6 +238,7 @@ public class ZagBuilder
     /// <summary>Resume a previous session by ID.</summary>
     public async Task ResumeAsync(string sessionId, CancellationToken ct = default)
     {
+        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
         var args = BuildGlobalArgs();
         args.Add("run");
         args.Add("--resume");
@@ -235,6 +249,7 @@ public class ZagBuilder
     /// <summary>Resume the most recent session.</summary>
     public async Task ContinueLastAsync(CancellationToken ct = default)
     {
+        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
         var args = BuildGlobalArgs();
         args.Add("run");
         args.Add("--continue");
