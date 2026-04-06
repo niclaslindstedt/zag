@@ -15,7 +15,7 @@ pub fn build_router(state: ServerState) -> Router {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    use crate::handlers::{capability, config, mcp, orchestration, skills};
+    use crate::handlers::{capability, config, mcp, orchestration, skills, user_handler};
 
     use crate::handlers::auth_handler;
 
@@ -92,6 +92,11 @@ pub fn build_router(state: ServerState) -> Router {
         .route("/api/v1/capability", routing::get(capability::capability))
         .route("/api/v1/skills", routing::post(skills::skills))
         .route("/api/v1/mcp", routing::post(mcp::mcp))
+        // User management (requires legacy/super token)
+        .route("/api/v1/users", routing::get(user_handler::list))
+        .route("/api/v1/users/add", routing::post(user_handler::add))
+        .route("/api/v1/users/remove", routing::post(user_handler::remove))
+        .route("/api/v1/users/passwd", routing::post(user_handler::passwd))
         // Process management
         .route("/api/v1/processes", routing::get(processes::list))
         .route("/api/v1/processes/{id}", routing::get(processes::show))

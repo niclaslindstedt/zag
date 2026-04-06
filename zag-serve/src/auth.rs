@@ -35,6 +35,12 @@ pub struct UserContext {
     pub home_dir: PathBuf,
 }
 
+/// Marker inserted into request extensions when the legacy token is used.
+/// Legacy tokens act as "super tokens" — they bypass user-account restrictions
+/// and can perform administrative operations like user management.
+#[derive(Debug, Clone)]
+pub struct LegacyTokenContext;
+
 /// Middleware that validates authentication.
 ///
 /// Skips auth for `/api/v1/health` and `/api/v1/login`.
@@ -78,13 +84,15 @@ pub async fn auth_middleware(
                         }
                     }
                 }
-                return (StatusCode::UNAUTHORIZED, "Invalid or expired session token")
-                    .into_response();
+                // Fall through to check legacy token (super token) before rejecting
             }
 
-            // Legacy single-token mode
+            // Legacy token: acts as a super token in both legacy-only and
+            // user-account modes. Grants full access without user restrictions.
             if let Some(ref expected_token) = state.token {
                 if token == *expected_token {
+                    let mut request = request;
+                    request.extensions_mut().insert(LegacyTokenContext);
                     return next.run(request).await;
                 }
             }

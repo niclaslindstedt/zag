@@ -13,8 +13,7 @@ pub(crate) fn should_proxy(command: &Commands) -> Option<ConnectConfig> {
         Commands::Connect { .. }
         | Commands::Disconnect
         | Commands::Serve { .. }
-        | Commands::Relay { .. }
-        | Commands::User { .. } => return None,
+        | Commands::Relay { .. } => return None,
         _ => {}
     }
 
@@ -28,6 +27,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
         .build()?;
 
     match command {
+        Commands::User { command: sub, json } => proxy_user(&client, config, sub, *json).await,
         Commands::Session {
             command: sub,
             json,
@@ -778,6 +778,73 @@ async fn proxy_ps(
                 json,
             )
             .await
+        }
+    }
+}
+
+async fn proxy_user(
+    client: &reqwest::Client,
+    config: &ConnectConfig,
+    command: &crate::cli::UserCommand,
+    json: bool,
+) -> Result<()> {
+    use crate::cli::UserCommand;
+    match command {
+        UserCommand::Add {
+            username,
+            home_dir,
+            password,
+        } => {
+            let password = match password {
+                Some(p) => p.clone(),
+                None => {
+                    eprint!("Password: ");
+                    let p = rpassword::read_password()?;
+                    eprint!("Confirm password: ");
+                    let p2 = rpassword::read_password()?;
+                    if p != p2 {
+                        bail!("Passwords do not match");
+                    }
+                    p
+                }
+            };
+            if password.is_empty() {
+                bail!("Password cannot be empty");
+            }
+            let body = serde_json::json!({
+                "username": username,
+                "password": password,
+                "home_dir": home_dir,
+            });
+            proxy_post_json(client, config, "/api/v1/users/add", &body, json).await
+        }
+        UserCommand::Remove { username } => {
+            let body = serde_json::json!({ "username": username });
+            proxy_post_json(client, config, "/api/v1/users/remove", &body, json).await
+        }
+        UserCommand::List => proxy_get_json(client, config, "/api/v1/users", json).await,
+        UserCommand::Passwd { username, password } => {
+            let password = match password {
+                Some(p) => p.clone(),
+                None => {
+                    eprint!("New password: ");
+                    let p = rpassword::read_password()?;
+                    eprint!("Confirm password: ");
+                    let p2 = rpassword::read_password()?;
+                    if p != p2 {
+                        bail!("Passwords do not match");
+                    }
+                    p
+                }
+            };
+            if password.is_empty() {
+                bail!("Password cannot be empty");
+            }
+            let body = serde_json::json!({
+                "username": username,
+                "password": password,
+            });
+            proxy_post_json(client, config, "/api/v1/users/passwd", &body, json).await
         }
     }
 }

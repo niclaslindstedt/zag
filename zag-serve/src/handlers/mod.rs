@@ -7,3 +7,4 @@ pub mod orchestration;
 pub mod processes;
 pub mod sessions;
 pub mod skills;
+pub mod user_handler;
