@@ -38,6 +38,7 @@ fn test_build_relay_args() {
         retried_from: None,
         interactive: true,
         env_vars: vec![],
+        sandbox: None,
     };
     let args = build_relay_args(&params, "test-session-id");
     assert!(args.contains(&"relay".to_string()));
@@ -75,6 +76,7 @@ fn test_build_relay_args_no_prompt() {
         retried_from: None,
         interactive: true,
         env_vars: vec![],
+        sandbox: None,
     };
     let args = build_relay_args(&params, "test-id");
     assert!(args.contains(&"relay".to_string()));
@@ -107,6 +109,7 @@ fn test_build_exec_args_has_prompt() {
         retried_from: None,
         interactive: false,
         env_vars: vec![],
+        sandbox: None,
     };
     let args = build_exec_args(&params, "test-id");
     assert!(args.contains(&"exec".to_string()));
@@ -117,4 +120,72 @@ fn test_build_exec_args_has_prompt() {
     assert!(args.contains(&"--tag".to_string()));
     assert!(args.contains(&"batch".to_string()));
     assert_eq!(args.last().unwrap(), "do stuff");
+}
+
+#[test]
+fn test_build_exec_args_with_sandbox() {
+    let params = SpawnParams {
+        prompt: Some("do stuff".to_string()),
+        provider: "claude".to_string(),
+        model: None,
+        root: None,
+        auto_approve: false,
+        system_prompt: None,
+        add_dirs: vec![],
+        size: None,
+        max_turns: None,
+        timeout: None,
+        json: false,
+        metadata: SessionMetadata {
+            name: None,
+            description: None,
+            tags: vec![],
+        },
+        depends_on: vec![],
+        inject_context: false,
+        retried_from: None,
+        interactive: false,
+        env_vars: vec![],
+        sandbox: Some("sandbox-abc123".to_string()),
+    };
+    let args = build_exec_args(&params, "test-id");
+    assert!(args.contains(&"exec".to_string()));
+    assert!(args.contains(&"--sandbox".to_string()));
+    assert!(args.contains(&"sandbox-abc123".to_string()));
+    // Sandbox args should come after exec but before --session
+    let exec_pos = args.iter().position(|a| a == "exec").unwrap();
+    let sandbox_pos = args.iter().position(|a| a == "--sandbox").unwrap();
+    let session_pos = args.iter().position(|a| a == "--session").unwrap();
+    assert!(sandbox_pos > exec_pos);
+    assert!(sandbox_pos < session_pos);
+}
+
+#[test]
+fn test_build_exec_args_without_sandbox() {
+    let params = SpawnParams {
+        prompt: Some("do stuff".to_string()),
+        provider: "claude".to_string(),
+        model: None,
+        root: None,
+        auto_approve: false,
+        system_prompt: None,
+        add_dirs: vec![],
+        size: None,
+        max_turns: None,
+        timeout: None,
+        json: false,
+        metadata: SessionMetadata {
+            name: None,
+            description: None,
+            tags: vec![],
+        },
+        depends_on: vec![],
+        inject_context: false,
+        retried_from: None,
+        interactive: false,
+        env_vars: vec![],
+        sandbox: None,
+    };
+    let args = build_exec_args(&params, "test-id");
+    assert!(!args.contains(&"--sandbox".to_string()));
 }

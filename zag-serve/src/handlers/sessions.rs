@@ -57,6 +57,7 @@ async fn send_via_fifo(fifo: &std::path::Path, message: &str) -> anyhow::Result<
 
 /// POST /api/v1/sessions/spawn
 pub async fn spawn(
+    axum::extract::State(state): axum::extract::State<crate::auth::ServerState>,
     user_ctx: Option<Extension<UserContext>>,
     Json(req): Json<SpawnRequest>,
 ) -> impl IntoResponse {
@@ -136,6 +137,13 @@ pub async fn spawn(
         )
     };
 
+    // Force sandbox for connected users when configured
+    let sandbox = if state.force_sandbox {
+        Some(zag_agent::sandbox::generate_name())
+    } else {
+        None
+    };
+
     let params = zag_orch::spawn::SpawnParams {
         prompt: req.prompt,
         provider,
@@ -158,6 +166,7 @@ pub async fn spawn(
         retried_from: None,
         interactive,
         env_vars,
+        sandbox,
     };
 
     match zag_orch::spawn::spawn_session(&params) {

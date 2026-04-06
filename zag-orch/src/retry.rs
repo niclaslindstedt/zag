@@ -165,6 +165,7 @@ pub fn retry_sessions(params: &RetryParams) -> Result<Vec<RetryResult>> {
             retried_from: Some(id.clone()),
             interactive: false,
             env_vars: vec![],
+            sandbox: None,
         });
 
         match spawn_result {

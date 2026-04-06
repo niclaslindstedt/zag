@@ -31,6 +31,8 @@ pub struct SpawnParams {
     pub interactive: bool,
     /// Extra environment variables to set on the spawned process.
     pub env_vars: Vec<(String, String)>,
+    /// Optional sandbox name. When set, the spawned session runs inside a Docker sandbox.
+    pub sandbox: Option<String>,
 }
 
 /// Directory for spawn log files.
@@ -110,6 +112,16 @@ fn build_agent_args(params: &SpawnParams) -> Vec<String> {
     args
 }
 
+/// Build isolation args (sandbox) that go after the subcommand.
+fn build_isolation_args(params: &SpawnParams) -> Vec<String> {
+    let mut args = Vec::new();
+    if let Some(ref name) = params.sandbox {
+        args.push("--sandbox".to_string());
+        args.push(name.clone());
+    }
+    args
+}
+
 /// Build args for interactive relay mode.
 fn build_relay_args(params: &SpawnParams, session_id: &str) -> Vec<String> {
     let mut args = build_agent_args(params);
@@ -132,6 +144,7 @@ fn build_exec_args(params: &SpawnParams, session_id: &str) -> Vec<String> {
 
     // Exec subcommand with session ID
     args.push("exec".to_string());
+    args.extend(build_isolation_args(params));
     args.push("--session".to_string());
     args.push(session_id.to_string());
 
@@ -216,7 +229,7 @@ pub fn spawn_session(params: &SpawnParams) -> Result<SpawnResult> {
         worktree_name: String::new(),
         created_at: chrono::Utc::now().to_rfc3339(),
         provider_session_id: None,
-        sandbox_name: None,
+        sandbox_name: params.sandbox.clone(),
         is_worktree: false,
         discovered: false,
         discovery_source: None,

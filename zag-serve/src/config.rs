@@ -20,6 +20,9 @@ pub struct ServerSection {
     pub token: Option<String>,
     pub tls_cert: Option<String>,
     pub tls_key: Option<String>,
+    /// When true, all connected users' agent sessions are forced to run inside a Docker sandbox.
+    #[serde(default)]
+    pub force_sandbox: bool,
 }
 
 impl Default for ServerSection {
@@ -30,6 +33,7 @@ impl Default for ServerSection {
             token: None,
             tls_cert: None,
             tls_key: None,
+            force_sandbox: false,
         }
     }
 }

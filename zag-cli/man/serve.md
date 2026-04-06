@@ -22,6 +22,7 @@ The server requires authentication via a bearer token on all endpoints except `/
     --generate-token         Generate a new random token, save it, and start
     --tls-cert <PATH>        TLS certificate file (PEM format); overrides auto-generated cert
     --tls-key <PATH>         TLS private key file (PEM format); overrides auto-generated cert
+    --force-sandbox          Force all connected users' sessions to run inside Docker sandboxes
 
 ## Host and Port
 
@@ -50,6 +51,10 @@ The server always uses HTTPS. TLS certificates are resolved in this order:
 3. Auto-generated self-signed certificate (saved to `~/.zag/tls/`)
 
 When using auto-generated certificates, a warning is printed. Self-signed certificates are suitable for local networks and development but should not be used in production.
+
+## Force Sandbox
+
+When `--force-sandbox` is set (or `force_sandbox = true` in `~/.zag/serve.toml`), all agent sessions spawned by connected users are automatically run inside Docker sandboxes. This provides an additional layer of isolation for multi-user deployments. The sandbox name is auto-generated for each session.
 
 ## REST API Endpoints
 
@@ -95,6 +100,7 @@ Server defaults can be saved in `~/.zag/serve.toml`:
     token = "..."
     tls_cert = "/path/to/cert.pem"
     tls_key = "/path/to/key.pem"
+    force_sandbox = true
 
 ## See Also
 

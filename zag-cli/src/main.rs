@@ -224,6 +224,7 @@ async fn main() -> Result<()> {
             generate_token,
             tls_cert,
             tls_key,
+            force_sandbox,
         } => {
             run_serve(ServeParams {
                 host,
@@ -232,6 +233,7 @@ async fn main() -> Result<()> {
                 generate_token,
                 tls_cert,
                 tls_key,
+                force_sandbox,
             })
             .await?;
         }
@@ -645,6 +647,7 @@ async fn main() -> Result<()> {
                 retried_from: None,
                 interactive,
                 env_vars: vec![],
+                sandbox: None,
             })?;
         }
         Commands::Relay {

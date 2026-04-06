@@ -23,6 +23,30 @@ fn serve_config_defaults() {
     assert!(config.server.token.is_none());
     assert!(config.server.tls_cert.is_none());
     assert!(config.server.tls_key.is_none());
+    assert!(!config.server.force_sandbox);
+}
+
+#[test]
+fn serve_config_force_sandbox_from_toml() {
+    let toml_str = r#"
+[server]
+host = "0.0.0.0"
+port = 2100
+force_sandbox = true
+"#;
+    let config: ServeConfig = toml::from_str(toml_str).unwrap();
+    assert!(config.server.force_sandbox);
+}
+
+#[test]
+fn serve_config_force_sandbox_defaults_false() {
+    let toml_str = r#"
+[server]
+host = "0.0.0.0"
+port = 2100
+"#;
+    let config: ServeConfig = toml::from_str(toml_str).unwrap();
+    assert!(!config.server.force_sandbox);
 }
 
 #[test]
