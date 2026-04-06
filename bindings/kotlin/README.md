@@ -84,6 +84,24 @@ ZagBuilder().provider("claude").stream("analyze code").collect { event ->
 | `.resume(sessionId)` | `Unit` | Resume a previous session by ID (suspend) |
 | `.continueLast()` | `Unit` | Resume the most recent session (suspend) |
 
+## Version checking
+
+The SDK automatically checks the installed `zag` CLI version before running commands. If you use a builder method that requires a newer CLI version than what's installed, a clear error is thrown:
+
+```
+env() requires zag CLI >= 0.6.0, but the installed version is 0.5.0.
+Please update the zag binary.
+```
+
+The version is detected once (by running `zag --version`) and cached for the lifetime of the process.
+
+| Method | Minimum CLI version |
+|--------|-------------------|
+| `.env()` | 0.6.0 |
+| `.mcpConfig()` | 0.6.0 |
+
+All other methods are available since the initial release (0.2.3).
+
 ## How it works
 
 The SDK spawns the `zag` CLI as a subprocess (`zag exec -o json` or `-o stream-json`) and parses the JSON/NDJSON output into typed models. Uses `kotlinx.serialization` for JSON parsing and `kotlinx.coroutines` for async operations.

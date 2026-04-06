@@ -3,6 +3,13 @@ import assert from "node:assert/strict";
 import { ZagBuilder } from "../src/builder.js";
 import { ZagError } from "../src/types.js";
 import type { AgentOutput, Event } from "../src/types.js";
+import {
+  parseSemver,
+  compareSemver,
+  checkVersion,
+  _setVersionForTesting,
+  _clearVersionCache,
+} from "../src/version.js";
 
 describe("ZagBuilder", () => {
   it("should construct with defaults", () => {
@@ -86,6 +93,90 @@ describe("ZagError", () => {
     assert.equal(err.stderr, "stderr output");
     assert.equal(err.name, "ZagError");
     assert.ok(err instanceof Error);
+  });
+});
+
+describe("Version checking", () => {
+  it("should parse valid semver", () => {
+    assert.deepStrictEqual(parseSemver("0.6.0"), [0, 6, 0]);
+    assert.deepStrictEqual(parseSemver("1.2.3"), [1, 2, 3]);
+  });
+
+  it("should reject invalid semver", () => {
+    assert.throws(() => parseSemver("invalid"), ZagError);
+    assert.throws(() => parseSemver("1.2"), ZagError);
+    assert.throws(() => parseSemver("a.b.c"), ZagError);
+  });
+
+  it("should compare semver correctly", () => {
+    assert.equal(compareSemver([0, 5, 0], [0, 6, 0]), -1);
+    assert.equal(compareSemver([0, 6, 0], [0, 6, 0]), 0);
+    assert.equal(compareSemver([0, 7, 0], [0, 6, 0]), 1);
+    assert.equal(compareSemver([1, 0, 0], [0, 9, 9]), 1);
+  });
+
+  it("should pass when no requirements are set", async () => {
+    _setVersionForTesting("zag", "0.5.0");
+    try {
+      await checkVersion("zag", [
+        { method: "env()", version: "0.6.0", isSet: false },
+      ]);
+    } finally {
+      _clearVersionCache();
+    }
+  });
+
+  it("should pass when version is sufficient", async () => {
+    _setVersionForTesting("zag", "0.6.0");
+    try {
+      await checkVersion("zag", [
+        { method: "env()", version: "0.6.0", isSet: true },
+      ]);
+    } finally {
+      _clearVersionCache();
+    }
+  });
+
+  it("should throw when version is insufficient", async () => {
+    _setVersionForTesting("zag", "0.5.0");
+    try {
+      await assert.rejects(
+        () =>
+          checkVersion("zag", [
+            { method: "env()", version: "0.6.0", isSet: true },
+          ]),
+        (err: unknown) => {
+          if (!(err instanceof ZagError)) return false;
+          assert.ok(err.message.includes("env()"));
+          assert.ok(err.message.includes("0.6.0"));
+          assert.ok(err.message.includes("0.5.0"));
+          return true;
+        },
+      );
+    } finally {
+      _clearVersionCache();
+    }
+  });
+
+  it("should report multiple failures", async () => {
+    _setVersionForTesting("zag", "0.5.0");
+    try {
+      await assert.rejects(
+        () =>
+          checkVersion("zag", [
+            { method: "env()", version: "0.6.0", isSet: true },
+            { method: "mcpConfig()", version: "0.6.0", isSet: true },
+          ]),
+        (err: unknown) => {
+          if (!(err instanceof ZagError)) return false;
+          assert.ok(err.message.includes("env()"));
+          assert.ok(err.message.includes("mcpConfig()"));
+          return true;
+        },
+      );
+    } finally {
+      _clearVersionCache();
+    }
   });
 });
 

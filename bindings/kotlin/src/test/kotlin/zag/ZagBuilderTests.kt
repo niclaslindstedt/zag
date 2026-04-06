@@ -146,6 +146,93 @@ class ZagBuilderTests {
     }
 }
 
+class VersionCheckTests {
+
+    @Test
+    fun `parse valid semver`() {
+        val v = VersionCheck.parseSemver("0.6.0")
+        assertEquals(0, v.major)
+        assertEquals(6, v.minor)
+        assertEquals(0, v.patch)
+    }
+
+    @Test
+    fun `parse invalid semver throws`() {
+        assertFails { VersionCheck.parseSemver("invalid") }
+        assertFails { VersionCheck.parseSemver("1.2") }
+        assertFails { VersionCheck.parseSemver("a.b.c") }
+    }
+
+    @Test
+    fun `semver comparison`() {
+        val v050 = VersionCheck.parseSemver("0.5.0")
+        val v060 = VersionCheck.parseSemver("0.6.0")
+        val v070 = VersionCheck.parseSemver("0.7.0")
+
+        assertTrue(v050 < v060)
+        assertEquals(v060, v060)
+        assertTrue(v070 > v060)
+    }
+
+    @Test
+    fun `check with no active requirements passes`() = kotlinx.coroutines.test.runTest {
+        VersionCheck.setVersionForTesting("zag", "0.5.0")
+        try {
+            VersionCheck.check("zag", listOf(
+                VersionCheck.Requirement("env()", "0.6.0", false),
+            ))
+        } finally {
+            VersionCheck.clearVersionCache()
+        }
+    }
+
+    @Test
+    fun `check with sufficient version passes`() = kotlinx.coroutines.test.runTest {
+        VersionCheck.setVersionForTesting("zag", "0.6.0")
+        try {
+            VersionCheck.check("zag", listOf(
+                VersionCheck.Requirement("env()", "0.6.0", true),
+            ))
+        } finally {
+            VersionCheck.clearVersionCache()
+        }
+    }
+
+    @Test
+    fun `check with insufficient version throws`() = kotlinx.coroutines.test.runTest {
+        VersionCheck.setVersionForTesting("zag", "0.5.0")
+        try {
+            val ex = assertFails {
+                VersionCheck.check("zag", listOf(
+                    VersionCheck.Requirement("env()", "0.6.0", true),
+                ))
+            }
+            assertTrue(ex.message!!.contains("env()"))
+            assertTrue(ex.message!!.contains("0.6.0"))
+            assertTrue(ex.message!!.contains("0.5.0"))
+        } finally {
+            VersionCheck.clearVersionCache()
+        }
+    }
+
+    @Test
+    fun `check with multiple failures reports all`() = kotlinx.coroutines.test.runTest {
+        VersionCheck.setVersionForTesting("zag", "0.5.0")
+        try {
+            val ex = assertFails {
+                VersionCheck.check("zag", listOf(
+                    VersionCheck.Requirement("env()", "0.6.0", true),
+                    VersionCheck.Requirement("mcpConfig()", "0.6.0", true),
+                ))
+            }
+            assertTrue(ex.message!!.contains("env()"))
+            assertTrue(ex.message!!.contains("mcpConfig()"))
+        } finally {
+            VersionCheck.clearVersionCache()
+        }
+    }
+}
+
 class ZagExceptionTests {
 
     @Test

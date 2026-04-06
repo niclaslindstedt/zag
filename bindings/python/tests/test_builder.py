@@ -169,6 +169,81 @@ class TestZagBuilder:
         assert builder._bin == "/usr/local/bin/zag"
 
 
+class TestVersionChecking:
+    def test_parse_semver(self) -> None:
+        from zag.version import parse_semver
+        assert parse_semver("0.6.0") == (0, 6, 0)
+        assert parse_semver("1.2.3") == (1, 2, 3)
+
+    def test_parse_semver_invalid(self) -> None:
+        from zag.version import parse_semver
+        import pytest
+
+        with pytest.raises(ZagError):
+            parse_semver("invalid")
+        with pytest.raises(ZagError):
+            parse_semver("1.2")
+        with pytest.raises(ZagError):
+            parse_semver("a.b.c")
+
+    def test_compare_semver(self) -> None:
+        from zag.version import compare_semver, SemVer
+        assert compare_semver(SemVer(0, 5, 0), SemVer(0, 6, 0)) == -1
+        assert compare_semver(SemVer(0, 6, 0), SemVer(0, 6, 0)) == 0
+        assert compare_semver(SemVer(0, 7, 0), SemVer(0, 6, 0)) == 1
+        assert compare_semver(SemVer(1, 0, 0), SemVer(0, 9, 9)) == 1
+
+    async def test_check_version_no_requirements(self) -> None:
+        import asyncio
+        from zag.version import check_version, VersionRequirement, _set_version_for_testing, _clear_version_cache
+        _set_version_for_testing("zag", "0.5.0")
+        try:
+            await check_version("zag", [
+                VersionRequirement("env()", "0.6.0", is_set=False),
+            ])
+        finally:
+            _clear_version_cache()
+
+    async def test_check_version_sufficient(self) -> None:
+        import asyncio
+        from zag.version import check_version, VersionRequirement, _set_version_for_testing, _clear_version_cache
+        _set_version_for_testing("zag", "0.6.0")
+        try:
+            await check_version("zag", [
+                VersionRequirement("env()", "0.6.0", is_set=True),
+            ])
+        finally:
+            _clear_version_cache()
+
+    async def test_check_version_insufficient(self) -> None:
+        import asyncio
+        import pytest
+        from zag.version import check_version, VersionRequirement, _set_version_for_testing, _clear_version_cache
+        _set_version_for_testing("zag", "0.5.0")
+        try:
+            with pytest.raises(ZagError, match="env().*0.6.0.*0.5.0"):
+                await check_version("zag", [
+                    VersionRequirement("env()", "0.6.0", is_set=True),
+                ])
+        finally:
+            _clear_version_cache()
+
+    async def test_check_version_multiple_failures(self) -> None:
+        import asyncio
+        import pytest
+        from zag.version import check_version, VersionRequirement, _set_version_for_testing, _clear_version_cache
+        _set_version_for_testing("zag", "0.5.0")
+        try:
+            with pytest.raises(ZagError, match="env()") as exc_info:
+                await check_version("zag", [
+                    VersionRequirement("env()", "0.6.0", is_set=True),
+                    VersionRequirement("mcp_config()", "0.6.0", is_set=True),
+                ])
+            assert "mcp_config()" in str(exc_info.value)
+        finally:
+            _clear_version_cache()
+
+
 class TestZagError:
     def test_attributes(self) -> None:
         err = ZagError("test error", 1, "stderr output")

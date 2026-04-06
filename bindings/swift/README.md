@@ -201,6 +201,26 @@ for try await event in ZagBuilder().provider("claude").stream("analyze code") {
 | `subscribe(tag:, type:)` | Subscribe to events across sessions |
 | `exec(params)` | Spawn + wait + output (convenience) |
 
+## Version checking
+
+The SDK automatically checks the installed `zag` CLI version before running commands. If you use a builder method that requires a newer CLI version than what's installed, a clear error is thrown:
+
+```
+env() requires zag CLI >= 0.6.0, but the installed version is 0.5.0.
+Please update the zag binary.
+```
+
+The version is detected once (by running `zag --version`) and cached for the lifetime of the process.
+
+| Method | Minimum CLI version |
+|--------|-------------------|
+| `.env()` | 0.6.0 |
+| `.mcpConfig()` | 0.6.0 |
+
+All other methods are available since the initial release (0.2.3).
+
+Version checks only apply to local execution mode. Remote mode handles compatibility on the server side.
+
 ## How it works
 
 - **Local mode**: Spawns the `zag` CLI as a subprocess (`zag exec -o json` or `-o stream-json`) and parses JSON/NDJSON output into typed Swift models.

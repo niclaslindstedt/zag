@@ -266,6 +266,17 @@ public final class ZagBuilder {
         )
     }
 
+    // MARK: - Version checking
+
+    #if os(macOS) || os(Linux)
+    private func versionRequirements() -> [VersionCheck.Requirement] {
+        return [
+            VersionCheck.Requirement(method: "env()", version: "0.6.0", isSet: !_envVars.isEmpty),
+            VersionCheck.Requirement(method: "mcpConfig()", version: "0.6.0", isSet: _mcpConfig != nil),
+        ]
+    }
+    #endif
+
     // MARK: - Terminal methods
 
     /// Run the agent non-interactively and return structured output.
@@ -287,6 +298,7 @@ public final class ZagBuilder {
                 isError: false)
         }
         #if os(macOS) || os(Linux)
+        try await VersionCheck.check(bin: bin, requirements: versionRequirements())
         let args = buildExecArgs(prompt: prompt)
         return try await ZagProcess.exec(bin: bin, args: args)
         #else
@@ -318,7 +330,22 @@ public final class ZagBuilder {
         }
         #if os(macOS) || os(Linux)
         let args = buildExecArgs(prompt: prompt, streaming: true)
-        return ZagProcess.stream(bin: bin, args: args)
+        let binPath = bin
+        let requirements = versionRequirements()
+        return AsyncThrowingStream { continuation in
+            Task {
+                do {
+                    try await VersionCheck.check(bin: binPath, requirements: requirements)
+                    let innerStream = ZagProcess.stream(bin: binPath, args: args)
+                    for try await event in innerStream {
+                        continuation.yield(event)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
         #else
         return AsyncThrowingStream { continuation in
             continuation.finish(throwing: ZagError(
@@ -335,10 +362,11 @@ public final class ZagBuilder {
     ///
     /// - Note: On iOS, only remote mode is available.
     #if os(macOS) || os(Linux)
-    public func execStreaming(_ prompt: String) throws -> StreamingSession {
+    public func execStreaming(_ prompt: String) async throws -> StreamingSession {
         if _connection != nil {
             fatalError("Use execStreamingRemote(_:) for remote streaming sessions.")
         }
+        try await VersionCheck.check(bin: bin, requirements: versionRequirements())
         var args = buildGlobalArgs()
         args.append("exec")
         args += ["-i", "stream-json"]
@@ -378,6 +406,7 @@ public final class ZagBuilder {
     /// Only available in local mode (macOS/Linux).
     #if os(macOS) || os(Linux)
     public func run(_ prompt: String? = nil) async throws {
+        try await VersionCheck.check(bin: bin, requirements: versionRequirements())
         var args = buildGlobalArgs()
         args.append("run")
         if _json { args.append("--json") }
@@ -388,6 +417,7 @@ public final class ZagBuilder {
 
     /// Resume a previous session by ID.
     public func resume(_ sessionId: String) async throws {
+        try await VersionCheck.check(bin: bin, requirements: versionRequirements())
         var args = buildGlobalArgs()
         args.append("run")
         args += ["--resume", sessionId]
@@ -396,6 +426,7 @@ public final class ZagBuilder {
 
     /// Resume the most recent session.
     public func continueLast() async throws {
+        try await VersionCheck.check(bin: bin, requirements: versionRequirements())
         var args = buildGlobalArgs()
         args.append("run")
         args.append("--continue")

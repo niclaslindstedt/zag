@@ -249,6 +249,94 @@ struct ZagBuilderTests {
     }
 }
 
+// MARK: - Version checking tests
+
+@Suite("VersionCheck")
+struct VersionCheckTests {
+
+    @Test("parse valid semver")
+    func parseValidSemver() throws {
+        let v = try VersionCheck.parseSemver("0.6.0")
+        #expect(v.major == 0)
+        #expect(v.minor == 6)
+        #expect(v.patch == 0)
+    }
+
+    @Test("parse invalid semver throws")
+    func parseInvalidSemver() {
+        #expect(throws: ZagError.self) { try VersionCheck.parseSemver("invalid") }
+        #expect(throws: ZagError.self) { try VersionCheck.parseSemver("1.2") }
+        #expect(throws: ZagError.self) { try VersionCheck.parseSemver("a.b.c") }
+    }
+
+    @Test("semver comparison")
+    func semverComparison() throws {
+        let v050 = try VersionCheck.parseSemver("0.5.0")
+        let v060 = try VersionCheck.parseSemver("0.6.0")
+        let v070 = try VersionCheck.parseSemver("0.7.0")
+
+        #expect(v050 < v060)
+        #expect(v060 == v060)
+        #expect(v070 > v060)
+    }
+
+    #if os(macOS) || os(Linux)
+    @Test("check with no active requirements passes")
+    func checkNoActiveRequirements() async throws {
+        VersionCheck.setVersionForTesting(bin: "zag", version: "0.5.0")
+        defer { VersionCheck.clearVersionCache() }
+        try await VersionCheck.check(bin: "zag", requirements: [
+            VersionCheck.Requirement(method: "env()", version: "0.6.0", isSet: false),
+        ])
+    }
+
+    @Test("check with sufficient version passes")
+    func checkSufficientVersion() async throws {
+        VersionCheck.setVersionForTesting(bin: "zag", version: "0.6.0")
+        defer { VersionCheck.clearVersionCache() }
+        try await VersionCheck.check(bin: "zag", requirements: [
+            VersionCheck.Requirement(method: "env()", version: "0.6.0", isSet: true),
+        ])
+    }
+
+    @Test("check with insufficient version throws")
+    func checkInsufficientVersion() async {
+        VersionCheck.setVersionForTesting(bin: "zag", version: "0.5.0")
+        defer { VersionCheck.clearVersionCache() }
+        do {
+            try await VersionCheck.check(bin: "zag", requirements: [
+                VersionCheck.Requirement(method: "env()", version: "0.6.0", isSet: true),
+            ])
+            Issue.record("Expected ZagError")
+        } catch let error as ZagError {
+            #expect(error.message.contains("env()"))
+            #expect(error.message.contains("0.6.0"))
+            #expect(error.message.contains("0.5.0"))
+        } catch {
+            Issue.record("Expected ZagError, got \(error)")
+        }
+    }
+
+    @Test("check with multiple failures reports all")
+    func checkMultipleFailures() async {
+        VersionCheck.setVersionForTesting(bin: "zag", version: "0.5.0")
+        defer { VersionCheck.clearVersionCache() }
+        do {
+            try await VersionCheck.check(bin: "zag", requirements: [
+                VersionCheck.Requirement(method: "env()", version: "0.6.0", isSet: true),
+                VersionCheck.Requirement(method: "mcpConfig()", version: "0.6.0", isSet: true),
+            ])
+            Issue.record("Expected ZagError")
+        } catch let error as ZagError {
+            #expect(error.message.contains("env()"))
+            #expect(error.message.contains("mcpConfig()"))
+        } catch {
+            Issue.record("Expected ZagError, got \(error)")
+        }
+    }
+    #endif
+}
+
 // MARK: - ZagError tests
 
 @Suite("ZagError")
