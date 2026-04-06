@@ -585,6 +585,11 @@ export const commands: CommandData[] = [
     "category": "core"
   },
   {
+    "name": "plan",
+    "description": "Generate an implementation plan",
+    "category": "core"
+  },
+  {
     "name": "config",
     "description": "View or set configuration values",
     "category": "core"
