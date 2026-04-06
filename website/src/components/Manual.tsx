@@ -52,7 +52,7 @@ export default function Manual() {
       {/* Backdrop for mobile sidebar */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-20 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -61,9 +61,10 @@ export default function Manual() {
         {/* Sidebar */}
         <aside
           className={`
-            fixed top-[73px] bottom-0 z-30 w-64 shrink-0 overflow-y-auto border-r border-border bg-surface px-4 py-6
+            fixed top-[73px] bottom-0 z-40 w-full shrink-0 overflow-y-auto border-r border-border bg-surface px-4 py-6
             transition-transform duration-200 ease-in-out
-            lg:sticky lg:translate-x-0 lg:block
+            sm:w-72
+            lg:sticky lg:w-64 lg:translate-x-0 lg:block
             ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           `}
         >
