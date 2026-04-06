@@ -13,7 +13,8 @@ pub(crate) fn should_proxy(command: &Commands) -> Option<ConnectConfig> {
         Commands::Connect { .. }
         | Commands::Disconnect
         | Commands::Serve { .. }
-        | Commands::Relay { .. } => return None,
+        | Commands::Relay { .. }
+        | Commands::User { .. } => return None,
         _ => {}
     }
 

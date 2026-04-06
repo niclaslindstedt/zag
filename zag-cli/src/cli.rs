@@ -859,11 +859,28 @@ pub enum Commands {
         url: String,
 
         /// Authentication token (or use ZAG_CONNECT_TOKEN env var)
-        #[arg(long)]
+        #[arg(long, conflicts_with = "username")]
         token: Option<String>,
+
+        /// Username for user-account authentication
+        #[arg(long, short = 'u', conflicts_with = "token")]
+        username: Option<String>,
+
+        /// Password for user-account authentication (prompted if not provided)
+        #[arg(long, requires = "username")]
+        password: Option<String>,
     },
     /// Disconnect from the remote zag server
     Disconnect,
+    /// Manage user accounts on the server
+    User {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        #[command(subcommand)]
+        command: UserCommand,
+    },
     /// Internal: relay for interactive sessions (FIFO-based streaming)
     #[command(hide = true)]
     Relay {
@@ -1105,4 +1122,38 @@ pub(crate) fn parse_json_schema(schema_str: &str) -> Result<serde_json::Value> {
             .len()
     );
     Ok(schema_json)
+}
+
+#[derive(Subcommand)]
+pub(crate) enum UserCommand {
+    /// Add a new user account
+    Add {
+        /// Username
+        #[arg(long, short = 'u')]
+        username: String,
+
+        /// Home directory (the user will be locked to this directory)
+        #[arg(long)]
+        home_dir: String,
+
+        /// Password (prompted interactively if not provided)
+        #[arg(long)]
+        password: Option<String>,
+    },
+    /// Remove a user account
+    Remove {
+        /// Username to remove
+        username: String,
+    },
+    /// List all user accounts
+    List,
+    /// Change a user's password
+    Passwd {
+        /// Username
+        username: String,
+
+        /// New password (prompted interactively if not provided)
+        #[arg(long)]
+        password: Option<String>,
+    },
 }

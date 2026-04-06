@@ -29,10 +29,16 @@ pub struct SpawnParams {
     pub inject_context: bool,
     pub retried_from: Option<String>,
     pub interactive: bool,
+    /// Extra environment variables to set on the spawned process.
+    pub env_vars: Vec<(String, String)>,
 }
 
 /// Directory for spawn log files.
 fn spawn_logs_dir() -> PathBuf {
+    // Per-user log directory override (set by zag serve in user-account mode)
+    if let Ok(user_log_dir) = std::env::var("ZAG_USER_LOG_DIR") {
+        return PathBuf::from(user_log_dir).join("spawn");
+    }
     Config::global_base_dir().join("logs").join("spawn")
 }
 
@@ -279,20 +285,26 @@ pub fn spawn_session(params: &SpawnParams) -> Result<SpawnResult> {
                 .join(" ")
         );
         debug!("Spawn with deps: sh -c '{}'", wait_cmd);
-        std::process::Command::new("sh")
-            .arg("-c")
+        let mut cmd = std::process::Command::new("sh");
+        cmd.arg("-c")
             .arg(&wait_cmd)
             .stdin(std::process::Stdio::null())
             .stdout(stdout_file)
-            .stderr(stderr_file)
-            .spawn()?
+            .stderr(stderr_file);
+        for (key, val) in &params.env_vars {
+            cmd.env(key, val);
+        }
+        cmd.spawn()?
     } else {
-        std::process::Command::new(&zag_bin)
-            .args(&args)
+        let mut cmd = std::process::Command::new(&zag_bin);
+        cmd.args(&args)
             .stdin(std::process::Stdio::null())
             .stdout(stdout_file)
-            .stderr(stderr_file)
-            .spawn()?
+            .stderr(stderr_file);
+        for (key, val) in &params.env_vars {
+            cmd.env(key, val);
+        }
+        cmd.spawn()?
     };
 
     let child_pid = child.id();
