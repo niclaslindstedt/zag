@@ -27,6 +27,12 @@ export default function Footer() {
             >
               Documentation
             </Link>
+            <Link
+              to="/manual"
+              className="hover:text-text-primary transition-colors"
+            >
+              Manual
+            </Link>
             <a
               href="https://crates.io/crates/zag-cli"
               target="_blank"

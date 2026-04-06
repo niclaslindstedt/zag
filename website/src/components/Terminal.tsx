@@ -203,7 +203,7 @@ export default function Terminal({
       {/* Terminal body */}
       <div
         ref={bodyRef}
-        className="max-h-[320px] overflow-y-auto p-5 text-left font-mono text-sm leading-relaxed"
+        className="h-[320px] overflow-y-auto p-5 text-left font-mono text-sm leading-relaxed"
       >
         {lines.map((line, i) => renderLine(line, i))}
         {lines.length === 0 && (
