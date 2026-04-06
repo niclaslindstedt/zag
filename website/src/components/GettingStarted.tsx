@@ -1,3 +1,5 @@
+import { prereqs } from "../data/sourceData";
+
 const methods = [
   {
     title: "From crates.io",
@@ -14,14 +16,6 @@ const methods = [
     command: "# Download pre-built binary from\n# github.com/niclaslindstedt/zag/releases",
     note: "Pre-built for major platforms",
   },
-];
-
-const prereqs = [
-  { name: "Claude", cmd: "curl -fsSL https://claude.ai/install.sh | bash" },
-  { name: "Codex", cmd: "npm i -g @openai/codex" },
-  { name: "Gemini", cmd: "npm i -g @anthropic-ai/gemini-cli" },
-  { name: "Copilot", cmd: "npm i -g @github/copilot" },
-  { name: "Ollama", cmd: "# Download from ollama.com" },
 ];
 
 export default function GettingStarted() {

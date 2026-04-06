@@ -1,58 +1,80 @@
+import {
+  providerCount,
+  providers,
+  orchestrationCommands,
+  bindings,
+  commands,
+} from "../data/sourceData";
+
+const orchCmdNames = orchestrationCommands.map((c) => c.name);
+const bindingLangs = bindings.map((b) => b.language);
+const hasSkillsCmd = commands.some((c) => c.name === "skills");
+const hasMcpCmd = commands.some((c) => c.name === "mcp");
+const hasAutoProvider = providers.some((p) => p.availableModels.includes("auto"));
+
 const features = [
   {
-    title: "One CLI, Five Agents",
+    title: `One CLI, ${providerCount} Agents`,
     description:
-      "Switch between Claude, Codex, Gemini, Copilot, and Ollama with a single -p flag. Same commands, same output format, any provider.",
-    icon: "🔀",
+      `Switch between ${providers.map((p) => p.displayName).join(", ")} with a single -p flag. Same commands, same output format, any provider.`,
+    icon: "\u{1F500}",
   },
   {
     title: "Multi-Agent Orchestration",
     description:
-      "Built-in spawn, wait, collect, and pipe primitives. Build sequential pipelines, fan-out/gather patterns, and coordinator workflows from the shell.",
-    icon: "🧩",
+      `Built-in ${orchCmdNames.slice(0, 4).join(", ")}, and ${orchCmdNames[4]} primitives. Build sequential pipelines, fan-out/gather patterns, and coordinator workflows from the shell.`,
+    icon: "\u{1F9E9}",
   },
   {
     title: "Structured JSON Output",
     description:
       "Request JSON responses with --json, validate against schemas with --json-schema (auto-retries on failure), or stream NDJSON events in real-time.",
-    icon: "📋",
+    icon: "\u{1F4CB}",
   },
   {
     title: "Session Management",
     description:
       "Every session gets a UUID with name, description, and tags. Resume previous sessions, search history, and export structured event logs.",
-    icon: "💾",
+    icon: "\u{1F4BE}",
   },
   {
     title: "Isolation Modes",
     description:
       "Run agents in isolated git worktrees (--worktree) or Docker sandboxes (--sandbox). Safe experimentation without touching your working tree.",
-    icon: "🔒",
+    icon: "\u{1F512}",
   },
   {
     title: "SDKs & Library",
     description:
-      "Use as a Rust library with zero subprocess overhead, or from TypeScript, Python, C#, Swift, Java, and Kotlin via lightweight SDKs that wrap the CLI.",
-    icon: "📦",
+      `Use as a Rust library with zero subprocess overhead, or from ${bindingLangs.join(", ")} via lightweight SDKs that wrap the CLI.`,
+    icon: "\u{1F4E6}",
   },
   {
     title: "Portable Model Aliases",
     description:
       "Use small, medium, and large instead of provider-specific model names. The right model maps automatically for each provider.",
-    icon: "🏷️",
+    icon: "\u{1F3F7}\u{FE0F}",
   },
-  {
-    title: "Skills & MCP Servers",
-    description:
-      "Manage agent skills and MCP servers across all providers from a single config. Add once, sync everywhere with zag skills and zag mcp.",
-    icon: "🛠️",
-  },
-  {
-    title: "Auto Provider Selection",
-    description:
-      "Use -p auto -m auto and let an LLM analyze your task to recommend the optimal provider and model size. Configurable selector agent.",
-    icon: "🤖",
-  },
+  ...(hasSkillsCmd || hasMcpCmd
+    ? [
+        {
+          title: "Skills & MCP Servers",
+          description:
+            `Manage agent skills and MCP servers across all providers from a single config. Add once, sync everywhere with ${hasSkillsCmd ? "zag skills" : ""}${hasSkillsCmd && hasMcpCmd ? " and " : ""}${hasMcpCmd ? "zag mcp" : ""}.`,
+          icon: "\u{1F6E0}\u{FE0F}",
+        },
+      ]
+    : []),
+  ...(hasAutoProvider
+    ? [
+        {
+          title: "Auto Provider Selection",
+          description:
+            "Use -p auto -m auto and let an LLM analyze your task to recommend the optimal provider and model size. Configurable selector agent.",
+          icon: "\u{1F916}",
+        },
+      ]
+    : []),
 ];
 
 export default function Features() {

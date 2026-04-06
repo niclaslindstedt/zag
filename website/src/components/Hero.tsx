@@ -1,6 +1,14 @@
 import { useState } from "react";
 import Terminal from "./Terminal";
 import { terminalDemos } from "../data/terminalDemos";
+import { version, providers as sourceProviders, bindings } from "../data/sourceData";
+
+const providerPills = sourceProviders.map((p) => ({
+  name: p.displayName,
+  color: `text-${p.name}`,
+}));
+
+const sdkLanguages = bindings.map((b) => b.language);
 
 export default function Hero() {
   const [copied, setCopied] = useState(false);
@@ -17,7 +25,7 @@ export default function Hero() {
 
       <div className="relative mx-auto max-w-6xl px-6 text-center">
         <a href="https://crates.io/crates/zag" target="_blank" rel="noopener noreferrer" className="mb-6 inline-block rounded-full border border-border bg-surface-alt px-4 py-1.5 text-xs text-text-secondary hover:border-accent/50 hover:text-text-primary transition-colors">
-          v0.6.0 — Now available on crates.io
+          v{version} — Now available on crates.io
         </a>
 
         <h1 className="mx-auto max-w-4xl text-4xl leading-tight font-extrabold tracking-tight text-text-primary md:text-6xl md:leading-tight">
@@ -28,19 +36,13 @@ export default function Hero() {
         </h1>
 
         <p className="mx-auto mt-6 max-w-2xl text-lg text-text-secondary md:text-xl">
-          Switch between Claude, Codex, Gemini, Copilot, and Ollama with a single command.
-          Orchestrate multi-agent workflows. Use from Rust, TypeScript, Python, or C#.
+          Switch between {sourceProviders.map((p) => p.displayName).join(", ")} with a single command.
+          Orchestrate multi-agent workflows. Use from Rust, {sdkLanguages.slice(0, 3).join(", ")}, or {sdkLanguages[sdkLanguages.length - 1]}.
         </p>
 
         {/* Provider pills */}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          {[
-            { name: "Claude", color: "text-claude" },
-            { name: "Codex", color: "text-codex" },
-            { name: "Gemini", color: "text-gemini" },
-            { name: "Copilot", color: "text-copilot" },
-            { name: "Ollama", color: "text-ollama" },
-          ].map((p) => (
+          {providerPills.map((p) => (
             <span key={p.name} className={`rounded-full border border-border bg-surface-alt px-3 py-1 text-sm font-medium ${p.color}`}>
               {p.name}
             </span>

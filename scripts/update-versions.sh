@@ -56,11 +56,14 @@ sed -i.bak "s/<Version>[^<]*<\/Version>/<Version>$VERSION<\/Version>/" bindings/
 rm -f bindings/csharp/src/Zag/Zag.csproj.bak
 echo "  updated bindings/csharp/src/Zag/Zag.csproj"
 
-# --- Website ---
+# --- Website (regenerate extracted source data) ---
 
-sed -i.bak "s/v[0-9]\+\.[0-9]\+\.[0-9]\+ — Now available on crates\.io/v$VERSION — Now available on crates.io/" website/src/components/Hero.tsx
-rm -f website/src/components/Hero.tsx.bak
-echo "  updated website/src/components/Hero.tsx"
+if command -v node &>/dev/null; then
+    (cd website && node scripts/extract-source-data.mjs)
+    echo "  regenerated website/src/data/sourceData.ts"
+else
+    echo "  [SKIP] node not available — run 'cd website && npm run extract' manually"
+fi
 
 # --- Regenerate Cargo.lock ---
 
