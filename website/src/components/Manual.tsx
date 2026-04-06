@@ -49,6 +49,14 @@ export default function Manual() {
         </button>
       </div>
 
+      {/* Backdrop for mobile sidebar */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-20 bg-black/50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       <div className="mx-auto flex max-w-7xl">
         {/* Sidebar */}
         <aside
@@ -87,14 +95,6 @@ export default function Manual() {
             ))}
           </nav>
         </aside>
-
-        {/* Backdrop for mobile sidebar */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 z-20 bg-black/50 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
 
         {/* Main content */}
         <main className="min-w-0 flex-1 px-6 py-8 lg:px-12 lg:py-10">
