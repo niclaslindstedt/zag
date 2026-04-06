@@ -115,7 +115,6 @@ code, pre {
 }
 
 .markdown-content pre {
-  position: relative;
   background-color: var(--color-surface-alt);
   border: 1px solid var(--color-border);
   border-radius: 0.5rem;
