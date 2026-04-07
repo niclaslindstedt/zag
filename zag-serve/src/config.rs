@@ -113,6 +113,48 @@ impl ConnectConfig {
         if path.exists() {
             std::fs::remove_file(&path)?;
         }
+        // Also clean up the health cache
+        let cache_path = Self::health_cache_path();
+        if cache_path.exists() {
+            let _ = std::fs::remove_file(&cache_path);
+        }
+        Ok(())
+    }
+
+    /// Path to the health check cache file.
+    pub fn health_cache_path() -> PathBuf {
+        zag_agent::config::Config::global_base_dir().join("health_cache")
+    }
+
+    /// Check if the health cache is still valid (within `ttl_secs` of now).
+    pub fn is_health_cache_valid(ttl_secs: u64) -> bool {
+        let path = Self::health_cache_path();
+        let content = match std::fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(_) => return false,
+        };
+        let cached_ts: u64 = match content.trim().parse() {
+            Ok(ts) => ts,
+            Err(_) => return false,
+        };
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        now.saturating_sub(cached_ts) < ttl_secs
+    }
+
+    /// Update the health cache with the current timestamp.
+    pub fn update_health_cache() -> Result<()> {
+        let path = Self::health_cache_path();
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        std::fs::write(&path, now.to_string())?;
         Ok(())
     }
 

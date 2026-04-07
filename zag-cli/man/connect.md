@@ -22,6 +22,14 @@ The connection state is stored in `~/.zag/connect.json`. While connected, comman
 
     --token <TOKEN>    Authentication token (or set ZAG_CONNECT_TOKEN env var)
 
+## Health Check
+
+Before proxying each command, zag pings the remote server's health endpoint to verify it is reachable. If the server is unreachable, zag automatically disconnects and runs the command locally, printing a warning to stderr. The health check result is cached for 30 seconds to avoid adding latency on every invocation.
+
+To disable this behavior, use the `--no-health-check` global flag or set the `ZAG_NO_HEALTH_CHECK=1` environment variable:
+
+    zag --no-health-check status <session-id>
+
 ## Commands That Work Remotely
 
     zag spawn          Spawn a session on the remote machine

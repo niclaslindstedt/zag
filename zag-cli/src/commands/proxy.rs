@@ -20,6 +20,32 @@ pub(crate) fn should_proxy(command: &Commands) -> Option<ConnectConfig> {
     ConnectConfig::load()
 }
 
+/// Check if the remote server is reachable. Returns true if healthy, false if unreachable.
+/// Uses a file-based cache to avoid checking on every command invocation.
+pub(crate) async fn check_server_health(config: &ConnectConfig) -> bool {
+    // Check cache first — skip the network call if we checked recently
+    if ConnectConfig::is_health_cache_valid(30) {
+        return true;
+    }
+
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .timeout(std::time::Duration::from_secs(2))
+        .build()
+        .ok();
+
+    let Some(client) = client else { return false };
+
+    let health_url = format!("{}/api/v1/health", config.url);
+    match client.get(&health_url).send().await {
+        Ok(resp) if resp.status().is_success() => {
+            let _ = ConnectConfig::update_health_cache();
+            true
+        }
+        _ => false,
+    }
+}
+
 /// Proxy a command to the remote server.
 pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) -> Result<()> {
     let client = reqwest::Client::builder()
@@ -1105,6 +1131,10 @@ async fn proxy_watch(
 
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "proxy_tests.rs"]
+mod tests;
 
 /// Check if a JSON event matches a simple "key=value,key=value" filter expression.
 fn matches_filter(event: &serde_json::Value, filter: &str) -> bool {
