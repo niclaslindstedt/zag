@@ -605,6 +605,11 @@ export const commands: CommandData[] = [
     "category": "core"
   },
   {
+    "name": "discover",
+    "description": "Discover available providers, models, and capabilities",
+    "category": "core"
+  },
+  {
     "name": "listen",
     "description": "Listen to a session's log events in real-time",
     "category": "session"
