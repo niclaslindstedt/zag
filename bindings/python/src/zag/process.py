@@ -123,6 +123,15 @@ class StreamingSession:
         if self._proc.stdin is not None:
             self._proc.stdin.close()
 
+    def terminate(self) -> None:
+        """Send SIGTERM to the subprocess."""
+        self._proc.terminate()
+
+    @property
+    def is_running(self) -> bool:
+        """Return True if the subprocess is still running."""
+        return self._proc.returncode is None
+
     async def events(self) -> AsyncGenerator[Event, None]:
         """Async iterator over parsed Event objects from stdout."""
         assert self._proc.stdout is not None

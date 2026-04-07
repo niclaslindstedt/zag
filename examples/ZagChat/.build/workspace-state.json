@@ -1,0 +1,27 @@
+{
+  "object" : {
+    "artifacts" : [
+
+    ],
+    "dependencies" : [
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "swift",
+          "kind" : "fileSystem",
+          "location" : "/Users/niclas/Source/personal/zag/bindings/swift",
+          "name" : "Zag"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/niclas/Source/personal/zag/bindings/swift"
+        },
+        "subpath" : "swift"
+      }
+    ],
+    "prebuilts" : [
+
+    ]
+  },
+  "version" : 7
+}

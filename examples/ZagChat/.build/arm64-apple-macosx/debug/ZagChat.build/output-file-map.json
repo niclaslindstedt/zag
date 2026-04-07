@@ -1,0 +1,71 @@
+{
+  "": {
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/master.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/examples/ZagChat/Sources/ZagChat/Models/ChatMessage.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ChatMessage.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ChatMessage.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ChatMessage~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ChatMessage.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/examples/ZagChat/Sources/ZagChat/ViewModel/ChatViewModel.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ChatViewModel.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ChatViewModel.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ChatViewModel~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ChatViewModel.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/examples/ZagChat/Sources/ZagChat/Views/ContentView.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ContentView.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ContentView.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ContentView~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ContentView.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/examples/ZagChat/Sources/ZagChat/Views/InputBarView.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/InputBarView.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/InputBarView.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/InputBarView~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/InputBarView.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/examples/ZagChat/Sources/ZagChat/Views/MessageBubbleView.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/MessageBubbleView.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/MessageBubbleView.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/MessageBubbleView~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/MessageBubbleView.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/examples/ZagChat/Sources/ZagChat/Views/MessageListView.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/MessageListView.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/MessageListView.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/MessageListView~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/MessageListView.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/examples/ZagChat/Sources/ZagChat/Views/NewChatSheet.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/NewChatSheet.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/NewChatSheet.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/NewChatSheet~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/NewChatSheet.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/examples/ZagChat/Sources/ZagChat/Views/SessionStatusView.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/SessionStatusView.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/SessionStatusView.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/SessionStatusView~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/SessionStatusView.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/examples/ZagChat/Sources/ZagChat/Views/ToolIndicatorView.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ToolIndicatorView.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ToolIndicatorView.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ToolIndicatorView~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ToolIndicatorView.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/examples/ZagChat/Sources/ZagChat/Views/WelcomeView.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/WelcomeView.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/WelcomeView.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/WelcomeView~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/WelcomeView.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/examples/ZagChat/Sources/ZagChat/ZagChatApp.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ZagChatApp.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ZagChatApp.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ZagChatApp~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/ZagChat.build/ZagChatApp.swiftdeps"
+  }
+}

@@ -191,10 +191,20 @@ public sealed class StreamingSession : IDisposable
         Send(msg);
     }
 
+    /// <summary>Whether the underlying process is still running.</summary>
+    public bool IsRunning => !_process.HasExited;
+
     /// <summary>Close stdin to signal no more input.</summary>
     public void CloseInput()
     {
         _process.StandardInput.Close();
+    }
+
+    /// <summary>Terminate the underlying process. No-op if already exited.</summary>
+    public void Terminate()
+    {
+        if (!_process.HasExited)
+            _process.Kill();
     }
 
     /// <summary>Async iterator over parsed Event objects from stdout.</summary>

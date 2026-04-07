@@ -1,0 +1,4 @@
+module Zag {
+    header "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/Zag-Swift.h"
+    requires objc
+}

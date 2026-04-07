@@ -1,0 +1,65 @@
+{
+  "": {
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/master.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/bindings/swift/Sources/Zag/DiscoverModels.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/DiscoverModels.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/DiscoverModels.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/DiscoverModels~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/DiscoverModels.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/bindings/swift/Sources/Zag/Models.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/Models.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/Models.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/Models~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/Models.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/bindings/swift/Sources/Zag/VersionCheck.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/VersionCheck.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/VersionCheck.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/VersionCheck~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/VersionCheck.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/bindings/swift/Sources/Zag/ZagBuilder.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagBuilder.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagBuilder.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagBuilder~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagBuilder.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/bindings/swift/Sources/Zag/ZagConnection.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagConnection.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagConnection.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagConnection~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagConnection.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/bindings/swift/Sources/Zag/ZagDiscover.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagDiscover.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagDiscover.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagDiscover~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagDiscover.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/bindings/swift/Sources/Zag/ZagError.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagError.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagError.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagError~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagError.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/bindings/swift/Sources/Zag/ZagProcess.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagProcess.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagProcess.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagProcess~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagProcess.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/bindings/swift/Sources/Zag/ZagRemoteClient.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagRemoteClient.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagRemoteClient.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagRemoteClient~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagRemoteClient.swiftdeps"
+  },
+  "/Users/niclas/Source/personal/zag/bindings/swift/Sources/Zag/ZagRemoteSession.swift": {
+    "dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagRemoteSession.d",
+    "object": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagRemoteSession.swift.o",
+    "swiftmodule": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagRemoteSession~partial.swiftmodule",
+    "swift-dependencies": "/Users/niclas/Source/personal/zag/examples/ZagChat/.build/arm64-apple-macosx/debug/Zag.build/ZagRemoteSession.swiftdeps"
+  }
+}

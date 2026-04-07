@@ -217,12 +217,24 @@ public final class StreamingSession {
     private let stdinPipe: Pipe
     private let stdoutPipe: Pipe
     private let stderrPipe: Pipe
+    /// Stderr collected by the background drain, available after the process exits.
+    private var collectedStderr = Data()
+    private let stderrLock = NSLock()
 
     init(process: Process, stdinPipe: Pipe, stdoutPipe: Pipe, stderrPipe: Pipe) {
         self.process = process
         self.stdinPipe = stdinPipe
         self.stdoutPipe = stdoutPipe
         self.stderrPipe = stderrPipe
+        // Drain stderr on a background thread to prevent the subprocess from
+        // blocking when the OS pipe buffer fills up (~64 KB on macOS).
+        let lock = self.stderrLock
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let data = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+            lock.lock()
+            self?.collectedStderr = data
+            lock.unlock()
+        }
     }
 
     /// Send a raw NDJSON line to the agent's stdin.
@@ -243,6 +255,14 @@ public final class StreamingSession {
     public func closeInput() {
         stdinPipe.fileHandleForWriting.closeFile()
     }
+
+    /// Terminate the subprocess immediately (SIGTERM).
+    public func terminate() {
+        if process.isRunning { process.terminate() }
+    }
+
+    /// The process ID of the subprocess, or `nil` if it has exited.
+    public var isRunning: Bool { process.isRunning }
 
     /// Async stream of parsed `Event` objects from stdout.
     public var events: AsyncThrowingStream<Event, Error> {
@@ -271,7 +291,9 @@ public final class StreamingSession {
         process.waitUntilExit()
 
         if process.terminationStatus != 0 {
-            let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+            stderrLock.lock()
+            let stderrData = collectedStderr
+            stderrLock.unlock()
             let stderr = String(data: stderrData, encoding: .utf8) ?? ""
             throw ZagError(
                 message: "zag exited with code \(process.terminationStatus)",

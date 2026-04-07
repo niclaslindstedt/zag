@@ -79,6 +79,15 @@ class StreamingSession internal constructor(
         }
     }
 
+    /** Whether the underlying process is still running. */
+    val isRunning: Boolean
+        get() = process.isAlive
+
+    /** Terminate the underlying process gracefully. */
+    fun terminate() {
+        process.destroy()
+    }
+
     override fun close() {
         process.destroyForcibly()
     }
