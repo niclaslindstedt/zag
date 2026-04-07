@@ -111,8 +111,12 @@ function renderLine(line: RenderedLine, index: number) {
   const text = line.text;
   let colorClass = "text-text-dim";
   if (text.startsWith("\u2713")) colorClass = "text-codex";
-  else if (text.startsWith("\u21BB")) colorClass = "text-gemini";
-  else if (text.startsWith("  +") || text.startsWith("  src/"))
+  else if (text.startsWith(">")) colorClass = "text-claude";
+  else if (text.startsWith("    \u23FA")) colorClass = "text-gemini";
+  else if (text.startsWith("    \u2190")) colorClass = "text-codex";
+  else if (text.startsWith("\u2717") || text.startsWith("\u2718"))
+    colorClass = "text-[#f87171]";
+  else if (text.startsWith("  src/") || text.startsWith("  +"))
     colorClass = "text-text-secondary";
 
   return (
