@@ -120,6 +120,12 @@ export interface StreamingSession {
   /** Async iterator over parsed Event objects from stdout. */
   events(): AsyncGenerator<Event>;
 
+  /** Whether the child process is still running. */
+  readonly isRunning: boolean;
+
+  /** Send SIGTERM to the child process. No-op if already exited. */
+  terminate(): void;
+
   /** Wait for the process to exit. Throws ZagError on non-zero exit. */
   wait(): Promise<void>;
 }
@@ -136,7 +142,22 @@ export function streamWithInput(
   const stderrChunks: Buffer[] = [];
   child.stderr.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
 
+  let running = true;
+  child.on("exit", () => {
+    running = false;
+  });
+
   return {
+    get isRunning() {
+      return running;
+    },
+
+    terminate() {
+      if (running) {
+        child.kill("SIGTERM");
+      }
+    },
+
     send(message: string) {
       child.stdin.write(message + "\n");
     },

@@ -91,6 +91,16 @@ public class StreamingSession implements AutoCloseable {
                 };
     }
 
+    /** Return whether the underlying process is still running. */
+    public boolean isRunning() {
+        return process.isAlive();
+    }
+
+    /** Terminate the underlying process gracefully, or forcibly if it does not exit. */
+    public void terminate() {
+        process.destroy();
+    }
+
     /** Wait for the process to exit. Throws ZagException on non-zero exit. */
     public void await() throws ZagException, InterruptedException {
         try {

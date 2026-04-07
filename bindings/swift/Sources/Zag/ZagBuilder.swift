@@ -232,8 +232,11 @@ public final class ZagBuilder {
 
     /// Build CLI arguments for the `exec` subcommand.
     public func buildExecArgs(prompt: String, streaming: Bool = false) -> [String] {
-        var args = buildGlobalArgs()
-        args.append("exec")
+        // Subcommand must precede per-subcommand flags; only --debug/--quiet/--verbose
+        // are truly global (cli-level) and could go before the subcommand, but placing
+        // everything after the subcommand is equally valid in clap.
+        var args: [String] = ["exec"]
+        args += buildGlobalArgs()
         if _json { args.append("--json") }
         if let s = _jsonSchema { args += ["--json-schema", s] }
         if _jsonStream || streaming { args.append("--json-stream") }
@@ -367,8 +370,8 @@ public final class ZagBuilder {
             fatalError("Use execStreamingRemote(_:) for remote streaming sessions.")
         }
         try await VersionCheck.check(bin: bin, requirements: versionRequirements())
-        var args = buildGlobalArgs()
-        args.append("exec")
+        var args: [String] = ["exec"]
+        args += buildGlobalArgs()
         args += ["-i", "stream-json"]
         args += ["-o", "stream-json"]
         args.append("--replay-user-messages")
@@ -407,8 +410,8 @@ public final class ZagBuilder {
     #if os(macOS) || os(Linux)
     public func run(_ prompt: String? = nil) async throws {
         try await VersionCheck.check(bin: bin, requirements: versionRequirements())
-        var args = buildGlobalArgs()
-        args.append("run")
+        var args: [String] = ["run"]
+        args += buildGlobalArgs()
         if _json { args.append("--json") }
         if let s = _jsonSchema { args += ["--json-schema", s] }
         if let p = prompt { args.append(p) }
@@ -418,8 +421,8 @@ public final class ZagBuilder {
     /// Resume a previous session by ID.
     public func resume(_ sessionId: String) async throws {
         try await VersionCheck.check(bin: bin, requirements: versionRequirements())
-        var args = buildGlobalArgs()
-        args.append("run")
+        var args: [String] = ["run"]
+        args += buildGlobalArgs()
         args += ["--resume", sessionId]
         try await ZagProcess.runInteractive(bin: bin, args: args)
     }
@@ -427,8 +430,8 @@ public final class ZagBuilder {
     /// Resume the most recent session.
     public func continueLast() async throws {
         try await VersionCheck.check(bin: bin, requirements: versionRequirements())
-        var args = buildGlobalArgs()
-        args.append("run")
+        var args: [String] = ["run"]
+        args += buildGlobalArgs()
         args.append("--continue")
         try await ZagProcess.runInteractive(bin: bin, args: args)
     }
