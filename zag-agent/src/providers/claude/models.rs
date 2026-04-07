@@ -404,6 +404,8 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
         events,
         result,
         is_error,
+        exit_code: None,
+        error_message: None,
         total_cost_usd,
         usage,
     }

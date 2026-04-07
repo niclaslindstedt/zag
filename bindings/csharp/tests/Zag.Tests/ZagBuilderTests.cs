@@ -340,6 +340,8 @@ public class ModelsTests
         Assert.Equal(6, output.Events.Count);
         Assert.Equal("Hello!", output.Result);
         Assert.False(output.IsError);
+        Assert.Null(output.ExitCode);
+        Assert.Null(output.ErrorMessage);
         Assert.Equal(0.01, output.TotalCostUsd);
         Assert.NotNull(output.Usage);
         Assert.Equal(100, output.Usage.InputTokens);

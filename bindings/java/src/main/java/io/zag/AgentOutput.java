@@ -12,5 +12,7 @@ public record AgentOutput(
         @JsonProperty("events") List<Event> events,
         @JsonProperty("result") String result,
         @JsonProperty("is_error") boolean isError,
+        @JsonProperty("exit_code") Integer exitCode,
+        @JsonProperty("error_message") String errorMessage,
         @JsonProperty("total_cost_usd") Double totalCostUsd,
         @JsonProperty("usage") Usage usage) {}

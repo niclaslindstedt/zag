@@ -144,6 +144,8 @@ fn test_record_agent_output_maps_core_events() {
         ],
         result: Some("answer".to_string()),
         is_error: false,
+        exit_code: None,
+        error_message: None,
         total_cost_usd: None,
         usage: None,
     };

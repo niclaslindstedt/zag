@@ -305,6 +305,8 @@ class ModelsTests {
         assertEquals(6, output.events.size)
         assertEquals("Hello!", output.result)
         assertFalse(output.isError)
+        assertNull(output.exitCode)
+        assertNull(output.errorMessage)
         assertEquals(0.01, output.totalCostUsd)
         assertNotNull(output.usage)
         assertEquals(100, output.usage!!.inputTokens)

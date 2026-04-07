@@ -165,7 +165,12 @@ impl Gemini {
                 .await
                 .context("Failed to execute 'gemini' CLI. Is it installed and in PATH?")?;
             if !status.success() {
-                anyhow::bail!("Gemini command failed with status: {}", status);
+                return Err(crate::process::ProcessError {
+                    exit_code: status.code(),
+                    stderr: String::new(),
+                    agent_name: "Gemini".to_string(),
+                }
+                .into());
             }
             Ok(None)
         } else if self.capture_output {
@@ -557,7 +562,12 @@ impl Agent for Gemini {
             .await
             .context("Failed to execute 'gemini' CLI. Is it installed and in PATH?")?;
         if !status.success() {
-            anyhow::bail!("Gemini resume failed with status: {}", status);
+            return Err(crate::process::ProcessError {
+                exit_code: status.code(),
+                stderr: String::new(),
+                agent_name: "Gemini".to_string(),
+            }
+            .into());
         }
         Ok(())
     }

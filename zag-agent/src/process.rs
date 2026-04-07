@@ -8,6 +8,36 @@ use tokio::process::Command;
 #[path = "process_tests.rs"]
 mod tests;
 
+/// Structured error from a failed subprocess.
+///
+/// Wraps the exit code and stderr so callers can inspect them
+/// (e.g. to populate `AgentOutput.exit_code` / `error_message`).
+#[derive(Debug, Clone)]
+pub struct ProcessError {
+    /// The process exit code, if available.
+    pub exit_code: Option<i32>,
+    /// Captured stderr text (may be empty).
+    pub stderr: String,
+    /// Name of the agent / command that failed.
+    pub agent_name: String,
+}
+
+impl std::fmt::Display for ProcessError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.stderr.is_empty() {
+            write!(
+                f,
+                "{} command failed with exit code {:?}",
+                self.agent_name, self.exit_code
+            )
+        } else {
+            write!(f, "{}", self.stderr)
+        }
+    }
+}
+
+impl std::error::Error for ProcessError {}
+
 /// Read stderr from a child process handle into a trimmed String.
 async fn read_stderr(handle: Option<tokio::process::ChildStderr>) -> String {
     if let Some(stderr) = handle {
@@ -42,11 +72,12 @@ pub fn check_exit_status(
     if status.success() {
         return Ok(());
     }
-    if stderr.is_empty() {
-        anyhow::bail!("{} command failed with status: {}", agent_name, status);
-    } else {
-        anyhow::bail!("{}", stderr);
+    Err(ProcessError {
+        exit_code: status.code(),
+        stderr: stderr.to_string(),
+        agent_name: agent_name.to_string(),
     }
+    .into())
 }
 
 /// Handle stderr logging and exit status checking for a completed `Output`.

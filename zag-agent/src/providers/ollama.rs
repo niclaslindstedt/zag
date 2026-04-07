@@ -163,7 +163,12 @@ impl Ollama {
                 .await
                 .context("Failed to execute 'ollama' CLI. Is it installed and in PATH?")?;
             if !status.success() {
-                anyhow::bail!("Ollama command failed with status: {}", status);
+                return Err(crate::process::ProcessError {
+                    exit_code: status.code(),
+                    stderr: String::new(),
+                    agent_name: "Ollama".to_string(),
+                }
+                .into());
             }
             Ok(None)
         } else if self.capture_output {

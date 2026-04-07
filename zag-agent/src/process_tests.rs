@@ -23,7 +23,7 @@ fn test_check_exit_status_failure_without_stderr() {
     let result = check_exit_status(output.status, "", "Claude");
     assert!(result.is_err());
     let err = result.unwrap_err().to_string();
-    assert!(err.contains("Claude command failed with status"));
+    assert!(err.contains("Claude command failed with exit code"));
 }
 
 #[test]
@@ -135,4 +135,38 @@ async fn test_wait_with_stderr_failure() {
     let child = spawn_with_captured_stderr(&mut cmd).await.unwrap();
     let result = wait_with_stderr(child).await;
     assert!(result.is_err());
+}
+
+#[test]
+fn test_process_error_display_with_stderr() {
+    let err = ProcessError {
+        exit_code: Some(1),
+        stderr: "provider crashed".to_string(),
+        agent_name: "Claude".to_string(),
+    };
+    assert_eq!(err.to_string(), "provider crashed");
+}
+
+#[test]
+fn test_process_error_display_without_stderr() {
+    let err = ProcessError {
+        exit_code: Some(42),
+        stderr: String::new(),
+        agent_name: "Codex".to_string(),
+    };
+    assert_eq!(
+        err.to_string(),
+        "Codex command failed with exit code Some(42)"
+    );
+}
+
+#[test]
+fn test_process_error_downcast() {
+    let output = std::process::Command::new("false").output().unwrap();
+    let result = check_exit_status(output.status, "test error", "Agent");
+    let err = result.unwrap_err();
+    let process_err = err.downcast_ref::<ProcessError>().unwrap();
+    assert_eq!(process_err.stderr, "test error");
+    assert_eq!(process_err.agent_name, "Agent");
+    assert!(process_err.exit_code.is_some());
 }

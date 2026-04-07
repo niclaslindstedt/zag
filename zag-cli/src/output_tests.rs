@@ -8,6 +8,8 @@ fn make_agent_output(events: Vec<Event>, result: Option<String>, is_error: bool)
         events,
         result,
         is_error,
+        exit_code: None,
+        error_message: None,
         total_cost_usd: None,
         usage: None,
     }
@@ -582,6 +584,8 @@ fn test_agent_output_roundtrip() {
         }],
         result: Some("done".to_string()),
         is_error: false,
+        exit_code: None,
+        error_message: None,
         total_cost_usd: Some(0.01),
         usage: Some(Usage {
             input_tokens: 100,

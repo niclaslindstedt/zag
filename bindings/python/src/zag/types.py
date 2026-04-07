@@ -283,6 +283,8 @@ class AgentOutput:
     events: list[Event] = field(default_factory=list)
     result: str | None = None
     is_error: bool = False
+    exit_code: int | None = None
+    error_message: str | None = None
     total_cost_usd: float | None = None
     usage: Usage | None = None
 
@@ -297,6 +299,8 @@ class AgentOutput:
             events=events,
             result=data.get("result"),
             is_error=data.get("is_error", False),
+            exit_code=data.get("exit_code"),
+            error_message=data.get("error_message"),
             total_cost_usd=data.get("total_cost_usd"),
             usage=usage,
         )

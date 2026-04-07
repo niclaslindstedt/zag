@@ -8,6 +8,8 @@ fn make_agent_output(events: Vec<Event>, result: Option<String>, is_error: bool)
         events,
         result,
         is_error,
+        exit_code: None,
+        error_message: None,
         total_cost_usd: None,
         usage: None,
     }
@@ -582,6 +584,8 @@ fn test_agent_output_roundtrip() {
         }],
         result: Some("done".to_string()),
         is_error: false,
+        exit_code: None,
+        error_message: None,
         total_cost_usd: Some(0.01),
         usage: Some(Usage {
             input_tokens: 100,
@@ -596,6 +600,55 @@ fn test_agent_output_roundtrip() {
     let parsed: AgentOutput = serde_json::from_str(&json).unwrap();
     assert_eq!(parsed.agent, "claude");
     assert_eq!(parsed.result, Some("done".to_string()));
+    assert_eq!(parsed.exit_code, None);
+    assert_eq!(parsed.error_message, None);
+}
+
+#[test]
+fn test_agent_output_with_exit_info_roundtrip() {
+    let output = AgentOutput {
+        agent: "codex".to_string(),
+        session_id: "sess-2".to_string(),
+        events: vec![],
+        result: None,
+        is_error: true,
+        exit_code: Some(2),
+        error_message: Some("provider crashed".to_string()),
+        total_cost_usd: None,
+        usage: None,
+    };
+    let json = serde_json::to_string(&output).unwrap();
+    let parsed: AgentOutput = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed.exit_code, Some(2));
+    assert_eq!(parsed.error_message, Some("provider crashed".to_string()));
+    assert!(parsed.is_error);
+}
+
+#[test]
+fn test_agent_output_skip_serializing_none_exit_fields() {
+    let output = AgentOutput {
+        agent: "test".to_string(),
+        session_id: String::new(),
+        events: vec![],
+        result: None,
+        is_error: false,
+        exit_code: None,
+        error_message: None,
+        total_cost_usd: None,
+        usage: None,
+    };
+    let json = serde_json::to_string(&output).unwrap();
+    assert!(!json.contains("exit_code"));
+    assert!(!json.contains("error_message"));
+}
+
+#[test]
+fn test_agent_output_deserialize_without_exit_fields() {
+    // Backwards compatibility: JSON without exit_code/error_message should still parse
+    let json = r#"{"agent":"test","session_id":"","events":[],"result":null,"is_error":false,"total_cost_usd":null,"usage":null}"#;
+    let parsed: AgentOutput = serde_json::from_str(json).unwrap();
+    assert_eq!(parsed.exit_code, None);
+    assert_eq!(parsed.error_message, None);
 }
 
 #[test]

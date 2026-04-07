@@ -13,6 +13,8 @@ data class AgentOutput(
     val events: List<Event> = emptyList(),
     val result: String? = null,
     @SerialName("is_error") val isError: Boolean = false,
+    @SerialName("exit_code") val exitCode: Int? = null,
+    @SerialName("error_message") val errorMessage: String? = null,
     @SerialName("total_cost_usd") val totalCostUsd: Double? = null,
     val usage: Usage? = null,
 )

@@ -320,6 +320,8 @@ public struct AgentOutput: Codable, Equatable, Sendable {
     public let events: [Event]
     public let result: String?
     public let isError: Bool
+    public let exitCode: Int?
+    public let errorMessage: String?
     public let totalCostUsd: Double?
     public let usage: Usage?
 
@@ -329,6 +331,8 @@ public struct AgentOutput: Codable, Equatable, Sendable {
         events: [Event] = [],
         result: String? = nil,
         isError: Bool = false,
+        exitCode: Int? = nil,
+        errorMessage: String? = nil,
         totalCostUsd: Double? = nil,
         usage: Usage? = nil
     ) {
@@ -337,6 +341,8 @@ public struct AgentOutput: Codable, Equatable, Sendable {
         self.events = events
         self.result = result
         self.isError = isError
+        self.exitCode = exitCode
+        self.errorMessage = errorMessage
         self.totalCostUsd = totalCostUsd
         self.usage = usage
     }
