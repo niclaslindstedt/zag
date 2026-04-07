@@ -213,7 +213,17 @@ async fn main() -> Result<()> {
 
     // Check if we're connected to a remote server — proxy the command if so
     if let Some(connect_config) = commands::proxy::should_proxy(&cli.command) {
-        return commands::proxy::proxy_command(&connect_config, &cli.command).await;
+        let skip_health_check =
+            cli.no_health_check || std::env::var("ZAG_NO_HEALTH_CHECK").is_ok_and(|v| v == "1");
+        if !skip_health_check && !commands::proxy::check_server_health(&connect_config).await {
+            eprintln!(
+                "warning: remote server at {} is unreachable; disconnecting and running locally.",
+                connect_config.url
+            );
+            zag_serve::config::ConnectConfig::remove()?;
+        } else {
+            return commands::proxy::proxy_command(&connect_config, &cli.command).await;
+        }
     }
 
     match cli.command {

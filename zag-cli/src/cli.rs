@@ -19,6 +19,10 @@ pub struct Cli {
     #[arg(short = 'v', long, global = true)]
     pub verbose: bool,
 
+    /// Skip health check before proxying to remote server
+    #[arg(long, global = true)]
+    pub no_health_check: bool,
+
     #[command(subcommand)]
     pub command: Commands,
 }

@@ -309,6 +309,8 @@ zag listen --name worker
 zag disconnect
 ```
 
+When the remote server becomes unreachable, zag automatically disconnects and falls back to local execution (with a warning). The health check result is cached for 30 seconds. Use `--no-health-check` or `ZAG_NO_HEALTH_CHECK=1` to disable this behavior.
+
 The server exposes REST and WebSocket endpoints at `/api/v1/`. See `zag man serve` and `zag man connect` for details.
 
 ## Worktree and sandbox isolation
