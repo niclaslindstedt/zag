@@ -8,6 +8,7 @@
 // Rust source, so the website stays in sync with the codebase.
 
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "fs";
+import { execSync } from "child_process";
 import { resolve, dirname, join } from "path";
 import { fileURLToPath } from "url";
 
@@ -18,7 +19,20 @@ const REPO_ROOT = existsSync(resolve(__dirname, "../../zag-cli"))
   ? resolve(__dirname, "../..")
   : resolve(__dirname, "..");
 
+// Resolve latest v* tag (empty string if none exist → fall back to working tree)
+let LATEST_TAG = "";
+try {
+  LATEST_TAG = execSync("git tag -l 'v*' --sort=-version:refname", { cwd: REPO_ROOT, encoding: "utf-8" })
+    .split("\n")
+    .filter(Boolean)[0] || "";
+} catch {
+  // git not available or not a git repo
+}
+
 function read(relPath) {
+  if (LATEST_TAG) {
+    return execSync(`git show ${LATEST_TAG}:${relPath}`, { cwd: REPO_ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
+  }
   return readFileSync(join(REPO_ROOT, relPath), "utf-8");
 }
 
@@ -339,12 +353,21 @@ function extractBuilderMethods() {
 // ---------------------------------------------------------------------------
 
 function extractBindings() {
-  const bindingsDir = join(REPO_ROOT, "bindings");
   // Ordered for website display (most popular languages first)
   const preferredOrder = ["typescript", "python", "csharp", "swift", "java", "kotlin"];
-  const rawDirs = readdirSync(bindingsDir).filter(
-    (d) => !d.startsWith(".") && d !== "README.md" && d !== "rust",
-  );
+  let rawDirs;
+  if (LATEST_TAG) {
+    rawDirs = execSync(`git ls-tree --name-only ${LATEST_TAG} bindings/`, { cwd: REPO_ROOT, encoding: "utf-8" })
+      .split("\n")
+      .filter(Boolean)
+      .map((p) => p.replace(/^bindings\//, ""))
+      .filter((d) => !d.startsWith(".") && d !== "README.md" && d !== "rust");
+  } else {
+    const bindingsDir = join(REPO_ROOT, "bindings");
+    rawDirs = readdirSync(bindingsDir).filter(
+      (d) => !d.startsWith(".") && d !== "README.md" && d !== "rust",
+    );
+  }
   const dirs = [
     ...preferredOrder.filter((d) => rawDirs.includes(d)),
     ...rawDirs.filter((d) => !preferredOrder.includes(d)),
@@ -583,6 +606,7 @@ export const configSections: ConfigSection[] = ${JSON.stringify(configSections, 
   const outPath = join(__dirname, "../src/data/sourceData.ts");
   writeFileSync(outPath, output, "utf-8");
   console.log(`Generated ${outPath}`);
+  console.log(`  Source: ${LATEST_TAG || "working tree"}`);
   console.log(`  Version: ${version}`);
   console.log(`  Providers: ${providers.length} (${providers.map((p) => p.name).join(", ")})`);
   console.log(`  Commands: ${commands.length}`);
