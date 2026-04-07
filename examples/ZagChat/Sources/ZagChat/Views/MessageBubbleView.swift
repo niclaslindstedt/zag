@@ -12,8 +12,8 @@ struct MessageBubbleView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 4)
 
-        case .toolUse(let toolName, let isComplete):
-            ToolIndicatorView(toolName: toolName, isComplete: isComplete)
+        case .toolUse(let detail):
+            ToolIndicatorView(detail: detail)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 2)
 

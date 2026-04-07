@@ -561,7 +561,11 @@ fn convert_claude_event_to_unified(event: &models::ClaudeEvent) -> Option<crate:
             })
         }
 
-        ClaudeEvent::Assistant { message, .. } => {
+        ClaudeEvent::Assistant {
+            message,
+            parent_tool_use_id,
+            ..
+        } => {
             // Convert content blocks
             let content: Vec<UnifiedContentBlock> = message
                 .content
@@ -599,12 +603,17 @@ fn convert_claude_event_to_unified(event: &models::ClaudeEvent) -> Option<crate:
                     .map(|s| s.web_fetch_requests),
             });
 
-            Some(UnifiedEvent::AssistantMessage { content, usage })
+            Some(UnifiedEvent::AssistantMessage {
+                content,
+                usage,
+                parent_tool_use_id: parent_tool_use_id.clone(),
+            })
         }
 
         ClaudeEvent::User {
             message,
             tool_use_result,
+            parent_tool_use_id,
             ..
         } => {
             // For streaming, we can't easily look up tool names from previous events
@@ -644,6 +653,7 @@ fn convert_claude_event_to_unified(event: &models::ClaudeEvent) -> Option<crate:
                     tool_id: tool_use_id.clone(),
                     input: serde_json::Value::Null,
                     result: tool_result,
+                    parent_tool_use_id: parent_tool_use_id.clone(),
                 })
             } else {
                 // Check for text content (replayed user messages via --replay-user-messages)

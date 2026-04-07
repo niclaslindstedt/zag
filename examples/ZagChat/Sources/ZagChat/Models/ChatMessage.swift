@@ -1,4 +1,15 @@
 import Foundation
+import Zag
+
+struct ToolDetail {
+    let toolId: String
+    let toolName: String
+    let input: JSONValue?
+    var result: ToolResult?
+    var isComplete: Bool
+    /// For Agent tools: child tool calls made by the sub-agent.
+    var children: [ToolDetail]
+}
 
 enum MessageRole {
     case user
@@ -8,7 +19,7 @@ enum MessageRole {
 
 enum MessageContent {
     case text(String)
-    case toolUse(toolName: String, isComplete: Bool)
+    case toolUse(ToolDetail)
     case system(String)
 }
 

@@ -130,6 +130,7 @@ fn test_record_agent_output_maps_core_events() {
                     },
                 ],
                 usage: None,
+                parent_tool_use_id: None,
             },
             Event::ToolExecution {
                 tool_name: "exec_command".to_string(),
@@ -141,6 +142,7 @@ fn test_record_agent_output_maps_core_events() {
                     error: None,
                     data: None,
                 },
+                parent_tool_use_id: None,
             },
         ],
         result: Some("answer".to_string()),

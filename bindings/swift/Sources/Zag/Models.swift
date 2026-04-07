@@ -195,10 +195,14 @@ public enum Event: Codable, Equatable, Sendable {
     public struct AssistantMessagePayload: Codable, Equatable, Sendable {
         public let content: [ContentBlock]
         public let usage: Usage?
+        /// If this message comes from a sub-agent, the tool_use_id of the
+        /// parent Agent tool call that spawned it.
+        public let parentToolUseId: String?
 
-        public init(content: [ContentBlock], usage: Usage? = nil) {
+        public init(content: [ContentBlock], usage: Usage? = nil, parentToolUseId: String? = nil) {
             self.content = content
             self.usage = usage
+            self.parentToolUseId = parentToolUseId
         }
     }
 
@@ -207,12 +211,16 @@ public enum Event: Codable, Equatable, Sendable {
         public let toolId: String
         public let input: JSONValue?
         public let result: ToolResult
+        /// If this execution belongs to a sub-agent, the tool_use_id of the
+        /// parent Agent tool call that spawned it.
+        public let parentToolUseId: String?
 
-        public init(toolName: String, toolId: String, input: JSONValue? = nil, result: ToolResult) {
+        public init(toolName: String, toolId: String, input: JSONValue? = nil, result: ToolResult, parentToolUseId: String? = nil) {
             self.toolName = toolName
             self.toolId = toolId
             self.input = input
             self.result = result
+            self.parentToolUseId = parentToolUseId
         }
     }
 

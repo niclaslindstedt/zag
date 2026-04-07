@@ -375,6 +375,7 @@ fn test_find_tool_name() {
             },
         ],
         usage: None,
+        parent_tool_use_id: None,
     }];
 
     assert_eq!(find_tool_name(&events, "t1"), Some("Bash".to_string()));

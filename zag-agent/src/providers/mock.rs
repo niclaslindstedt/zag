@@ -549,6 +549,7 @@ pub mod events {
                 text: text.to_string(),
             }],
             usage: None,
+            parent_tool_use_id: None,
         }
     }
 
@@ -570,6 +571,7 @@ pub mod events {
                 web_search_requests: None,
                 web_fetch_requests: None,
             }),
+            parent_tool_use_id: None,
         }
     }
 
@@ -585,6 +587,7 @@ pub mod events {
                 error: None,
                 data: None,
             },
+            parent_tool_use_id: None,
         }
     }
 
@@ -600,6 +603,7 @@ pub mod events {
                 error: Some(error.to_string()),
                 data: None,
             },
+            parent_tool_use_id: None,
         }
     }
 

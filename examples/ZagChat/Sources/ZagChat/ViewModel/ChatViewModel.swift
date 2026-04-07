@@ -185,6 +185,26 @@ final class ChatViewModel: ObservableObject {
 
         case .assistantMessage(let payload):
             sessionState = .agentTyping
+
+            // If this message belongs to a sub-agent, nest its tool calls
+            // under the parent Agent tool bubble instead of adding top-level.
+            if let parentId = payload.parentToolUseId {
+                for block in payload.content {
+                    if case .toolUse(let tu) = block {
+                        let child = ToolDetail(
+                            toolId: tu.id,
+                            toolName: tu.name,
+                            input: tu.input,
+                            result: nil,
+                            isComplete: false,
+                            children: []
+                        )
+                        appendChildTool(child, parentId: parentId)
+                    }
+                }
+                break
+            }
+
             var pendingText: [String] = []
 
             for block in payload.content {
@@ -198,9 +218,17 @@ final class ChatViewModel: ObservableObject {
                         pendingText = []
                     }
                     finalizeCurrentAssistantBubble()
+                    let detail = ToolDetail(
+                        toolId: tu.id,
+                        toolName: tu.name,
+                        input: tu.input,
+                        result: nil,
+                        isComplete: false,
+                        children: []
+                    )
                     messages.append(ChatMessage(
                         role: .assistant,
-                        content: .toolUse(toolName: tu.name, isComplete: false)
+                        content: .toolUse(detail)
                     ))
                 }
             }
@@ -211,9 +239,19 @@ final class ChatViewModel: ObservableObject {
             }
 
         case .toolExecution(let payload):
+            // If this execution belongs to a sub-agent, update the child
+            // within the parent Agent tool bubble.
+            if let parentId = payload.parentToolUseId {
+                updateChildTool(toolId: payload.toolId, result: payload.result, parentId: parentId)
+                break
+            }
+
             for i in messages.indices.reversed() {
-                if case .toolUse(let name, false) = messages[i].content, name == payload.toolName {
-                    messages[i].content = .toolUse(toolName: name, isComplete: true)
+                if case .toolUse(var detail) = messages[i].content,
+                   detail.toolId == payload.toolId {
+                    detail.result = payload.result
+                    detail.isComplete = true
+                    messages[i].content = .toolUse(detail)
                     break
                 }
             }
@@ -270,6 +308,36 @@ final class ChatViewModel: ObservableObject {
             messages[idx].isStreaming = false
         }
         currentAssistantMessageId = nil
+    }
+
+    /// Append a child tool detail to the parent Agent tool bubble.
+    private func appendChildTool(_ child: ToolDetail, parentId: String) {
+        for i in messages.indices.reversed() {
+            if case .toolUse(var parent) = messages[i].content,
+               parent.toolId == parentId {
+                parent.children.append(child)
+                messages[i].content = .toolUse(parent)
+                return
+            }
+        }
+    }
+
+    /// Update a child tool's result within the parent Agent tool bubble.
+    private func updateChildTool(toolId: String, result: ToolResult, parentId: String) {
+        for i in messages.indices.reversed() {
+            if case .toolUse(var parent) = messages[i].content,
+               parent.toolId == parentId {
+                for j in parent.children.indices.reversed() {
+                    if parent.children[j].toolId == toolId {
+                        parent.children[j].result = result
+                        parent.children[j].isComplete = true
+                        break
+                    }
+                }
+                messages[i].content = .toolUse(parent)
+                return
+            }
+        }
     }
 
     private func handleTurnEnded() {

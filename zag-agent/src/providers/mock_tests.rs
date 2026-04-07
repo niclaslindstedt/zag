@@ -376,7 +376,7 @@ fn test_events_init() {
 #[test]
 fn test_events_assistant_message() {
     let event = events::assistant_message("hello");
-    if let Event::AssistantMessage { content, usage } = event {
+    if let Event::AssistantMessage { content, usage, .. } = event {
         assert_eq!(content.len(), 1);
         assert!(matches!(&content[0], ContentBlock::Text { text } if text == "hello"));
         assert!(usage.is_none());
