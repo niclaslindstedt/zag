@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Terminal from "./Terminal";
+import Terminal from "./terminal";
 import { terminalDemos } from "../data/terminalDemos";
 import { version, providers as sourceProviders, bindings } from "../data/sourceData";
 
