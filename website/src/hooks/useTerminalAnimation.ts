@@ -1,15 +1,17 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import type { TerminalLine } from "../data/terminalDemos";
-
-export type RenderedLine = {
-  text: string;
-  type: "command" | "output" | "comment";
-  isActive: boolean;
-};
+import type { TerminalLine, OutputLine, OutputStyle, RenderedLine } from "../lib/terminalTypes";
 
 const DEFAULT_TYPING_SPEED = 55;
 const OUTPUT_LINE_INTERVAL = 60;
 const LOOP_DELAY = 3000;
+
+function unwrapOutputLine(line: OutputLine): {
+  text: string;
+  style: OutputStyle | undefined;
+} {
+  if (typeof line === "string") return { text: line, style: undefined };
+  return { text: line.text, style: line.style };
+}
 
 export function useTerminalAnimation(
   sequence: TerminalLine[],
@@ -137,13 +139,12 @@ export function useTerminalAnimation(
 
           const outputLines = item.lines;
           if (outputLineIndex < outputLines.length) {
+            const { text, style } = unwrapOutputLine(
+              outputLines[outputLineIndex],
+            );
             setLines((prev) => [
               ...prev,
-              {
-                text: outputLines[outputLineIndex],
-                type: "output",
-                isActive: false,
-              },
+              { text, type: "output", style, isActive: false },
             ]);
             stateRef.current.outputLineIndex++;
             schedule(tick, OUTPUT_LINE_INTERVAL);

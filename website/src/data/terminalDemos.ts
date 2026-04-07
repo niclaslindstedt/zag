@@ -1,13 +1,4 @@
-export type TerminalLine =
-  | { type: "command"; text: string; typingSpeed?: number }
-  | { type: "output"; lines: string[]; delay?: number }
-  | { type: "comment"; text: string }
-  | { type: "pause"; duration: number };
-
-export type TerminalTab = {
-  label: string;
-  sequence: TerminalLine[];
-};
+import type { TerminalTab } from "../lib/terminalTypes";
 
 export const terminalDemos: TerminalTab[] = [
   {
@@ -23,11 +14,11 @@ export const terminalDemos: TerminalTab[] = [
         type: "output",
         delay: 300,
         lines: [
-          "\u21BB Connecting to Claude...",
-          "\u21BB Analyzing src/api.rs (247 lines)",
-          "\u21BB Generating patch...",
+          { text: "\u21BB Connecting to Claude...", style: "processing" },
+          { text: "\u21BB Analyzing src/api.rs (247 lines)", style: "processing" },
+          { text: "\u21BB Generating patch...", style: "processing" },
           "",
-          "\u2713 Applied 3 changes to src/api.rs",
+          { text: "\u2713 Applied 3 changes to src/api.rs", style: "success" },
           "  + Added Result<T, ApiError> return types",
           "  + Wrapped DB calls in error handlers",
           "  + Added retry logic for transient failures",
@@ -51,7 +42,7 @@ export const terminalDemos: TerminalTab[] = [
         type: "output",
         delay: 200,
         lines: [
-          "\u2713 Applied 1 change to src/models/user.rs",
+          { text: "\u2713 Applied 1 change to src/models/user.rs", style: "success" },
           "Tokens: 312 in / 87 out \u00b7 Cost: $0.001 \u00b7 Duration: 1.1s",
         ],
       },
@@ -66,11 +57,11 @@ export const terminalDemos: TerminalTab[] = [
         type: "output",
         delay: 300,
         lines: [
-          "\u21BB Connecting to Gemini...",
-          "\u21BB Analyzing auth module (5 files, 1,203 lines)",
-          "\u21BB Generating redesign...",
+          { text: "\u21BB Connecting to Gemini...", style: "processing" },
+          { text: "\u21BB Analyzing auth module (5 files, 1,203 lines)", style: "processing" },
+          { text: "\u21BB Generating redesign...", style: "processing" },
           "",
-          "\u2713 Modified 5 files, added 2 new files",
+          { text: "\u2713 Modified 5 files, added 2 new files", style: "success" },
           "  src/auth/mod.rs          | 47 +++++---",
           "  src/auth/oauth2.rs       | 89 ++++++++++",
           "  src/auth/tokens.rs       | 34 +++--",
@@ -111,9 +102,9 @@ export const terminalDemos: TerminalTab[] = [
         type: "output",
         delay: 500,
         lines: [
-          "\u21BB Waiting... 1/3 completed (claude)",
-          "\u21BB Waiting... 2/3 completed (gemini)",
-          "\u2713 3/3 sessions completed in 42s",
+          { text: "\u21BB Waiting... 1/3 completed (claude)", style: "processing" },
+          { text: "\u21BB Waiting... 2/3 completed (gemini)", style: "processing" },
+          { text: "\u2713 3/3 sessions completed in 42s", style: "success" },
         ],
       },
       { type: "pause", duration: 600 },
@@ -127,9 +118,9 @@ export const terminalDemos: TerminalTab[] = [
         type: "output",
         delay: 400,
         lines: [
-          "\u21BB Piping 3 session outputs to new agent...",
+          { text: "\u21BB Piping 3 session outputs to new agent...", style: "processing" },
           "",
-          "\u2713 Report saved to .zag/reports/review-summary.md",
+          { text: "\u2713 Report saved to .zag/reports/review-summary.md", style: "success" },
           "  Found: 2 critical issues, 4 suggestions, 91% coverage",
         ],
       },
