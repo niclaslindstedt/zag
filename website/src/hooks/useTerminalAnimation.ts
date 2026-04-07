@@ -1,11 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import type { TerminalLine } from "../data/terminalDemos";
-
-export type RenderedLine = {
-  text: string;
-  type: "command" | "output" | "comment";
-  isActive: boolean;
-};
+import type { TerminalLine, RenderedLine } from "../data/logStyles";
+import { resolveOutputLine } from "../data/logStyles";
 
 const DEFAULT_TYPING_SPEED = 55;
 const OUTPUT_LINE_INTERVAL = 60;
@@ -137,11 +132,13 @@ export function useTerminalAnimation(
 
           const outputLines = item.lines;
           if (outputLineIndex < outputLines.length) {
+            const resolved = resolveOutputLine(outputLines[outputLineIndex]);
             setLines((prev) => [
               ...prev,
               {
-                text: outputLines[outputLineIndex],
+                text: resolved.text,
                 type: "output",
+                style: resolved.style,
                 isActive: false,
               },
             ]);
