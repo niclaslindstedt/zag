@@ -25,6 +25,7 @@ class ZagBuilderTests {
             .root("/project")
             .autoApprove()
             .addDir("/docs")
+            .file("/tmp/data.csv")
             .verbose()
             .debug()
             .sessionId("sess-1")
@@ -39,6 +40,7 @@ class ZagBuilderTests {
                 "--root", "/project",
                 "--auto-approve",
                 "--add-dir", "/docs",
+                "--file", "/tmp/data.csv",
                 "--verbose",
                 "--debug",
                 "--session", "sess-1",

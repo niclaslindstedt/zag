@@ -73,6 +73,10 @@ pub(crate) struct AgentArgs {
     /// Environment variable to set for the agent subprocess (repeatable, KEY=VALUE format)
     #[arg(long = "env", value_name = "KEY=VALUE")]
     pub(crate) env_vars: Vec<String>,
+
+    /// Attach a file to the prompt (repeatable)
+    #[arg(long = "file", value_name = "PATH")]
+    pub(crate) files: Vec<String>,
 }
 
 /// Arguments for session discovery metadata (name, description, tags)
@@ -504,6 +508,10 @@ pub enum Commands {
         /// Send without agent-to-agent envelope (skip sender metadata wrapping)
         #[arg(long)]
         raw: bool,
+
+        /// Attach a file to the message (repeatable)
+        #[arg(long = "file", value_name = "PATH")]
+        files: Vec<String>,
     },
     /// Export session environment variables for nested agent invocations
     Env {

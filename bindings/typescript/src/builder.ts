@@ -36,6 +36,7 @@ export class ZagBuilder {
   private _root?: string;
   private _autoApprove = false;
   private _addDirs: string[] = [];
+  private _files: string[] = [];
   private _envVars: string[] = [];
   private _json = false;
   private _jsonSchema?: object;
@@ -95,6 +96,12 @@ export class ZagBuilder {
   /** Add an additional directory for the agent to include. */
   addDir(d: string): this {
     this._addDirs.push(d);
+    return this;
+  }
+
+  /** Attach a file to the prompt (chainable). */
+  file(path: string): this {
+    this._files.push(path);
     return this;
   }
 
@@ -230,6 +237,7 @@ export class ZagBuilder {
     if (this._root) args.push("--root", this._root);
     if (this._autoApprove) args.push("--auto-approve");
     for (const d of this._addDirs) args.push("--add-dir", d);
+    for (const f of this._files) args.push("--file", f);
     for (const e of this._envVars) args.push("--env", e);
     if (this._worktree === true) {
       args.push("-w");

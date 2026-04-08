@@ -76,6 +76,7 @@ All setter methods return `this` for chaining.
 | `root` | `root(r: string): this` | `--root` | Set working directory for the agent. |
 | `autoApprove` | `autoApprove(a = true): this` | `--auto-approve` | Skip permission prompts. Pass `false` to disable. |
 | `addDir` | `addDir(d: string): this` | `--add-dir` | Add an additional directory. Chainable and repeatable; each call appends. |
+| `file` | `file(path: string): this` | `--file` | Attach a file to the prompt. Chainable and repeatable; each call appends. |
 | `env` | `env(key: string, value: string): this` | `--env KEY=VALUE` | Add an environment variable for the agent subprocess. Requires CLI >= 0.6.0. |
 | `json` | `json(): this` | `--json` | Request JSON output from the agent. |
 | `jsonSchema` | `jsonSchema(s: object): this` | `--json-schema` | Set a JSON schema for structured output validation. Implies `.json()`. |
@@ -797,7 +798,7 @@ The builder constructs a CLI argument array split into two groups:
 
 **Global args** (placed before the subcommand):
 
-These are built by `buildGlobalArgs()` and include: `--provider`, `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir` (repeatable), `--env` (repeatable), `-w`/`--worktree`, `--sandbox`, `--verbose`, `--quiet`, `--debug`, `--session`, `--max-turns`, `--mcp-config`, `--show-usage`, `--size`.
+These are built by `buildGlobalArgs()` and include: `--provider`, `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir` (repeatable), `--file` (repeatable), `--env` (repeatable), `-w`/`--worktree`, `--sandbox`, `--verbose`, `--quiet`, `--debug`, `--session`, `--max-turns`, `--mcp-config`, `--show-usage`, `--size`.
 
 **Exec args** (placed after the `exec` subcommand):
 

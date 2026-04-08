@@ -73,6 +73,10 @@ Root directory for session resolution.
 
 Send the message without agent-to-agent envelope wrapping. By default, when `zag input` is called from within a zag session (detected via `ZAG_SESSION_ID`), the message is wrapped with sender metadata and reply instructions. Use `--raw` to send the message verbatim.
 
+### `--file <PATH>`
+
+Attach a file to the message (repeatable). Text files ≤50 KB are embedded inline; larger text files and binary files are included as metadata references with `@path` so the agent can access them with its own tools.
+
 ## Agent-to-Agent Messaging
 
 When `zag input` is invoked from within a zag session (i.e., by an agent), the message is automatically wrapped in an envelope containing the sender's identity and reply instructions:

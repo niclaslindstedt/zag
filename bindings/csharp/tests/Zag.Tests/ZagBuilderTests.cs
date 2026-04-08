@@ -23,6 +23,7 @@ public class ZagBuilderTests
             .Root("/project")
             .AutoApprove()
             .AddDir("/docs")
+            .File("/tmp/data.csv")
             .Verbose()
             .Debug()
             .SessionId("sess-1")
@@ -38,6 +39,7 @@ public class ZagBuilderTests
                 "--root", "/project",
                 "--auto-approve",
                 "--add-dir", "/docs",
+                "--file", "/tmp/data.csv",
                 "--verbose",
                 "--debug",
                 "--session", "sess-1"

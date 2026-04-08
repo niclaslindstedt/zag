@@ -131,6 +131,7 @@ All bindings support the same set of builder methods (naming follows each langua
 | `root` | Set the working directory |
 | `auto_approve` | Skip permission prompts |
 | `add_dir` | Add a directory to include |
+| `file` | Attach a file to the prompt |
 | `env` | Set an environment variable |
 | `max_turns` | Limit agentic turns |
 | `json` | Request JSON output |

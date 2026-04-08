@@ -25,6 +25,7 @@ describe("ZagBuilder", () => {
       .root("/tmp/test")
       .autoApprove()
       .addDir("/extra")
+      .file("/tmp/data.csv")
       .verbose()
       .quiet()
       .debug()
@@ -36,6 +37,12 @@ describe("ZagBuilder", () => {
       .env("FOO", "bar");
 
     assert.ok(builder);
+  });
+
+  it("should support file attachments", () => {
+    const builder = new ZagBuilder().file("/a.txt").file("/b.rs");
+    // @ts-expect-error -- accessing private for test
+    assert.deepStrictEqual(builder._files, ["/a.txt", "/b.rs"]);
   });
 
   it("should support env vars", () => {

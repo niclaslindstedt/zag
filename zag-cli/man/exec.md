@@ -28,6 +28,7 @@ By default, exec mode suppresses wrapper UI (spinners, status messages, icons) s
     --max-turns <N>               Maximum number of agentic turns
     --timeout <DURATION>          Timeout duration (e.g., 30s, 5m, 1h). Kills the agent if exceeded.
     --env <KEY=VALUE>             Environment variable for the agent subprocess (repeatable)
+    --file <PATH>                 Attach a file to the prompt (repeatable)
     --mcp-config <CONFIG>         MCP server config: JSON string or path to a JSON file (Claude only)
 
 All global flags apply (see `zag man zag`).

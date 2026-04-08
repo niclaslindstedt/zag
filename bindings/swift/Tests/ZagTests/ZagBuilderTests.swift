@@ -22,6 +22,7 @@ struct ZagBuilderTests {
             .root("/project")
             .autoApprove()
             .addDir("/docs")
+            .file("/tmp/data.csv")
             .verbose()
             .debug()
             .sessionId("sess-1")
@@ -35,6 +36,7 @@ struct ZagBuilderTests {
             "--root", "/project",
             "--auto-approve",
             "--add-dir", "/docs",
+            "--file", "/tmp/data.csv",
             "--verbose",
             "--debug",
             "--session", "sess-1",
@@ -159,6 +161,13 @@ struct ZagBuilderTests {
         let builder = ZagBuilder().addDir("/a").addDir("/b")
         let args = builder.buildGlobalArgs()
         #expect(args == ["--add-dir", "/a", "--add-dir", "/b"])
+    }
+
+    @Test("multiple file calls accumulate")
+    func multipleFiles() {
+        let builder = ZagBuilder().file("/a.txt").file("/b.rs")
+        let args = builder.buildGlobalArgs()
+        #expect(args == ["--file", "/a.txt", "--file", "/b.rs"])
     }
 
     @Test("json schema implies json")

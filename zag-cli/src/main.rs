@@ -436,6 +436,7 @@ async fn main() -> Result<()> {
             output,
             root,
             raw,
+            files,
         } => {
             run_input(InputParams {
                 session,
@@ -450,6 +451,7 @@ async fn main() -> Result<()> {
                 root,
                 quiet,
                 raw,
+                files,
             })
             .await?;
         }
@@ -883,6 +885,7 @@ async fn main() -> Result<()> {
                 context_session,
                 plan_path,
                 env_vars: parse_env_vars(&agent_args.env_vars)?,
+                files: agent_args.files,
                 session_metadata: {
                     let meta = metadata_args.unwrap_or_default();
                     crate::session_setup::SessionMetadata {

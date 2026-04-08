@@ -48,6 +48,7 @@ await foreach (var evt in new ZagBuilder().Provider("claude").StreamAsync("analy
 | `.Root(path)` | Set the working directory |
 | `.AutoApprove()` | Skip permission prompts |
 | `.AddDir(path)` | Add an additional directory (chainable) |
+| `.File(path)` | Attach a file to the prompt (chainable) |
 | `.Env(key, value)` | Add an environment variable for the agent subprocess (chainable) |
 | `.Json()` | Request JSON output |
 | `.JsonSchema(schema)` | Validate output against a JSON schema (implies `.Json()`) |

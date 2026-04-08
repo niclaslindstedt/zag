@@ -34,6 +34,7 @@ class ZagBuilder:
         self._root: str | None = None
         self._auto_approve: bool = False
         self._add_dirs: list[str] = []
+        self._files: list[str] = []
         self._env_vars: list[str] = []
         self._json: bool = False
         self._json_schema: dict | None = None
@@ -89,6 +90,11 @@ class ZagBuilder:
     def add_dir(self, d: str) -> ZagBuilder:
         """Add an additional directory for the agent to include."""
         self._add_dirs.append(d)
+        return self
+
+    def file(self, path: str) -> ZagBuilder:
+        """Attach a file to the prompt (chainable)."""
+        self._files.append(path)
         return self
 
     def env(self, key: str, value: str) -> ZagBuilder:
@@ -211,6 +217,8 @@ class ZagBuilder:
             args.append("--auto-approve")
         for d in self._add_dirs:
             args.extend(["--add-dir", d])
+        for f in self._files:
+            args.extend(["--file", f])
         for e in self._env_vars:
             args.extend(["--env", e])
         if self._worktree is True:

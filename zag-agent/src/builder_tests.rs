@@ -51,6 +51,16 @@ fn test_builder_add_dirs() {
 }
 
 #[test]
+fn test_builder_files() {
+    let builder = AgentBuilder::new()
+        .file("/tmp/file1.txt")
+        .file("/tmp/file2.rs");
+    assert_eq!(builder.files.len(), 2);
+    assert_eq!(builder.files[0], "/tmp/file1.txt");
+    assert_eq!(builder.files[1], "/tmp/file2.rs");
+}
+
+#[test]
 fn test_builder_env_vars() {
     let builder = AgentBuilder::new().env("FOO", "bar").env("BAZ", "qux");
     assert_eq!(builder.env_vars.len(), 2);
