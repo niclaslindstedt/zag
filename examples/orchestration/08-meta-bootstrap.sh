@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # 08-meta-bootstrap.sh — Pattern: Meta-Bootstrap (Agent-Authored Orchestration)
 #
-# Uses `zag --help-agent` to inject the full CLI reference into a prompt, then
-# asks an agent to generate a working orchestration script based on your
-# description. The generated script is displayed and saved — you decide when
-# to run it.
+# Uses `zag --help-agent` and `zag man orchestration` to inject both the CLI
+# reference and orchestration pattern guide into a prompt, then asks an agent
+# to generate a working orchestration script based on your description. The
+# generated script is displayed and saved — you decide when to run it.
 #
 # This demonstrates the "meta" pattern: agents that understand zag well enough
 # to author their own multi-agent workflows.
@@ -30,11 +30,20 @@ info "Output: $OUTPUT_FILE"
 echo
 
 # ---------------------------------------------------------------------------
-# Step 1: Capture the CLI reference
+# Step 1: Capture the CLI and orchestration references
 # ---------------------------------------------------------------------------
-header "Step 1: Loading zag CLI reference (--help-agent)"
+header "Step 1: Loading zag references"
+info "Loading CLI reference (--help-agent)..."
 HELP_REF=$(zag --help-agent)
 success "Loaded $(echo "$HELP_REF" | wc -l | tr -d ' ') lines of CLI reference"
+
+info "Loading orchestration patterns (man orchestration)..."
+ORCH_REF=$(zag man orchestration 2>/dev/null || true)
+if [[ -n "$ORCH_REF" ]]; then
+    success "Loaded $(echo "$ORCH_REF" | wc -l | tr -d ' ') lines of orchestration patterns"
+else
+    warn "Could not load orchestration patterns (continuing without)"
+fi
 
 # ---------------------------------------------------------------------------
 # Step 2: Ask the agent to generate an orchestration script
@@ -48,6 +57,10 @@ PROMPT="You are an expert at writing bash scripts that orchestrate AI agents usi
 Here is the complete zag CLI reference — use it to pick the right commands, flags, and patterns:
 
 ${HELP_REF}
+
+Here are the orchestration patterns — use them to choose the best topology for the task:
+
+${ORCH_REF}
 
 Write a bash orchestration script for the following task:
 ${TASK}
