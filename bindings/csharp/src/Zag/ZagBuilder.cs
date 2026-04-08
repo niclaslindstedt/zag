@@ -160,8 +160,8 @@ public class ZagBuilder
 
     internal List<string> BuildExecArgs(string prompt, bool streaming = false)
     {
-        var args = BuildGlobalArgs();
-        args.Add("exec");
+        var args = new List<string> { "exec" };
+        args.AddRange(BuildGlobalArgs());
         if (_json) args.Add("--json");
         if (_jsonSchema != null)
         {
@@ -209,8 +209,8 @@ public class ZagBuilder
     public async Task<StreamingSession> ExecStreaming(string prompt)
     {
         await VersionCheck.CheckAsync(_bin, VersionRequirements());
-        var args = BuildGlobalArgs();
-        args.Add("exec");
+        var args = new List<string> { "exec" };
+        args.AddRange(BuildGlobalArgs());
         args.Add("-i"); args.Add("stream-json");
         args.Add("-o"); args.Add("stream-json");
         args.Add("--replay-user-messages");
@@ -223,8 +223,8 @@ public class ZagBuilder
     public async Task RunAsync(string? prompt = null, CancellationToken ct = default)
     {
         await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
-        var args = BuildGlobalArgs();
-        args.Add("run");
+        var args = new List<string> { "run" };
+        args.AddRange(BuildGlobalArgs());
         if (_json) args.Add("--json");
         if (_jsonSchema != null)
         {
@@ -239,8 +239,8 @@ public class ZagBuilder
     public async Task ResumeAsync(string sessionId, CancellationToken ct = default)
     {
         await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
-        var args = BuildGlobalArgs();
-        args.Add("run");
+        var args = new List<string> { "run" };
+        args.AddRange(BuildGlobalArgs());
         args.Add("--resume");
         args.Add(sessionId);
         await ZagProcess.RunAsync(_bin, [.. args], ct);
@@ -250,8 +250,8 @@ public class ZagBuilder
     public async Task ContinueLastAsync(CancellationToken ct = default)
     {
         await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
-        var args = BuildGlobalArgs();
-        args.Add("run");
+        var args = new List<string> { "run" };
+        args.AddRange(BuildGlobalArgs());
         args.Add("--continue");
         await ZagProcess.RunAsync(_bin, [.. args], ct);
     }

@@ -157,7 +157,7 @@ public class ZagBuilder {
 
     // -- Arg building --------------------------------------------------------
 
-    /** Build the shared CLI flags (before the subcommand). */
+    /** Build the shared CLI flags (provider, model, session isolation, etc.). */
     List<String> buildGlobalArgs() {
         List<String> args = new ArrayList<>();
         if (provider != null) { args.add("-p"); args.add(provider); }
@@ -190,8 +190,9 @@ public class ZagBuilder {
 
     /** Build CLI args for exec mode. */
     List<String> buildExecArgs(String prompt, boolean streaming) {
-        List<String> args = buildGlobalArgs();
+        List<String> args = new ArrayList<>();
         args.add("exec");
+        args.addAll(buildGlobalArgs());
         if (json) args.add("--json");
         if (jsonSchema != null) {
             args.add("--json-schema");
@@ -281,8 +282,9 @@ public class ZagBuilder {
      */
     public StreamingSession execStreaming(String prompt) throws ZagException {
         VersionCheck.check(bin, versionRequirements());
-        List<String> args = buildGlobalArgs();
+        List<String> args = new ArrayList<>();
         args.add("exec");
+        args.addAll(buildGlobalArgs());
         args.add("-i"); args.add("stream-json");
         args.add("-o"); args.add("stream-json");
         args.add("--replay-user-messages");
@@ -295,8 +297,9 @@ public class ZagBuilder {
     /** Start an interactive agent session (inherits stdio). */
     public void run(String prompt) throws ZagException {
         VersionCheck.check(bin, versionRequirements());
-        List<String> args = buildGlobalArgs();
+        List<String> args = new ArrayList<>();
         args.add("run");
+        args.addAll(buildGlobalArgs());
         if (json) args.add("--json");
         if (jsonSchema != null) {
             args.add("--json-schema");
@@ -319,8 +322,9 @@ public class ZagBuilder {
     /** Resume a previous session by ID. */
     public void resume(String sessionId) throws ZagException {
         VersionCheck.check(bin, versionRequirements());
-        List<String> args = buildGlobalArgs();
+        List<String> args = new ArrayList<>();
         args.add("run");
+        args.addAll(buildGlobalArgs());
         args.add("--resume");
         args.add(sessionId);
         ZagProcess.run(bin, args);
@@ -329,8 +333,9 @@ public class ZagBuilder {
     /** Resume the most recent session. */
     public void continueLast() throws ZagException {
         VersionCheck.check(bin, versionRequirements());
-        List<String> args = buildGlobalArgs();
+        List<String> args = new ArrayList<>();
         args.add("run");
+        args.addAll(buildGlobalArgs());
         args.add("--continue");
         ZagProcess.run(bin, args);
     }

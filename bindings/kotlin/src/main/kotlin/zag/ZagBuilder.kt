@@ -158,8 +158,8 @@ class ZagBuilder {
     }
 
     internal fun buildExecArgs(prompt: String, streaming: Boolean = false): List<String> {
-        val args = buildGlobalArgs().toMutableList()
-        args.add("exec")
+        val args = mutableListOf("exec")
+        args.addAll(buildGlobalArgs())
         if (_json) args.add("--json")
         _jsonSchema?.let {
             args.add("--json-schema")
@@ -205,8 +205,8 @@ class ZagBuilder {
     /** Run the agent with streaming input and output (Claude only). */
     suspend fun execStreaming(prompt: String): StreamingSession {
         VersionCheck.check(_bin, versionRequirements())
-        val args = buildGlobalArgs().toMutableList()
-        args.add("exec")
+        val args = mutableListOf("exec")
+        args.addAll(buildGlobalArgs())
         args.addAll(listOf("-i", "stream-json"))
         args.addAll(listOf("-o", "stream-json"))
         args.add("--replay-user-messages")
@@ -218,8 +218,8 @@ class ZagBuilder {
     /** Start an interactive agent session (inherits stdio). */
     suspend fun run(prompt: String? = null) {
         VersionCheck.check(_bin, versionRequirements())
-        val args = buildGlobalArgs().toMutableList()
-        args.add("run")
+        val args = mutableListOf("run")
+        args.addAll(buildGlobalArgs())
         if (_json) args.add("--json")
         _jsonSchema?.let {
             args.add("--json-schema")
@@ -232,8 +232,8 @@ class ZagBuilder {
     /** Resume a previous session by ID. */
     suspend fun resume(sessionId: String) {
         VersionCheck.check(_bin, versionRequirements())
-        val args = buildGlobalArgs().toMutableList()
-        args.add("run")
+        val args = mutableListOf("run")
+        args.addAll(buildGlobalArgs())
         args.add("--resume")
         args.add(sessionId)
         ZagProcess.run(_bin, args)
@@ -242,8 +242,8 @@ class ZagBuilder {
     /** Resume the most recent session. */
     suspend fun continueLast() {
         VersionCheck.check(_bin, versionRequirements())
-        val args = buildGlobalArgs().toMutableList()
-        args.add("run")
+        val args = mutableListOf("run")
+        args.addAll(buildGlobalArgs())
         args.add("--continue")
         ZagProcess.run(_bin, args)
     }

@@ -221,7 +221,7 @@ export class ZagBuilder {
     ];
   }
 
-  /** Build the shared CLI flags (before the subcommand). */
+  /** Build the shared CLI flags (provider, model, session isolation, etc.). */
   private buildGlobalArgs(): string[] {
     const args: string[] = [];
     if (this._provider) args.push("-p", this._provider);
@@ -254,8 +254,7 @@ export class ZagBuilder {
 
   /** Build CLI args for exec mode. */
   private buildExecArgs(prompt: string, streaming: boolean): string[] {
-    const args = this.buildGlobalArgs();
-    args.push("exec");
+    const args = ["exec", ...this.buildGlobalArgs()];
     if (this._json) args.push("--json");
     if (this._jsonSchema) {
       args.push("--json-schema", JSON.stringify(this._jsonSchema));
@@ -334,8 +333,7 @@ export class ZagBuilder {
    */
   async execStreaming(prompt: string): Promise<StreamingSession> {
     await checkVersion(this._bin, this.versionRequirements());
-    const args = this.buildGlobalArgs();
-    args.push("exec");
+    const args = ["exec", ...this.buildGlobalArgs()];
     args.push("-i", "stream-json");
     args.push("-o", "stream-json");
     args.push("--replay-user-messages");
@@ -351,8 +349,7 @@ export class ZagBuilder {
    */
   async run(prompt?: string): Promise<void> {
     await checkVersion(this._bin, this.versionRequirements());
-    const args = this.buildGlobalArgs();
-    args.push("run");
+    const args = ["run", ...this.buildGlobalArgs()];
     if (this._json) args.push("--json");
     if (this._jsonSchema) {
       args.push("--json-schema", JSON.stringify(this._jsonSchema));
@@ -364,16 +361,14 @@ export class ZagBuilder {
   /** Resume a previous session by ID. */
   async resume(sessionId: string): Promise<void> {
     await checkVersion(this._bin, this.versionRequirements());
-    const args = this.buildGlobalArgs();
-    args.push("run", "--resume", sessionId);
+    const args = ["run", ...this.buildGlobalArgs(), "--resume", sessionId];
     return runZag(this._bin, args);
   }
 
   /** Resume the most recent session. */
   async continueLast(): Promise<void> {
     await checkVersion(this._bin, this.versionRequirements());
-    const args = this.buildGlobalArgs();
-    args.push("run", "--continue");
+    const args = ["run", ...this.buildGlobalArgs(), "--continue"];
     return runZag(this._bin, args);
   }
 }

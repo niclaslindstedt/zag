@@ -240,8 +240,7 @@ class ZagBuilder:
         return args
 
     def _exec_args(self, prompt: str, *, streaming: bool = False) -> list[str]:
-        args = self._global_args()
-        args.append("exec")
+        args = ["exec", *self._global_args()]
         if self._json:
             args.append("--json")
         if self._json_schema:
@@ -294,8 +293,7 @@ class ZagBuilder:
         await check_version(self._bin, self._version_requirements())
         from .process import StreamingSession as _StreamingSession
 
-        args = self._global_args()
-        args.append("exec")
+        args = ["exec", *self._global_args()]
         args.extend(["-i", "stream-json"])
         args.extend(["-o", "stream-json"])
         args.append("--replay-user-messages")
@@ -320,8 +318,7 @@ class ZagBuilder:
     async def run(self, prompt: str | None = None) -> None:
         """Start an interactive agent session (inherits stdio)."""
         await check_version(self._bin, self._version_requirements())
-        args = self._global_args()
-        args.append("run")
+        args = ["run", *self._global_args()]
         if self._json:
             args.append("--json")
         if self._json_schema:
@@ -333,13 +330,11 @@ class ZagBuilder:
     async def resume(self, session_id: str) -> None:
         """Resume a previous session by ID."""
         await check_version(self._bin, self._version_requirements())
-        args = self._global_args()
-        args.extend(["run", "--resume", session_id])
+        args = ["run", *self._global_args(), "--resume", session_id]
         await run_zag(self._bin, args)
 
     async def continue_last(self) -> None:
         """Resume the most recent session."""
         await check_version(self._bin, self._version_requirements())
-        args = self._global_args()
-        args.extend(["run", "--continue"])
+        args = ["run", *self._global_args(), "--continue"]
         await run_zag(self._bin, args)
