@@ -1,6 +1,6 @@
 [package]
 name = "zag-serve"
-version = "0.8.0"
+version = "0.8.1"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
@@ -11,8 +11,8 @@ keywords = ["ai", "agent", "server", "remote"]
 categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
-zag-agent = { version = "0.8.0", path = "../zag-agent" }
-zag-orch = { version = "0.8.0", path = "../zag-orch" }
+zag-agent = { version = "0.8.1", path = "../zag-agent" }
+zag-orch = { version = "0.8.1", path = "../zag-orch" }
 axum = { version = "0.8", features = ["ws"] }
 axum-extra = { version = "0.10", features = ["typed-header"] }
 tokio = { version = "1", features = ["full"] }
