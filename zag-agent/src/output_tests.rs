@@ -75,6 +75,7 @@ fn test_tool_executions() {
                 text: "hi".to_string(),
             }],
             usage: None,
+            parent_tool_use_id: None,
         },
         Event::ToolExecution {
             tool_name: "Bash".to_string(),
@@ -86,6 +87,7 @@ fn test_tool_executions() {
                 error: None,
                 data: None,
             },
+            parent_tool_use_id: None,
         },
         Event::ToolExecution {
             tool_name: "Read".to_string(),
@@ -97,6 +99,7 @@ fn test_tool_executions() {
                 error: Some("err".to_string()),
                 data: None,
             },
+            parent_tool_use_id: None,
         },
     ];
     assert_eq!(
@@ -117,6 +120,7 @@ fn test_errors() {
         Event::AssistantMessage {
             content: vec![],
             usage: None,
+            parent_tool_use_id: None,
         },
     ];
     assert_eq!(make_agent_output(events, None, true).errors().len(), 1);
@@ -138,6 +142,7 @@ fn test_to_log_entries_filters_by_level() {
                 text: "hello".to_string(),
             }],
             usage: None,
+            parent_tool_use_id: None,
         },
     ];
     let output = make_agent_output(events, None, false);
@@ -169,6 +174,7 @@ fn test_event_to_log_entry_assistant_text() {
             text: "hello".to_string(),
         }],
         usage: None,
+        parent_tool_use_id: None,
     };
     let entry = event_to_log_entry(&event).unwrap();
     assert_eq!(entry.level, LogLevel::Debug);
@@ -184,6 +190,7 @@ fn test_event_to_log_entry_tool_use_only_returns_none() {
             input: serde_json::json!({}),
         }],
         usage: None,
+        parent_tool_use_id: None,
     };
     assert!(event_to_log_entry(&event).is_none());
 }
@@ -193,6 +200,7 @@ fn test_event_to_log_entry_empty_content_returns_none() {
     let event = Event::AssistantMessage {
         content: vec![],
         usage: None,
+        parent_tool_use_id: None,
     };
     assert!(event_to_log_entry(&event).is_none());
 }
@@ -209,6 +217,7 @@ fn test_event_to_log_entry_tool_execution_success() {
             error: None,
             data: None,
         },
+        parent_tool_use_id: None,
     };
     let entry = event_to_log_entry(&event).unwrap();
     assert_eq!(entry.level, LogLevel::Debug);
@@ -227,6 +236,7 @@ fn test_event_to_log_entry_tool_execution_failure() {
             error: Some("not found".to_string()),
             data: None,
         },
+        parent_tool_use_id: None,
     };
     let entry = event_to_log_entry(&event).unwrap();
     assert_eq!(entry.level, LogLevel::Warn);
@@ -373,6 +383,7 @@ fn test_format_event_assistant_text() {
             text: "hello".to_string(),
         }],
         usage: None,
+        parent_tool_use_id: None,
     };
     let text = format_event_as_text(&event).unwrap();
     assert!(text.contains("hello"));
@@ -385,6 +396,7 @@ fn test_format_event_assistant_multiline() {
             text: "line1\nline2\nline3".to_string(),
         }],
         usage: None,
+        parent_tool_use_id: None,
     };
     let text = format_event_as_text(&event).unwrap();
     assert!(text.contains("line1"));
@@ -397,6 +409,7 @@ fn test_format_event_assistant_empty() {
     let event = Event::AssistantMessage {
         content: vec![],
         usage: None,
+        parent_tool_use_id: None,
     };
     assert!(format_event_as_text(&event).is_none());
 }
@@ -410,6 +423,7 @@ fn test_format_event_bash_tool_use() {
             input: serde_json::json!({"command": "ls", "description": "List files"}),
         }],
         usage: None,
+        parent_tool_use_id: None,
     };
     let text = format_event_as_text(&event).unwrap();
     assert!(text.contains("List files"));
@@ -425,6 +439,7 @@ fn test_format_event_bash_tool_use_no_description() {
             input: serde_json::json!({"command": "echo hello"}),
         }],
         usage: None,
+        parent_tool_use_id: None,
     };
     let text = format_event_as_text(&event).unwrap();
     assert!(text.contains("Run command")); // default description
@@ -440,6 +455,7 @@ fn test_format_event_non_bash_tool_use() {
             input: serde_json::json!({"file_path": "/tmp/test"}),
         }],
         usage: None,
+        parent_tool_use_id: None,
     };
     let text = format_event_as_text(&event).unwrap();
     assert!(text.contains("Read"));
@@ -454,6 +470,7 @@ fn test_format_event_tool_use_empty_input() {
             input: serde_json::json!({}),
         }],
         usage: None,
+        parent_tool_use_id: None,
     };
     let text = format_event_as_text(&event).unwrap();
     assert!(text.contains("Read"));
@@ -474,6 +491,7 @@ fn test_format_event_tool_use_various_types() {
             }),
         }],
         usage: None,
+        parent_tool_use_id: None,
     };
     let text = format_event_as_text(&event).unwrap();
     assert!(text.contains("Custom"));
@@ -491,6 +509,7 @@ fn test_format_event_tool_execution_success() {
             error: None,
             data: None,
         },
+        parent_tool_use_id: None,
     };
     let text = format_event_as_text(&event).unwrap();
     assert!(text.contains("file1"));
@@ -509,6 +528,7 @@ fn test_format_event_tool_execution_failure() {
             error: Some("not found".to_string()),
             data: None,
         },
+        parent_tool_use_id: None,
     };
     let text = format_event_as_text(&event).unwrap();
     assert!(text.contains("not found"));
@@ -526,6 +546,7 @@ fn test_format_event_tool_execution_empty_output() {
             error: None,
             data: None,
         },
+        parent_tool_use_id: None,
     };
     let text = format_event_as_text(&event).unwrap();
     assert!(text.contains("success"));
@@ -661,6 +682,7 @@ fn test_format_event_long_string_truncation() {
             input: serde_json::json!({"content": long_string}),
         }],
         usage: None,
+        parent_tool_use_id: None,
     };
     let text = format_event_as_text(&event).unwrap();
     assert!(text.contains("..."));
@@ -747,6 +769,7 @@ fn test_event_to_log_entry_tool_execution_no_error_message() {
             error: None,
             data: None,
         },
+        parent_tool_use_id: None,
     };
     let entry = event_to_log_entry(&event).unwrap();
     assert_eq!(entry.level, LogLevel::Warn);

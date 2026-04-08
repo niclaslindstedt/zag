@@ -259,6 +259,7 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
             ClaudeEvent::Assistant {
                 message,
                 session_id: sid,
+                parent_tool_use_id,
                 ..
             } => {
                 session_id = sid;
@@ -297,6 +298,7 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
                 events.push(UnifiedEvent::AssistantMessage {
                     content,
                     usage: msg_usage,
+                    parent_tool_use_id,
                 });
             }
 
@@ -304,6 +306,7 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
                 message,
                 tool_use_result,
                 session_id: sid,
+                parent_tool_use_id,
                 ..
             } => {
                 session_id = sid;
@@ -339,6 +342,7 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
                             tool_id: tool_use_id,
                             input: serde_json::Value::Null,
                             result: tool_result,
+                            parent_tool_use_id: parent_tool_use_id.clone(),
                         });
                     }
                 }

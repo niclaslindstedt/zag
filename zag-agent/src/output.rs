@@ -66,6 +66,10 @@ pub enum Event {
     AssistantMessage {
         content: Vec<ContentBlock>,
         usage: Option<Usage>,
+        /// If this message comes from a sub-agent, the tool_use_id of the
+        /// parent Agent tool call that spawned it.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        parent_tool_use_id: Option<String>,
     },
 
     /// Tool execution event
@@ -74,6 +78,10 @@ pub enum Event {
         tool_id: String,
         input: serde_json::Value,
         result: ToolResult,
+        /// If this execution belongs to a sub-agent, the tool_use_id of the
+        /// parent Agent tool call that spawned it.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        parent_tool_use_id: Option<String>,
     },
 
     /// Final session result

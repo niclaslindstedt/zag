@@ -24,6 +24,7 @@ fn test_record_event_assistant_message() {
             text: "Hello world".to_string(),
         }],
         usage: None,
+        parent_tool_use_id: None,
     };
 
     record_event(&writer, &event).unwrap();
