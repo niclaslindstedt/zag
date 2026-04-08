@@ -14,14 +14,15 @@ Complete projects demonstrating [zag](https://github.com/niclaslindstedt/zag) us
 - **New to zag?** Start with [orchestration/01-sequential-pipeline.sh](orchestration/01-sequential-pipeline.sh) — it's a simple three-stage pipeline you can run immediately.
 - **Want to use zag as a Rust library?** See [cv-review](cv-review/) — it demonstrates `AgentBuilder`, JSON schema validation, and parallel agent invocations.
 - **Building a web UI on top of zag?** See [react-claude-interface](react-claude-interface/) — a full React app with streaming NDJSON events over SSE.
-- **Exploring multi-agent patterns?** The [orchestration](orchestration/) directory has 7 scripts covering fan-out, generator-critic, coordinator dispatch, DAG workflows, and agent-to-agent messaging.
+- **Exploring multi-agent patterns?** The [orchestration](orchestration/) directory has 8 scripts covering fan-out, generator-critic, coordinator dispatch, DAG workflows, agent-to-agent messaging, and meta-bootstrap.
+- **Want agents to write their own workflows?** See [orchestration/08-meta-bootstrap.sh](orchestration/08-meta-bootstrap.sh) — uses `--help-agent` to have an agent generate orchestration scripts from a description.
 
 ## Examples
 
 | Example | Language | Description | Key features |
 |---------|----------|-------------|-------------|
 | [cv-review](cv-review/) | Rust | Two-pass CV review pipeline: recruiter screen + hiring committee | `AgentBuilder` API, JSON schema validation, parallel agents, custom progress handler |
-| [orchestration](orchestration/) | Shell | 7 multi-agent pattern scripts (sequential, fan-out, generator-critic, coordinator, hierarchical, composite, arena) | `spawn`, `wait`, `pipe`, `collect`, `input`, `broadcast`, `watch`, `cancel`, `summary` |
+| [orchestration](orchestration/) | Shell | 8 multi-agent pattern scripts (sequential, fan-out, generator-critic, coordinator, hierarchical, composite, arena, meta-bootstrap) | `spawn`, `wait`, `pipe`, `collect`, `input`, `broadcast`, `watch`, `cancel`, `summary`, `--help-agent` |
 | [react-claude-interface](react-claude-interface/) | TypeScript/React | Claude Code-like web chat interface with multi-turn conversations | `zag exec`, `zag input`, SSE streaming, NDJSON events, collapsible tool/thinking blocks |
 
 ## Customizing the provider

@@ -34,6 +34,7 @@ ZAG_PROVIDER=gemini ./01-sequential-pipeline.sh
 | [05-hierarchical-decomposition.sh](05-hierarchical-decomposition.sh) | Hierarchical, Human-in-the-Loop | Plan → human approval → parallel child execution → verification | `spawn --depends-on --inject-context`, `wait --tag`, `output`, `pipe --tag`, `summary` |
 | [06-event-driven-composite.sh](06-event-driven-composite.sh) | A2A Communication, Composite | Frontend + backend agents collaborate with messaging and event watching | `spawn --name`, `input --name`, `broadcast --tag`, `watch --on`, `wait --tag`, `pipe --tag`, `summary` |
 | [07-decision-arena.sh](07-decision-arena.sh) | Adversarial Debate, Fan-Out, A2A | Advocate vs skeptic debate with rebuttals and judge verdict; optional mixed providers | `spawn --name --tag`, `wait`, `output`, `input --name`, `pipe --tag`, `summary` |
+| [08-meta-bootstrap.sh](08-meta-bootstrap.sh) | Meta-Bootstrap | Agent generates a working orchestration script using `--help-agent` and `man orchestration` | `exec`, `--help-agent`, `man orchestration`, dynamic script generation |
 
 ## Environment Variables
 
@@ -86,11 +87,11 @@ Hierarchical (05)               Composite / A2A (06)
 ▼   ▼   ▼                       │    Integration Review  │
 A   B   C ──► Verify            └────────────────────────┘
 
-Decision Arena (07)
-┌──────────┐   ┌──────────┐
-│ Advocate │   │ Skeptic  │
-│ (FOR)    │   │ (AGAINST)│
-└────┬─────┘   └────┬─────┘
+Decision Arena (07)             Meta-Bootstrap (08)
+┌──────────┐   ┌──────────┐    ┌────────────┐   ┌────────────┐
+│ Advocate │   │ Skeptic  │    │--help-agent│──►│Agent writes│──► saved
+│ (FOR)    │   │ (AGAINST)│    │ + task desc│   │  script    │   script
+└────┬─────┘   └────┬─────┘    └────────────┘   └────────────┘
      │   cross-poll  │
      │◄─────────────►│
      │   rebuttals   │
