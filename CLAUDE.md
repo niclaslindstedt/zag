@@ -86,7 +86,7 @@ When adding a new `AgentBuilder` setter, keep all layers in sync:
    - `bindings/java/src/main/java/io/zag/ZagBuilder.java` — field, method, `buildGlobalArgs()` or `buildExecArgs()`
    - `bindings/kotlin/src/main/kotlin/zag/ZagBuilder.kt` — field, method, `buildGlobalArgs()` or `buildExecArgs()`
 4. Add tests in all six binding test suites
-5. Update builder methods table in all six binding READMEs
+5. Update builder methods table in all six binding READMEs and REFERENCE.md files
 
 ### Test file conventions
 
@@ -103,7 +103,7 @@ When adding a new `AgentBuilder` setter, keep all layers in sync:
 | Change type | Files to update |
 |-------------|----------------|
 | New CLI flag | `zag-cli/src/cli.rs`, `README.md`, relevant `zag-cli/man/*.md` |
-| New builder option | `zag-agent/src/builder.rs`, all 6 bindings + tests + READMEs |
+| New builder option | `zag-agent/src/builder.rs`, all 6 bindings + tests + READMEs + REFERENCEs |
 | New command | `zag-cli/src/cli.rs`, `zag-cli/src/commands/`, `zag-cli/src/main.rs`, `zag-cli/man/<cmd>.md`, `README.md` |
 | New subcommand | `zag-cli/src/cli.rs` (enum variant), `zag-cli/src/commands/<parent>/<sub>.rs`, `zag-cli/src/commands/<parent>/mod.rs` (dispatch) |
 | New provider | `zag-agent/src/providers/`, `zag-agent/src/factory.rs`, `README.md`, `docs/providers.md` |

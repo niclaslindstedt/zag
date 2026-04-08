@@ -60,14 +60,14 @@ grep -E 'fun \w+\(' bindings/kotlin/src/main/kotlin/zag/ZagBuilder.kt
 
 ### Primary — Binding builders
 
-| Language | Builder | Tests | README |
-|----------|---------|-------|--------|
-| TypeScript | `bindings/typescript/src/builder.ts` | `bindings/typescript/tests/builder.test.ts` | `bindings/typescript/README.md` |
-| Python | `bindings/python/src/zag/builder.py` | `bindings/python/tests/test_builder.py` | `bindings/python/README.md` |
-| C# | `bindings/csharp/src/Zag/ZagBuilder.cs` | `bindings/csharp/tests/Zag.Tests/ZagBuilderTests.cs` | `bindings/csharp/README.md` |
-| Swift | `bindings/swift/Sources/Zag/ZagBuilder.swift` | `bindings/swift/Tests/ZagTests/ZagBuilderTests.swift` | `bindings/swift/README.md` |
-| Java | `bindings/java/src/main/java/io/zag/ZagBuilder.java` | `bindings/java/src/test/java/io/zag/ZagBuilderTests.java` | `bindings/java/README.md` |
-| Kotlin | `bindings/kotlin/src/main/kotlin/zag/ZagBuilder.kt` | `bindings/kotlin/src/test/kotlin/zag/ZagBuilderTests.kt` | `bindings/kotlin/README.md` |
+| Language | Builder | Tests | README | Reference |
+|----------|---------|-------|--------|-----------|
+| TypeScript | `bindings/typescript/src/builder.ts` | `bindings/typescript/tests/builder.test.ts` | `bindings/typescript/README.md` | `bindings/typescript/REFERENCE.md` |
+| Python | `bindings/python/src/zag/builder.py` | `bindings/python/tests/test_builder.py` | `bindings/python/README.md` | `bindings/python/REFERENCE.md` |
+| C# | `bindings/csharp/src/Zag/ZagBuilder.cs` | `bindings/csharp/tests/Zag.Tests/ZagBuilderTests.cs` | `bindings/csharp/README.md` | `bindings/csharp/REFERENCE.md` |
+| Swift | `bindings/swift/Sources/Zag/ZagBuilder.swift` | `bindings/swift/Tests/ZagTests/ZagBuilderTests.swift` | `bindings/swift/README.md` | `bindings/swift/REFERENCE.md` |
+| Java | `bindings/java/src/main/java/io/zag/ZagBuilder.java` | `bindings/java/src/test/java/io/zag/ZagBuilderTests.java` | `bindings/java/README.md` | `bindings/java/REFERENCE.md` |
+| Kotlin | `bindings/kotlin/src/main/kotlin/zag/ZagBuilder.kt` | `bindings/kotlin/src/test/kotlin/zag/ZagBuilderTests.kt` | `bindings/kotlin/README.md` | `bindings/kotlin/REFERENCE.md` |
 
 ### Secondary (only when adding new capabilities)
 
@@ -235,7 +235,7 @@ Add the new method to the builder chaining test in each binding's test file. At 
 - The setter chains correctly (returns builder)
 - The arg appears in the built args list
 
-### Step 9: READMEs
+### Step 9: READMEs and REFERENCE.md
 
 Add a row to the "Builder methods" table in each binding's README:
 
@@ -245,6 +245,8 @@ Add a row to the "Builder methods" table in each binding's README:
 
 Follow each language's naming convention for the method name.
 
+Also update the corresponding `REFERENCE.md` in each binding directory. The REFERENCE.md contains the full API signature (with types), CLI flag mapping, and must stay in sync with the builder. Add the new method to the Configuration Methods table with its full signature, CLI flag, and description.
+
 ## Update Checklist
 
 - [ ] Add field and setter to Rust `AgentBuilder` in `zag-agent/src/builder.rs`
@@ -252,12 +254,12 @@ Follow each language's naming convention for the method name.
 - [ ] Add CLI flag to `zag-cli/src/cli.rs` if user-facing
 - [ ] Wire in `zag-cli/src/commands/agent_action.rs` if needed
 - [ ] Add Rust tests in `zag-agent/src/builder_tests.rs`
-- [ ] **TypeScript**: field + setter + arg builder in `builder.ts`, test in `builder.test.ts`, README row
-- [ ] **Python**: field + setter + arg builder in `builder.py`, test in `test_builder.py`, README row
-- [ ] **C#**: field + setter + arg builder in `ZagBuilder.cs`, test in `ZagBuilderTests.cs`, README row
-- [ ] **Swift**: field + setter + arg builder in `ZagBuilder.swift`, test in `ZagBuilderTests.swift`, README row
-- [ ] **Java**: field + setter + arg builder in `ZagBuilder.java`, test in `ZagBuilderTests.java`, README row
-- [ ] **Kotlin**: field + setter + arg builder in `ZagBuilder.kt`, test in `ZagBuilderTests.kt`, README row
+- [ ] **TypeScript**: field + setter + arg builder in `builder.ts`, test in `builder.test.ts`, README row, REFERENCE.md
+- [ ] **Python**: field + setter + arg builder in `builder.py`, test in `test_builder.py`, README row, REFERENCE.md
+- [ ] **C#**: field + setter + arg builder in `ZagBuilder.cs`, test in `ZagBuilderTests.cs`, README row, REFERENCE.md
+- [ ] **Swift**: field + setter + arg builder in `ZagBuilder.swift`, test in `ZagBuilderTests.swift`, README row, REFERENCE.md
+- [ ] **Java**: field + setter + arg builder in `ZagBuilder.java`, test in `ZagBuilderTests.java`, README row, REFERENCE.md
+- [ ] **Kotlin**: field + setter + arg builder in `ZagBuilder.kt`, test in `ZagBuilderTests.kt`, README row, REFERENCE.md
 
 ## Verification
 
