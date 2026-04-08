@@ -1,7 +1,12 @@
 use super::*;
 
+/// Both health-check tests share a single global cache file, so they must not
+/// run concurrently. We serialise them via a static mutex.
+static HEALTH_CACHE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[tokio::test]
 async fn check_server_health_returns_false_for_unreachable_server() {
+    let _guard = HEALTH_CACHE_LOCK.lock().unwrap();
     let config = ConnectConfig {
         url: "https://127.0.0.1:19999".to_string(), // unlikely to be listening
         token: "test-token".to_string(),
@@ -15,6 +20,7 @@ async fn check_server_health_returns_false_for_unreachable_server() {
 
 #[tokio::test]
 async fn check_server_health_uses_cache() {
+    let _guard = HEALTH_CACHE_LOCK.lock().unwrap();
     // Write a fresh cache timestamp
     let _ = ConnectConfig::update_health_cache();
     let config = ConnectConfig {
