@@ -14,6 +14,7 @@
 # Binding build artifacts
 bindings/typescript/node_modules/
 bindings/typescript/dist/
+bindings/typescript/dist-test/
 bindings/python/**/__pycache__/
 bindings/python/.pytest_cache/
 bindings/python/src/*.egg-info/
