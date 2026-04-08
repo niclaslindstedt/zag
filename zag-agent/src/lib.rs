@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod attachment;
 pub mod auto_selector;
 pub mod builder;
 pub mod capability;

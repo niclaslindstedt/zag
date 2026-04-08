@@ -75,6 +75,7 @@ All setters return `ZagBuilder` for method chaining. Boolean options have both a
 | `autoApprove` | `ZagBuilder autoApprove()` | `--auto-approve` | Skip permission prompts. |
 | `autoApprove` | `ZagBuilder autoApprove(boolean v)` | `--auto-approve` | Enable or disable auto-approve. |
 | `addDir` | `ZagBuilder addDir(String path)` | `--add-dir` | Add an additional directory. Repeatable -- each call appends. |
+| `file` | `ZagBuilder file(String path)` | `--file` | Attach a file to the prompt. Repeatable -- each call appends. |
 | `env` | `ZagBuilder env(String key, String value)` | `--env` | Set an environment variable for the subprocess. Repeatable. Requires CLI >= 0.6.0. |
 | `json` | `ZagBuilder json()` | `--json` | Request JSON output. |
 | `jsonSchema` | `ZagBuilder jsonSchema(Object schema)` | `--json-schema` | JSON schema for structured output validation. Implies `json()`. The object is serialized via Jackson. |

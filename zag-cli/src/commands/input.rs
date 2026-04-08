@@ -22,6 +22,7 @@ pub(crate) struct InputParams {
     pub root: Option<String>,
     pub quiet: bool,
     pub raw: bool,
+    pub files: Vec<String>,
 }
 
 struct SenderInfo {
@@ -170,6 +171,7 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
         root,
         quiet,
         raw,
+        files,
     } = params;
 
     // Resolve the target session
@@ -292,6 +294,18 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
                 bail!("No message provided. Pass a message argument or pipe to stdin.");
             }
             trimmed
+        };
+
+        // Prepend file attachments if any
+        let msg = if !files.is_empty() {
+            let attachments = files
+                .iter()
+                .map(|f| zag_agent::attachment::Attachment::from_path(std::path::Path::new(f)))
+                .collect::<Result<Vec<_>>>()?;
+            let prefix = zag_agent::attachment::format_attachments_prefix(&attachments);
+            format!("{}{}", prefix, msg)
+        } else {
+            msg
         };
 
         let msg = maybe_wrap_message(&msg, raw);

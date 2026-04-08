@@ -33,6 +33,7 @@ class TestZagBuilder:
             .root("/tmp/test")
             .auto_approve()
             .add_dir("/extra")
+            .file("/tmp/data.csv")
             .verbose()
             .quiet()
             .debug()
@@ -48,6 +49,7 @@ class TestZagBuilder:
         assert builder._root == "/tmp/test"
         assert builder._auto_approve is True
         assert builder._add_dirs == ["/extra"]
+        assert builder._files == ["/tmp/data.csv"]
         assert builder._verbose is True
         assert builder._quiet is True
         assert builder._debug is True

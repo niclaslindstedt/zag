@@ -80,6 +80,7 @@ All configuration methods are annotated `@discardableResult` and return `Self` f
 | `root` | `func root(_ r: String) -> Self` | `--root` | Working directory for the agent |
 | `autoApprove` | `func autoApprove() -> Self` | `--auto-approve` | Skip permission prompts |
 | `addDir` | `func addDir(_ d: String) -> Self` | `--add-dir` | Add additional directory (repeatable) |
+| `file` | `func file(_ path: String) -> Self` | `--file` | Attach a file to the prompt (repeatable) |
 | `env` | `func env(_ key: String, _ value: String) -> Self` | `--env KEY=VALUE` | Add environment variable _(CLI >= 0.6.0)_ |
 | `json` | `func json() -> Self` | `--json` | Request JSON output |
 | `jsonSchema` | `func jsonSchema(_ s: String) -> Self` | `--json-schema` | JSON schema for validation (implies `json()`) |
@@ -594,7 +595,7 @@ let resolved = try await ZagDiscover.resolveModel(provider: "claude", model: "sm
 
 Arguments are split into two groups:
 
-**Global args** (before the subcommand): `--provider`, `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir`, `--env`, `-w`/`--worktree`, `--sandbox`, `--verbose`, `--quiet`, `--debug`, `--session`, `--max-turns`, `--mcp-config`, `--show-usage`, `--size`
+**Global args** (before the subcommand): `--provider`, `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir`, `--file`, `--env`, `-w`/`--worktree`, `--sandbox`, `--verbose`, `--quiet`, `--debug`, `--session`, `--max-turns`, `--mcp-config`, `--show-usage`, `--size`
 
 **Exec args** (after `exec`): `--json`, `--json-schema`, `--json-stream`, `-o`/`--output`, `-i`/`--input-format`, `--replay-user-messages`, `--include-partial-messages`, `--timeout`
 

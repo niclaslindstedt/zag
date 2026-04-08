@@ -29,6 +29,7 @@
 //! ```
 
 use crate::agent::Agent;
+use crate::attachment::{self, Attachment};
 use crate::config::Config;
 use crate::factory::AgentFactory;
 use crate::json_validation;
@@ -73,6 +74,7 @@ pub struct AgentBuilder {
     root: Option<String>,
     auto_approve: bool,
     add_dirs: Vec<String>,
+    files: Vec<String>,
     env_vars: Vec<(String, String)>,
     worktree: Option<Option<String>>,
     sandbox: Option<Option<String>>,
@@ -110,6 +112,7 @@ impl AgentBuilder {
             root: None,
             auto_approve: false,
             add_dirs: Vec::new(),
+            files: Vec::new(),
             env_vars: Vec::new(),
             worktree: None,
             sandbox: None,
@@ -165,6 +168,12 @@ impl AgentBuilder {
     /// Add an additional directory for the agent to include.
     pub fn add_dir(mut self, dir: &str) -> Self {
         self.add_dirs.push(dir.to_string());
+        self
+    }
+
+    /// Attach a file to the prompt (text files ≤50 KB inlined, others referenced).
+    pub fn file(mut self, path: &str) -> Self {
+        self.files.push(path.to_string());
         self
     }
 
@@ -289,6 +298,20 @@ impl AgentBuilder {
     pub fn on_progress(mut self, handler: Box<dyn ProgressHandler>) -> Self {
         self.progress = handler;
         self
+    }
+
+    /// Resolve file attachments and prepend them to a prompt.
+    fn prepend_files(&self, prompt: &str) -> Result<String> {
+        if self.files.is_empty() {
+            return Ok(prompt.to_string());
+        }
+        let attachments: Vec<Attachment> = self
+            .files
+            .iter()
+            .map(|f| Attachment::from_path(std::path::Path::new(f)))
+            .collect::<Result<Vec<_>>>()?;
+        let prefix = attachment::format_attachments_prefix(&attachments);
+        Ok(format!("{}{}", prefix, prompt))
     }
 
     /// Resolve the effective provider name.
@@ -473,15 +496,17 @@ impl AgentBuilder {
 
         let agent = builder.create_agent(&provider)?;
 
+        // Prepend file attachments
+        let prompt_with_files = builder.prepend_files(prompt)?;
+
         // Handle JSON mode with prompt wrapping for non-Claude agents
         let effective_prompt = if builder.json_mode && provider != "claude" {
-            let wrapped = format!(
+            format!(
                 "IMPORTANT: You MUST respond with valid JSON only. No markdown, no explanation.\n\n{}",
-                prompt
-            );
-            wrapped
+                prompt_with_files
+            )
         } else {
-            prompt.to_string()
+            prompt_with_files
         };
 
         let result = if let Some(timeout_dur) = builder.timeout {
@@ -572,6 +597,9 @@ impl AgentBuilder {
             bail!("Streaming input is only supported by the Claude provider");
         }
 
+        // Prepend file attachments
+        let prompt_with_files = self.prepend_files(prompt)?;
+
         let agent = self.create_agent(&provider)?;
 
         // Downcast to Claude to call execute_streaming
@@ -580,7 +608,7 @@ impl AgentBuilder {
             .downcast_ref::<Claude>()
             .ok_or_else(|| anyhow::anyhow!("Failed to downcast agent to Claude"))?;
 
-        claude_agent.execute_streaming(Some(prompt))
+        claude_agent.execute_streaming(Some(&prompt_with_files))
     }
 
     /// Start an interactive agent session.
@@ -590,8 +618,22 @@ impl AgentBuilder {
         let provider = self.resolve_provider()?;
         debug!("run: provider={}", provider);
 
+        // Prepend file attachments
+        let prompt_with_files = match prompt {
+            Some(p) => Some(self.prepend_files(p)?),
+            None if !self.files.is_empty() => {
+                let attachments: Vec<Attachment> = self
+                    .files
+                    .iter()
+                    .map(|f| Attachment::from_path(std::path::Path::new(f)))
+                    .collect::<Result<Vec<_>>>()?;
+                Some(attachment::format_attachments_prefix(&attachments))
+            }
+            None => None,
+        };
+
         let agent = self.create_agent(&provider)?;
-        agent.run_interactive(prompt).await?;
+        agent.run_interactive(prompt_with_files.as_deref()).await?;
         agent.cleanup().await?;
         Ok(())
     }

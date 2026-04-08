@@ -46,6 +46,7 @@ All configuration methods use `= apply { }` pattern for chaining. Uses camelCase
 | `root` | `fun root(path: String) = apply { ... }` | `--root` | Working directory for the agent |
 | `autoApprove` | `fun autoApprove(v: Boolean = true) = apply { ... }` | `--auto-approve` | Skip permission prompts |
 | `addDir` | `fun addDir(path: String) = apply { ... }` | `--add-dir` | Add additional directory (repeatable) |
+| `file` | `fun file(path: String) = apply { ... }` | `--file` | Attach a file to the prompt (repeatable) |
 | `env` | `fun env(key: String, value: String) = apply { ... }` | `--env KEY=VALUE` | Add environment variable _(CLI >= 0.6.0)_ |
 | `json` | `fun json(v: Boolean = true) = apply { ... }` | `--json` | Request JSON output |
 | `jsonSchema` | `fun jsonSchema(schema: String) = apply { ... }` | `--json-schema` | JSON schema for validation (implies `json()`) |
@@ -479,7 +480,7 @@ The SDK spawns the `zag` CLI as a subprocess using `ProcessBuilder` and parses J
 
 Arguments are split into two groups:
 
-**Global args** (before the subcommand): `--provider`, `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir`, `--env`, `-w`/`--worktree`, `--sandbox`, `--verbose`, `--quiet`, `--debug`, `--session`, `--max-turns`, `--mcp-config`, `--show-usage`, `--size`
+**Global args** (before the subcommand): `--provider`, `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir`, `--file`, `--env`, `-w`/`--worktree`, `--sandbox`, `--verbose`, `--quiet`, `--debug`, `--session`, `--max-turns`, `--mcp-config`, `--show-usage`, `--size`
 
 **Exec args** (after `exec`): `--json`, `--json-schema`, `--json-stream`, `-o`/`--output`, `-i`/`--input-format`, `--replay-user-messages`, `--include-partial-messages`, `--timeout`
 

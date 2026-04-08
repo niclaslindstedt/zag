@@ -51,6 +51,7 @@ pub(crate) struct AgentActionParams {
     pub(crate) context_session: Option<String>,
     pub(crate) plan_path: Option<String>,
     pub(crate) env_vars: Vec<(String, String)>,
+    pub(crate) files: Vec<String>,
     pub(crate) session_metadata: SessionMetadata,
 }
 
@@ -505,6 +506,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         context_session,
         plan_path,
         env_vars,
+        files,
         session_metadata: _,
     } = params;
 
@@ -928,6 +930,29 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             "Implementation plan:\n\n{}\n\n---\n\nFollow the plan above.\n\n",
             plan_content
         );
+        match &mut action {
+            Commands::Exec { prompt, .. } => {
+                *prompt = format!("{}{}", prefix, prompt);
+            }
+            Commands::Run {
+                prompt: Some(p), ..
+            } => {
+                *p = format!("{}{}", prefix, p);
+            }
+            Commands::Run { prompt, .. } => {
+                *prompt = Some(prefix);
+            }
+            _ => {}
+        }
+    }
+
+    // Resolve --file: prepend file attachments to the prompt
+    if !files.is_empty() {
+        let attachments = files
+            .iter()
+            .map(|f| zag_agent::attachment::Attachment::from_path(std::path::Path::new(f)))
+            .collect::<Result<Vec<_>>>()?;
+        let prefix = zag_agent::attachment::format_attachments_prefix(&attachments);
         match &mut action {
             Commands::Exec { prompt, .. } => {
                 *prompt = format!("{}{}", prefix, prompt);

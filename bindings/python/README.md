@@ -53,6 +53,7 @@ async for event in await ZagBuilder().provider("claude").stream("analyze code"):
 | `.root(path)` | Set the working directory |
 | `.auto_approve()` | Skip permission prompts |
 | `.add_dir(path)` | Add an additional directory (chainable) |
+| `.file(path)` | Attach a file to the prompt (chainable) |
 | `.env(key, value)` | Add an environment variable for the agent subprocess (chainable) |
 | `.json_mode()` | Request JSON output |
 | `.json_schema(schema)` | Validate output against a JSON schema (implies `.json_mode()`) |

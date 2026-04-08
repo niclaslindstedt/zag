@@ -25,6 +25,7 @@ public class ZagBuilder
     private string? _root;
     private bool _autoApprove;
     private readonly List<string> _addDirs = [];
+    private readonly List<string> _files = [];
     private readonly List<string> _envVars = [];
     private bool _json;
     private object? _jsonSchema;
@@ -67,6 +68,9 @@ public class ZagBuilder
 
     /// <summary>Add an additional directory for the agent to include.</summary>
     public ZagBuilder AddDir(string d) { _addDirs.Add(d); return this; }
+
+    /// <summary>Attach a file to the prompt (chainable).</summary>
+    public ZagBuilder File(string path) { _files.Add(path); return this; }
 
     /// <summary>Add an environment variable for the agent subprocess.</summary>
     public ZagBuilder Env(string key, string value) { _envVars.Add($"{key}={value}"); return this; }
@@ -142,6 +146,7 @@ public class ZagBuilder
         if (_root != null) { args.Add("--root"); args.Add(_root); }
         if (_autoApprove) args.Add("--auto-approve");
         foreach (var d in _addDirs) { args.Add("--add-dir"); args.Add(d); }
+        foreach (var f in _files) { args.Add("--file"); args.Add(f); }
         foreach (var e in _envVars) { args.Add("--env"); args.Add(e); }
         if (_worktree is true) args.Add("-w");
         else if (_worktree is string wt) { args.Add("-w"); args.Add(wt); }

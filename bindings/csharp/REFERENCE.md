@@ -48,6 +48,7 @@ Every method below returns `ZagBuilder`.
 | `Root` | `Root(string path)` | `--root` | Working directory for the agent |
 | `AutoApprove` | `AutoApprove(bool a = true)` | `--auto-approve` | Skip permission prompts |
 | `AddDir` | `AddDir(string path)` | `--add-dir` | Additional directory for the agent (repeatable) |
+| `File` | `File(string path)` | `--file` | Attach a file to the prompt (repeatable) |
 | `Env` | `Env(string key, string value)` | `--env` | Environment variable for the agent subprocess (repeatable, CLI >= 0.6.0) |
 | `Json` | `Json()` | `--json` | Request JSON output |
 | `JsonSchema` | `JsonSchema(object schema)` | `--json-schema` | JSON schema for structured output validation (implies `Json()`) |
@@ -598,7 +599,7 @@ var output2 = await new ZagBuilder()
 
 The builder constructs CLI arguments in two groups:
 
-**Global args** (applied before the subcommand): provider, model, system-prompt, root, auto-approve, add-dir, env, worktree, sandbox, verbose, quiet, debug, session, max-turns, mcp-config, show-usage, size.
+**Global args** (applied before the subcommand): provider, model, system-prompt, root, auto-approve, add-dir, file, env, worktree, sandbox, verbose, quiet, debug, session, max-turns, mcp-config, show-usage, size.
 
 **Exec args** (applied after `exec`): json, json-schema, json-stream, output format, input format, replay-user-messages, include-partial-messages, timeout, then the prompt.
 

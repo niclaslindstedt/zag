@@ -39,6 +39,7 @@ public final class ZagBuilder {
     private var _root: String?
     private var _autoApprove = false
     private var _addDirs: [String] = []
+    private var _files: [String] = []
     private var _envVars: [String] = []
     private var _json = false
     private var _jsonSchema: String?
@@ -98,6 +99,10 @@ public final class ZagBuilder {
     /// Add an additional directory for the agent to include.
     @discardableResult
     public func addDir(_ d: String) -> Self { _addDirs.append(d); return self }
+
+    /// Attach a file to the prompt (chainable).
+    @discardableResult
+    public func file(_ path: String) -> Self { _files.append(path); return self }
 
     /// Add an environment variable for the agent subprocess.
     @discardableResult
@@ -208,6 +213,7 @@ public final class ZagBuilder {
         if let r = _root { args += ["--root", r] }
         if _autoApprove { args.append("--auto-approve") }
         for d in _addDirs { args += ["--add-dir", d] }
+        for f in _files { args += ["--file", f] }
         for e in _envVars { args += ["--env", e] }
         switch _worktree {
         case .enabled: args.append("-w")

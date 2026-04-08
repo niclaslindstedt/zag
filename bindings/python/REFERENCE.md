@@ -38,6 +38,7 @@ All configuration methods return `ZagBuilder` for chaining. Uses `snake_case`.
 | `root` | `def root(self, r: str) -> ZagBuilder` | `--root` | Working directory for the agent |
 | `auto_approve` | `def auto_approve(self, a: bool = True) -> ZagBuilder` | `--auto-approve` | Skip permission prompts |
 | `add_dir` | `def add_dir(self, d: str) -> ZagBuilder` | `--add-dir` | Add additional directory (repeatable) |
+| `file` | `def file(self, path: str) -> ZagBuilder` | `--file` | Attach a file to the prompt (repeatable) |
 | `env` | `def env(self, key: str, value: str) -> ZagBuilder` | `--env KEY=VALUE` | Add environment variable _(CLI >= 0.6.0)_ |
 | `json_mode` | `def json_mode(self) -> ZagBuilder` | `--json` | Request JSON output |
 | `json_schema` | `def json_schema(self, s: dict) -> ZagBuilder` | `--json-schema` | JSON schema for validation (implies `json_mode()`) |
@@ -417,7 +418,7 @@ The SDK spawns the `zag` CLI as a subprocess using `asyncio.create_subprocess_ex
 
 Arguments are split into two groups:
 
-**Global args** (before the subcommand): `--provider`, `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir`, `--env`, `-w`/`--worktree`, `--sandbox`, `--verbose`, `--quiet`, `--debug`, `--session`, `--max-turns`, `--mcp-config`, `--show-usage`, `--size`
+**Global args** (before the subcommand): `--provider`, `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir`, `--file`, `--env`, `-w`/`--worktree`, `--sandbox`, `--verbose`, `--quiet`, `--debug`, `--session`, `--max-turns`, `--mcp-config`, `--show-usage`, `--size`
 
 **Exec args** (after `exec`): `--json`, `--json-schema`, `--json-stream`, `-o`/`--output`, `-i`/`--input-format`, `--replay-user-messages`, `--include-partial-messages`, `--timeout`
 
