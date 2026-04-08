@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-04-08
+
+### Added
+
+- Add file attachment support for embedding files in agent prompts (#99)
+- Add expandable tool details and sub-agent nesting to ZagChat (#95)
+- Add meta-bootstrap orchestration example (#96)
+- Add remote health check with auto-disconnect (#93)
+- Add ZagChat example app and streaming session control (#94)
+- Add realistic terminal output to hero demos (#89)
+- Add exit error messages and structured exit codes (#88)
+- Add discover command for provider/model discovery (#87)
+- Add plan command and --plan flag for run/exec/spawn (#84)
+- Force sandbox for connected users (#82)
+
+### Fixed
+
+- Extract source data from latest version tag (#92)
+- Make mobile sidebar full-width on small screens (#86)
+- Fix copy button scroll and burger menu close on mobile (#85)
+
+### Documentation
+
+- Add package registry badges to README (#98)
+- Add comprehensive reference documentation for all language bindings (#97)
+
 ## [0.7.0] - 2026-04-06
 
 ### Added

@@ -825,6 +825,10 @@ export const builderMethods: BuilderMethod[] = [
     "description": "Add an additional directory for the agent to include."
   },
   {
+    "name": "file",
+    "description": "Attach a file to the prompt (text files ≤50 KB inlined, others referenced)."
+  },
+  {
     "name": "env",
     "description": "Add an environment variable for the agent subprocess."
   },
