@@ -252,4 +252,42 @@ class ZagBuilder {
         args.add("--continue")
         ZagProcess.run(_bin, args)
     }
+
+    /** Resume a previous session non-interactively with a follow-up prompt. */
+    suspend fun execResume(sessionId: String, prompt: String): AgentOutput {
+        VersionCheck.check(_bin, versionRequirements())
+        val args = buildExecArgs(prompt).toMutableList()
+        val promptIdx = args.size - 1
+        args.add(promptIdx, "--resume")
+        args.add(promptIdx + 1, sessionId)
+        return ZagProcess.exec(_bin, args)
+    }
+
+    /** Resume the most recent session non-interactively with a follow-up prompt. */
+    suspend fun execContinue(prompt: String): AgentOutput {
+        VersionCheck.check(_bin, versionRequirements())
+        val args = buildExecArgs(prompt).toMutableList()
+        val promptIdx = args.size - 1
+        args.add(promptIdx, "--continue")
+        return ZagProcess.exec(_bin, args)
+    }
+
+    /** Resume a previous session in streaming mode with a follow-up prompt. */
+    fun streamResume(sessionId: String, prompt: String): Flow<Event> = kotlinx.coroutines.flow.flow {
+        VersionCheck.check(_bin, versionRequirements())
+        val args = buildExecArgs(prompt, streaming = true).toMutableList()
+        val promptIdx = args.size - 1
+        args.add(promptIdx, "--resume")
+        args.add(promptIdx + 1, sessionId)
+        kotlinx.coroutines.flow.emitAll(ZagProcess.stream(_bin, args))
+    }
+
+    /** Resume the most recent session in streaming mode with a follow-up prompt. */
+    fun streamContinue(prompt: String): Flow<Event> = kotlinx.coroutines.flow.flow {
+        VersionCheck.check(_bin, versionRequirements())
+        val args = buildExecArgs(prompt, streaming = true).toMutableList()
+        val promptIdx = args.size - 1
+        args.add(promptIdx, "--continue")
+        kotlinx.coroutines.flow.emitAll(ZagProcess.stream(_bin, args))
+    }
 }

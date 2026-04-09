@@ -441,6 +441,72 @@ public final class ZagBuilder {
         args.append("--continue")
         try await ZagProcess.runInteractive(bin: bin, args: args)
     }
+
+    /// Resume a previous session non-interactively with a follow-up prompt.
+    public func execResume(sessionId: String, prompt: String) async throws -> AgentOutput {
+        try await VersionCheck.check(bin: bin, requirements: versionRequirements())
+        var args = buildExecArgs(prompt: prompt)
+        let promptIdx = args.count - 1
+        args.insert(contentsOf: ["--resume", sessionId], at: promptIdx)
+        return try await ZagProcess.exec(bin: bin, args: args)
+    }
+
+    /// Resume the most recent session non-interactively with a follow-up prompt.
+    public func execContinue(prompt: String) async throws -> AgentOutput {
+        try await VersionCheck.check(bin: bin, requirements: versionRequirements())
+        var args = buildExecArgs(prompt: prompt)
+        let promptIdx = args.count - 1
+        args.insert("--continue", at: promptIdx)
+        return try await ZagProcess.exec(bin: bin, args: args)
+    }
+
+    /// Resume a previous session in streaming mode with a follow-up prompt.
+    public func streamResume(sessionId: String, prompt: String) -> AsyncThrowingStream<Event, Error> {
+        let binPath = bin
+        let requirements = versionRequirements()
+        var args = buildExecArgs(prompt: prompt, streaming: true)
+        let promptIdx = args.count - 1
+        args.insert(contentsOf: ["--resume", sessionId], at: promptIdx)
+        let capturedArgs = args
+        return AsyncThrowingStream { continuation in
+            Task {
+                do {
+                    try await VersionCheck.check(bin: binPath, requirements: requirements)
+                    let innerStream = ZagProcess.stream(bin: binPath, args: capturedArgs)
+                    for try await event in innerStream {
+                        continuation.yield(event)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Resume the most recent session in streaming mode with a follow-up prompt.
+    public func streamContinue(prompt: String) -> AsyncThrowingStream<Event, Error> {
+        let binPath = bin
+        let requirements = versionRequirements()
+        var args = buildExecArgs(prompt: prompt, streaming: true)
+        let promptIdx = args.count - 1
+        args.insert("--continue", at: promptIdx)
+        let capturedArgs = args
+        return AsyncThrowingStream { continuation in
+            Task {
+                do {
+                    try await VersionCheck.check(bin: binPath, requirements: requirements)
+                    let innerStream = ZagProcess.stream(bin: binPath, args: capturedArgs)
+                    for try await event in innerStream {
+                        continuation.yield(event)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
+    }
     #endif
 
     /// Get a configured `ZagRemoteClient` from this builder's connection settings.

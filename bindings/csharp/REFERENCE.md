@@ -81,6 +81,10 @@ Every method below returns `ZagBuilder`.
 | `RunAsync` | `Task RunAsync(string? prompt = null, CancellationToken ct = default)` | Interactive session (inherits stdio) |
 | `ResumeAsync` | `Task ResumeAsync(string sessionId, CancellationToken ct = default)` | Resume a previous session by ID |
 | `ContinueLastAsync` | `Task ContinueLastAsync(CancellationToken ct = default)` | Resume the most recent session |
+| `ExecResumeAsync` | `Task<AgentOutput> ExecResumeAsync(string sessionId, string prompt, CancellationToken ct = default)` | Resume a session non-interactively with a follow-up prompt |
+| `ExecContinueAsync` | `Task<AgentOutput> ExecContinueAsync(string prompt, CancellationToken ct = default)` | Resume the most recent session non-interactively |
+| `StreamResumeAsync` | `IAsyncEnumerable<Event> StreamResumeAsync(string sessionId, string prompt, CancellationToken ct = default)` | Resume a session in streaming mode |
+| `StreamContinueAsync` | `IAsyncEnumerable<Event> StreamContinueAsync(string prompt, CancellationToken ct = default)` | Resume the most recent session in streaming mode |
 
 All async methods accept a `CancellationToken`. `ExecStreaming` is async (returns `Task<StreamingSession>`) but does not take a `CancellationToken` at construction -- use `StreamingSession.Events(ct)` and `StreamingSession.Terminate()` instead.
 

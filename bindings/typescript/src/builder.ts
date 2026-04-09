@@ -379,4 +379,64 @@ export class ZagBuilder {
     const args = ["run", ...this.buildGlobalArgs(), "--continue"];
     return runZag(this._bin, args);
   }
+
+  /**
+   * Resume a previous session non-interactively with a follow-up prompt.
+   *
+   * @example
+   * ```ts
+   * const output = await new ZagBuilder()
+   *   .provider("claude")
+   *   .execResume("session-id", "what about tests?");
+   * console.log(output.result);
+   * ```
+   */
+  async execResume(sessionId: string, prompt: string): Promise<AgentOutput> {
+    await checkVersion(this._bin, this.versionRequirements());
+    const args = this.buildExecArgs(prompt, false);
+    // Insert --resume before the prompt positional arg
+    const promptIdx = args.lastIndexOf(prompt);
+    args.splice(promptIdx, 0, "--resume", sessionId);
+    return execZag(this._bin, args);
+  }
+
+  /**
+   * Resume the most recent session non-interactively with a follow-up prompt.
+   *
+   * @example
+   * ```ts
+   * const output = await new ZagBuilder()
+   *   .provider("claude")
+   *   .execContinue("what about tests?");
+   * console.log(output.result);
+   * ```
+   */
+  async execContinue(prompt: string): Promise<AgentOutput> {
+    await checkVersion(this._bin, this.versionRequirements());
+    const args = this.buildExecArgs(prompt, false);
+    const promptIdx = args.lastIndexOf(prompt);
+    args.splice(promptIdx, 0, "--continue");
+    return execZag(this._bin, args);
+  }
+
+  /** Resume a previous session in streaming mode with a follow-up prompt. */
+  async *streamResume(
+    sessionId: string,
+    prompt: string,
+  ): AsyncGenerator<Event> {
+    await checkVersion(this._bin, this.versionRequirements());
+    const args = this.buildExecArgs(prompt, true);
+    const promptIdx = args.lastIndexOf(prompt);
+    args.splice(promptIdx, 0, "--resume", sessionId);
+    yield* streamZag(this._bin, args);
+  }
+
+  /** Resume the most recent session in streaming mode with a follow-up prompt. */
+  async *streamContinue(prompt: string): AsyncGenerator<Event> {
+    await checkVersion(this._bin, this.versionRequirements());
+    const args = this.buildExecArgs(prompt, true);
+    const promptIdx = args.lastIndexOf(prompt);
+    args.splice(promptIdx, 0, "--continue");
+    yield* streamZag(this._bin, args);
+  }
 }

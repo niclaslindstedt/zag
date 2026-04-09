@@ -157,6 +157,26 @@ public class ZagBuilderTests
         Assert.Contains("--timeout", args);
         Assert.Contains("5m", args);
     }
+
+    [Fact]
+    public void Resume_IncludedInExecArgs()
+    {
+        var args = new ZagBuilder().Provider("claude").BuildExecArgs("follow up");
+        args.Insert(args.Count - 1, "--resume");
+        args.Insert(args.Count - 1, "sess-123");
+        Assert.Contains("--resume", args);
+        Assert.Contains("sess-123", args);
+        Assert.True(args.IndexOf("--resume") < args.IndexOf("follow up"));
+    }
+
+    [Fact]
+    public void Continue_IncludedInExecArgs()
+    {
+        var args = new ZagBuilder().Provider("claude").BuildExecArgs("follow up");
+        args.Insert(args.Count - 1, "--continue");
+        Assert.Contains("--continue", args);
+        Assert.True(args.IndexOf("--continue") < args.IndexOf("follow up"));
+    }
 }
 
 public class VersionCheckTests

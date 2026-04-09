@@ -85,6 +85,10 @@ async for event in await ZagBuilder().provider("claude").stream("analyze code"):
 | `.run(prompt=None)` | `None` | Start an interactive session (inherits stdio) |
 | `.resume(session_id)` | `None` | Resume a previous session by ID |
 | `.continue_last()` | `None` | Resume the most recent session |
+| `.exec_resume(session_id, prompt)` | `AgentOutput` | Resume a session non-interactively with a follow-up prompt |
+| `.exec_continue(prompt)` | `AgentOutput` | Resume the most recent session non-interactively |
+| `.stream_resume(session_id, prompt)` | `AsyncGenerator[Event]` | Resume a session in streaming mode |
+| `.stream_continue(prompt)` | `AsyncGenerator[Event]` | Resume the most recent session in streaming mode |
 
 ## Version checking
 

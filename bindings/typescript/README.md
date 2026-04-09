@@ -91,6 +91,10 @@ for await (const event of new ZagBuilder().provider("claude").stream("analyze co
 | `.run(prompt?)` | `Promise<void>` | Start an interactive session (inherits stdio) |
 | `.resume(sessionId)` | `Promise<void>` | Resume a previous session by ID |
 | `.continueLast()` | `Promise<void>` | Resume the most recent session |
+| `.execResume(sessionId, prompt)` | `Promise<AgentOutput>` | Resume a session non-interactively with a follow-up prompt |
+| `.execContinue(prompt)` | `Promise<AgentOutput>` | Resume the most recent session non-interactively |
+| `.streamResume(sessionId, prompt)` | `AsyncGenerator<Event>` | Resume a session in streaming mode |
+| `.streamContinue(prompt)` | `AsyncGenerator<Event>` | Resume the most recent session in streaming mode |
 
 ## Version checking
 

@@ -18,6 +18,8 @@ By default, exec mode suppresses wrapper UI (spinners, status messages, icons) s
 
 ## Flags
 
+    --resume <SESSION_ID>         Resume a specific session with a follow-up prompt
+    --continue                    Resume the most recent tracked session
     -o, --output <FORMAT>         Output format (see Output Formats below)
     -i, --input-format <FORMAT>   Input format: text (default), stream-json (Claude only)
     --exit-on-failure             Exit with code 1 if the agent reports failure
@@ -123,6 +125,8 @@ In exec mode, the sandbox is kept after execution (no cleanup prompt). Resume wi
     zag exec --timeout 5m "complex task"               Kill agent after 5 minutes
     zag -p ollama exec "explain this code"            Ollama non-interactive
     zag -p ollama --size 35b exec "complex task"      Ollama with large size
+    zag exec --resume <session-id> "follow up"        Resume session with prompt
+    zag exec --continue "what about tests?"           Resume latest session
 
     echo '{"data":"input"}' | zag exec -i stream-json "process"     Structured input
 

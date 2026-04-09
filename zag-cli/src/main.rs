@@ -123,8 +123,13 @@ async fn main() -> Result<()> {
                 resume,
                 continue_session,
                 ..
+            }
+            | Commands::Exec {
+                resume,
+                continue_session,
+                ..
             } if resume.is_some() || *continue_session => {
-                bail!("--json-stream cannot be used with run --resume or run --continue")
+                bail!("--json-stream cannot be used with --resume or --continue")
             }
             Commands::Run { prompt, .. } if prompt.is_none() => {
                 bail!("--json-stream requires a prompt (use exec or run with a prompt)")
@@ -140,8 +145,13 @@ async fn main() -> Result<()> {
                 resume,
                 continue_session,
                 ..
+            }
+            | Commands::Exec {
+                resume,
+                continue_session,
+                ..
             } if resume.is_some() || *continue_session => {
-                bail!("--json/--json-schema cannot be used with run --resume or run --continue")
+                bail!("--json/--json-schema cannot be used with --resume or --continue")
             }
             Commands::Run { prompt, .. } if prompt.is_none() => {
                 bail!("--json/--json-schema requires a prompt (use exec or run with a prompt)")
@@ -161,22 +171,21 @@ async fn main() -> Result<()> {
 
     // Validate --worktree/--sandbox/--session usage with resume/continue
     if let Some(ref sa) = session_args {
-        if let Commands::Run {
-            resume,
-            continue_session,
-            ..
-        } = &cli.command
-        {
-            if resume.is_some() || *continue_session {
-                if sa.worktree.is_some() {
-                    bail!("--worktree cannot be used with run --resume or run --continue");
-                }
-                if sa.sandbox.is_some() {
-                    bail!("--sandbox cannot be used with run --resume or run --continue");
-                }
-                if sa.session.is_some() {
-                    bail!("--session cannot be used with run --resume or run --continue");
-                }
+        let is_resume = matches!(
+            &cli.command,
+            Commands::Run { resume, continue_session, .. }
+            | Commands::Exec { resume, continue_session, .. }
+            if resume.is_some() || *continue_session
+        );
+        if is_resume {
+            if sa.worktree.is_some() {
+                bail!("--worktree cannot be used with --resume or --continue");
+            }
+            if sa.sandbox.is_some() {
+                bail!("--sandbox cannot be used with --resume or --continue");
+            }
+            if sa.session.is_some() {
+                bail!("--session cannot be used with --resume or --continue");
             }
         }
 
@@ -203,8 +212,13 @@ async fn main() -> Result<()> {
                     resume,
                     continue_session,
                     ..
+                }
+                | Commands::Exec {
+                    resume,
+                    continue_session,
+                    ..
                 } if resume.is_some() || *continue_session => {
-                    bail!("auto cannot be used with run --resume or run --continue")
+                    bail!("auto cannot be used with --resume or --continue")
                 }
                 _ => {}
             }

@@ -146,6 +146,26 @@ class ZagBuilderTests {
         assertTrue(args.contains("--timeout"))
         assertTrue(args.contains("5m"))
     }
+
+    @Test
+    fun `resume included in exec args`() {
+        val args = ZagBuilder().provider("claude").buildExecArgs("follow up").toMutableList()
+        val promptIdx = args.size - 1
+        args.add(promptIdx, "--resume")
+        args.add(promptIdx + 1, "sess-123")
+        assertTrue(args.contains("--resume"))
+        assertTrue(args.contains("sess-123"))
+        assertTrue(args.indexOf("--resume") < args.indexOf("follow up"))
+    }
+
+    @Test
+    fun `continue included in exec args`() {
+        val args = ZagBuilder().provider("claude").buildExecArgs("follow up").toMutableList()
+        val promptIdx = args.size - 1
+        args.add(promptIdx, "--continue")
+        assertTrue(args.contains("--continue"))
+        assertTrue(args.indexOf("--continue") < args.indexOf("follow up"))
+    }
 }
 
 class VersionCheckTests {

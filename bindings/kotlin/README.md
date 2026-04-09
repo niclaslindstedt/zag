@@ -84,6 +84,10 @@ ZagBuilder().provider("claude").stream("analyze code").collect { event ->
 | `.run(prompt?)` | `Unit` | Start an interactive session (inherits stdio, suspend) |
 | `.resume(sessionId)` | `Unit` | Resume a previous session by ID (suspend) |
 | `.continueLast()` | `Unit` | Resume the most recent session (suspend) |
+| `.execResume(sessionId, prompt)` | `AgentOutput` | Resume a session non-interactively (suspend) |
+| `.execContinue(prompt)` | `AgentOutput` | Resume the most recent session non-interactively (suspend) |
+| `.streamResume(sessionId, prompt)` | `Flow<Event>` | Resume a session in streaming mode |
+| `.streamContinue(prompt)` | `Flow<Event>` | Resume the most recent session in streaming mode |
 
 ## Version checking
 

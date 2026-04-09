@@ -183,6 +183,10 @@ for try await event in ZagBuilder().provider("claude").stream("analyze code") {
 | `.run(prompt?)` | `Void` | Local only | Start an interactive session (inherits stdio) |
 | `.resume(sessionId)` | `Void` | Local only | Resume a previous session by ID |
 | `.continueLast()` | `Void` | Local only | Resume the most recent session |
+| `.execResume(sessionId:prompt:)` | `AgentOutput` | Local only | Resume a session non-interactively with a follow-up prompt |
+| `.execContinue(prompt:)` | `AgentOutput` | Local only | Resume the most recent session non-interactively |
+| `.streamResume(sessionId:prompt:)` | `AsyncThrowingStream<Event>` | Local only | Resume a session in streaming mode |
+| `.streamContinue(prompt:)` | `AsyncThrowingStream<Event>` | Local only | Resume the most recent session in streaming mode |
 | `.remoteClient()` | `ZagRemoteClient` | Remote only | Get direct access to the HTTP client |
 
 ## Remote client methods

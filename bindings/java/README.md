@@ -92,6 +92,10 @@ for (var event : new ZagBuilder().provider("claude").stream("analyze code")) {
 | `.run(prompt?)` | `void` | Start an interactive session (inherits stdio) |
 | `.resume(sessionId)` | `void` | Resume a previous session by ID |
 | `.continueLast()` | `void` | Resume the most recent session |
+| `.execResume(sessionId, prompt)` | `AgentOutput` | Resume a session non-interactively with a follow-up prompt |
+| `.execContinue(prompt)` | `AgentOutput` | Resume the most recent session non-interactively |
+| `.streamResume(sessionId, prompt)` | `Iterable<Event>` | Resume a session in streaming mode |
+| `.streamContinue(prompt)` | `Iterable<Event>` | Resume the most recent session in streaming mode |
 
 ## Version checking
 
