@@ -5,8 +5,8 @@ use crate::sandbox::SandboxConfig;
 #[test]
 fn test_build_run_args_non_interactive() {
     let mut gemini = Gemini::new();
-    gemini.model = "gemini-2.5-pro".to_string();
-    gemini.output_format = Some("json".to_string());
+    gemini.common.model = "gemini-2.5-pro".to_string();
+    gemini.common.output_format = Some("json".to_string());
 
     let args = gemini.build_run_args(false, Some("hello"));
     assert!(args.contains(&"--model".to_string()));
@@ -19,7 +19,7 @@ fn test_build_run_args_non_interactive() {
 #[test]
 fn test_build_run_args_interactive_no_output_format() {
     let mut gemini = Gemini::new();
-    gemini.output_format = Some("json".to_string());
+    gemini.common.output_format = Some("json".to_string());
 
     let args = gemini.build_run_args(true, Some("hello"));
     assert!(!args.contains(&"--output-format".to_string()));
@@ -35,7 +35,7 @@ fn test_build_run_args_auto_model_skipped() {
 #[test]
 fn test_build_run_args_skip_permissions() {
     let mut gemini = Gemini::new();
-    gemini.skip_permissions = true;
+    gemini.common.skip_permissions = true;
 
     let args = gemini.build_run_args(true, None);
     assert!(args.contains(&"--approval-mode".to_string()));
@@ -45,7 +45,7 @@ fn test_build_run_args_skip_permissions() {
 #[test]
 fn test_make_command_without_sandbox() {
     let mut gemini = Gemini::new();
-    gemini.root = Some("/project".to_string());
+    gemini.common.root = Some("/project".to_string());
 
     let cmd = gemini.make_command(vec!["hello".to_string()]);
     assert_eq!(cmd.as_std().get_program().to_str().unwrap(), "gemini");
@@ -58,7 +58,7 @@ fn test_make_command_without_sandbox() {
 #[test]
 fn test_make_command_with_sandbox() {
     let mut gemini = Gemini::new();
-    gemini.sandbox = Some(SandboxConfig {
+    gemini.common.sandbox = Some(SandboxConfig {
         name: "sandbox-gem".to_string(),
         template: "docker/sandbox-templates:gemini".to_string(),
         workspace: "/workspace".to_string(),
@@ -80,7 +80,7 @@ fn test_make_command_with_sandbox() {
 #[test]
 fn test_build_run_args_max_turns_not_passed() {
     let mut gemini = Gemini::new();
-    gemini.max_turns = Some(10);
+    gemini.common.max_turns = Some(10);
 
     // Gemini CLI does not support --max-turns as a CLI flag
     let args = gemini.build_run_args(false, Some("hello"));
@@ -123,7 +123,7 @@ fn test_model_for_size_uses_latest() {
 #[test]
 fn test_build_run_args_with_3_1_model() {
     let mut gemini = Gemini::new();
-    gemini.model = "gemini-3.1-pro-preview".to_string();
+    gemini.common.model = "gemini-3.1-pro-preview".to_string();
 
     let args = gemini.build_run_args(false, Some("hello"));
     assert!(args.contains(&"--model".to_string()));

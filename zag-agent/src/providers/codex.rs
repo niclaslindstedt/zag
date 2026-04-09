@@ -1,12 +1,12 @@
 // provider-updated: 2026-04-05
 use crate::agent::{Agent, ModelSize};
 use crate::output::AgentOutput;
-use crate::sandbox::SandboxConfig;
+use crate::providers::common::CommonAgentState;
 use crate::session_log::{
     BackfilledSession, HistoricalLogAdapter, LiveLogAdapter, LiveLogContext, LogCompleteness,
     LogEventKind, LogSourceKind, SessionLogMetadata, SessionLogWriter, ToolKind,
 };
-use anyhow::{Context, Result};
+use anyhow::Result;
 use log::debug;
 
 /// Classify a Codex tool name into a normalized ToolKind.
@@ -23,7 +23,6 @@ fn tool_kind_from_name(name: &str) -> ToolKind {
 use async_trait::async_trait;
 use log::info;
 use std::io::BufRead;
-use std::path::Path;
 use std::process::Stdio;
 use tokio::fs;
 use tokio::process::Command;
@@ -58,18 +57,9 @@ pub const AVAILABLE_MODELS: &[&str] = &[
 ];
 
 pub struct Codex {
-    system_prompt: String,
-    model: String,
-    root: Option<String>,
-    skip_permissions: bool,
-    output_format: Option<String>,
-    add_dirs: Vec<String>,
-    capture_output: bool,
-    sandbox: Option<SandboxConfig>,
-    max_turns: Option<u32>,
-    ephemeral: bool,
-    output_schema: Option<String>,
-    env_vars: Vec<(String, String)>,
+    pub common: CommonAgentState,
+    pub ephemeral: bool,
+    pub output_schema: Option<String>,
 }
 
 pub struct CodexLiveLogAdapter {
@@ -85,18 +75,9 @@ pub struct CodexHistoricalLogAdapter;
 impl Codex {
     pub fn new() -> Self {
         Self {
-            system_prompt: String::new(),
-            model: DEFAULT_MODEL.to_string(),
-            root: None,
-            skip_permissions: false,
-            output_format: None,
-            add_dirs: Vec::new(),
-            capture_output: false,
-            sandbox: None,
-            max_turns: None,
+            common: CommonAgentState::new(DEFAULT_MODEL),
             ephemeral: false,
             output_schema: None,
-            env_vars: Vec::new(),
         }
     }
 
@@ -112,15 +93,11 @@ impl Codex {
         self.output_schema = schema;
     }
 
-    fn get_base_path(&self) -> &Path {
-        self.root.as_ref().map(Path::new).unwrap_or(Path::new("."))
-    }
-
     async fn write_agents_file(&self) -> Result<()> {
-        let base = self.get_base_path();
+        let base = self.common.get_base_path();
         let codex_dir = base.join(".codex");
         fs::create_dir_all(&codex_dir).await?;
-        fs::write(codex_dir.join("AGENTS.md"), &self.system_prompt).await?;
+        fs::write(codex_dir.join("AGENTS.md"), &self.common.system_prompt).await?;
         Ok(())
     }
 
@@ -150,13 +127,13 @@ impl Codex {
             cmd.args(["--title", t]);
         }
 
-        if let Some(ref root) = self.root {
+        if let Some(ref root) = self.common.root {
             cmd.args(["--cd", root]);
         }
 
-        cmd.args(["--model", &self.model]);
+        cmd.args(["--model", &self.common.model]);
 
-        if self.skip_permissions {
+        if self.common.skip_permissions {
             cmd.arg("--full-auto");
         }
 
@@ -227,7 +204,7 @@ impl Codex {
 
     /// Build an AgentOutput from raw codex output, parsing NDJSON if output_format is "json".
     fn build_output(&self, raw: &str) -> AgentOutput {
-        if self.output_format.as_deref() == Some("json") {
+        if self.common.output_format.as_deref() == Some("json") {
             let (thread_id, agent_text) = Self::parse_ndjson_output(raw);
             let text = agent_text.unwrap_or_else(|| raw.to_string());
             let mut output = AgentOutput::from_text("codex", &text);
@@ -244,11 +221,11 @@ impl Codex {
     /// Build the argument list for a run/exec invocation.
     fn build_run_args(&self, interactive: bool, prompt: Option<&str>) -> Vec<String> {
         let mut args = Vec::new();
-        let in_sandbox = self.sandbox.is_some();
+        let in_sandbox = self.common.sandbox.is_some();
 
         if !interactive {
             args.extend(["exec", "--skip-git-repo-check"].map(String::from));
-            if let Some(ref format) = self.output_format
+            if let Some(ref format) = self.common.output_format
                 && format == "json"
             {
                 args.push("--json".to_string());
@@ -259,21 +236,21 @@ impl Codex {
         }
 
         // Skip --cd in sandbox (workspace handles root)
-        if !in_sandbox && let Some(ref root) = self.root {
+        if !in_sandbox && let Some(ref root) = self.common.root {
             args.extend(["--cd".to_string(), root.clone()]);
         }
 
-        args.extend(["--model".to_string(), self.model.clone()]);
+        args.extend(["--model".to_string(), self.common.model.clone()]);
 
-        for dir in &self.add_dirs {
+        for dir in &self.common.add_dirs {
             args.extend(["--add-dir".to_string(), dir.clone()]);
         }
 
-        if self.skip_permissions {
+        if self.common.skip_permissions {
             args.push("--full-auto".to_string());
         }
 
-        if let Some(turns) = self.max_turns {
+        if let Some(turns) = self.common.max_turns {
             args.extend(["--max-turns".to_string(), turns.to_string()]);
         }
 
@@ -289,14 +266,17 @@ impl Codex {
     }
 
     /// Create a `Command` either directly or wrapped in sandbox.
+    ///
+    /// Codex uses `--cd` in args instead of `current_dir`, so it keeps
+    /// its own `make_command` rather than delegating to `CommonAgentState`.
     fn make_command(&self, agent_args: Vec<String>) -> Command {
-        if let Some(ref sb) = self.sandbox {
+        if let Some(ref sb) = self.common.sandbox {
             let std_cmd = crate::sandbox::build_sandbox_command(sb, agent_args);
             Command::from(std_cmd)
         } else {
             let mut cmd = Command::new("codex");
             cmd.args(&agent_args);
-            for (key, value) in &self.env_vars {
+            for (key, value) in &self.common.env_vars {
                 cmd.env(key, value);
             }
             cmd
@@ -308,10 +288,10 @@ impl Codex {
         interactive: bool,
         prompt: Option<&str>,
     ) -> Result<Option<AgentOutput>> {
-        if !self.system_prompt.is_empty() {
+        if !self.common.system_prompt.is_empty() {
             log::debug!(
                 "Codex system prompt (written to AGENTS.md): {}",
-                self.system_prompt
+                self.common.system_prompt
             );
             self.write_agents_file().await?;
         }
@@ -324,23 +304,9 @@ impl Codex {
         let mut cmd = self.make_command(agent_args);
 
         if interactive {
-            cmd.stdin(Stdio::inherit())
-                .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit());
-            let status = cmd
-                .status()
-                .await
-                .context("Failed to execute 'codex' CLI. Is it installed and in PATH?")?;
-            if !status.success() {
-                return Err(crate::process::ProcessError {
-                    exit_code: status.code(),
-                    stderr: String::new(),
-                    agent_name: "Codex".to_string(),
-                }
-                .into());
-            }
+            CommonAgentState::run_interactive_command(&mut cmd, "Codex").await?;
             Ok(None)
-        } else if self.capture_output {
+        } else if self.common.capture_output {
             let raw = crate::process::run_captured(&mut cmd, "Codex").await?;
             log::debug!("Codex raw response ({} bytes): {}", raw.len(), raw);
             Ok(Some(self.build_output(&raw)))
@@ -626,61 +592,13 @@ impl Agent for Codex {
         AVAILABLE_MODELS
     }
 
-    fn system_prompt(&self) -> &str {
-        &self.system_prompt
-    }
-
-    fn set_system_prompt(&mut self, prompt: String) {
-        self.system_prompt = prompt;
-    }
-
-    fn get_model(&self) -> &str {
-        &self.model
-    }
-
-    fn set_model(&mut self, model: String) {
-        self.model = model;
-    }
-
-    fn set_root(&mut self, root: String) {
-        self.root = Some(root);
-    }
+    crate::providers::common::impl_common_agent_setters!();
 
     fn set_skip_permissions(&mut self, skip: bool) {
-        self.skip_permissions = skip;
+        self.common.skip_permissions = skip;
     }
 
-    fn set_output_format(&mut self, format: Option<String>) {
-        self.output_format = format;
-    }
-
-    fn set_add_dirs(&mut self, dirs: Vec<String>) {
-        self.add_dirs = dirs;
-    }
-
-    fn set_env_vars(&mut self, vars: Vec<(String, String)>) {
-        self.env_vars = vars;
-    }
-
-    fn set_capture_output(&mut self, capture: bool) {
-        self.capture_output = capture;
-    }
-
-    fn set_sandbox(&mut self, config: SandboxConfig) {
-        self.sandbox = Some(config);
-    }
-
-    fn set_max_turns(&mut self, turns: u32) {
-        self.max_turns = Some(turns);
-    }
-
-    fn as_any_ref(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
+    crate::providers::common::impl_as_any!();
 
     async fn run(&self, prompt: Option<&str>) -> Result<Option<AgentOutput>> {
         self.execute(false, prompt).await
@@ -701,14 +619,14 @@ impl Agent for Codex {
             session_id,
             prompt
         );
-        if !self.system_prompt.is_empty() {
+        if !self.common.system_prompt.is_empty() {
             self.write_agents_file().await?;
         }
 
-        let in_sandbox = self.sandbox.is_some();
+        let in_sandbox = self.common.sandbox.is_some();
         let mut args = vec!["exec".to_string(), "--skip-git-repo-check".to_string()];
 
-        if self.output_format.as_deref() == Some("json") {
+        if self.common.output_format.as_deref() == Some("json") {
             args.push("--json".to_string());
         }
 
@@ -716,21 +634,21 @@ impl Agent for Codex {
             args.push("--ephemeral".to_string());
         }
 
-        if !in_sandbox && let Some(ref root) = self.root {
+        if !in_sandbox && let Some(ref root) = self.common.root {
             args.extend(["--cd".to_string(), root.clone()]);
         }
 
-        args.extend(["--model".to_string(), self.model.clone()]);
+        args.extend(["--model".to_string(), self.common.model.clone()]);
 
-        for dir in &self.add_dirs {
+        for dir in &self.common.add_dirs {
             args.extend(["--add-dir".to_string(), dir.clone()]);
         }
 
-        if self.skip_permissions {
+        if self.common.skip_permissions {
             args.push("--full-auto".to_string());
         }
 
-        if let Some(turns) = self.max_turns {
+        if let Some(turns) = self.common.max_turns {
             args.extend(["--max-turns".to_string(), turns.to_string()]);
         }
 
@@ -747,7 +665,7 @@ impl Agent for Codex {
     }
 
     async fn run_resume(&self, session_id: Option<&str>, last: bool) -> Result<()> {
-        let in_sandbox = self.sandbox.is_some();
+        let in_sandbox = self.common.sandbox.is_some();
         let mut args = vec!["resume".to_string()];
 
         if let Some(id) = session_id {
@@ -756,44 +674,27 @@ impl Agent for Codex {
             args.push("--last".to_string());
         }
 
-        if !in_sandbox && let Some(ref root) = self.root {
+        if !in_sandbox && let Some(ref root) = self.common.root {
             args.extend(["--cd".to_string(), root.clone()]);
         }
 
-        args.extend(["--model".to_string(), self.model.clone()]);
+        args.extend(["--model".to_string(), self.common.model.clone()]);
 
-        for dir in &self.add_dirs {
+        for dir in &self.common.add_dirs {
             args.extend(["--add-dir".to_string(), dir.clone()]);
         }
 
-        if self.skip_permissions {
+        if self.common.skip_permissions {
             args.push("--full-auto".to_string());
         }
 
         let mut cmd = self.make_command(args);
-
-        cmd.stdin(Stdio::inherit())
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit());
-
-        let status = cmd
-            .status()
-            .await
-            .context("Failed to execute 'codex' CLI. Is it installed and in PATH?")?;
-        if !status.success() {
-            return Err(crate::process::ProcessError {
-                exit_code: status.code(),
-                stderr: String::new(),
-                agent_name: "Codex".to_string(),
-            }
-            .into());
-        }
-        Ok(())
+        CommonAgentState::run_interactive_command(&mut cmd, "Codex").await
     }
 
     async fn cleanup(&self) -> Result<()> {
         log::debug!("Cleaning up Codex agent resources");
-        let base = self.get_base_path();
+        let base = self.common.get_base_path();
         let codex_dir = base.join(".codex");
         let agents_file = codex_dir.join("AGENTS.md");
 

@@ -1,7 +1,7 @@
 // provider-updated: 2026-04-05
 use crate::agent::{Agent, ModelSize};
 use crate::output::AgentOutput;
-use crate::sandbox::SandboxConfig;
+use crate::providers::common::CommonAgentState;
 use crate::session_log::{
     BackfilledSession, HistoricalLogAdapter, LiveLogAdapter, LiveLogContext, LogCompleteness,
     LogEventKind, LogSourceKind, SessionLogMetadata, SessionLogWriter, ToolKind,
@@ -24,7 +24,6 @@ use log::info;
 use std::collections::HashSet;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
 use tokio::fs;
 use tokio::process::Command;
 
@@ -60,16 +59,7 @@ pub const AVAILABLE_MODELS: &[&str] = &[
 ];
 
 pub struct Copilot {
-    system_prompt: String,
-    model: String,
-    root: Option<String>,
-    skip_permissions: bool,
-    output_format: Option<String>,
-    add_dirs: Vec<String>,
-    capture_output: bool,
-    sandbox: Option<SandboxConfig>,
-    max_turns: Option<u32>,
-    env_vars: Vec<(String, String)>,
+    pub common: CommonAgentState,
 }
 
 pub struct CopilotLiveLogAdapter {
@@ -84,31 +74,18 @@ pub struct CopilotHistoricalLogAdapter;
 impl Copilot {
     pub fn new() -> Self {
         Self {
-            system_prompt: String::new(),
-            model: DEFAULT_MODEL.to_string(),
-            root: None,
-            skip_permissions: false,
-            output_format: None,
-            add_dirs: Vec::new(),
-            capture_output: false,
-            sandbox: None,
-            max_turns: None,
-            env_vars: Vec::new(),
+            common: CommonAgentState::new(DEFAULT_MODEL),
         }
     }
 
-    fn get_base_path(&self) -> &Path {
-        self.root.as_ref().map(Path::new).unwrap_or(Path::new("."))
-    }
-
     async fn write_instructions_file(&self) -> Result<()> {
-        let base = self.get_base_path();
+        let base = self.common.get_base_path();
         log::debug!("Writing Copilot instructions file to {}", base.display());
         let instructions_dir = base.join(".github/instructions/agent");
         fs::create_dir_all(&instructions_dir).await?;
         fs::write(
             instructions_dir.join("agent.instructions.md"),
-            &self.system_prompt,
+            &self.common.system_prompt,
         )
         .await?;
         Ok(())
@@ -119,19 +96,19 @@ impl Copilot {
         let mut args = Vec::new();
 
         // In non-interactive mode, --allow-all is required
-        if !interactive || self.skip_permissions {
+        if !interactive || self.common.skip_permissions {
             args.push("--allow-all".to_string());
         }
 
-        if !self.model.is_empty() {
-            args.extend(["--model".to_string(), self.model.clone()]);
+        if !self.common.model.is_empty() {
+            args.extend(["--model".to_string(), self.common.model.clone()]);
         }
 
-        for dir in &self.add_dirs {
+        for dir in &self.common.add_dirs {
             args.extend(["--add-dir".to_string(), dir.clone()]);
         }
 
-        if let Some(turns) = self.max_turns {
+        if let Some(turns) = self.common.max_turns {
             args.extend(["--max-turns".to_string(), turns.to_string()]);
         }
 
@@ -146,20 +123,7 @@ impl Copilot {
 
     /// Create a `Command` either directly or wrapped in sandbox.
     fn make_command(&self, agent_args: Vec<String>) -> Command {
-        if let Some(ref sb) = self.sandbox {
-            let std_cmd = crate::sandbox::build_sandbox_command(sb, agent_args);
-            Command::from(std_cmd)
-        } else {
-            let mut cmd = Command::new("copilot");
-            if let Some(ref root) = self.root {
-                cmd.current_dir(root);
-            }
-            cmd.args(&agent_args);
-            for (key, value) in &self.env_vars {
-                cmd.env(key, value);
-            }
-            cmd
-        }
+        self.common.make_command("copilot", agent_args)
     }
 
     async fn execute(
@@ -168,16 +132,16 @@ impl Copilot {
         prompt: Option<&str>,
     ) -> Result<Option<AgentOutput>> {
         // Output format flags are not supported by Copilot
-        if self.output_format.is_some() {
+        if self.common.output_format.is_some() {
             anyhow::bail!(
                 "Copilot does not support the --output flag. Remove the flag and try again."
             );
         }
 
-        if !self.system_prompt.is_empty() {
+        if !self.common.system_prompt.is_empty() {
             log::debug!(
                 "Copilot system prompt (written to instructions): {}",
-                self.system_prompt
+                self.common.system_prompt
             );
             self.write_instructions_file().await?;
         }
@@ -190,30 +154,12 @@ impl Copilot {
         let mut cmd = self.make_command(agent_args);
 
         if interactive {
-            cmd.stdin(Stdio::inherit())
-                .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit());
-            let status = cmd
-                .status()
-                .await
-                .context("Failed to execute 'copilot' CLI. Is it installed and in PATH?")?;
-            if !status.success() {
-                return Err(crate::process::ProcessError {
-                    exit_code: status.code(),
-                    stderr: String::new(),
-                    agent_name: "Copilot".to_string(),
-                }
-                .into());
-            }
+            CommonAgentState::run_interactive_command(&mut cmd, "Copilot").await?;
             Ok(None)
-        } else if self.capture_output {
-            let text = crate::process::run_captured(&mut cmd, "Copilot").await?;
-            log::debug!("Copilot raw response ({} bytes): {}", text.len(), text);
-            Ok(Some(AgentOutput::from_text("copilot", &text)))
         } else {
-            cmd.stdin(Stdio::inherit()).stdout(Stdio::inherit());
-            crate::process::run_with_captured_stderr(&mut cmd).await?;
-            Ok(None)
+            self.common
+                .run_non_interactive_simple(&mut cmd, "Copilot")
+                .await
         }
     }
 }
@@ -738,61 +684,13 @@ impl Agent for Copilot {
         AVAILABLE_MODELS
     }
 
-    fn system_prompt(&self) -> &str {
-        &self.system_prompt
-    }
-
-    fn set_system_prompt(&mut self, prompt: String) {
-        self.system_prompt = prompt;
-    }
-
-    fn get_model(&self) -> &str {
-        &self.model
-    }
-
-    fn set_model(&mut self, model: String) {
-        self.model = model;
-    }
-
-    fn set_root(&mut self, root: String) {
-        self.root = Some(root);
-    }
+    crate::providers::common::impl_common_agent_setters!();
 
     fn set_skip_permissions(&mut self, skip: bool) {
-        self.skip_permissions = skip;
+        self.common.skip_permissions = skip;
     }
 
-    fn set_output_format(&mut self, format: Option<String>) {
-        self.output_format = format;
-    }
-
-    fn set_add_dirs(&mut self, dirs: Vec<String>) {
-        self.add_dirs = dirs;
-    }
-
-    fn set_env_vars(&mut self, vars: Vec<(String, String)>) {
-        self.env_vars = vars;
-    }
-
-    fn set_capture_output(&mut self, capture: bool) {
-        self.capture_output = capture;
-    }
-
-    fn set_sandbox(&mut self, config: SandboxConfig) {
-        self.sandbox = Some(config);
-    }
-
-    fn set_max_turns(&mut self, turns: u32) {
-        self.max_turns = Some(turns);
-    }
-
-    fn as_any_ref(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
+    crate::providers::common::impl_as_any!();
 
     async fn run(&self, prompt: Option<&str>) -> Result<Option<AgentOutput>> {
         self.execute(false, prompt).await
@@ -812,42 +710,25 @@ impl Agent for Copilot {
             vec!["--resume".to_string()]
         };
 
-        if self.skip_permissions {
+        if self.common.skip_permissions {
             args.push("--allow-all".to_string());
         }
 
-        if !self.model.is_empty() {
-            args.extend(["--model".to_string(), self.model.clone()]);
+        if !self.common.model.is_empty() {
+            args.extend(["--model".to_string(), self.common.model.clone()]);
         }
 
-        for dir in &self.add_dirs {
+        for dir in &self.common.add_dirs {
             args.extend(["--add-dir".to_string(), dir.clone()]);
         }
 
         let mut cmd = self.make_command(args);
-
-        cmd.stdin(Stdio::inherit())
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit());
-
-        let status = cmd
-            .status()
-            .await
-            .context("Failed to execute 'copilot' CLI. Is it installed and in PATH?")?;
-        if !status.success() {
-            return Err(crate::process::ProcessError {
-                exit_code: status.code(),
-                stderr: String::new(),
-                agent_name: "Copilot".to_string(),
-            }
-            .into());
-        }
-        Ok(())
+        CommonAgentState::run_interactive_command(&mut cmd, "Copilot").await
     }
 
     async fn cleanup(&self) -> Result<()> {
         log::debug!("Cleaning up Copilot agent resources");
-        let base = self.get_base_path();
+        let base = self.common.get_base_path();
         let instructions_file = base.join(".github/instructions/agent/agent.instructions.md");
 
         if instructions_file.exists() {

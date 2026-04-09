@@ -1,11 +1,10 @@
 // provider-updated: 2026-04-05
 use crate::agent::{Agent, ModelSize};
 use crate::output::AgentOutput;
-use crate::sandbox::SandboxConfig;
+use crate::providers::common::CommonAgentState;
 use crate::session_log::HistoricalLogAdapter;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use async_trait::async_trait;
-use std::process::Stdio;
 use tokio::process::Command;
 
 pub const DEFAULT_MODEL: &str = "qwen3.5";
@@ -14,17 +13,8 @@ pub const DEFAULT_SIZE: &str = "9b";
 pub const AVAILABLE_SIZES: &[&str] = &["0.8b", "2b", "4b", "9b", "27b", "35b", "122b"];
 
 pub struct Ollama {
-    system_prompt: String,
-    model: String,
-    size: String,
-    root: Option<String>,
-    skip_permissions: bool,
-    output_format: Option<String>,
-    add_dirs: Vec<String>,
-    capture_output: bool,
-    max_turns: Option<u32>,
-    sandbox: Option<SandboxConfig>,
-    env_vars: Vec<(String, String)>,
+    pub common: CommonAgentState,
+    pub size: String,
 }
 
 pub struct OllamaHistoricalLogAdapter;
@@ -32,17 +22,8 @@ pub struct OllamaHistoricalLogAdapter;
 impl Ollama {
     pub fn new() -> Self {
         Self {
-            system_prompt: String::new(),
-            model: DEFAULT_MODEL.to_string(),
+            common: CommonAgentState::new(DEFAULT_MODEL),
             size: DEFAULT_SIZE.to_string(),
-            root: None,
-            skip_permissions: false,
-            output_format: None,
-            add_dirs: Vec::new(),
-            capture_output: false,
-            max_turns: None,
-            sandbox: None,
-            env_vars: Vec::new(),
         }
     }
 
@@ -57,14 +38,14 @@ impl Ollama {
 
     /// Get the full model tag (e.g., "qwen3.5:9b").
     fn model_tag(&self) -> String {
-        format!("{}:{}", self.model, self.size)
+        format!("{}:{}", self.common.model, self.size)
     }
 
     /// Build the argument list for a run invocation.
     fn build_run_args(&self, interactive: bool, prompt: Option<&str>) -> Vec<String> {
         let mut args = vec!["run".to_string()];
 
-        if let Some(ref format) = self.output_format
+        if let Some(ref format) = self.common.output_format
             && format == "json"
         {
             args.extend(["--format".to_string(), "json".to_string()]);
@@ -80,9 +61,9 @@ impl Ollama {
         args.push(self.model_tag());
 
         // ollama run has no --system flag; prepend system prompt to user prompt
-        let effective_prompt = match (self.system_prompt.is_empty(), prompt) {
-            (false, Some(p)) => Some(format!("{}\n\n{}", self.system_prompt, p)),
-            (false, None) => Some(self.system_prompt.clone()),
+        let effective_prompt = match (self.common.system_prompt.is_empty(), prompt) {
+            (false, Some(p)) => Some(format!("{}\n\n{}", self.common.system_prompt, p)),
+            (false, None) => Some(self.common.system_prompt.clone()),
             (true, p) => p.map(String::from),
         };
 
@@ -94,8 +75,11 @@ impl Ollama {
     }
 
     /// Create a `Command` either directly or wrapped in sandbox.
+    ///
+    /// Ollama uses a custom sandbox implementation with shell escaping
+    /// instead of the standard `build_sandbox_command`.
     fn make_command(&self, agent_args: Vec<String>) -> Command {
-        if let Some(ref sb) = self.sandbox {
+        if let Some(ref sb) = self.common.sandbox {
             // For ollama in sandbox, we use the shell template:
             // docker sandbox run shell <workspace> -- -c "ollama run ..."
             let shell_cmd = format!(
@@ -128,11 +112,11 @@ impl Ollama {
             Command::from(std_cmd)
         } else {
             let mut cmd = Command::new("ollama");
-            if let Some(ref root) = self.root {
+            if let Some(ref root) = self.common.root {
                 cmd.current_dir(root);
             }
             cmd.args(&agent_args);
-            for (key, value) in &self.env_vars {
+            for (key, value) in &self.common.env_vars {
                 cmd.env(key, value);
             }
             cmd
@@ -146,8 +130,8 @@ impl Ollama {
     ) -> Result<Option<AgentOutput>> {
         let agent_args = self.build_run_args(interactive, prompt);
         log::debug!("Ollama command: ollama {}", agent_args.join(" "));
-        if !self.system_prompt.is_empty() {
-            log::debug!("Ollama system prompt: {}", self.system_prompt);
+        if !self.common.system_prompt.is_empty() {
+            log::debug!("Ollama system prompt: {}", self.common.system_prompt);
         }
         if let Some(p) = prompt {
             log::debug!("Ollama user prompt: {}", p);
@@ -155,30 +139,12 @@ impl Ollama {
         let mut cmd = self.make_command(agent_args);
 
         if interactive {
-            cmd.stdin(Stdio::inherit())
-                .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit());
-            let status = cmd
-                .status()
-                .await
-                .context("Failed to execute 'ollama' CLI. Is it installed and in PATH?")?;
-            if !status.success() {
-                return Err(crate::process::ProcessError {
-                    exit_code: status.code(),
-                    stderr: String::new(),
-                    agent_name: "Ollama".to_string(),
-                }
-                .into());
-            }
+            CommonAgentState::run_interactive_command(&mut cmd, "Ollama").await?;
             Ok(None)
-        } else if self.capture_output {
-            let text = crate::process::run_captured(&mut cmd, "Ollama").await?;
-            log::debug!("Ollama raw response ({} bytes): {}", text.len(), text);
-            Ok(Some(AgentOutput::from_text("ollama", &text)))
         } else {
-            cmd.stdin(Stdio::inherit()).stdout(Stdio::inherit());
-            crate::process::run_with_captured_stderr(&mut cmd).await?;
-            Ok(None)
+            self.common
+                .run_non_interactive_simple(&mut cmd, "Ollama")
+                .await
         }
     }
 
@@ -261,62 +227,14 @@ impl Agent for Ollama {
         Ok(())
     }
 
-    fn system_prompt(&self) -> &str {
-        &self.system_prompt
-    }
-
-    fn set_system_prompt(&mut self, prompt: String) {
-        self.system_prompt = prompt;
-    }
-
-    fn get_model(&self) -> &str {
-        &self.model
-    }
-
-    fn set_model(&mut self, model: String) {
-        self.model = model;
-    }
-
-    fn set_root(&mut self, root: String) {
-        self.root = Some(root);
-    }
+    crate::providers::common::impl_common_agent_setters!();
 
     fn set_skip_permissions(&mut self, _skip: bool) {
         // Ollama runs locally — no permission concept
-        self.skip_permissions = true;
+        self.common.skip_permissions = true;
     }
 
-    fn set_output_format(&mut self, format: Option<String>) {
-        self.output_format = format;
-    }
-
-    fn set_capture_output(&mut self, capture: bool) {
-        self.capture_output = capture;
-    }
-
-    fn set_max_turns(&mut self, turns: u32) {
-        self.max_turns = Some(turns);
-    }
-
-    fn set_sandbox(&mut self, config: SandboxConfig) {
-        self.sandbox = Some(config);
-    }
-
-    fn set_add_dirs(&mut self, dirs: Vec<String>) {
-        self.add_dirs = dirs;
-    }
-
-    fn set_env_vars(&mut self, vars: Vec<(String, String)>) {
-        self.env_vars = vars;
-    }
-
-    fn as_any_ref(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
+    crate::providers::common::impl_as_any!();
 
     async fn run(&self, prompt: Option<&str>) -> Result<Option<AgentOutput>> {
         self.execute(false, prompt).await

@@ -4,7 +4,7 @@ use crate::sandbox::SandboxConfig;
 #[test]
 fn test_build_run_args_non_interactive() {
     let mut claude = Claude::new();
-    claude.model = "opus".to_string();
+    claude.common.model = "opus".to_string();
 
     let fmt = Some("json".to_string());
     let args = claude.build_run_args(false, Some("hello"), &fmt);
@@ -29,7 +29,7 @@ fn test_build_run_args_interactive() {
 #[test]
 fn test_build_run_args_skip_permissions() {
     let mut claude = Claude::new();
-    claude.skip_permissions = true;
+    claude.common.skip_permissions = true;
 
     let args = claude.build_run_args(true, None, &None);
     assert!(args.contains(&"--dangerously-skip-permissions".to_string()));
@@ -38,8 +38,8 @@ fn test_build_run_args_skip_permissions() {
 #[test]
 fn test_build_run_args_sandbox_skips_permissions() {
     let mut claude = Claude::new();
-    claude.skip_permissions = true;
-    claude.sandbox = Some(SandboxConfig {
+    claude.common.skip_permissions = true;
+    claude.common.sandbox = Some(SandboxConfig {
         name: "test".to_string(),
         template: "docker/sandbox-templates:claude-code".to_string(),
         workspace: "/workspace".to_string(),
@@ -52,7 +52,7 @@ fn test_build_run_args_sandbox_skips_permissions() {
 #[test]
 fn test_build_run_args_with_system_prompt() {
     let mut claude = Claude::new();
-    claude.system_prompt = "You are helpful".to_string();
+    claude.common.system_prompt = "You are helpful".to_string();
 
     let args = claude.build_run_args(true, None, &None);
     assert!(args.contains(&"--append-system-prompt".to_string()));
@@ -99,7 +99,7 @@ fn test_build_run_args_include_partial_messages_only_non_interactive() {
 #[test]
 fn test_build_resume_args() {
     let mut claude = Claude::new();
-    claude.model = "sonnet".to_string();
+    claude.common.model = "sonnet".to_string();
 
     let args = claude.build_resume_args(Some("session-123"));
     assert!(args.contains(&"--resume".to_string()));
@@ -119,8 +119,8 @@ fn test_build_resume_args_continue() {
 #[test]
 fn test_build_resume_args_sandbox_skips_permissions() {
     let mut claude = Claude::new();
-    claude.skip_permissions = true;
-    claude.sandbox = Some(SandboxConfig {
+    claude.common.skip_permissions = true;
+    claude.common.sandbox = Some(SandboxConfig {
         name: "test".to_string(),
         template: "docker/sandbox-templates:claude-code".to_string(),
         workspace: "/workspace".to_string(),
@@ -133,7 +133,7 @@ fn test_build_resume_args_sandbox_skips_permissions() {
 #[test]
 fn test_build_streaming_resume_args() {
     let mut claude = Claude::new();
-    claude.model = "sonnet".to_string();
+    claude.common.model = "sonnet".to_string();
 
     let args = claude.build_streaming_resume_args("session-456");
     assert!(args.contains(&"--print".to_string()));
@@ -151,7 +151,7 @@ fn test_build_streaming_resume_args() {
 #[test]
 fn test_build_streaming_resume_args_with_partial_messages() {
     let mut claude = Claude::new();
-    claude.model = "opus".to_string();
+    claude.common.model = "opus".to_string();
     claude.include_partial_messages = true;
 
     let args = claude.build_streaming_resume_args("session-789");
@@ -162,8 +162,8 @@ fn test_build_streaming_resume_args_with_partial_messages() {
 #[test]
 fn test_build_streaming_resume_args_sandbox_skips_permissions() {
     let mut claude = Claude::new();
-    claude.skip_permissions = true;
-    claude.sandbox = Some(SandboxConfig {
+    claude.common.skip_permissions = true;
+    claude.common.sandbox = Some(SandboxConfig {
         name: "test".to_string(),
         template: "docker/sandbox-templates:claude-code".to_string(),
         workspace: "/workspace".to_string(),
@@ -178,7 +178,7 @@ fn test_build_streaming_resume_args_sandbox_skips_permissions() {
 #[test]
 fn test_make_command_without_sandbox() {
     let mut claude = Claude::new();
-    claude.root = Some("/project".to_string());
+    claude.common.root = Some("/project".to_string());
 
     let cmd = claude.make_command(vec!["--print".to_string(), "hello".to_string()]);
     assert_eq!(cmd.as_std().get_program().to_str().unwrap(), "claude");
@@ -191,7 +191,7 @@ fn test_make_command_without_sandbox() {
 #[test]
 fn test_make_command_with_sandbox() {
     let mut claude = Claude::new();
-    claude.sandbox = Some(SandboxConfig {
+    claude.common.sandbox = Some(SandboxConfig {
         name: "sandbox-abc".to_string(),
         template: "docker/sandbox-templates:claude-code".to_string(),
         workspace: "/workspace".to_string(),

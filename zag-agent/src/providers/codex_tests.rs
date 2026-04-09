@@ -95,7 +95,7 @@ fn test_build_output_plain_text() {
 #[test]
 fn test_build_output_json_mode_parses_ndjson() {
     let mut codex = Codex::new();
-    codex.output_format = Some("json".to_string());
+    codex.common.output_format = Some("json".to_string());
 
     let raw = r#"{"type":"thread.started","thread_id":"tid-123"}
 {"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"colors\":[\"red\",\"blue\"]}"}}
@@ -112,8 +112,8 @@ fn test_build_output_json_mode_parses_ndjson() {
 #[test]
 fn test_build_run_args_non_interactive() {
     let mut codex = Codex::new();
-    codex.model = "gpt-5.4".to_string();
-    codex.root = Some("/project".to_string());
+    codex.common.model = "gpt-5.4".to_string();
+    codex.common.root = Some("/project".to_string());
 
     let args = codex.build_run_args(false, Some("hello"));
     assert!(args.contains(&"exec".to_string()));
@@ -137,8 +137,8 @@ fn test_build_run_args_interactive() {
 #[test]
 fn test_build_run_args_sandbox_skips_cd() {
     let mut codex = Codex::new();
-    codex.root = Some("/project".to_string());
-    codex.sandbox = Some(SandboxConfig {
+    codex.common.root = Some("/project".to_string());
+    codex.common.sandbox = Some(SandboxConfig {
         name: "test".to_string(),
         template: "docker/sandbox-templates:codex".to_string(),
         workspace: "/workspace".to_string(),
@@ -159,7 +159,7 @@ fn test_make_command_without_sandbox() {
 #[test]
 fn test_make_command_with_sandbox() {
     let mut codex = Codex::new();
-    codex.sandbox = Some(SandboxConfig {
+    codex.common.sandbox = Some(SandboxConfig {
         name: "sandbox-test".to_string(),
         template: "docker/sandbox-templates:codex".to_string(),
         workspace: "/workspace".to_string(),
@@ -182,7 +182,7 @@ fn test_make_command_with_sandbox() {
 #[test]
 fn test_build_run_args_max_turns() {
     let mut codex = Codex::new();
-    codex.max_turns = Some(5);
+    codex.common.max_turns = Some(5);
 
     let args = codex.build_run_args(false, Some("hello"));
     assert!(args.contains(&"--max-turns".to_string()));
@@ -199,7 +199,7 @@ fn test_build_run_args_no_max_turns_by_default() {
 #[test]
 fn test_build_run_args_full_auto() {
     let mut codex = Codex::new();
-    codex.skip_permissions = true;
+    codex.common.skip_permissions = true;
 
     let args = codex.build_run_args(false, Some("hello"));
     assert!(args.contains(&"--full-auto".to_string()));

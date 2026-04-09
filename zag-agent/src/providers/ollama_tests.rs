@@ -1,4 +1,5 @@
 use super::*;
+use crate::sandbox::SandboxConfig;
 
 #[test]
 fn test_model_tag() {
@@ -9,7 +10,7 @@ fn test_model_tag() {
 #[test]
 fn test_model_tag_custom() {
     let mut ollama = Ollama::new();
-    ollama.model = "llama3".to_string();
+    ollama.common.model = "llama3".to_string();
     ollama.size = "70b".to_string();
     assert_eq!(ollama.model_tag(), "llama3:70b");
 }
@@ -37,7 +38,7 @@ fn test_build_run_args_non_interactive() {
 #[test]
 fn test_build_run_args_with_system_prompt_no_user_prompt() {
     let mut ollama = Ollama::new();
-    ollama.system_prompt = "You are helpful".to_string();
+    ollama.common.system_prompt = "You are helpful".to_string();
     let args = ollama.build_run_args(true, None);
     // --system is not a valid ollama run flag; system prompt is prepended to user prompt
     assert!(!args.contains(&"--system".to_string()));
@@ -47,7 +48,7 @@ fn test_build_run_args_with_system_prompt_no_user_prompt() {
 #[test]
 fn test_build_run_args_with_system_prompt_and_user_prompt() {
     let mut ollama = Ollama::new();
-    ollama.system_prompt = "Be concise".to_string();
+    ollama.common.system_prompt = "Be concise".to_string();
     let args = ollama.build_run_args(false, Some("say hello"));
     assert!(!args.contains(&"--system".to_string()));
     // system prompt and user prompt merged
@@ -59,7 +60,7 @@ fn test_build_run_args_with_system_prompt_and_user_prompt() {
 #[test]
 fn test_build_run_args_json_format() {
     let mut ollama = Ollama::new();
-    ollama.output_format = Some("json".to_string());
+    ollama.common.output_format = Some("json".to_string());
     let args = ollama.build_run_args(false, Some("hello"));
     assert!(args.contains(&"--format".to_string()));
     assert!(args.contains(&"json".to_string()));
@@ -68,7 +69,7 @@ fn test_build_run_args_json_format() {
 #[test]
 fn test_make_command_without_sandbox() {
     let mut ollama = Ollama::new();
-    ollama.root = Some("/project".to_string());
+    ollama.common.root = Some("/project".to_string());
     let cmd = ollama.make_command(vec!["run".to_string(), "qwen3.5:9b".to_string()]);
     assert_eq!(cmd.as_std().get_program().to_str().unwrap(), "ollama");
     assert_eq!(
@@ -80,7 +81,7 @@ fn test_make_command_without_sandbox() {
 #[test]
 fn test_make_command_with_sandbox() {
     let mut ollama = Ollama::new();
-    ollama.sandbox = Some(SandboxConfig {
+    ollama.common.sandbox = Some(SandboxConfig {
         name: "sandbox-oll".to_string(),
         template: "shell".to_string(),
         workspace: "/workspace".to_string(),
@@ -179,15 +180,15 @@ fn test_set_output_format() {
 #[test]
 fn test_set_capture_output() {
     let mut ollama = Ollama::new();
-    assert!(!ollama.capture_output);
+    assert!(!ollama.common.capture_output);
     ollama.set_capture_output(true);
-    assert!(ollama.capture_output);
+    assert!(ollama.common.capture_output);
 }
 
 #[test]
 fn test_set_max_turns() {
     let mut ollama = Ollama::new();
-    assert!(ollama.max_turns.is_none());
+    assert!(ollama.common.max_turns.is_none());
     ollama.set_max_turns(5);
-    assert_eq!(ollama.max_turns, Some(5));
+    assert_eq!(ollama.common.max_turns, Some(5));
 }
