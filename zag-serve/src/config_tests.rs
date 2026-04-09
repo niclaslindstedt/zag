@@ -63,24 +63,21 @@ fn connect_config_round_trip() {
 }
 
 #[test]
-fn health_cache_round_trip() {
-    // We can only test update + is_valid together since they use the global path.
-    // This test will pass if the global base dir is writable.
+fn health_cache_round_trip_and_stale() {
+    // Combined into one test to avoid race conditions when tests run in parallel,
+    // since both use the same global health cache path.
+    let path = ConnectConfig::health_cache_path();
+
+    // Part 1: update + is_valid (round trip)
     let result = ConnectConfig::update_health_cache();
     if result.is_ok() {
         assert!(ConnectConfig::is_health_cache_valid(30));
-        // Clean up
-        let _ = std::fs::remove_file(ConnectConfig::health_cache_path());
     }
-}
 
-#[test]
-fn health_cache_invalid_when_stale() {
-    let path = ConnectConfig::health_cache_path();
+    // Part 2: stale cache should be invalid
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    // Write a timestamp from 60 seconds ago
     let stale_ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -88,6 +85,7 @@ fn health_cache_invalid_when_stale() {
         - 60;
     let _ = std::fs::write(&path, stale_ts.to_string());
     assert!(!ConnectConfig::is_health_cache_valid(30));
+
     // Clean up
     let _ = std::fs::remove_file(&path);
 }

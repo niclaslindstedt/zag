@@ -77,6 +77,10 @@ All configuration methods use `= apply { }` pattern for chaining. Uses camelCase
 | `run` | `suspend fun run(prompt: String? = null)` | Interactive session (inherits stdio) |
 | `resume` | `suspend fun resume(sessionId: String)` | Resume previous session by ID |
 | `continueLast` | `suspend fun continueLast()` | Resume most recent session |
+| `execResume` | `suspend fun execResume(sessionId: String, prompt: String): AgentOutput` | Resume a session non-interactively with a follow-up prompt |
+| `execContinue` | `suspend fun execContinue(prompt: String): AgentOutput` | Resume the most recent session non-interactively |
+| `streamResume` | `fun streamResume(sessionId: String, prompt: String): Flow<Event>` | Resume a session in streaming mode |
+| `streamContinue` | `fun streamContinue(prompt: String): Flow<Event>` | Resume the most recent session in streaming mode |
 
 ## StreamingSession
 

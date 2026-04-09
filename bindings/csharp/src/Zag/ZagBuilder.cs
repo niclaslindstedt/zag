@@ -260,4 +260,48 @@ public class ZagBuilder
         args.Add("--continue");
         await ZagProcess.RunAsync(_bin, [.. args], ct);
     }
+
+    /// <summary>Resume a previous session non-interactively with a follow-up prompt.</summary>
+    public async Task<AgentOutput> ExecResumeAsync(string sessionId, string prompt, CancellationToken ct = default)
+    {
+        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        var args = BuildExecArgs(prompt);
+        args.Insert(args.Count - 1, "--resume");
+        args.Insert(args.Count - 1, sessionId);
+        return await ZagProcess.ExecAsync(_bin, [.. args], ct);
+    }
+
+    /// <summary>Resume the most recent session non-interactively with a follow-up prompt.</summary>
+    public async Task<AgentOutput> ExecContinueAsync(string prompt, CancellationToken ct = default)
+    {
+        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        var args = BuildExecArgs(prompt);
+        args.Insert(args.Count - 1, "--continue");
+        return await ZagProcess.ExecAsync(_bin, [.. args], ct);
+    }
+
+    /// <summary>Resume a previous session in streaming mode with a follow-up prompt.</summary>
+    public async IAsyncEnumerable<Event> StreamResumeAsync(string sessionId, string prompt, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    {
+        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        var args = BuildExecArgs(prompt, streaming: true);
+        args.Insert(args.Count - 1, "--resume");
+        args.Insert(args.Count - 1, sessionId);
+        await foreach (var evt in ZagProcess.StreamAsync(_bin, [.. args], ct).WithCancellation(ct))
+        {
+            yield return evt;
+        }
+    }
+
+    /// <summary>Resume the most recent session in streaming mode with a follow-up prompt.</summary>
+    public async IAsyncEnumerable<Event> StreamContinueAsync(string prompt, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    {
+        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        var args = BuildExecArgs(prompt, streaming: true);
+        args.Insert(args.Count - 1, "--continue");
+        await foreach (var evt in ZagProcess.StreamAsync(_bin, [.. args], ct).WithCancellation(ct))
+        {
+            yield return evt;
+        }
+    }
 }

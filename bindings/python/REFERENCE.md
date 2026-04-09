@@ -71,6 +71,10 @@ All terminal methods are `async`.
 | `run` | `async def run(self, prompt: str \| None = None) -> None` | Interactive session (inherits stdio) |
 | `resume` | `async def resume(self, session_id: str) -> None` | Resume previous session by ID |
 | `continue_last` | `async def continue_last(self) -> None` | Resume most recent session |
+| `exec_resume` | `async def exec_resume(self, session_id: str, prompt: str) -> AgentOutput` | Resume a session non-interactively with a follow-up prompt |
+| `exec_continue` | `async def exec_continue(self, prompt: str) -> AgentOutput` | Resume the most recent session non-interactively |
+| `stream_resume` | `async def stream_resume(self, session_id: str, prompt: str) -> AsyncGenerator[Event]` | Resume a session in streaming mode |
+| `stream_continue` | `async def stream_continue(self, prompt: str) -> AsyncGenerator[Event]` | Resume the most recent session in streaming mode |
 
 ## StreamingSession
 
@@ -430,6 +434,10 @@ Arguments are split into two groups:
 - `run()` inherits stdin/stdout/stderr for interactive terminal use.
 - `resume()` dispatches to `run --resume <id>`.
 - `continue_last()` dispatches to `run --continue`.
+- `exec_resume()` dispatches to `exec [exec-args...] --resume <id> <prompt>` non-interactively. Returns structured `AgentOutput`.
+- `exec_continue()` dispatches to `exec [exec-args...] --continue <prompt>` non-interactively. Returns structured `AgentOutput`.
+- `stream_resume()` like `exec_resume()` but with `--json-stream` for streaming events.
+- `stream_continue()` like `exec_continue()` but with `--json-stream` for streaming events.
 
 ### Version checking
 

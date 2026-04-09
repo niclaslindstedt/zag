@@ -170,6 +170,21 @@ class TestZagBuilder:
         builder = ZagBuilder().bin("/usr/local/bin/zag")
         assert builder._bin == "/usr/local/bin/zag"
 
+    def test_resume_in_exec_args(self) -> None:
+        args = ZagBuilder().provider("claude")._exec_args("follow up")
+        idx = len(args) - 1
+        args[idx:idx] = ["--resume", "sess-123"]
+        assert "--resume" in args
+        assert "sess-123" in args
+        assert args.index("--resume") < args.index("follow up")
+
+    def test_continue_in_exec_args(self) -> None:
+        args = ZagBuilder().provider("claude")._exec_args("follow up")
+        idx = len(args) - 1
+        args[idx:idx] = ["--continue"]
+        assert "--continue" in args
+        assert args.index("--continue") < args.index("follow up")
+
 
 class TestVersionChecking:
     def test_parse_semver(self) -> None:

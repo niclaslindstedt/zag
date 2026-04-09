@@ -120,6 +120,10 @@ All configuration methods are annotated `@discardableResult` and return `Self` f
 | `run` | `func run(_ prompt: String? = nil) async throws` | Local only | Interactive session (inherits stdio) |
 | `resume` | `func resume(_ sessionId: String) async throws` | Local only | Resume previous session by ID |
 | `continueLast` | `func continueLast() async throws` | Local only | Resume most recent session |
+| `execResume` | `func execResume(sessionId: String, prompt: String) async throws -> AgentOutput` | Local only | Resume a session non-interactively with a follow-up prompt |
+| `execContinue` | `func execContinue(prompt: String) async throws -> AgentOutput` | Local only | Resume the most recent session non-interactively |
+| `streamResume` | `func streamResume(sessionId: String, prompt: String) -> AsyncThrowingStream<Event, Error>` | Local only | Resume a session in streaming mode |
+| `streamContinue` | `func streamContinue(prompt: String) -> AsyncThrowingStream<Event, Error>` | Local only | Resume the most recent session in streaming mode |
 | `remoteClient` | `func remoteClient() throws -> ZagRemoteClient` | Remote only | Get direct access to the HTTP/WebSocket client |
 
 ## StreamingSession (Local)

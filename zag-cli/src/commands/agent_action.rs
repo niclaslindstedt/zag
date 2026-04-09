@@ -57,7 +57,7 @@ pub(crate) struct AgentActionParams {
 
 pub(crate) fn run_resume_id(action: &Commands) -> Option<&str> {
     match action {
-        Commands::Run { resume, .. } => resume.as_deref(),
+        Commands::Run { resume, .. } | Commands::Exec { resume, .. } => resume.as_deref(),
         _ => None,
     }
 }
@@ -66,6 +66,9 @@ fn run_continue_requested(action: &Commands) -> bool {
     matches!(
         action,
         Commands::Run {
+            continue_session: true,
+            ..
+        } | Commands::Exec {
             continue_session: true,
             ..
         }
@@ -354,8 +357,7 @@ async fn execute_action(
                 agent.run_interactive(prompt.as_deref()).await?;
             }
         }
-        Commands::Exec { prompt, .. } => {
-            info!("Starting non-interactive session");
+        Commands::Exec { prompt, resume, .. } => {
             let run_prompt = if ctx.json_mode && ctx.provider != "claude" {
                 let wrapped = wrap_prompt_for_json(&prompt);
                 debug!("JSON-wrapped prompt: {}", wrapped);
@@ -364,7 +366,17 @@ async fn execute_action(
                 debug!("Exec prompt: {}", prompt);
                 prompt.clone()
             };
-            let agent_output = agent.run(Some(&run_prompt)).await?;
+
+            let agent_output = if let Some(ref session_id) = resume {
+                info!("Resuming session {} with prompt", session_id);
+                agent
+                    .run_resume_with_prompt(session_id, &run_prompt)
+                    .await?
+            } else {
+                info!("Starting non-interactive session");
+                agent.run(Some(&run_prompt)).await?
+            };
+
             if let (Some(writer), Some(agent_output)) = (log_writer, agent_output.as_ref()) {
                 crate::session_log::record_agent_output(writer, agent_output)?;
             }
@@ -571,14 +583,21 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             .provider_session_id
             .clone()
             .unwrap_or_else(|| target.entry.session_id.clone());
-        if let Commands::Run {
-            resume,
-            continue_session,
-            ..
-        } = &mut action
-        {
-            *resume = Some(native_id);
-            *continue_session = false;
+        match &mut action {
+            Commands::Run {
+                resume,
+                continue_session,
+                ..
+            }
+            | Commands::Exec {
+                resume,
+                continue_session,
+                ..
+            } => {
+                *resume = Some(native_id);
+                *continue_session = false;
+            }
+            _ => {}
         }
     }
 

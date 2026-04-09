@@ -80,6 +80,10 @@ await foreach (var evt in new ZagBuilder().Provider("claude").StreamAsync("analy
 | `.RunAsync(prompt?)` | `Task` | Start an interactive session (inherits stdio) |
 | `.ResumeAsync(sessionId)` | `Task` | Resume a previous session by ID |
 | `.ContinueLastAsync()` | `Task` | Resume the most recent session |
+| `.ExecResumeAsync(sessionId, prompt)` | `Task<AgentOutput>` | Resume a session non-interactively with a follow-up prompt |
+| `.ExecContinueAsync(prompt)` | `Task<AgentOutput>` | Resume the most recent session non-interactively |
+| `.StreamResumeAsync(sessionId, prompt)` | `IAsyncEnumerable<Event>` | Resume a session in streaming mode |
+| `.StreamContinueAsync(prompt)` | `IAsyncEnumerable<Event>` | Resume the most recent session in streaming mode |
 
 ## Version checking
 

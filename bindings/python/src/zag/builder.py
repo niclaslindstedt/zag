@@ -346,3 +346,51 @@ class ZagBuilder:
         await check_version(self._bin, self._version_requirements())
         args = ["run", *self._global_args(), "--continue"]
         await run_zag(self._bin, args)
+
+    async def exec_resume(self, session_id: str, prompt: str) -> AgentOutput:
+        """Resume a previous session non-interactively with a follow-up prompt.
+
+        Example::
+
+            output = await ZagBuilder().provider("claude").exec_resume("id", "follow up")
+            print(output.result)
+        """
+        await check_version(self._bin, self._version_requirements())
+        args = self._exec_args(prompt)
+        idx = len(args) - 1  # prompt is last
+        args[idx:idx] = ["--resume", session_id]
+        return await exec_zag(self._bin, args)
+
+    async def exec_continue(self, prompt: str) -> AgentOutput:
+        """Resume the most recent session non-interactively with a follow-up prompt.
+
+        Example::
+
+            output = await ZagBuilder().provider("claude").exec_continue("follow up")
+            print(output.result)
+        """
+        await check_version(self._bin, self._version_requirements())
+        args = self._exec_args(prompt)
+        idx = len(args) - 1  # prompt is last
+        args[idx:idx] = ["--continue"]
+        return await exec_zag(self._bin, args)
+
+    async def stream_resume(
+        self, session_id: str, prompt: str
+    ) -> AsyncGenerator[Event, None]:
+        """Resume a previous session in streaming mode with a follow-up prompt."""
+        await check_version(self._bin, self._version_requirements())
+        args = self._exec_args(prompt, streaming=True)
+        idx = len(args) - 1
+        args[idx:idx] = ["--resume", session_id]
+        async for event in stream_zag(self._bin, args):
+            yield event
+
+    async def stream_continue(self, prompt: str) -> AsyncGenerator[Event, None]:
+        """Resume the most recent session in streaming mode with a follow-up prompt."""
+        await check_version(self._bin, self._version_requirements())
+        args = self._exec_args(prompt, streaming=True)
+        idx = len(args) - 1
+        args[idx:idx] = ["--continue"]
+        async for event in stream_zag(self._bin, args):
+            yield event

@@ -109,6 +109,10 @@ These methods execute the builder configuration. Each spawns a `zag` subprocess.
 | `run` | `async run(prompt?: string): Promise<void>` | Interactive session. Inherits stdin/stdout/stderr from the parent process. Prompt is optional. |
 | `resume` | `async resume(sessionId: string): Promise<void>` | Resume a previous session by its ID. Runs interactively. |
 | `continueLast` | `async continueLast(): Promise<void>` | Resume the most recent session. Runs interactively. |
+| `execResume` | `async execResume(sessionId: string, prompt: string): Promise<AgentOutput>` | Resume a session non-interactively with a follow-up prompt. |
+| `execContinue` | `async execContinue(prompt: string): Promise<AgentOutput>` | Resume the most recent session non-interactively with a follow-up prompt. |
+| `streamResume` | `async *streamResume(sessionId: string, prompt: string): AsyncGenerator<Event>` | Resume a session in streaming mode with a follow-up prompt. |
+| `streamContinue` | `async *streamContinue(prompt: string): AsyncGenerator<Event>` | Resume the most recent session in streaming mode with a follow-up prompt. |
 
 ---
 
@@ -826,6 +830,10 @@ zag [global-args...] run --continue
 - **`run()`**: Inherits stdio from the parent process (interactive terminal mode). Supports optional `--json` and `--json-schema` flags. No output format is forced.
 - **`resume()`**: Calls `zag [global-args...] run --resume <id>` with inherited stdio.
 - **`continueLast()`**: Calls `zag [global-args...] run --continue` with inherited stdio.
+- **`execResume()`**: Calls `zag exec [exec-args...] --resume <id> <prompt>` non-interactively. Returns structured `AgentOutput`.
+- **`execContinue()`**: Calls `zag exec [exec-args...] --continue <prompt>` non-interactively. Returns structured `AgentOutput`.
+- **`streamResume()`**: Like `execResume()` but with `--json-stream` for streaming events.
+- **`streamContinue()`**: Like `execContinue()` but with `--json-stream` for streaming events.
 
 ### Version Checking
 

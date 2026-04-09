@@ -142,6 +142,24 @@ class ZagBuilderTests {
         assertTrue(args.contains("--timeout"));
         assertTrue(args.contains("5m"));
     }
+
+    @Test
+    void resume_includedInExecArgs() {
+        var args = new ZagBuilder().provider("claude").buildExecArgs("follow up", false);
+        args.add(args.size() - 1, "--resume");
+        args.add(args.size() - 1, "sess-123");
+        assertTrue(args.contains("--resume"));
+        assertTrue(args.contains("sess-123"));
+        assertTrue(args.indexOf("--resume") < args.indexOf("follow up"));
+    }
+
+    @Test
+    void continue_includedInExecArgs() {
+        var args = new ZagBuilder().provider("claude").buildExecArgs("follow up", false);
+        args.add(args.size() - 1, "--continue");
+        assertTrue(args.contains("--continue"));
+        assertTrue(args.indexOf("--continue") < args.indexOf("follow up"));
+    }
 }
 
 class VersionCheckTests {

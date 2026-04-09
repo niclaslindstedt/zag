@@ -161,6 +161,14 @@ pub enum Commands {
         /// The prompt to send to the agent
         prompt: String,
 
+        /// Resume a specific session
+        #[arg(long, value_name = "SESSION_ID")]
+        resume: Option<String>,
+
+        /// Resume the most recent tracked session
+        #[arg(long = "continue")]
+        continue_session: bool,
+
         /// Output format (text, json, json-pretty, stream-json, native-json)
         #[arg(short = 'o', long)]
         output: Option<String>,

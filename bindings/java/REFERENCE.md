@@ -119,6 +119,10 @@ Terminal methods consume the builder configuration and execute the agent. All ar
 | `run` | `void run() throws ZagException` | Interactive session without an initial prompt. |
 | `resume` | `void resume(String sessionId) throws ZagException` | Resume a previous session by ID. |
 | `continueLast` | `void continueLast() throws ZagException` | Resume the most recent session. |
+| `execResume` | `AgentOutput execResume(String sessionId, String prompt) throws ZagException` | Resume a session non-interactively with a follow-up prompt. |
+| `execContinue` | `AgentOutput execContinue(String prompt) throws ZagException` | Resume the most recent session non-interactively. |
+| `streamResume` | `Iterable<Event> streamResume(String sessionId, String prompt) throws ZagException` | Resume a session in streaming mode. |
+| `streamContinue` | `Iterable<Event> streamContinue(String prompt) throws ZagException` | Resume the most recent session in streaming mode. |
 
 ---
 

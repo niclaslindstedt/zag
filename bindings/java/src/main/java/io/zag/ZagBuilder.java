@@ -344,4 +344,38 @@ public class ZagBuilder {
         args.add("--continue");
         ZagProcess.run(bin, args);
     }
+
+    /** Resume a previous session non-interactively with a follow-up prompt. */
+    public AgentOutput execResume(String sessionId, String prompt) throws ZagException {
+        VersionCheck.check(bin, versionRequirements());
+        List<String> args = buildExecArgs(prompt, false);
+        args.add(args.size() - 1, "--resume");
+        args.add(args.size() - 1, sessionId);
+        return ZagProcess.exec(bin, args);
+    }
+
+    /** Resume the most recent session non-interactively with a follow-up prompt. */
+    public AgentOutput execContinue(String prompt) throws ZagException {
+        VersionCheck.check(bin, versionRequirements());
+        List<String> args = buildExecArgs(prompt, false);
+        args.add(args.size() - 1, "--continue");
+        return ZagProcess.exec(bin, args);
+    }
+
+    /** Resume a previous session in streaming mode with a follow-up prompt. */
+    public Iterable<Event> streamResume(String sessionId, String prompt) throws ZagException {
+        VersionCheck.check(bin, versionRequirements());
+        List<String> args = buildExecArgs(prompt, true);
+        args.add(args.size() - 1, "--resume");
+        args.add(args.size() - 1, sessionId);
+        return ZagProcess.stream(bin, args);
+    }
+
+    /** Resume the most recent session in streaming mode with a follow-up prompt. */
+    public Iterable<Event> streamContinue(String prompt) throws ZagException {
+        VersionCheck.check(bin, versionRequirements());
+        List<String> args = buildExecArgs(prompt, true);
+        args.add(args.size() - 1, "--continue");
+        return ZagProcess.stream(bin, args);
+    }
 }

@@ -90,6 +90,30 @@ describe("ZagBuilder", () => {
     assert.ok(args.includes("--timeout"));
     assert.ok(args.includes("5m"));
   });
+
+  it("should include --resume in execResume args", () => {
+    const builder = new ZagBuilder().provider("claude");
+    const args = (builder as any).buildExecArgs("follow up", false);
+    const promptIdx = args.lastIndexOf("follow up");
+    args.splice(promptIdx, 0, "--resume", "sess-123");
+    assert.ok(args.includes("--resume"));
+    assert.ok(args.includes("sess-123"));
+    // --resume should come before the prompt
+    const resumeIdx = args.indexOf("--resume");
+    const newPromptIdx = args.lastIndexOf("follow up");
+    assert.ok(resumeIdx < newPromptIdx);
+  });
+
+  it("should include --continue in execContinue args", () => {
+    const builder = new ZagBuilder().provider("claude");
+    const args = (builder as any).buildExecArgs("follow up", false);
+    const promptIdx = args.lastIndexOf("follow up");
+    args.splice(promptIdx, 0, "--continue");
+    assert.ok(args.includes("--continue"));
+    const continueIdx = args.indexOf("--continue");
+    const newPromptIdx = args.lastIndexOf("follow up");
+    assert.ok(continueIdx < newPromptIdx);
+  });
 });
 
 describe("ZagError", () => {
