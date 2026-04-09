@@ -15,7 +15,7 @@ pub fn projects_dir() -> Option<std::path::PathBuf> {
     dirs::home_dir().map(|h| h.join(".claude/projects"))
 }
 use crate::output::AgentOutput;
-use crate::sandbox::SandboxConfig;
+use crate::providers::common::CommonAgentState;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use std::process::Stdio;
@@ -39,47 +39,29 @@ pub const AVAILABLE_MODELS: &[&str] = &[
 pub type EventHandler = Box<dyn Fn(&crate::output::Event, bool) + Send + Sync>;
 
 pub struct Claude {
-    system_prompt: String,
-    model: String,
-    root: Option<String>,
-    session_id: Option<String>,
-    skip_permissions: bool,
-    output_format: Option<String>,
-    input_format: Option<String>,
-    add_dirs: Vec<String>,
-    capture_output: bool,
-    verbose: bool,
-    json_schema: Option<String>,
-    sandbox: Option<SandboxConfig>,
-    event_handler: Option<EventHandler>,
-    replay_user_messages: bool,
-    include_partial_messages: bool,
-    max_turns: Option<u32>,
-    mcp_config_path: Option<String>,
-    env_vars: Vec<(String, String)>,
+    pub common: CommonAgentState,
+    pub session_id: Option<String>,
+    pub input_format: Option<String>,
+    pub verbose: bool,
+    pub json_schema: Option<String>,
+    pub event_handler: Option<EventHandler>,
+    pub replay_user_messages: bool,
+    pub include_partial_messages: bool,
+    pub mcp_config_path: Option<String>,
 }
 
 impl Claude {
     pub fn new() -> Self {
         Self {
-            system_prompt: String::new(),
-            model: DEFAULT_MODEL.to_string(),
-            root: None,
+            common: CommonAgentState::new(DEFAULT_MODEL),
             session_id: None,
-            skip_permissions: false,
-            output_format: None,
             input_format: None,
-            add_dirs: Vec::new(),
-            capture_output: false,
             verbose: false,
             json_schema: None,
-            sandbox: None,
             event_handler: None,
             replay_user_messages: false,
             include_partial_messages: false,
-            max_turns: None,
             mcp_config_path: None,
-            env_vars: Vec::new(),
         }
     }
 
@@ -140,7 +122,7 @@ impl Claude {
         effective_output_format: &Option<String>,
     ) -> Vec<String> {
         let mut args = Vec::new();
-        let in_sandbox = self.sandbox.is_some();
+        let in_sandbox = self.common.sandbox.is_some();
 
         if !interactive {
             args.push("--print".to_string());
@@ -161,24 +143,24 @@ impl Claude {
         }
 
         // Skip --dangerously-skip-permissions in sandbox (permissions are sandbox-default)
-        if self.skip_permissions && !in_sandbox {
+        if self.common.skip_permissions && !in_sandbox {
             args.push("--dangerously-skip-permissions".to_string());
         }
 
-        args.extend(["--model".to_string(), self.model.clone()]);
+        args.extend(["--model".to_string(), self.common.model.clone()]);
 
         if interactive && let Some(session_id) = &self.session_id {
             args.extend(["--session-id".to_string(), session_id.clone()]);
         }
 
-        for dir in &self.add_dirs {
+        for dir in &self.common.add_dirs {
             args.extend(["--add-dir".to_string(), dir.clone()]);
         }
 
-        if !self.system_prompt.is_empty() {
+        if !self.common.system_prompt.is_empty() {
             args.extend([
                 "--append-system-prompt".to_string(),
-                self.system_prompt.clone(),
+                self.common.system_prompt.clone(),
             ]);
         }
 
@@ -198,7 +180,7 @@ impl Claude {
             args.extend(["--json-schema".to_string(), schema.clone()]);
         }
 
-        if let Some(turns) = self.max_turns {
+        if let Some(turns) = self.common.max_turns {
             args.extend(["--max-turns".to_string(), turns.to_string()]);
         }
 
@@ -216,7 +198,7 @@ impl Claude {
     /// Build the argument list for a resume invocation.
     fn build_resume_args(&self, session_id: Option<&str>) -> Vec<String> {
         let mut args = Vec::new();
-        let in_sandbox = self.sandbox.is_some();
+        let in_sandbox = self.common.sandbox.is_some();
 
         if let Some(id) = session_id {
             args.extend(["--resume".to_string(), id.to_string()]);
@@ -224,13 +206,13 @@ impl Claude {
             args.push("--continue".to_string());
         }
 
-        if self.skip_permissions && !in_sandbox {
+        if self.common.skip_permissions && !in_sandbox {
             args.push("--dangerously-skip-permissions".to_string());
         }
 
-        args.extend(["--model".to_string(), self.model.clone()]);
+        args.extend(["--model".to_string(), self.common.model.clone()]);
 
-        for dir in &self.add_dirs {
+        for dir in &self.common.add_dirs {
             args.extend(["--add-dir".to_string(), dir.clone()]);
         }
 
@@ -239,20 +221,7 @@ impl Claude {
 
     /// Create a `Command` either directly or wrapped in sandbox.
     fn make_command(&self, agent_args: Vec<String>) -> Command {
-        if let Some(ref sb) = self.sandbox {
-            let std_cmd = crate::sandbox::build_sandbox_command(sb, agent_args);
-            Command::from(std_cmd)
-        } else {
-            let mut cmd = Command::new("claude");
-            if let Some(ref root) = self.root {
-                cmd.current_dir(root);
-            }
-            cmd.args(&agent_args);
-            for (key, value) in &self.env_vars {
-                cmd.env(key, value);
-            }
-            cmd
-        }
+        self.common.make_command("claude", agent_args)
     }
 
     /// Spawn a streaming session with piped stdin/stdout.
@@ -266,25 +235,25 @@ impl Claude {
     ) -> Result<crate::streaming::StreamingSession> {
         // Build args for non-interactive streaming mode
         let mut args = Vec::new();
-        let in_sandbox = self.sandbox.is_some();
+        let in_sandbox = self.common.sandbox.is_some();
 
         args.push("--print".to_string());
         args.extend(["--verbose", "--output-format", "stream-json"].map(String::from));
 
-        if self.skip_permissions && !in_sandbox {
+        if self.common.skip_permissions && !in_sandbox {
             args.push("--dangerously-skip-permissions".to_string());
         }
 
-        args.extend(["--model".to_string(), self.model.clone()]);
+        args.extend(["--model".to_string(), self.common.model.clone()]);
 
-        for dir in &self.add_dirs {
+        for dir in &self.common.add_dirs {
             args.extend(["--add-dir".to_string(), dir.clone()]);
         }
 
-        if !self.system_prompt.is_empty() {
+        if !self.common.system_prompt.is_empty() {
             args.extend([
                 "--append-system-prompt".to_string(),
-                self.system_prompt.clone(),
+                self.common.system_prompt.clone(),
             ]);
         }
 
@@ -319,19 +288,19 @@ impl Claude {
     /// Build argument list for a streaming resume invocation.
     fn build_streaming_resume_args(&self, session_id: &str) -> Vec<String> {
         let mut args = Vec::new();
-        let in_sandbox = self.sandbox.is_some();
+        let in_sandbox = self.common.sandbox.is_some();
 
         args.push("--print".to_string());
         args.extend(["--resume".to_string(), session_id.to_string()]);
         args.extend(["--verbose", "--output-format", "stream-json"].map(String::from));
 
-        if self.skip_permissions && !in_sandbox {
+        if self.common.skip_permissions && !in_sandbox {
             args.push("--dangerously-skip-permissions".to_string());
         }
 
-        args.extend(["--model".to_string(), self.model.clone()]);
+        args.extend(["--model".to_string(), self.common.model.clone()]);
 
-        for dir in &self.add_dirs {
+        for dir in &self.common.add_dirs {
             args.extend(["--add-dir".to_string(), dir.clone()]);
         }
 
@@ -376,11 +345,12 @@ impl Claude {
     ) -> Result<Option<AgentOutput>> {
         // When capture_output is set (e.g. by auto-selector), use "json" format
         // so stdout is piped and parsed into AgentOutput
-        let effective_output_format = if self.capture_output && self.output_format.is_none() {
-            Some("json".to_string())
-        } else {
-            self.output_format.clone()
-        };
+        let effective_output_format =
+            if self.common.capture_output && self.common.output_format.is_none() {
+                Some("json".to_string())
+            } else {
+                self.common.output_format.clone()
+            };
 
         // Determine if we should capture structured output
         // Default to streaming unified output when no format is specified in print mode
@@ -391,8 +361,8 @@ impl Claude {
 
         let agent_args = self.build_run_args(interactive, prompt, &effective_output_format);
         log::debug!("Claude command: claude {}", agent_args.join(" "));
-        if !self.system_prompt.is_empty() {
-            log::debug!("Claude system prompt: {}", self.system_prompt);
+        if !self.common.system_prompt.is_empty() {
+            log::debug!("Claude system prompt: {}", self.common.system_prompt);
         }
         if let Some(p) = prompt {
             log::debug!("Claude user prompt: {}", p);
@@ -731,61 +701,13 @@ impl Agent for Claude {
         AVAILABLE_MODELS
     }
 
-    fn system_prompt(&self) -> &str {
-        &self.system_prompt
-    }
-
-    fn set_system_prompt(&mut self, prompt: String) {
-        self.system_prompt = prompt;
-    }
-
-    fn get_model(&self) -> &str {
-        &self.model
-    }
-
-    fn set_model(&mut self, model: String) {
-        self.model = model;
-    }
-
-    fn set_root(&mut self, root: String) {
-        self.root = Some(root);
-    }
+    crate::providers::common::impl_common_agent_setters!();
 
     fn set_skip_permissions(&mut self, skip: bool) {
-        self.skip_permissions = skip;
+        self.common.skip_permissions = skip;
     }
 
-    fn set_output_format(&mut self, format: Option<String>) {
-        self.output_format = format;
-    }
-
-    fn set_capture_output(&mut self, capture: bool) {
-        self.capture_output = capture;
-    }
-
-    fn set_max_turns(&mut self, turns: u32) {
-        self.max_turns = Some(turns);
-    }
-
-    fn set_sandbox(&mut self, config: SandboxConfig) {
-        self.sandbox = Some(config);
-    }
-
-    fn set_add_dirs(&mut self, dirs: Vec<String>) {
-        self.add_dirs = dirs;
-    }
-
-    fn set_env_vars(&mut self, vars: Vec<(String, String)>) {
-        self.env_vars = vars;
-    }
-
-    fn as_any_ref(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
+    crate::providers::common::impl_as_any!();
 
     async fn run(&self, prompt: Option<&str>) -> Result<Option<AgentOutput>> {
         self.execute(false, prompt).await
@@ -829,18 +751,18 @@ impl Agent for Claude {
             session_id,
             prompt
         );
-        let in_sandbox = self.sandbox.is_some();
+        let in_sandbox = self.common.sandbox.is_some();
         let mut args = vec!["--print".to_string()];
         args.extend(["--resume".to_string(), session_id.to_string()]);
         args.extend(["--verbose", "--output-format", "json"].map(String::from));
 
-        if self.skip_permissions && !in_sandbox {
+        if self.common.skip_permissions && !in_sandbox {
             args.push("--dangerously-skip-permissions".to_string());
         }
 
-        args.extend(["--model".to_string(), self.model.clone()]);
+        args.extend(["--model".to_string(), self.common.model.clone()]);
 
-        for dir in &self.add_dirs {
+        for dir in &self.common.add_dirs {
             args.extend(["--add-dir".to_string(), dir.clone()]);
         }
 

@@ -6,7 +6,7 @@ use std::collections::HashSet;
 #[test]
 fn test_build_run_args_non_interactive() {
     let mut copilot = Copilot::new();
-    copilot.model = "claude-sonnet-4.6".to_string();
+    copilot.common.model = "claude-sonnet-4.6".to_string();
 
     let args = copilot.build_run_args(false, Some("hello"));
     assert!(args.contains(&"--allow-all".to_string()));
@@ -36,7 +36,7 @@ fn test_build_run_args_interactive_no_prompt() {
 #[test]
 fn test_build_run_args_skip_permissions() {
     let mut copilot = Copilot::new();
-    copilot.skip_permissions = true;
+    copilot.common.skip_permissions = true;
 
     let args = copilot.build_run_args(true, None);
     assert!(args.contains(&"--allow-all".to_string()));
@@ -45,7 +45,7 @@ fn test_build_run_args_skip_permissions() {
 #[test]
 fn test_build_run_args_add_dirs() {
     let mut copilot = Copilot::new();
-    copilot.add_dirs = vec!["/extra".to_string()];
+    copilot.common.add_dirs = vec!["/extra".to_string()];
 
     let args = copilot.build_run_args(true, None);
     assert!(args.contains(&"--add-dir".to_string()));
@@ -55,7 +55,7 @@ fn test_build_run_args_add_dirs() {
 #[test]
 fn test_make_command_without_sandbox() {
     let mut copilot = Copilot::new();
-    copilot.root = Some("/project".to_string());
+    copilot.common.root = Some("/project".to_string());
 
     let cmd = copilot.make_command(vec!["-p".to_string(), "hello".to_string()]);
     assert_eq!(cmd.as_std().get_program().to_str().unwrap(), "copilot");
@@ -68,7 +68,7 @@ fn test_make_command_without_sandbox() {
 #[test]
 fn test_make_command_with_sandbox() {
     let mut copilot = Copilot::new();
-    copilot.sandbox = Some(SandboxConfig {
+    copilot.common.sandbox = Some(SandboxConfig {
         name: "sandbox-cp".to_string(),
         template: "docker/sandbox-templates:copilot".to_string(),
         workspace: "/workspace".to_string(),
@@ -182,7 +182,7 @@ fn test_parse_copilot_event_dedupes_ids() {
 #[test]
 fn test_build_run_args_max_turns() {
     let mut copilot = Copilot::new();
-    copilot.max_turns = Some(3);
+    copilot.common.max_turns = Some(3);
 
     let args = copilot.build_run_args(false, Some("hello"));
     assert!(args.contains(&"--max-turns".to_string()));
