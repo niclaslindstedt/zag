@@ -251,6 +251,13 @@ class SessionLogSupport:
     completeness: str | None
 
 @dataclass
+class StreamingInputSupport:
+    supported: bool
+    native: bool
+    # "queue" | "interrupt" | "between-turns-only" | None
+    semantics: str | None
+
+@dataclass
 class SizeMappings:
     small: str
     medium: str
@@ -267,7 +274,7 @@ class Features:
     stream_json: FeatureSupport
     json_schema: FeatureSupport
     input_format: FeatureSupport
-    streaming_input: FeatureSupport
+    streaming_input: StreamingInputSupport
     worktree: FeatureSupport
     sandbox: FeatureSupport
     system_prompt: FeatureSupport

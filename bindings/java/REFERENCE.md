@@ -401,7 +401,7 @@ public record Features(
     FeatureSupport streamJson,
     FeatureSupport jsonSchema,
     FeatureSupport inputFormat,
-    FeatureSupport streamingInput,
+    StreamingInputSupport streamingInput,
     FeatureSupport worktree,
     FeatureSupport sandbox,
     FeatureSupport systemPrompt,
@@ -434,6 +434,26 @@ public record SessionLogSupport(
     String completeness  // nullable, e.g., "full"
 )
 ```
+
+#### ProviderCapability.StreamingInputSupport
+
+```java
+public record StreamingInputSupport(
+    boolean supported,
+    boolean native_,
+    String semantics  // nullable; "queue" | "interrupt" | "between-turns-only"
+)
+```
+
+`semantics` describes what happens when a user message is sent mid-turn via
+`StreamingSession.send_user_message`:
+
+- `"queue"` — buffered and delivered at the next turn boundary; the current
+  turn runs to completion.
+- `"interrupt"` — cancels the current turn and starts a new one.
+- `"between-turns-only"` — mid-turn sends are an error or no-op.
+
+`null` when `supported` is `false`.
 
 #### ResolvedModel
 

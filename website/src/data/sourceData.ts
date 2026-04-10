@@ -14,6 +14,10 @@
 export interface ProviderFeatureSupport {
   supported: boolean;
   native: boolean;
+  /** Only present on streaming_input: mid-turn injection semantics. */
+  semantics?: "queue" | "interrupt" | "between-turns-only";
+  /** Only present on session_logs: log completeness level. */
+  completeness?: string | null;
 }
 
 export interface ProviderData {
@@ -119,7 +123,8 @@ export const providers: ProviderData[] = [
       },
       "streaming_input": {
         "supported": true,
-        "native": true
+        "native": true,
+        "semantics": "queue"
       },
       "worktree": {
         "supported": true,

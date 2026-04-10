@@ -90,6 +90,23 @@ class DiscoverModelsTests {
     }
 
     @Test
+    fun `StreamingInputSupport deserializes with semantics`() {
+        val json = """{"supported":true,"native":true,"semantics":"queue"}"""
+        val sis = ZagJson.decodeFromString<StreamingInputSupport>(json)
+        assertTrue(sis.supported)
+        assertTrue(sis.isNative)
+        assertEquals("queue", sis.semantics)
+    }
+
+    @Test
+    fun `StreamingInputSupport with null semantics`() {
+        val json = """{"supported":false,"native":false}"""
+        val sis = ZagJson.decodeFromString<StreamingInputSupport>(json)
+        assertFalse(sis.supported)
+        assertEquals(null, sis.semantics)
+    }
+
+    @Test
     fun `SizeMappings deserializes`() {
         val json = """{"small":"haiku","medium":"sonnet","large":"opus"}"""
         val sm = ZagJson.decodeFromString<SizeMappings>(json)
@@ -116,7 +133,7 @@ class DiscoverModelsTests {
                 "stream_json": {"supported": true, "native": true},
                 "json_schema": {"supported": false, "native": false},
                 "input_format": {"supported": true, "native": true},
-                "streaming_input": {"supported": true, "native": true},
+                "streaming_input": {"supported": true, "native": true, "semantics": "queue"},
                 "worktree": {"supported": true, "native": false},
                 "sandbox": {"supported": true, "native": false},
                 "system_prompt": {"supported": true, "native": true},
@@ -140,6 +157,8 @@ class DiscoverModelsTests {
         assertFalse(cap.features.jsonSchema.supported)
         assertTrue(cap.features.worktree.supported)
         assertFalse(cap.features.worktree.isNative)
+        assertTrue(cap.features.streamingInput.supported)
+        assertEquals("queue", cap.features.streamingInput.semantics)
     }
 
     @Test

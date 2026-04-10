@@ -27,7 +27,7 @@ struct DiscoverModelsTests {
             "stream_json": {"supported": true, "native": true},
             "json_schema": {"supported": true, "native": true},
             "input_format": {"supported": true, "native": true},
-            "streaming_input": {"supported": true, "native": true},
+            "streaming_input": {"supported": true, "native": true, "semantics": "queue"},
             "worktree": {"supported": true, "native": false},
             "sandbox": {"supported": true, "native": false},
             "system_prompt": {"supported": true, "native": true},
@@ -56,7 +56,7 @@ struct DiscoverModelsTests {
                 "stream_json": {"supported": true, "native": true},
                 "json_schema": {"supported": true, "native": true},
                 "input_format": {"supported": true, "native": true},
-                "streaming_input": {"supported": true, "native": true},
+                "streaming_input": {"supported": true, "native": true, "semantics": "queue"},
                 "worktree": {"supported": true, "native": false},
                 "sandbox": {"supported": true, "native": false},
                 "system_prompt": {"supported": true, "native": true},
@@ -134,6 +134,7 @@ struct DiscoverModelsTests {
         #expect(f.jsonSchema.supported == true)
         #expect(f.inputFormat.supported == true)
         #expect(f.streamingInput.supported == true)
+        #expect(f.streamingInput.semantics == "queue")
         #expect(f.worktree.supported == true)
         #expect(f.worktree.native == false)
         #expect(f.sandbox.supported == true)
@@ -142,6 +143,18 @@ struct DiscoverModelsTests {
         #expect(f.review.supported == false)
         #expect(f.addDirs.supported == true)
         #expect(f.maxTurns.supported == true)
+    }
+
+    @Test("StreamingInputSupport without semantics")
+    func streamingInputSupportWithoutSemantics() throws {
+        let json = """
+        {"supported": false, "native": false}
+        """
+        let data = json.data(using: .utf8)!
+        let sis = try JSONDecoder().decode(StreamingInputSupport.self, from: data)
+        #expect(sis.supported == false)
+        #expect(sis.native == false)
+        #expect(sis.semantics == nil)
     }
 
     @Test("SessionLogSupport without completeness")

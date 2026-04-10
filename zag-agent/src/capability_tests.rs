@@ -20,7 +20,7 @@ fn make_test_capability() -> ProviderCapability {
             stream_json: FeatureSupport::unsupported(),
             json_schema: FeatureSupport::wrapper(),
             input_format: FeatureSupport::unsupported(),
-            streaming_input: FeatureSupport::unsupported(),
+            streaming_input: StreamingInputSupport::unsupported(),
             worktree: FeatureSupport::wrapper(),
             sandbox: FeatureSupport::wrapper(),
             system_prompt: FeatureSupport::native(),
@@ -151,6 +151,76 @@ fn session_log_full_serialization() {
     assert_eq!(parsed["supported"], true);
     assert_eq!(parsed["native"], true);
     assert_eq!(parsed["completeness"], "full");
+}
+
+#[test]
+fn streaming_input_support_constructors() {
+    let queue = StreamingInputSupport::queue();
+    assert!(queue.supported);
+    assert!(queue.native);
+    assert_eq!(queue.semantics, Some("queue".to_string()));
+
+    let interrupt = StreamingInputSupport::interrupt();
+    assert!(interrupt.supported);
+    assert!(interrupt.native);
+    assert_eq!(interrupt.semantics, Some("interrupt".to_string()));
+
+    let between = StreamingInputSupport::between_turns_only();
+    assert!(between.supported);
+    assert!(between.native);
+    assert_eq!(between.semantics, Some("between-turns-only".to_string()));
+
+    let unsupported = StreamingInputSupport::unsupported();
+    assert!(!unsupported.supported);
+    assert!(!unsupported.native);
+    assert!(unsupported.semantics.is_none());
+}
+
+#[test]
+fn streaming_input_semantics_absent_when_unsupported() {
+    let unsupported = StreamingInputSupport::unsupported();
+    let json = serde_json::to_string(&unsupported).unwrap();
+    assert!(!json.contains("semantics"));
+}
+
+#[test]
+fn streaming_input_queue_serialization() {
+    let queue = StreamingInputSupport::queue();
+    let json = serde_json::to_string(&queue).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed["supported"], true);
+    assert_eq!(parsed["native"], true);
+    assert_eq!(parsed["semantics"], "queue");
+}
+
+#[test]
+fn streaming_input_unsupported_deserialize_roundtrip() {
+    let unsupported = StreamingInputSupport::unsupported();
+    let json = serde_json::to_string(&unsupported).unwrap();
+    let parsed: StreamingInputSupport = serde_json::from_str(&json).unwrap();
+    assert!(!parsed.supported);
+    assert!(!parsed.native);
+    assert!(parsed.semantics.is_none());
+}
+
+#[test]
+fn claude_streaming_input_is_queue() {
+    let cap = get_capability("claude").unwrap();
+    assert!(cap.features.streaming_input.supported);
+    assert!(cap.features.streaming_input.native);
+    assert_eq!(
+        cap.features.streaming_input.semantics,
+        Some("queue".to_string())
+    );
+}
+
+#[test]
+fn non_claude_providers_have_no_streaming_input_semantics() {
+    for provider in ["codex", "gemini", "copilot", "ollama"] {
+        let cap = get_capability(provider).unwrap();
+        assert!(!cap.features.streaming_input.supported);
+        assert!(cap.features.streaming_input.semantics.is_none());
+    }
 }
 
 #[test]

@@ -28,6 +28,29 @@ public struct SessionLogSupport: Codable, Equatable, Sendable {
     }
 }
 
+// MARK: - StreamingInputSupport
+
+/// Streaming input support with mid-turn injection semantics.
+///
+/// `semantics` describes what happens when `send_user_message` is called
+/// while the agent is producing a response on the current turn. One of:
+/// - `"queue"` — buffered and delivered at the next turn boundary.
+/// - `"interrupt"` — cancels the current turn and starts a new one.
+/// - `"between-turns-only"` — mid-turn sends are an error or no-op.
+///
+/// `nil` when `supported` is `false`.
+public struct StreamingInputSupport: Codable, Equatable, Sendable {
+    public let supported: Bool
+    public let native: Bool
+    public let semantics: String?
+
+    public init(supported: Bool, native: Bool, semantics: String? = nil) {
+        self.supported = supported
+        self.native = native
+        self.semantics = semantics
+    }
+}
+
 // MARK: - SizeMappings
 
 /// Size alias mappings (small/medium/large to actual model names).
@@ -56,7 +79,7 @@ public struct Features: Codable, Equatable, Sendable {
     public let streamJson: FeatureSupport
     public let jsonSchema: FeatureSupport
     public let inputFormat: FeatureSupport
-    public let streamingInput: FeatureSupport
+    public let streamingInput: StreamingInputSupport
     public let worktree: FeatureSupport
     public let sandbox: FeatureSupport
     public let systemPrompt: FeatureSupport
@@ -95,7 +118,7 @@ public struct Features: Codable, Equatable, Sendable {
         streamJson: FeatureSupport,
         jsonSchema: FeatureSupport,
         inputFormat: FeatureSupport,
-        streamingInput: FeatureSupport,
+        streamingInput: StreamingInputSupport,
         worktree: FeatureSupport,
         sandbox: FeatureSupport,
         systemPrompt: FeatureSupport,

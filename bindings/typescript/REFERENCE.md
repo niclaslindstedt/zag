@@ -466,6 +466,20 @@ interface SessionLogSupport {
   completeness?: string;
 }
 
+interface StreamingInputSupport {
+  supported: boolean;
+  native: boolean;
+
+  /**
+   * Mid-turn semantics for `sendUserMessage`. One of:
+   * - "queue" — buffered and delivered at the next turn boundary
+   * - "interrupt" — cancels the current turn and starts a new one
+   * - "between-turns-only" — mid-turn sends are an error or no-op
+   * Absent when `supported` is false.
+   */
+  semantics?: "queue" | "interrupt" | "between-turns-only";
+}
+
 interface SizeMappings {
   /** Model name for the "small" alias. */
   small: string;
@@ -487,7 +501,7 @@ interface Features {
   stream_json: FeatureSupport;
   json_schema: FeatureSupport;
   input_format: FeatureSupport;
-  streaming_input: FeatureSupport;
+  streaming_input: StreamingInputSupport;
   worktree: FeatureSupport;
   sandbox: FeatureSupport;
   system_prompt: FeatureSupport;

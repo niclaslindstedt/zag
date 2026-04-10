@@ -150,6 +150,22 @@ function extractProviders() {
           completeness: slm[1] === "unsupported" ? null : slm[1],
         };
       }
+      // streaming_input special case: StreamingInputSupport with semantics
+      const sim = featBlock.match(/streaming_input:\s*StreamingInputSupport::(\w+)\(\)/);
+      if (sim) {
+        const ctor = sim[1];
+        // Constructor → semantics mapping: queue / interrupt / between_turns_only / unsupported
+        const semanticsMap = {
+          queue: "queue",
+          interrupt: "interrupt",
+          between_turns_only: "between-turns-only",
+        };
+        allFeatures["streaming_input"] = {
+          supported: ctor !== "unsupported",
+          native: ctor !== "unsupported",
+          ...(semanticsMap[ctor] ? { semantics: semanticsMap[ctor] } : {}),
+        };
+      }
     }
 
     // MCP support: Claude has native mcp_config; others check if they support system_prompt

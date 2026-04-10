@@ -110,6 +110,83 @@ zag listen --name worker
 
 See [Orchestration](orchestration.md) for more on interactive sessions.
 
+## Streaming input: mid-turn injection semantics
+
+When a provider supports streaming input (see `features.streaming_input` in
+`zag discover`), language bindings expose a `StreamingSession` whose
+`send_user_message` / `sendUserMessage` method writes a user message to the
+running agent over stdin. The question of *what happens when you call that
+method while the agent is still producing a response on the current turn* is
+provider-specific, so the capability descriptor now carries an explicit
+`semantics` field.
+
+### Values
+
+| `semantics` | Meaning |
+|-------------|---------|
+| `"queue"` | The message is buffered and delivered at the **next turn boundary**. The current turn runs to completion; the new message becomes the next user turn. |
+| `"interrupt"` | The message **cancels** the current turn and starts a new one with the new input. |
+| `"between-turns-only"` | Mid-turn sends are an error or no-op; callers must wait for the current turn to finish before sending. |
+| *(absent)* | The provider does not expose a `StreamingSession` at all. |
+
+### Per-provider matrix
+
+| Provider | `streaming_input.supported` | `streaming_input.semantics` |
+|----------|-----------------------------|------------------------------|
+| Claude   | `true` (native)             | `"queue"`                    |
+| Codex    | `false`                     | *(absent)*                   |
+| Gemini   | `false`                     | *(absent)*                   |
+| Copilot  | `false`                     | *(absent)*                   |
+| Ollama   | `false`                     | *(absent)*                   |
+
+Claude's `"queue"` behavior comes from the Claude CLI's
+`--input-format stream-json --replay-user-messages` mode: messages written
+to stdin while the assistant is mid-response are not delivered immediately;
+they are buffered and replayed as the next user turn once the current one
+completes. If you need "interrupt" semantics on Claude, cancel the session
+(drop the `StreamingSession`) and start a new one.
+
+### Branching on semantics
+
+Consumers should branch on the `semantics` field rather than empirically
+probing each provider. Example (TypeScript):
+
+```ts
+import { getCapability } from "zag";
+
+const cap = await getCapability("claude");
+switch (cap.features.streaming_input.semantics) {
+  case "queue":
+    // Safe to call sendUserMessage anytime — messages buffer between turns.
+    break;
+  case "interrupt":
+    // sendUserMessage mid-turn will cancel the in-flight response.
+    break;
+  case "between-turns-only":
+    // Must wait for the current turn to finish before sending.
+    break;
+  default:
+    // Streaming input not supported on this provider.
+}
+```
+
+Example (Python):
+
+```python
+from zag import get_capability
+
+cap = await get_capability("claude")
+match cap.features.streaming_input.semantics:
+    case "queue":
+        ...  # send any time; Claude replays at next turn boundary
+    case "interrupt":
+        ...
+    case "between-turns-only":
+        ...
+    case _:
+        ...  # not supported
+```
+
 ## Session dependencies
 
 Sessions can declare dependencies on other sessions for DAG workflows:

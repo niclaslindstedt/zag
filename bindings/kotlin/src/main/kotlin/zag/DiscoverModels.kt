@@ -22,6 +22,20 @@ data class SessionLogSupport(
 )
 
 /**
+ * Streaming input support with mid-turn injection semantics.
+ *
+ * `semantics` describes what happens when `send_user_message` is called while
+ * the agent is producing a response on the current turn. One of `"queue"`,
+ * `"interrupt"`, or `"between-turns-only"`. `null` when [supported] is false.
+ */
+@Serializable
+data class StreamingInputSupport(
+    val supported: Boolean = false,
+    @SerialName("native") val isNative: Boolean = false,
+    val semantics: String? = null,
+)
+
+/**
  * Size alias mappings (small/medium/large to actual model names).
  */
 @Serializable
@@ -45,7 +59,7 @@ data class Features(
     @SerialName("stream_json") val streamJson: FeatureSupport = FeatureSupport(),
     @SerialName("json_schema") val jsonSchema: FeatureSupport = FeatureSupport(),
     @SerialName("input_format") val inputFormat: FeatureSupport = FeatureSupport(),
-    @SerialName("streaming_input") val streamingInput: FeatureSupport = FeatureSupport(),
+    @SerialName("streaming_input") val streamingInput: StreamingInputSupport = StreamingInputSupport(),
     val worktree: FeatureSupport = FeatureSupport(),
     val sandbox: FeatureSupport = FeatureSupport(),
     @SerialName("system_prompt") val systemPrompt: FeatureSupport = FeatureSupport(),

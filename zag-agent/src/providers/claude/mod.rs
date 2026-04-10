@@ -229,6 +229,15 @@ impl Claude {
     /// Automatically configures `--input-format stream-json`, `--output-format stream-json`,
     /// and `--replay-user-messages`. Returns a `StreamingSession` for bidirectional
     /// communication with the agent.
+    ///
+    /// # Mid-turn semantics
+    ///
+    /// User messages sent via `StreamingSession::send_user_message` while the
+    /// assistant is producing a response are **queued** by the Claude CLI: the
+    /// current turn runs to completion and the new message is delivered as the
+    /// next user turn. The in-flight turn is **not interrupted**. This
+    /// corresponds to `streaming_input.semantics == "queue"` in the capability
+    /// descriptor.
     pub fn execute_streaming(
         &self,
         prompt: Option<&str>,
@@ -319,6 +328,9 @@ impl Claude {
     /// Combines `--resume` with `--input-format stream-json`, `--output-format stream-json`,
     /// and `--replay-user-messages`. Returns a `StreamingSession` for bidirectional
     /// communication with the resumed session.
+    ///
+    /// Mid-turn `send_user_message` calls follow the same **queue** semantics
+    /// as [`Self::execute_streaming`].
     pub fn execute_streaming_resume(
         &self,
         session_id: &str,

@@ -46,6 +46,7 @@ For Claude, `default` delegates model selection to the Claude CLI itself. For Ol
 ### Notes
 
 - **Streaming**: Claude uses `stream-json` format natively. Codex emits NDJSON. Gemini supports output format flags. Copilot and Ollama do not support streaming in a structured format.
+- **Streaming input semantics**: Only Claude exposes a bidirectional `StreamingSession`. Mid-turn calls to `send_user_message` on Claude are **queued** and delivered at the next turn boundary (they do not interrupt the in-flight turn). Other providers report `streaming_input.supported == false`. See [Streaming input: mid-turn injection semantics](sessions.md#streaming-input-mid-turn-injection-semantics) for the matrix and the `semantics` field.
 - **JSON schema**: Claude supports `--json-schema` and Codex supports `--output-schema` natively. For other providers, zag injects JSON instructions into the system prompt and validates the output, retrying up to 3 times on validation failure.
 - **MCP**: Ollama does not support Model Context Protocol. All other providers have native MCP support that zag manages via `zag mcp`.
 - **Resume**: Claude stores session state for `--resume`. Codex tracks thread IDs for resumable sessions. Gemini supports `--resume` with session ID or "latest". Copilot supports `--resume` and `--continue` for session resume.

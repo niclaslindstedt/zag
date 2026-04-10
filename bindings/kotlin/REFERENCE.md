@@ -306,6 +306,14 @@ data class SessionLogSupport(
 )
 
 @Serializable
+data class StreamingInputSupport(
+    val supported: Boolean,
+    val native: Boolean,
+    // "queue" | "interrupt" | "between-turns-only" | null
+    val semantics: String?
+)
+
+@Serializable
 data class Features(
     val interactive: FeatureSupport,
     val nonInteractive: FeatureSupport,
@@ -316,7 +324,7 @@ data class Features(
     val streamJson: FeatureSupport,
     val jsonSchema: FeatureSupport,
     val inputFormat: FeatureSupport,
-    val streamingInput: FeatureSupport,
+    val streamingInput: StreamingInputSupport,
     val worktree: FeatureSupport,
     val sandbox: FeatureSupport,
     val systemPrompt: FeatureSupport,

@@ -344,6 +344,35 @@ class SessionLogSupport:
 
 
 @dataclass
+class StreamingInputSupport:
+    """Streaming input support with mid-turn injection semantics.
+
+    ``semantics`` describes what happens when
+    :meth:`StreamingSession.send_user_message` is called while the agent is
+    producing a response on the current turn. One of:
+
+    - ``"queue"`` — buffered and delivered at the next turn boundary (the
+      current turn is not interrupted).
+    - ``"interrupt"`` — cancels the current turn and starts a new one.
+    - ``"between-turns-only"`` — mid-turn sends are an error or no-op.
+
+    ``None`` when ``supported`` is ``False``.
+    """
+
+    supported: bool = False
+    native: bool = False
+    semantics: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> StreamingInputSupport:
+        return cls(
+            supported=data.get("supported", False),
+            native=data.get("native", False),
+            semantics=data.get("semantics"),
+        )
+
+
+@dataclass
 class SizeMappings:
     """Size alias mappings (small/medium/large to actual model names)."""
 
@@ -373,7 +402,7 @@ class Features:
     stream_json: FeatureSupport = field(default_factory=FeatureSupport)
     json_schema: FeatureSupport = field(default_factory=FeatureSupport)
     input_format: FeatureSupport = field(default_factory=FeatureSupport)
-    streaming_input: FeatureSupport = field(default_factory=FeatureSupport)
+    streaming_input: StreamingInputSupport = field(default_factory=StreamingInputSupport)
     worktree: FeatureSupport = field(default_factory=FeatureSupport)
     sandbox: FeatureSupport = field(default_factory=FeatureSupport)
     system_prompt: FeatureSupport = field(default_factory=FeatureSupport)
@@ -397,7 +426,9 @@ class Features:
             stream_json=fs("stream_json"),
             json_schema=fs("json_schema"),
             input_format=fs("input_format"),
-            streaming_input=fs("streaming_input"),
+            streaming_input=StreamingInputSupport.from_dict(
+                data.get("streaming_input", {})
+            ),
             worktree=fs("worktree"),
             sandbox=fs("sandbox"),
             system_prompt=fs("system_prompt"),
