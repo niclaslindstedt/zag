@@ -84,7 +84,6 @@ All configuration methods are annotated `@discardableResult` and return `Self` f
 | `env` | `func env(_ key: String, _ value: String) -> Self` | `--env KEY=VALUE` | Add environment variable _(CLI >= 0.6.0)_ |
 | `json` | `func json() -> Self` | `--json` | Request JSON output |
 | `jsonSchema` | `func jsonSchema(_ s: String) -> Self` | `--json-schema` | JSON schema for validation (implies `json()`) |
-| `jsonStream` | `func jsonStream() -> Self` | `--json-stream` | Enable NDJSON streaming output |
 | `worktree` | `func worktree(_ name: String? = nil) -> Self` | `-w, --worktree [NAME]` | Git worktree isolation (auto-named if no arg) |
 | `sandbox` | `func sandbox(_ name: String? = nil) -> Self` | `--sandbox [NAME]` | Docker sandbox isolation (auto-named if no arg) |
 | `verbose` | `func verbose() -> Self` | `--verbose` | Enable verbose output |
@@ -601,12 +600,12 @@ Arguments are split into two groups:
 
 **Global args** (before the subcommand): `--provider`, `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir`, `--file`, `--env`, `-w`/`--worktree`, `--sandbox`, `--verbose`, `--quiet`, `--debug`, `--session`, `--max-turns`, `--mcp-config`, `--show-usage`, `--size`
 
-**Exec args** (after `exec`): `--json`, `--json-schema`, `--json-stream`, `-o`/`--output`, `-i`/`--input-format`, `--replay-user-messages`, `--include-partial-messages`, `--timeout`
+**Exec args** (after `exec`): `--json`, `--json-schema`, `-o`/`--output`, `-i`/`--input-format`, `--replay-user-messages`, `--include-partial-messages`, `--timeout`
 
 ### Default behaviors
 
 - `exec()` automatically adds `-o json` (local) or uses POST /exec (remote) for structured output.
-- `stream()` uses `--json-stream` (local) or WebSocket (remote) for NDJSON events.
+- `stream()` uses `-o stream-json` (local) or WebSocket (remote) for NDJSON events.
 - `execStreaming()` forces `-i stream-json`, `-o stream-json`, and `--replay-user-messages` for bidirectional communication.
 - `run()` inherits stdin/stdout/stderr for interactive terminal use (local only).
 - `resume()` dispatches to `run --resume <id>` (local only).

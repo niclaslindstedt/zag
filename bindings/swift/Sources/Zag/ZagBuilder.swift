@@ -43,7 +43,6 @@ public final class ZagBuilder {
     private var _envVars: [String] = []
     private var _json = false
     private var _jsonSchema: String?
-    private var _jsonStream = false
     private var _worktree: IsolationOption?
     private var _sandbox: IsolationOption?
     private var _verbose = false
@@ -115,10 +114,6 @@ public final class ZagBuilder {
     /// Set a JSON schema for structured output validation. Implies `json()`.
     @discardableResult
     public func jsonSchema(_ s: String) -> Self { _jsonSchema = s; _json = true; return self }
-
-    /// Enable streaming JSON output (NDJSON format).
-    @discardableResult
-    public func jsonStream() -> Self { _jsonStream = true; return self }
 
     /// Enable worktree mode with an optional name.
     @discardableResult
@@ -245,16 +240,18 @@ public final class ZagBuilder {
         args += buildGlobalArgs()
         if _json { args.append("--json") }
         if let s = _jsonSchema { args += ["--json-schema", s] }
-        if _jsonStream || streaming { args.append("--json-stream") }
-        if let f = _outputFormat { args += ["-o", f] }
+        if let f = _outputFormat {
+            args += ["-o", f]
+        } else if streaming {
+            args += ["-o", "stream-json"]
+        } else {
+            // Default to json output for structured parsing
+            args += ["-o", "json"]
+        }
         if let f = _inputFormat { args += ["-i", f] }
         if _replayUserMessages { args.append("--replay-user-messages") }
         if _includePartialMessages { args.append("--include-partial-messages") }
         if let t = _timeout { args += ["--timeout", t] }
-        // Default to json output for structured parsing
-        if !streaming && _outputFormat == nil && !_jsonStream {
-            args += ["-o", "json"]
-        }
         args.append(prompt)
         return args
     }

@@ -70,11 +70,13 @@ struct ZagBuilderTests {
         #expect(args.contains("hello"))
     }
 
-    @Test("exec args with streaming include --json-stream")
+    @Test("exec args with streaming use -o stream-json")
     func execArgsStreaming() {
         let builder = ZagBuilder()
         let args = builder.buildExecArgs(prompt: "hello", streaming: true)
-        #expect(args.contains("--json-stream"))
+        #expect(!args.contains("--json-stream"))
+        let oi = args.firstIndex(of: "-o")!
+        #expect(args[oi + 1] == "stream-json")
     }
 
     @Test("worktree without name")

@@ -42,7 +42,6 @@ pub(crate) struct AgentActionParams {
     pub(crate) size: Option<String>,
     pub(crate) json_mode: bool,
     pub(crate) json_schema: Option<serde_json::Value>,
-    pub(crate) json_stream: bool,
     pub(crate) session: Option<String>,
     pub(crate) max_turns: Option<u32>,
     pub(crate) mcp_config: Option<String>,
@@ -168,7 +167,6 @@ struct AgentSetupParams {
     include_partial_messages: bool,
     verbose: bool,
     json_mode: bool,
-    json_stream: bool,
     max_turns: Option<u32>,
     mcp_config: Option<String>,
     env_vars: Vec<(String, String)>,
@@ -236,7 +234,7 @@ fn create_and_configure_agent(
         }
 
         // Set up event handler for streaming output (text or stream-json modes)
-        let is_stream_json = p.json_stream || output_fmt_clone.as_deref() == Some("stream-json");
+        let is_stream_json = output_fmt_clone.as_deref() == Some("stream-json");
         claude_agent.set_event_handler(Box::new(move |event, verbose| {
             use crate::output::{ContentBlock, Event};
             if is_stream_json {
@@ -279,11 +277,6 @@ fn create_and_configure_agent(
         if p.provider != "claude" {
             agent.set_capture_output(true);
         }
-    }
-
-    // --json-stream: set output format to stream-json (unless user already specified -o)
-    if p.json_stream && user_output_format.is_none() {
-        agent.set_output_format(Some("stream-json".to_string()));
     }
 
     crate::logging::finish_spinner_quiet(&spinner);
@@ -509,7 +502,6 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         size,
         json_mode,
         json_schema,
-        json_stream,
         session,
         max_turns,
         mcp_config,
@@ -687,7 +679,6 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             include_partial_messages,
             verbose,
             json_mode,
-            json_stream,
             max_turns,
             mcp_config,
             env_vars,

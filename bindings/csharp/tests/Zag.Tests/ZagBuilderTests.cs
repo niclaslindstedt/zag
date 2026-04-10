@@ -80,7 +80,10 @@ public class ZagBuilderTests
     {
         var builder = new ZagBuilder();
         var args = builder.BuildExecArgs("hello", streaming: true);
-        Assert.Contains("--json-stream", args);
+        Assert.DoesNotContain("--json-stream", args);
+        var oi = args.IndexOf("-o");
+        Assert.True(oi >= 0);
+        Assert.Equal("stream-json", args[oi + 1]);
     }
 
     [Fact]

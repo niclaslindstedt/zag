@@ -40,7 +40,6 @@ export class ZagBuilder {
   private _envVars: string[] = [];
   private _json = false;
   private _jsonSchema?: object;
-  private _jsonStream = false;
   private _worktree?: string | true;
   private _sandbox?: string | true;
   private _verbose = false;
@@ -121,12 +120,6 @@ export class ZagBuilder {
   jsonSchema(s: object): this {
     this._jsonSchema = s;
     this._json = true;
-    return this;
-  }
-
-  /** Enable streaming JSON output (NDJSON format). */
-  jsonStream(): this {
-    this._jsonStream = true;
     return this;
   }
 
@@ -267,16 +260,18 @@ export class ZagBuilder {
     if (this._jsonSchema) {
       args.push("--json-schema", JSON.stringify(this._jsonSchema));
     }
-    if (this._jsonStream || streaming) args.push("--json-stream");
-    if (this._outputFormat) args.push("-o", this._outputFormat);
+    if (this._outputFormat) {
+      args.push("-o", this._outputFormat);
+    } else if (streaming) {
+      args.push("-o", "stream-json");
+    } else {
+      // For non-streaming exec, default to json output for structured parsing
+      args.push("-o", "json");
+    }
     if (this._inputFormat) args.push("-i", this._inputFormat);
     if (this._replayUserMessages) args.push("--replay-user-messages");
     if (this._includePartialMessages) args.push("--include-partial-messages");
     if (this._timeout) args.push("--timeout", this._timeout);
-    // For non-streaming exec, default to json output for structured parsing
-    if (!streaming && !this._outputFormat && !this._jsonStream) {
-      args.push("-o", "json");
-    }
     args.push(prompt);
     return args;
   }

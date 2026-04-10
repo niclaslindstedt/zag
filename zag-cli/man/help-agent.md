@@ -83,7 +83,7 @@ zag exec --json-schema '{"type":"array","items":{"type":"string"}}' "list 3 colo
 zag exec --json-schema schema.json "extract user data from the codebase"
 # Schema from file
 
-zag exec --json-stream "analyze this code"
+zag exec -o stream-json "analyze this code"
 # Stream JSON events (NDJSON, one event per line)
 ```
 
@@ -231,7 +231,6 @@ Config priority: CLI flags > `models.<agent>` > `defaults.model` > agent built-i
 -v, --verbose                Styled output with icons (exec mode)
     --json                   Request JSON response from agent
     --json-schema <SCHEMA>   Validate JSON against schema (file or inline)
-    --json-stream            Stream NDJSON events
     --session <UUID>         Pre-set session ID (for zag listen)
 -o, --output <FORMAT>        exec output format: text, json, json-pretty, stream-json
 ```

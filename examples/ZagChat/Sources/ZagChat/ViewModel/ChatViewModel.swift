@@ -114,7 +114,7 @@ final class ChatViewModel: ObservableObject {
 
         var args: [String] = ["exec"]
         args += makeBuilder().buildGlobalArgs()
-        args.append("--json-stream")
+        args.append(contentsOf: ["-o", "stream-json"])
         // Resume the interrupted session if applicable.
         if resume, let sid = lastSessionId {
             args += ["--context", sid]

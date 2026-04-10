@@ -25,7 +25,7 @@ An optional positional `prompt` argument lets you append additional instructions
 
 Global flags that apply: `-p`, `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir`, `--env`, `--mcp-config`, `--debug`, `--quiet`.
 
-Flags that cannot be used with review: `--worktree`, `--sandbox`, `--json`, `--json-schema`, `--json-stream`, `-p auto`, `-m auto`.
+Flags that cannot be used with review: `--worktree`, `--sandbox`, `--json`, `--json-schema`, `-p auto`, `-m auto`.
 
 ## Notes
 

@@ -29,7 +29,7 @@ $ zag exec --json-schema schema.json \\
 # Auto-retries up to 3x if validation fails
 
 # Stream events as NDJSON
-$ zag exec --json-stream "Write a test suite"
+$ zag exec -o stream-json "Write a test suite"
 {"type":"init","session_id":"a1b2c3..."}
 {"type":"assistant_message","content":"..."}
 {"type":"tool_execution","tool":"write","path":"..."}

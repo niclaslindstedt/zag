@@ -226,12 +226,6 @@ fn test_builder_sandbox_some() {
 }
 
 #[test]
-fn test_builder_json_stream() {
-    let builder = AgentBuilder::new().json_stream();
-    assert!(builder.json_stream);
-}
-
-#[test]
 fn test_resolve_provider_case_insensitive() {
     let builder = AgentBuilder::new().provider("CLAUDE");
     assert_eq!(builder.resolve_provider().unwrap(), "claude");
@@ -254,7 +248,6 @@ fn test_builder_default_impl() {
     assert_eq!(from_default.verbose, from_new.verbose);
     assert_eq!(from_default.quiet, from_new.quiet);
     assert_eq!(from_default.json_mode, from_new.json_mode);
-    assert_eq!(from_default.json_stream, from_new.json_stream);
     assert_eq!(from_default.max_turns, from_new.max_turns);
     assert_eq!(from_default.timeout, from_new.timeout);
     assert_eq!(from_default.show_usage, from_new.show_usage);

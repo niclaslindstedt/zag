@@ -31,7 +31,6 @@ class ZagBuilder {
     private val _envVars: MutableList<String> = mutableListOf()
     private var _json: Boolean = false
     private var _jsonSchema: Any? = null
-    private var _jsonStream: Boolean = false
     private var _worktree: Any? = null   // true or String
     private var _sandbox: Any? = null    // true or String
     private var _verbose: Boolean = false
@@ -82,9 +81,6 @@ class ZagBuilder {
 
     /** Set a JSON schema for structured output validation. Implies json(). */
     fun jsonSchema(s: Any) = apply { _jsonSchema = s; _json = true }
-
-    /** Enable streaming JSON output (NDJSON format). */
-    fun jsonStream() = apply { _jsonStream = true }
 
     /** Enable worktree mode with an optional name. */
     fun worktree(name: String? = null) = apply { _worktree = name ?: true }
@@ -170,16 +166,16 @@ class ZagBuilder {
             args.add("--json-schema")
             args.add(Json.encodeToString(it.toString()))
         }
-        if (_jsonStream || streaming) args.add("--json-stream")
-        _outputFormat?.let { args.addAll(listOf("-o", it)) }
+        when {
+            _outputFormat != null -> args.addAll(listOf("-o", _outputFormat!!))
+            streaming -> args.addAll(listOf("-o", "stream-json"))
+            // Default to json output for structured parsing
+            else -> args.addAll(listOf("-o", "json"))
+        }
         _inputFormat?.let { args.addAll(listOf("-i", it)) }
         if (_replayUserMessages) args.add("--replay-user-messages")
         if (_includePartialMessages) args.add("--include-partial-messages")
         _timeout?.let { args.addAll(listOf("--timeout", it)) }
-        // Default to json output for structured parsing
-        if (!streaming && _outputFormat == null && !_jsonStream) {
-            args.addAll(listOf("-o", "json"))
-        }
         args.add(prompt)
         return args
     }

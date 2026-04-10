@@ -102,7 +102,7 @@ Each binding follows the same architecture:
 
 **Exec args** go in `buildExecArgs()` — placed after the `exec` subcommand:
 
-`--json`, `--json-schema`, `--json-stream`, `-o/--output`, `-i/--input-format`, `--replay-user-messages`, `--include-partial-messages`
+`--json`, `--json-schema`, `-o/--output`, `-i/--input-format`, `--replay-user-messages`, `--include-partial-messages`
 
 ### Worktree and sandbox pattern
 
@@ -117,7 +117,7 @@ Worktree and sandbox support both unnamed (flag-only) and named variants. Each l
 
 ### Default output format
 
-All bindings default to `-o json` for non-streaming `exec()` calls (when no explicit output format or json-stream is set). This ensures structured `AgentOutput` parsing.
+All bindings default to `-o json` for non-streaming `exec()` calls and `-o stream-json` for `stream()` calls (when no explicit `outputFormat` is set). This ensures structured `AgentOutput` parsing for `exec()` and NDJSON event streaming for `stream()`.
 
 ### Binding-only methods
 

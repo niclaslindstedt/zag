@@ -138,7 +138,6 @@ let output = AgentBuilder::new()
 | `.add_dir(path)` | Add an additional directory (chainable) |
 | `.json()` | Request JSON output |
 | `.json_schema(schema)` | Validate output against a JSON schema (implies `.json()`) |
-| `.json_stream()` | Enable streaming NDJSON output |
 | `.worktree(name)` | Run in an isolated git worktree |
 | `.sandbox(name)` | Run inside a Docker sandbox |
 | `.session_id(uuid)` | Pre-set a session ID |

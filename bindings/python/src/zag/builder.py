@@ -38,7 +38,6 @@ class ZagBuilder:
         self._env_vars: list[str] = []
         self._json: bool = False
         self._json_schema: dict | None = None
-        self._json_stream: bool = False
         self._worktree: str | bool | None = None
         self._sandbox: str | bool | None = None
         self._verbose: bool = False
@@ -111,11 +110,6 @@ class ZagBuilder:
         """Set a JSON schema for structured output validation. Implies ``json_mode()``."""
         self._json_schema = s
         self._json = True
-        return self
-
-    def json_stream(self) -> ZagBuilder:
-        """Enable streaming JSON output (NDJSON format)."""
-        self._json_stream = True
         return self
 
     def worktree(self, name: str | None = None) -> ZagBuilder:
@@ -253,10 +247,13 @@ class ZagBuilder:
             args.append("--json")
         if self._json_schema:
             args.extend(["--json-schema", json.dumps(self._json_schema)])
-        if self._json_stream or streaming:
-            args.append("--json-stream")
         if self._output_format:
             args.extend(["-o", self._output_format])
+        elif streaming:
+            args.extend(["-o", "stream-json"])
+        else:
+            # Default to json output for structured parsing
+            args.extend(["-o", "json"])
         if self._input_format:
             args.extend(["-i", self._input_format])
         if self._replay_user_messages:
@@ -265,9 +262,6 @@ class ZagBuilder:
             args.append("--include-partial-messages")
         if self._timeout:
             args.extend(["--timeout", self._timeout])
-        # Default to json output for structured parsing
-        if not streaming and not self._output_format and not self._json_stream:
-            args.extend(["-o", "json"])
         args.append(prompt)
         return args
 
