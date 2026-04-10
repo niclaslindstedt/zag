@@ -171,13 +171,26 @@ for try await event in ZagBuilder().provider("claude").stream("analyze code") {
 | `.remote(url:token:)` | Convenience: configure remote mode from URL and token strings |
 | `.urlSession(session)` | Set a custom `URLSession` for remote requests |
 
+### Provider support for streaming / MCP flags
+
+Four builder methods that toggle streaming I/O details and per-invocation MCP configuration are only honored by the Claude provider. Passing them to any other provider is a no-op.
+
+| Method | Claude | Codex | Gemini | Copilot | Ollama |
+|--------|--------|-------|--------|---------|--------|
+| `.inputFormat()` | Yes | No | No | No | No |
+| `.replayUserMessages()` | Yes | No | No | No | No |
+| `.includePartialMessages()` | Yes | No | No | No | No |
+| `.mcpConfig()` | Yes | No | No | No | No |
+
+`.execStreaming()` is Claude-only and always sets `-i stream-json`, `-o stream-json`, and `--replay-user-messages`. By default it emits **one `assistant_message` event per complete assistant turn** — you get one event when the model finishes speaking, not a stream of token chunks. Call `.includePartialMessages()` to receive token-level partial `assistant_message` chunks instead. The default stays `false` so existing callers that render whole-turn bubbles are not broken.
+
 ## Terminal methods
 
 | Method | Returns | Mode | Description |
 |--------|---------|------|-------------|
 | `.exec(prompt)` | `AgentOutput` | Local + Remote | Run non-interactively, return structured output |
 | `.stream(prompt)` | `AsyncThrowingStream<Event, Error>` | Local + Remote | Stream NDJSON events |
-| `.execStreaming(prompt)` | `StreamingSession` | Local only | Bidirectional streaming (Claude only) |
+| `.execStreaming(prompt)` | `StreamingSession` | Local only | Bidirectional streaming (Claude only). Emits one `assistant_message` event per complete turn; pair with `.includePartialMessages()` for token-level chunks. |
 | `.execStreamingRemote(prompt)` | `ZagRemoteSession` | Remote only | Bidirectional streaming via WebSocket |
 | `.run(prompt?)` | `Void` | Local only | Start an interactive session (inherits stdio) |
 | `.resume(sessionId)` | `Void` | Local only | Resume a previous session by ID |

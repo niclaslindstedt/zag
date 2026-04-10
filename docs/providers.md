@@ -43,6 +43,19 @@ For Claude, `default` delegates model selection to the Claude CLI itself. For Ol
 | Auto-approve | Yes | Yes | Yes | Yes | N/A |
 | Interactive spawn (`spawn -I`) | Yes | No | No | No | No |
 
+### Streaming and MCP flag support
+
+Four builder flags that toggle streaming I/O details and per-invocation MCP configuration are only honored by the Claude provider. Passing them to any other provider is a no-op.
+
+| Flag / Builder method | Claude | Codex | Gemini | Copilot | Ollama |
+|-----------------------|--------|-------|--------|---------|--------|
+| `--input-format` / `inputFormat()` | Yes | No | No | No | No |
+| `--replay-user-messages` / `replayUserMessages()` | Yes | No | No | No | No |
+| `--include-partial-messages` / `includePartialMessages()` | Yes | No | No | No | No |
+| `--mcp-config` / `mcpConfig()` | Yes | No | No | No | No |
+
+`execStreaming()` is Claude-only and always sets `--input-format stream-json`, `--output-format stream-json`, and `--replay-user-messages`. By default it emits **one `assistant_message` event per complete assistant turn** — you get one event when the model finishes speaking, not a stream of token chunks. Call `.includePartialMessages(true)` (or pass `--include-partial-messages` on the CLI) to receive per-token partial `assistant_message` chunks instead. The default stays `false` so existing callers that render whole-turn bubbles aren't broken.
+
 ### Notes
 
 - **Streaming**: Claude uses `stream-json` format natively. Codex emits NDJSON. Gemini supports output format flags. Copilot and Ollama do not support streaming in a structured format.

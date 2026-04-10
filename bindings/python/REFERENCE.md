@@ -66,7 +66,7 @@ All terminal methods are `async`.
 |--------|-----------|-------------|
 | `exec` | `async def exec(self, prompt: str) -> AgentOutput` | Non-interactive execution, returns structured output |
 | `stream` | `async def stream(self, prompt: str) -> AsyncGenerator[Event, None]` | Stream NDJSON events as they arrive |
-| `exec_streaming` | `async def exec_streaming(self, prompt: str) -> StreamingSession` | Bidirectional streaming _(Claude only)_ |
+| `exec_streaming` | `async def exec_streaming(self, prompt: str) -> StreamingSession` | Bidirectional streaming _(Claude only)_. Emits one `assistant_message` per complete turn by default; pair with `include_partial_messages(True)` for token-level chunks. |
 | `run` | `async def run(self, prompt: str \| None = None) -> None` | Interactive session (inherits stdio) |
 | `resume` | `async def resume(self, session_id: str) -> None` | Resume previous session by ID |
 | `continue_last` | `async def continue_last(self) -> None` | Resume most recent session |

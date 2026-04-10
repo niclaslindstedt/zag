@@ -148,17 +148,34 @@ class ZagBuilder:
         return self
 
     def input_format(self, f: str) -> ZagBuilder:
-        """Set the input format (Claude only)."""
+        """Set the input format (Claude only).
+
+        No-op for Codex, Gemini, Copilot, and Ollama. See ``docs/providers.md``
+        for the full per-provider flag support matrix.
+        """
         self._input_format = f
         return self
 
     def replay_user_messages(self, r: bool = True) -> ZagBuilder:
-        """Re-emit user messages from stdin on stdout (Claude only)."""
+        """Re-emit user messages from stdin on stdout (Claude only).
+
+        Requires ``-i stream-json`` and ``-o stream-json``.
+        :meth:`exec_streaming` auto-enables this, so most callers never need
+        to set it manually. No-op for non-Claude providers.
+        """
         self._replay_user_messages = r
         return self
 
     def include_partial_messages(self, i: bool = True) -> ZagBuilder:
-        """Include partial message chunks in streaming output (Claude only)."""
+        """Include partial message chunks in streaming output (Claude only).
+
+        Defaults to ``False``. When ``False``, streaming emits one
+        ``assistant_message`` event per complete assistant turn. When
+        ``True``, the agent instead emits token-level partial
+        ``assistant_message`` chunks as the model generates them — use this
+        with :meth:`exec_streaming` for responsive, token-by-token UIs.
+        No-op for non-Claude providers.
+        """
         self._include_partial_messages = i
         return self
 
@@ -173,7 +190,11 @@ class ZagBuilder:
         return self
 
     def mcp_config(self, c: str) -> ZagBuilder:
-        """Set MCP server config for this invocation: JSON string or file path (Claude only)."""
+        """Set MCP server config for this invocation: JSON string or file path (Claude only).
+
+        No-op for Codex, Gemini, Copilot, and Ollama — those providers manage
+        MCP configuration through their own CLIs or do not support it.
+        """
         self._mcp_config = c
         return self
 
@@ -283,6 +304,19 @@ class ZagBuilder:
         """Run the agent with streaming input and output (Claude only).
 
         Returns a StreamingSession for bidirectional communication.
+        Automatically sets ``-i stream-json``, ``-o stream-json``, and
+        ``--replay-user-messages``.
+
+        **Default emission granularity:** by default ``assistant_message``
+        events are emitted *once per complete assistant turn* — you get one
+        event when the model finishes speaking, not a stream of token
+        chunks. Call :meth:`include_partial_messages` with ``True`` on the
+        builder before ``exec_streaming`` for token-level partial
+        ``assistant_message`` chunks. The default stays ``False`` so
+        existing callers that render whole-turn bubbles are not broken.
+
+        See ``docs/providers.md`` for the full per-provider flag support
+        matrix.
 
         Example::
 

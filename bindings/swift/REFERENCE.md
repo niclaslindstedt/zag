@@ -114,7 +114,7 @@ All configuration methods are annotated `@discardableResult` and return `Self` f
 |--------|-----------|------|-------------|
 | `exec` | `func exec(_ prompt: String) async throws -> AgentOutput` | Local + Remote | Non-interactive execution |
 | `stream` | `func stream(_ prompt: String) -> AsyncThrowingStream<Event, Error>` | Local + Remote | Stream NDJSON events |
-| `execStreaming` | `func execStreaming(_ prompt: String) async throws -> StreamingSession` | Local only | Bidirectional streaming _(Claude only)_ |
+| `execStreaming` | `func execStreaming(_ prompt: String) async throws -> StreamingSession` | Local only | Bidirectional streaming _(Claude only)_. Emits one `assistant_message` per complete turn by default; call `.includePartialMessages()` for token-level chunks. |
 | `execStreamingRemote` | `func execStreamingRemote(_ prompt: String) async throws -> ZagRemoteSession` | Remote only | Bidirectional streaming via WebSocket |
 | `run` | `func run(_ prompt: String? = nil) async throws` | Local only | Interactive session (inherits stdio) |
 | `resume` | `func resume(_ sessionId: String) async throws` | Local only | Resume previous session by ID |

@@ -14,6 +14,8 @@ use zag::orch::spawn;
 
 Agent types are available directly under `zag::` (from `zag-agent`), while orchestration primitives live under `zag::orch::` (from `zag-orch`).
 
+See [`docs/providers.md`](../../docs/providers.md) for the per-provider flag support matrix (e.g. `input_format`, `replay_user_messages`, `include_partial_messages`, and `mcp_config` are honored only by the Claude provider) and for the default `assistant_message` emission granularity of `exec_streaming`.
+
 ## How it differs from the other bindings
 
 The TypeScript, Python, and C# bindings spawn the `zag` CLI as a subprocess. This Rust crate directly depends on the workspace libraries, giving you native access to all types and async APIs with no subprocess overhead.
