@@ -20,7 +20,7 @@ export type {
   SessionLogSupport,
   ResolvedModel,
 } from "./types.js";
-export { ZagError } from "./types.js";
+export { ZagError, ZagFeatureUnsupportedError } from "./types.js";
 export {
   listProviders,
   getCapability,

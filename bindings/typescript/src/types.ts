@@ -171,3 +171,30 @@ export class ZagError extends Error {
     this.name = "ZagError";
   }
 }
+
+/**
+ * Error thrown when a builder method is called for a feature the configured
+ * provider does not support. Thrown during the preflight check before any
+ * subprocess is spawned, so callers can catch it distinctly from a runtime
+ * `ZagError`.
+ */
+export class ZagFeatureUnsupportedError extends ZagError {
+  constructor(
+    public readonly method: string,
+    public readonly feature: string,
+    public readonly provider: string,
+    public readonly supportedProviders: string[],
+  ) {
+    const supportedList =
+      supportedProviders.length > 0
+        ? supportedProviders.join(", ")
+        : "(none)";
+    super(
+      `${method} is not supported by provider '${provider}' ` +
+        `(feature: ${feature}). Supported providers: ${supportedList}`,
+      null,
+      "",
+    );
+    this.name = "ZagFeatureUnsupportedError";
+  }
+}

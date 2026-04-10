@@ -225,6 +225,47 @@ All other methods are available since the initial release (0.2.3).
 
 Version checks only apply to local execution mode. Remote mode handles compatibility on the server side.
 
+## Capability checking
+
+The SDK also validates that the configured provider actually supports each
+feature-gated builder method before spawning the agent subprocess. If you
+call, say, `execStreaming()` on a provider without `streaming_input` support,
+a typed `ZagFeatureUnsupportedError` is thrown with an actionable message:
+
+```
+execStreaming() is not supported by provider 'ollama' (feature: streaming_input). Supported providers: claude
+```
+
+Because Swift `struct` errors cannot subclass, `ZagFeatureUnsupportedError`
+is a sibling of `ZagError` rather than a subclass. Catch it directly, or
+catch generic `Error`:
+
+```swift
+do {
+    _ = try await ZagBuilder().provider("ollama").addDir("/extra").exec("...")
+} catch let err as ZagFeatureUnsupportedError {
+    print("pick another provider from: \(err.supportedProviders.joined(separator: ", "))")
+} catch {
+    // other ZagError / errors
+}
+```
+
+`ZagFeatureUnsupportedError` exposes `asZagError` for callers that want a
+`ZagError` value with the same message.
+
+Capability data is loaded once per `(bin, provider)` and cached. Checks are
+skipped when no provider is set (auto-detect) or when the provider is `"mock"`.
+
+| Method | Required capability |
+|--------|---------------------|
+| `.execStreaming()` | `streaming_input` |
+| `.worktree()` | `worktree` |
+| `.sandbox()` | `sandbox` |
+| `.systemPrompt()` | `system_prompt` |
+| `.addDir()` | `add_dirs` |
+
+Capability checks only apply to local execution mode.
+
 ## Discovery
 
 Static async functions for discovering available providers, models, and capabilities:

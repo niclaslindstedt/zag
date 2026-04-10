@@ -18,6 +18,7 @@ Comprehensive reference for the TypeScript binding of zag, a unified CLI for AI 
   - [ContentBlock](#contentblock)
   - [ToolResult](#toolresult)
   - [ZagError](#zagerror)
+  - [ZagFeatureUnsupportedError](#zagfeatureunsupportederror)
   - [Discovery Types](#discovery-types)
 - [Discovery API](#discovery-api)
 - [Examples](#examples)
@@ -444,6 +445,36 @@ class ZagError extends Error {
 }
 ```
 
+### ZagFeatureUnsupportedError
+
+Subclass of `ZagError` thrown by the capability preflight when a configured
+builder option is not supported by the pinned provider. It is raised before
+any subprocess is spawned, so callers can catch it distinctly from a runtime
+`ZagError`.
+
+```typescript
+class ZagFeatureUnsupportedError extends ZagError {
+  /** Display name of the requiring method, e.g. "execStreaming()". */
+  readonly method: string;
+
+  /** Name of the capability field, e.g. "streaming_input". */
+  readonly feature: string;
+
+  /** The configured provider that does not support the feature. */
+  readonly provider: string;
+
+  /** Providers that do support the feature. */
+  readonly supportedProviders: string[];
+
+  constructor(
+    method: string,
+    feature: string,
+    provider: string,
+    supportedProviders: string[],
+  );
+}
+```
+
 ### Discovery Types
 
 ```typescript
@@ -851,6 +882,27 @@ The detected version is cached per binary path for the lifetime of the process, 
 | `env()` | 0.6.0 |
 | `mcpConfig()` | 0.6.0 |
 | All others | 0.2.3 |
+
+### Capability Checking
+
+Immediately after the version check, every terminal method also calls `checkCapability()` against the configured provider. This function:
+
+1. Collects active capability requirements from the builder (e.g. `worktree()` set → requires `worktree` feature).
+2. Skips silently if the provider is unset (auto-detect) or `"mock"`.
+3. Loads the provider's capability declaration via `zag discover -p <provider>`, cached per `(bin, provider)`.
+4. Throws `ZagFeatureUnsupportedError` on the first requirement the provider does not support, listing the providers that do support it (looked up via `zag discover` and cached per `bin`).
+
+The check runs before any agent subprocess is spawned, so callers receive a typed diagnostic instead of a cryptic `"zag exited with code 1"`.
+
+| Method | Required capability |
+|--------|-------------------|
+| `execStreaming()` | `streaming_input` |
+| `worktree()` | `worktree` |
+| `sandbox()` | `sandbox` |
+| `systemPrompt()` | `system_prompt` |
+| `addDir()` | `add_dirs` |
+
+`mcpConfig()` is not currently gated by a capability — there is no `mcp_config` field on `Features` yet. That gap is tracked separately.
 
 ---
 

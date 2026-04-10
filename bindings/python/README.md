@@ -107,6 +107,41 @@ The version is detected once (by running `zag --version`) and cached for the lif
 
 All other methods are available since the initial release (0.2.3).
 
+## Capability checking
+
+The SDK also validates that the configured provider actually supports each
+feature-gated builder method before spawning the agent subprocess. If you
+call, say, `exec_streaming()` on a provider without `streaming_input` support,
+a typed `ZagFeatureUnsupportedError` is raised with an actionable message:
+
+```
+exec_streaming() is not supported by provider 'ollama' (feature: streaming_input). Supported providers: claude
+```
+
+`ZagFeatureUnsupportedError` subclasses `ZagError`, so existing
+`except ZagError` handlers still catch it; you can also branch on it:
+
+```python
+from zag import ZagBuilder, ZagFeatureUnsupportedError
+
+try:
+    await ZagBuilder().provider("ollama").add_dir("/extra").exec("...")
+except ZagFeatureUnsupportedError as err:
+    print(f"pick another provider from: {', '.join(err.supported_providers)}")
+```
+
+Capability data is loaded once per `(bin, provider)` and cached. Checks are
+skipped when no provider is set (auto-detect) or when the provider is
+`"mock"`.
+
+| Method | Required capability |
+|--------|-------------------|
+| `.exec_streaming()` | `streaming_input` |
+| `.worktree()` | `worktree` |
+| `.sandbox()` | `sandbox` |
+| `.system_prompt()` | `system_prompt` |
+| `.add_dir()` | `add_dirs` |
+
 ## Discovery
 
 Standalone async functions for discovering available providers, models, and capabilities:

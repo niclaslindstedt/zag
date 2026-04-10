@@ -15,6 +15,33 @@ class ZagError(Exception):
         self.stderr = stderr
 
 
+class ZagFeatureUnsupportedError(ZagError):
+    """Raised by the capability preflight when a builder method is called for
+    a feature the configured provider does not support.
+
+    Raised before any subprocess is spawned so callers can catch it distinctly
+    from a runtime :class:`ZagError`.
+    """
+
+    def __init__(
+        self,
+        method: str,
+        feature: str,
+        provider: str,
+        supported_providers: list[str],
+    ) -> None:
+        self.method = method
+        self.feature = feature
+        self.provider = provider
+        self.supported_providers = supported_providers
+        supported_list = ", ".join(supported_providers) if supported_providers else "(none)"
+        message = (
+            f"{method} is not supported by provider '{provider}' "
+            f"(feature: {feature}). Supported providers: {supported_list}"
+        )
+        super().__init__(message, None, "")
+
+
 # ---------------------------------------------------------------------------
 # Usage
 # ---------------------------------------------------------------------------

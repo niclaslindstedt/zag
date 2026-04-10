@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 from collections.abc import AsyncGenerator
 
+from .capability_check import FeatureRequirement, check_capability
 from .process import default_bin, exec_zag, run_zag, stream_zag, stream_with_input
 from .types import AgentOutput, Event
 from .version import VersionRequirement, check_version
@@ -195,6 +196,33 @@ class ZagBuilder:
             VersionRequirement("mcp_config()", "0.6.0", is_set=self._mcp_config is not None),
         ]
 
+    # -- Capability checking -------------------------------------------------
+
+    def _capability_requirements(self) -> list[FeatureRequirement]:
+        """Collect provider-capability requirements for options that are
+        only supported by a subset of providers.
+
+        Note: ``mcp_config()`` is intentionally omitted — there is no
+        ``mcp_config`` field on the provider ``Features`` struct yet, so
+        there is nothing to validate against. Track that gap separately.
+        """
+        return [
+            FeatureRequirement(
+                "worktree()", "worktree", is_set=self._worktree is not None
+            ),
+            FeatureRequirement(
+                "sandbox()", "sandbox", is_set=self._sandbox is not None
+            ),
+            FeatureRequirement(
+                "system_prompt()",
+                "system_prompt",
+                is_set=self._system_prompt is not None,
+            ),
+            FeatureRequirement(
+                "add_dir()", "add_dirs", is_set=len(self._add_dirs) > 0
+            ),
+        ]
+
     # -- Arg building --------------------------------------------------------
 
     def _global_args(self) -> list[str]:
@@ -276,6 +304,9 @@ class ZagBuilder:
             print(output.result)
         """
         await check_version(self._bin, self._version_requirements())
+        await check_capability(
+            self._bin, self._provider, self._capability_requirements()
+        )
         args = self._exec_args(prompt)
         return await exec_zag(self._bin, args)
 
@@ -293,6 +324,16 @@ class ZagBuilder:
             await session.wait()
         """
         await check_version(self._bin, self._version_requirements())
+        await check_capability(
+            self._bin,
+            self._provider,
+            [
+                *self._capability_requirements(),
+                FeatureRequirement(
+                    "exec_streaming()", "streaming_input", is_set=True
+                ),
+            ],
+        )
         from .process import StreamingSession as _StreamingSession
 
         args = ["exec", *self._global_args()]
@@ -313,6 +354,9 @@ class ZagBuilder:
                 print(event.type)
         """
         await check_version(self._bin, self._version_requirements())
+        await check_capability(
+            self._bin, self._provider, self._capability_requirements()
+        )
         args = self._exec_args(prompt, streaming=True)
         async for event in stream_zag(self._bin, args):
             yield event
@@ -320,6 +364,9 @@ class ZagBuilder:
     async def run(self, prompt: str | None = None) -> None:
         """Start an interactive agent session (inherits stdio)."""
         await check_version(self._bin, self._version_requirements())
+        await check_capability(
+            self._bin, self._provider, self._capability_requirements()
+        )
         args = ["run", *self._global_args()]
         if self._json:
             args.append("--json")
@@ -332,12 +379,18 @@ class ZagBuilder:
     async def resume(self, session_id: str) -> None:
         """Resume a previous session by ID."""
         await check_version(self._bin, self._version_requirements())
+        await check_capability(
+            self._bin, self._provider, self._capability_requirements()
+        )
         args = ["run", *self._global_args(), "--resume", session_id]
         await run_zag(self._bin, args)
 
     async def continue_last(self) -> None:
         """Resume the most recent session."""
         await check_version(self._bin, self._version_requirements())
+        await check_capability(
+            self._bin, self._provider, self._capability_requirements()
+        )
         args = ["run", *self._global_args(), "--continue"]
         await run_zag(self._bin, args)
 
@@ -350,6 +403,9 @@ class ZagBuilder:
             print(output.result)
         """
         await check_version(self._bin, self._version_requirements())
+        await check_capability(
+            self._bin, self._provider, self._capability_requirements()
+        )
         args = self._exec_args(prompt)
         idx = len(args) - 1  # prompt is last
         args[idx:idx] = ["--resume", session_id]
@@ -364,6 +420,9 @@ class ZagBuilder:
             print(output.result)
         """
         await check_version(self._bin, self._version_requirements())
+        await check_capability(
+            self._bin, self._provider, self._capability_requirements()
+        )
         args = self._exec_args(prompt)
         idx = len(args) - 1  # prompt is last
         args[idx:idx] = ["--continue"]
@@ -374,6 +433,9 @@ class ZagBuilder:
     ) -> AsyncGenerator[Event, None]:
         """Resume a previous session in streaming mode with a follow-up prompt."""
         await check_version(self._bin, self._version_requirements())
+        await check_capability(
+            self._bin, self._provider, self._capability_requirements()
+        )
         args = self._exec_args(prompt, streaming=True)
         idx = len(args) - 1
         args[idx:idx] = ["--resume", session_id]
@@ -383,6 +445,9 @@ class ZagBuilder:
     async def stream_continue(self, prompt: str) -> AsyncGenerator[Event, None]:
         """Resume the most recent session in streaming mode with a follow-up prompt."""
         await check_version(self._bin, self._version_requirements())
+        await check_capability(
+            self._bin, self._provider, self._capability_requirements()
+        )
         args = self._exec_args(prompt, streaming=True)
         idx = len(args) - 1
         args[idx:idx] = ["--continue"]

@@ -236,6 +236,23 @@ class ZagError(Exception):
     stderr: str
 ```
 
+### ZagFeatureUnsupportedError
+
+Raised by the capability preflight when a feature-gated builder method is
+called on a provider that does not support the underlying feature. Extends
+`ZagError`, so existing `except ZagError:` handlers still catch it.
+
+```python
+class ZagFeatureUnsupportedError(ZagError):
+    method: str
+    feature: str
+    provider: str
+    supported_providers: list[str]
+```
+
+See the [Capability checking](README.md#capability-checking) section of the
+README for the mapping of builder methods to capability fields.
+
 ### Discovery Types
 
 ```python
@@ -447,6 +464,20 @@ The SDK checks the installed `zag` CLI version (via `zag --version`) once per pr
 | `env()` | 0.6.0 |
 | `mcp_config()` | 0.6.0 |
 | All others | 0.2.3 |
+
+### Capability checking
+
+Every terminal method also runs a provider-capability preflight (via `zag discover`, cached per-`(bin, provider)`). If a feature-gated builder method is set on a provider that does not advertise support for the underlying capability, a typed `ZagFeatureUnsupportedError` is raised before the agent subprocess is spawned:
+
+| Method | Required capability |
+|--------|---------------------|
+| `exec_streaming()` | `streaming_input` |
+| `worktree()` | `worktree` |
+| `sandbox()` | `sandbox` |
+| `system_prompt()` | `system_prompt` |
+| `add_dir()` | `add_dirs` |
+
+Preflight is skipped when no provider is configured (auto-detect) or when the provider is `"mock"`.
 
 ## Provider-Specific Notes
 

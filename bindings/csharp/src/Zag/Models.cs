@@ -307,3 +307,40 @@ public class ZagException : Exception
         Stderr = stderr;
     }
 }
+
+/// <summary>
+/// Raised by the capability preflight when a builder method is called for a
+/// feature the configured provider does not support. Thrown before any
+/// subprocess is spawned so callers can catch it distinctly from a runtime
+/// <see cref="ZagException"/>.
+/// </summary>
+public class ZagFeatureUnsupportedException : ZagException
+{
+    public string Method { get; }
+    public string Feature { get; }
+    public string Provider { get; }
+    public IReadOnlyList<string> SupportedProviders { get; }
+
+    public ZagFeatureUnsupportedException(
+        string method,
+        string feature,
+        string provider,
+        IReadOnlyList<string> supportedProviders)
+        : base(BuildMessage(method, feature, provider, supportedProviders), null, "")
+    {
+        Method = method;
+        Feature = feature;
+        Provider = provider;
+        SupportedProviders = supportedProviders;
+    }
+
+    private static string BuildMessage(
+        string method, string feature, string provider, IReadOnlyList<string> supportedProviders)
+    {
+        var supportedList = supportedProviders.Count > 0
+            ? string.Join(", ", supportedProviders)
+            : "(none)";
+        return $"{method} is not supported by provider '{provider}' " +
+            $"(feature: {feature}). Supported providers: {supportedList}";
+    }
+}

@@ -102,6 +102,43 @@ The version is detected once (by running `zag --version`) and cached for the lif
 
 All other methods are available since the initial release (0.2.3).
 
+## Capability checking
+
+The SDK also validates that the configured provider actually supports each
+feature-gated builder method before spawning the agent subprocess. If you
+call, say, `ExecStreaming()` on a provider without `streaming_input` support,
+a typed `ZagFeatureUnsupportedException` is thrown with an actionable message:
+
+```
+ExecStreaming() is not supported by provider 'ollama' (feature: streaming_input). Supported providers: claude
+```
+
+`ZagFeatureUnsupportedException` extends `ZagException`, so existing
+`catch (ZagException)` handlers still catch it; you can also branch on it:
+
+```csharp
+try
+{
+    await new ZagBuilder().Provider("ollama").AddDir("/extra").ExecAsync("...");
+}
+catch (ZagFeatureUnsupportedException ex)
+{
+    Console.Error.WriteLine(
+        $"pick another provider from: {string.Join(", ", ex.SupportedProviders)}");
+}
+```
+
+Capability data is loaded once per `(bin, provider)` and cached. Checks are
+skipped when no provider is set (auto-detect) or when the provider is `"mock"`.
+
+| Method | Required capability |
+|--------|---------------------|
+| `.ExecStreaming()` | `streaming_input` |
+| `.Worktree()` | `worktree` |
+| `.Sandbox()` | `sandbox` |
+| `.SystemPrompt()` | `system_prompt` |
+| `.AddDir()` | `add_dirs` |
+
 ## Discovery
 
 Static async methods for discovering available providers, models, and capabilities:

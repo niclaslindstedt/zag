@@ -113,6 +113,45 @@ The version is detected once (by running `zag --version`) and cached for the lif
 
 All other methods are available since the initial release (0.2.3).
 
+## Capability checking
+
+The SDK also validates that the configured provider actually supports each
+feature-gated builder method before spawning the agent subprocess. If you
+call, say, `execStreaming()` on a provider without `streaming_input` support,
+a typed `ZagFeatureUnsupportedError` is thrown with an actionable message:
+
+```
+execStreaming() is not supported by provider 'ollama' (feature: streaming_input).
+Supported providers: claude
+```
+
+`ZagFeatureUnsupportedError` extends `ZagError`, so existing `catch (err:
+ZagError)` handlers still catch it; you can also branch on it specifically:
+
+```ts
+import { ZagFeatureUnsupportedError } from "zag-agent";
+
+try {
+  await new ZagBuilder().provider("ollama").addDir("/extra").exec("...");
+} catch (err) {
+  if (err instanceof ZagFeatureUnsupportedError) {
+    console.error(`pick another provider from: ${err.supportedProviders.join(", ")}`);
+  }
+}
+```
+
+Capability data is loaded once per `(bin, provider)` and cached. Checks are
+skipped when no provider is set (auto-detect) or when the provider is
+`"mock"`.
+
+| Method | Required capability |
+|--------|-------------------|
+| `.execStreaming()` | `streaming_input` |
+| `.worktree()` | `worktree` |
+| `.sandbox()` | `sandbox` |
+| `.systemPrompt()` | `system_prompt` |
+| `.addDir()` | `add_dirs` |
+
 ## Discovery
 
 Standalone functions for discovering available providers, models, and capabilities:

@@ -339,6 +339,28 @@ public class ZagException extends Exception {
 
 Thrown by all terminal methods and discovery methods on failure. Extends `Exception` (checked), not `RuntimeException`.
 
+### ZagFeatureUnsupportedException
+
+```java
+public class ZagFeatureUnsupportedException extends ZagException {
+    public String method()                  // e.g., "execStreaming()"
+    public String feature()                 // e.g., "streaming_input"
+    public String provider()                // configured provider
+    public List<String> supportedProviders() // providers that do support this feature
+}
+```
+
+Thrown by the capability preflight (runs before any subprocess is spawned)
+when a feature-gated builder method is configured on a provider that does
+not declare support for it. The default message is:
+
+```
+{method} is not supported by provider '{provider}' (feature: {feature}). Supported providers: {list}
+```
+
+Catch it separately to provide a targeted error path, or catch `ZagException`
+to handle both preflight and runtime errors uniformly.
+
 ---
 
 ## Discovery API
@@ -672,6 +694,27 @@ The `worktree` and `sandbox` fields are stored as `Object` internally. A no-arg 
 Before any terminal method executes, the SDK checks version requirements by running `zag --version` and parsing the semver output. The detected version is cached per binary path in a `ConcurrentHashMap` for the lifetime of the JVM process.
 
 If a method requiring a newer CLI version is configured (e.g., `env()` requires >= 0.6.0), the SDK throws `ZagException` with a descriptive message before spawning the process.
+
+### Capability Checking
+
+After the version check, terminal methods invoke a capability preflight that
+validates the configured provider against the set of feature-gated builder
+methods. The matrix is loaded via `zag discover` and cached per
+`(bin, provider)` and per `bin` for the full matrix.
+
+| Builder Method | Required Capability |
+|----------------|---------------------|
+| `execStreaming()` | `streaming_input` |
+| `worktree()` | `worktree` |
+| `sandbox()` | `sandbox` |
+| `systemPrompt()` | `system_prompt` |
+| `addDir()` | `add_dirs` |
+
+If the provider does not declare support for a required feature, the
+preflight throws `ZagFeatureUnsupportedException` (a subclass of
+`ZagException`) before any subprocess is spawned. Catch it to react
+specifically to capability mismatches. Checks are skipped when no provider is
+set (auto-detect) or when the provider is `"mock"`.
 
 ### Error Propagation
 

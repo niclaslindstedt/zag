@@ -258,12 +258,34 @@ data class ToolResult(
 ### ZagError
 
 ```kotlin
-class ZagError(
+open class ZagException(
     message: String,
     val exitCode: Int?,
     val stderr: String
 ) : RuntimeException(message)
 ```
+
+### ZagFeatureUnsupportedException
+
+```kotlin
+class ZagFeatureUnsupportedException(
+    val method: String,                     // e.g. "execStreaming()"
+    val feature: String,                    // e.g. "streaming_input"
+    val provider: String,                   // configured provider
+    val supportedProviders: List<String>,   // providers that do support this feature
+) : ZagException(/* message */, null, "")
+```
+
+Thrown by the capability preflight (runs before any subprocess is spawned)
+when a feature-gated builder method is configured on a provider that does
+not declare support for it. The default message is:
+
+```
+{method} is not supported by provider '{provider}' (feature: {feature}). Supported providers: {list}
+```
+
+Catch it separately to provide a targeted error path, or catch `ZagException`
+to handle both preflight and runtime errors uniformly.
 
 ### Discovery Types
 
@@ -511,6 +533,27 @@ The SDK checks the installed `zag` CLI version (via `zag --version`) once per pr
 | `env()` | 0.6.0 |
 | `mcpConfig()` | 0.6.0 |
 | All others | 0.2.3 |
+
+### Capability checking
+
+After the version check, terminal methods invoke a capability preflight that
+validates the configured provider against the set of feature-gated builder
+methods. The matrix is loaded via `zag discover` and cached per
+`(bin, provider)` and per `bin` for the full matrix.
+
+| Builder method | Required capability |
+|----------------|---------------------|
+| `execStreaming()` | `streaming_input` |
+| `worktree()` | `worktree` |
+| `sandbox()` | `sandbox` |
+| `systemPrompt()` | `system_prompt` |
+| `addDir()` | `add_dirs` |
+
+If the provider does not declare support for a required feature, the
+preflight throws `ZagFeatureUnsupportedException` (a subclass of
+`ZagException`) before any subprocess is spawned. Catch it to react
+specifically to capability mismatches. Checks are skipped when no provider is
+set (auto-detect) or when the provider is `"mock"`.
 
 ## Provider-Specific Notes
 

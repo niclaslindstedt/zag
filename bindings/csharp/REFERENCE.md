@@ -236,6 +236,22 @@ public class ZagException : Exception
 }
 ```
 
+### ZagFeatureUnsupportedException
+
+Thrown by the capability preflight when a feature-gated builder method is called on a provider that does not support the underlying feature. Extends `ZagException`, so existing `catch (ZagException)` handlers still catch it.
+
+```csharp
+public class ZagFeatureUnsupportedException : ZagException
+{
+    string Method { get; }
+    string Feature { get; }
+    string Provider { get; }
+    IReadOnlyList<string> SupportedProviders { get; }
+}
+```
+
+See the [Capability checking](README.md#capability-checking) section of the README for the mapping of builder methods to capability fields.
+
 ---
 
 ## Discovery API -- `ZagDiscover`

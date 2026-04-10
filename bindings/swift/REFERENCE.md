@@ -350,6 +350,25 @@ struct ZagError: Error {
 }
 ```
 
+### ZagFeatureUnsupportedError
+
+Thrown by the capability preflight when a feature-gated builder method is called on a provider that does not support the underlying feature. Swift `struct` errors cannot subclass, so this is a sibling of `ZagError` rather than a subclass; catch it directly or catch generic `Error`.
+
+```swift
+struct ZagFeatureUnsupportedError: Error {
+    let method: String
+    let feature: String
+    let provider: String
+    let supportedProviders: [String]
+    let message: String
+
+    /// A ZagError view with the same message, for callers that only branch on ZagError.
+    var asZagError: ZagError { get }
+}
+```
+
+See the [Capability checking](README.md#capability-checking) section of the README for the mapping of builder methods to capability fields.
+
 ### Discovery Types
 
 ```swift

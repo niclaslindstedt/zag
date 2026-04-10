@@ -131,6 +131,20 @@ public class ZagBuilder
         new VersionCheck.Requirement("McpConfig()", "0.6.0", _mcpConfig != null),
     };
 
+    /// <summary>
+    /// Collect provider-capability requirements for options that are only
+    /// supported by a subset of providers. Note: McpConfig() is intentionally
+    /// omitted — there is no mcp_config field on the provider Features struct
+    /// yet, so there is nothing to validate against.
+    /// </summary>
+    private IReadOnlyList<CapabilityCheck.Requirement> CapabilityRequirements() => new[]
+    {
+        new CapabilityCheck.Requirement("Worktree()", "worktree", _worktree != null),
+        new CapabilityCheck.Requirement("Sandbox()", "sandbox", _sandbox != null),
+        new CapabilityCheck.Requirement("SystemPrompt()", "system_prompt", _systemPrompt != null),
+        new CapabilityCheck.Requirement("AddDir()", "add_dirs", _addDirs.Count > 0),
+    };
+
     // -- Arg building --------------------------------------------------------
 
     internal List<string> BuildGlobalArgs()
@@ -187,6 +201,7 @@ public class ZagBuilder
     public async Task<AgentOutput> ExecAsync(string prompt, CancellationToken ct = default)
     {
         await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await CapabilityCheck.CheckAsync(_bin, _provider, CapabilityRequirements(), ct);
         var args = BuildExecArgs(prompt);
         return await ZagProcess.ExecAsync(_bin, [.. args], ct);
     }
@@ -195,6 +210,7 @@ public class ZagBuilder
     public async IAsyncEnumerable<Event> StreamAsync(string prompt, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
         await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await CapabilityCheck.CheckAsync(_bin, _provider, CapabilityRequirements(), ct);
         var args = BuildExecArgs(prompt, streaming: true);
         await foreach (var evt in ZagProcess.StreamAsync(_bin, [.. args], ct).WithCancellation(ct))
         {
@@ -206,6 +222,10 @@ public class ZagBuilder
     public async Task<StreamingSession> ExecStreaming(string prompt)
     {
         await VersionCheck.CheckAsync(_bin, VersionRequirements());
+        var capReqs = CapabilityRequirements().ToList();
+        capReqs.Add(new CapabilityCheck.Requirement(
+            "ExecStreaming()", "streaming_input", true));
+        await CapabilityCheck.CheckAsync(_bin, _provider, capReqs);
         var args = new List<string> { "exec" };
         args.AddRange(BuildGlobalArgs());
         args.Add("-i"); args.Add("stream-json");
@@ -220,6 +240,7 @@ public class ZagBuilder
     public async Task RunAsync(string? prompt = null, CancellationToken ct = default)
     {
         await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await CapabilityCheck.CheckAsync(_bin, _provider, CapabilityRequirements(), ct);
         var args = new List<string> { "run" };
         args.AddRange(BuildGlobalArgs());
         if (_json) args.Add("--json");
@@ -236,6 +257,7 @@ public class ZagBuilder
     public async Task ResumeAsync(string sessionId, CancellationToken ct = default)
     {
         await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await CapabilityCheck.CheckAsync(_bin, _provider, CapabilityRequirements(), ct);
         var args = new List<string> { "run" };
         args.AddRange(BuildGlobalArgs());
         args.Add("--resume");
@@ -247,6 +269,7 @@ public class ZagBuilder
     public async Task ContinueLastAsync(CancellationToken ct = default)
     {
         await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await CapabilityCheck.CheckAsync(_bin, _provider, CapabilityRequirements(), ct);
         var args = new List<string> { "run" };
         args.AddRange(BuildGlobalArgs());
         args.Add("--continue");
@@ -257,6 +280,7 @@ public class ZagBuilder
     public async Task<AgentOutput> ExecResumeAsync(string sessionId, string prompt, CancellationToken ct = default)
     {
         await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await CapabilityCheck.CheckAsync(_bin, _provider, CapabilityRequirements(), ct);
         var args = BuildExecArgs(prompt);
         args.Insert(args.Count - 1, "--resume");
         args.Insert(args.Count - 1, sessionId);
@@ -267,6 +291,7 @@ public class ZagBuilder
     public async Task<AgentOutput> ExecContinueAsync(string prompt, CancellationToken ct = default)
     {
         await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await CapabilityCheck.CheckAsync(_bin, _provider, CapabilityRequirements(), ct);
         var args = BuildExecArgs(prompt);
         args.Insert(args.Count - 1, "--continue");
         return await ZagProcess.ExecAsync(_bin, [.. args], ct);
@@ -276,6 +301,7 @@ public class ZagBuilder
     public async IAsyncEnumerable<Event> StreamResumeAsync(string sessionId, string prompt, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
         await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await CapabilityCheck.CheckAsync(_bin, _provider, CapabilityRequirements(), ct);
         var args = BuildExecArgs(prompt, streaming: true);
         args.Insert(args.Count - 1, "--resume");
         args.Insert(args.Count - 1, sessionId);
@@ -289,6 +315,7 @@ public class ZagBuilder
     public async IAsyncEnumerable<Event> StreamContinueAsync(string prompt, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
         await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await CapabilityCheck.CheckAsync(_bin, _provider, CapabilityRequirements(), ct);
         var args = BuildExecArgs(prompt, streaming: true);
         args.Insert(args.Count - 1, "--continue");
         await foreach (var evt in ZagProcess.StreamAsync(_bin, [.. args], ct).WithCancellation(ct))

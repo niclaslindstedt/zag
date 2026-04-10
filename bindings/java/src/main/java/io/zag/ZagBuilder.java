@@ -228,6 +228,17 @@ public class ZagBuilder {
         );
     }
 
+    // -- Capability requirements ---------------------------------------------
+
+    private List<CapabilityCheck.Requirement> capabilityRequirements() {
+        return List.of(
+            new CapabilityCheck.Requirement("worktree()", "worktree", worktree != null),
+            new CapabilityCheck.Requirement("sandbox()", "sandbox", sandbox != null),
+            new CapabilityCheck.Requirement("systemPrompt()", "system_prompt", systemPrompt != null),
+            new CapabilityCheck.Requirement("addDir()", "add_dirs", !addDirs.isEmpty())
+        );
+    }
+
     // -- Terminal methods ----------------------------------------------------
 
     /**
@@ -242,6 +253,7 @@ public class ZagBuilder {
      */
     public AgentOutput exec(String prompt) throws ZagException {
         VersionCheck.check(bin, versionRequirements());
+        CapabilityCheck.check(bin, provider, capabilityRequirements());
         List<String> args = buildExecArgs(prompt, false);
         return ZagProcess.exec(bin, args);
     }
@@ -259,6 +271,7 @@ public class ZagBuilder {
      */
     public Iterable<Event> stream(String prompt) throws ZagException {
         VersionCheck.check(bin, versionRequirements());
+        CapabilityCheck.check(bin, provider, capabilityRequirements());
         List<String> args = buildExecArgs(prompt, true);
         return ZagProcess.stream(bin, args);
     }
@@ -285,6 +298,9 @@ public class ZagBuilder {
      */
     public StreamingSession execStreaming(String prompt) throws ZagException {
         VersionCheck.check(bin, versionRequirements());
+        List<CapabilityCheck.Requirement> reqs = new ArrayList<>(capabilityRequirements());
+        reqs.add(new CapabilityCheck.Requirement("execStreaming()", "streaming_input", true));
+        CapabilityCheck.check(bin, provider, reqs);
         List<String> args = new ArrayList<>();
         args.add("exec");
         args.addAll(buildGlobalArgs());
@@ -300,6 +316,7 @@ public class ZagBuilder {
     /** Start an interactive agent session (inherits stdio). */
     public void run(String prompt) throws ZagException {
         VersionCheck.check(bin, versionRequirements());
+        CapabilityCheck.check(bin, provider, capabilityRequirements());
         List<String> args = new ArrayList<>();
         args.add("run");
         args.addAll(buildGlobalArgs());
@@ -319,12 +336,14 @@ public class ZagBuilder {
     /** Start an interactive agent session without a prompt. */
     public void run() throws ZagException {
         VersionCheck.check(bin, versionRequirements());
+        CapabilityCheck.check(bin, provider, capabilityRequirements());
         run(null);
     }
 
     /** Resume a previous session by ID. */
     public void resume(String sessionId) throws ZagException {
         VersionCheck.check(bin, versionRequirements());
+        CapabilityCheck.check(bin, provider, capabilityRequirements());
         List<String> args = new ArrayList<>();
         args.add("run");
         args.addAll(buildGlobalArgs());
@@ -336,6 +355,7 @@ public class ZagBuilder {
     /** Resume the most recent session. */
     public void continueLast() throws ZagException {
         VersionCheck.check(bin, versionRequirements());
+        CapabilityCheck.check(bin, provider, capabilityRequirements());
         List<String> args = new ArrayList<>();
         args.add("run");
         args.addAll(buildGlobalArgs());
@@ -346,6 +366,7 @@ public class ZagBuilder {
     /** Resume a previous session non-interactively with a follow-up prompt. */
     public AgentOutput execResume(String sessionId, String prompt) throws ZagException {
         VersionCheck.check(bin, versionRequirements());
+        CapabilityCheck.check(bin, provider, capabilityRequirements());
         List<String> args = buildExecArgs(prompt, false);
         args.add(args.size() - 1, "--resume");
         args.add(args.size() - 1, sessionId);
@@ -355,6 +376,7 @@ public class ZagBuilder {
     /** Resume the most recent session non-interactively with a follow-up prompt. */
     public AgentOutput execContinue(String prompt) throws ZagException {
         VersionCheck.check(bin, versionRequirements());
+        CapabilityCheck.check(bin, provider, capabilityRequirements());
         List<String> args = buildExecArgs(prompt, false);
         args.add(args.size() - 1, "--continue");
         return ZagProcess.exec(bin, args);
@@ -363,6 +385,7 @@ public class ZagBuilder {
     /** Resume a previous session in streaming mode with a follow-up prompt. */
     public Iterable<Event> streamResume(String sessionId, String prompt) throws ZagException {
         VersionCheck.check(bin, versionRequirements());
+        CapabilityCheck.check(bin, provider, capabilityRequirements());
         List<String> args = buildExecArgs(prompt, true);
         args.add(args.size() - 1, "--resume");
         args.add(args.size() - 1, sessionId);
@@ -372,6 +395,7 @@ public class ZagBuilder {
     /** Resume the most recent session in streaming mode with a follow-up prompt. */
     public Iterable<Event> streamContinue(String prompt) throws ZagException {
         VersionCheck.check(bin, versionRequirements());
+        CapabilityCheck.check(bin, provider, capabilityRequirements());
         List<String> args = buildExecArgs(prompt, true);
         args.add(args.size() - 1, "--continue");
         return ZagProcess.stream(bin, args);
