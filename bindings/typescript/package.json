@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "test": "tsc --outDir dist-test && node --test dist-test/tests/builder.test.js",
+    "test": "tsc --outDir dist-test && node --test dist-test/tests/builder.test.js dist-test/tests/streaming.test.js",
     "prepublishOnly": "npm run build"
   },
   "engines": {
