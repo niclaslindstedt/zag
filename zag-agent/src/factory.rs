@@ -10,6 +10,26 @@ use crate::providers::ollama::Ollama;
 use anyhow::{Result, bail};
 use log::debug;
 
+/// Ordered tier list used when downgrading through providers.
+///
+/// When the user does not pin a provider with `-p`, this list is consulted
+/// after the requested/configured provider to pick the next-best fallback.
+/// Order is rough preference: most-capable / most-commonly-available first.
+pub const PROVIDER_TIER_LIST: &[&str] = &["claude", "codex", "gemini", "copilot", "ollama"];
+
+/// Build the full fallback sequence starting with `start`, followed by the
+/// rest of `PROVIDER_TIER_LIST` with duplicates removed.
+pub fn fallback_sequence(start: &str) -> Vec<String> {
+    let start = start.to_lowercase();
+    let mut seq = vec![start.clone()];
+    for p in PROVIDER_TIER_LIST {
+        if *p != start.as_str() {
+            seq.push((*p).to_string());
+        }
+    }
+    seq
+}
+
 pub struct AgentFactory;
 
 impl AgentFactory {
@@ -93,6 +113,99 @@ impl AgentFactory {
         }
 
         Ok(agent)
+    }
+
+    /// Create an agent, downgrading through the tier list if the requested
+    /// provider's binary is missing or its startup probe fails.
+    ///
+    /// If `provider_explicit` is true, this is equivalent to `create()` — no
+    /// fallback is attempted and the first failure is returned. If it is
+    /// false, this walks the `fallback_sequence(provider)` and logs each
+    /// downgrade via `on_downgrade(from, to, reason)` before trying the next
+    /// candidate.
+    ///
+    /// Returns the constructed agent plus the provider name that actually
+    /// succeeded, which may differ from `provider`.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn create_with_fallback(
+        provider: &str,
+        provider_explicit: bool,
+        system_prompt: Option<String>,
+        model: Option<String>,
+        root: Option<String>,
+        auto_approve: bool,
+        add_dirs: Vec<String>,
+        on_downgrade: &mut (dyn FnMut(&str, &str, &str) + Send),
+    ) -> Result<(Box<dyn Agent + Send + Sync>, String)> {
+        // Explicit provider: no fallback, preserve existing behavior.
+        if provider_explicit {
+            let agent = Self::create(provider, system_prompt, model, root, auto_approve, add_dirs)?;
+            // Even for explicit, run the probe so auth/startup failures are
+            // surfaced with the same actionable error shape. A probe failure
+            // here bubbles up as a hard error.
+            agent.probe().await?;
+            return Ok((agent, provider.to_string()));
+        }
+
+        let sequence = fallback_sequence(provider);
+        let mut last_err: Option<anyhow::Error> = None;
+        let mut prev = provider.to_string();
+
+        for (i, candidate) in sequence.iter().enumerate() {
+            // Model, system_prompt, add_dirs: clone per attempt so we can
+            // retry with the next candidate on failure.
+            let attempt = Self::create(
+                candidate,
+                system_prompt.clone(),
+                // Only apply the user-supplied model to the originally-
+                // requested provider. Downgraded providers use their own
+                // default/config model because size aliases resolve per
+                // provider and specific model names almost never carry over.
+                if i == 0 { model.clone() } else { None },
+                root.clone(),
+                auto_approve,
+                add_dirs.clone(),
+            );
+
+            let agent = match attempt {
+                Ok(agent) => agent,
+                Err(e) => {
+                    let reason = e.to_string();
+                    debug!("Provider '{}' unavailable: {}", candidate, reason);
+                    last_err = Some(e);
+                    if let Some(next) = sequence.get(i + 1) {
+                        on_downgrade(&prev, next, &reason);
+                        prev = next.clone();
+                    }
+                    continue;
+                }
+            };
+
+            match agent.probe().await {
+                Ok(()) => return Ok((agent, candidate.clone())),
+                Err(e) => {
+                    let reason = e.to_string();
+                    debug!("Provider '{}' probe failed: {}", candidate, reason);
+                    last_err = Some(e);
+                    if let Some(next) = sequence.get(i + 1) {
+                        on_downgrade(candidate, next, &reason);
+                        prev = next.clone();
+                    }
+                    continue;
+                }
+            }
+        }
+
+        match last_err {
+            Some(e) => Err(e.context(format!(
+                "No working provider found in tier list: {:?}",
+                PROVIDER_TIER_LIST
+            ))),
+            None => bail!(
+                "No working provider found in tier list: {:?}",
+                PROVIDER_TIER_LIST
+            ),
+        }
     }
 
     /// Create the appropriate agent implementation based on name.

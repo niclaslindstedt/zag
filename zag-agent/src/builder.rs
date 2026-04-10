@@ -69,6 +69,10 @@ fn format_duration(d: Duration) -> String {
 /// (`exec`, `run`, `resume`, `continue_last`) to execute.
 pub struct AgentBuilder {
     provider: Option<String>,
+    /// Set to true when the caller explicitly pinned a provider via
+    /// `.provider()`. When false (default), the fallback tier list is
+    /// allowed to downgrade to the next provider on binary/probe failure.
+    provider_explicit: bool,
     model: Option<String>,
     system_prompt: Option<String>,
     root: Option<String>,
@@ -106,6 +110,7 @@ impl AgentBuilder {
     pub fn new() -> Self {
         Self {
             provider: None,
+            provider_explicit: false,
             model: None,
             system_prompt: None,
             root: None,
@@ -134,8 +139,14 @@ impl AgentBuilder {
     }
 
     /// Set the provider (e.g., "claude", "codex", "gemini", "copilot", "ollama").
+    ///
+    /// Calling this method pins the provider — it will NOT be downgraded to
+    /// another provider in the tier list if its binary is missing or the
+    /// startup probe fails. Omit this call (or set `provider` via the config
+    /// file) to allow automatic downgrading.
     pub fn provider(mut self, provider: &str) -> Self {
         self.provider = Some(provider.to_string());
+        self.provider_explicit = true;
         self
     }
 
@@ -327,7 +338,12 @@ impl AgentBuilder {
     }
 
     /// Create and configure the agent.
-    fn create_agent(&self, provider: &str) -> Result<Box<dyn Agent + Send + Sync>> {
+    ///
+    /// Returns the constructed agent along with the provider name that
+    /// actually succeeded. When `provider_explicit` is false, the factory
+    /// may downgrade to another provider in the tier list, so the returned
+    /// provider can differ from the one passed in.
+    async fn create_agent(&self, provider: &str) -> Result<(Box<dyn Agent + Send + Sync>, String)> {
         // Apply system_prompt config fallback
         let base_system_prompt = self.system_prompt.clone().or_else(|| {
             Config::load(self.root.as_deref())
@@ -359,14 +375,25 @@ impl AgentBuilder {
         self.progress
             .on_spinner_start(&format!("Initializing {} agent", provider));
 
-        let mut agent = AgentFactory::create(
+        let progress = &*self.progress;
+        let mut on_downgrade = |from: &str, to: &str, reason: &str| {
+            progress.on_warning(&format!(
+                "Downgrading provider: {} → {} ({})",
+                from, to, reason
+            ));
+        };
+        let (mut agent, effective_provider) = AgentFactory::create_with_fallback(
             provider,
+            self.provider_explicit,
             system_prompt,
             self.model.clone(),
             self.root.clone(),
             self.auto_approve,
             self.add_dirs.clone(),
-        )?;
+            &mut on_downgrade,
+        )
+        .await?;
+        let provider = effective_provider.as_str();
 
         // Apply max_turns: explicit > config > none
         let effective_max_turns = self.max_turns.or_else(|| {
@@ -453,7 +480,7 @@ impl AgentBuilder {
             agent.get_model()
         ));
 
-        Ok(agent)
+        Ok((agent, effective_provider))
     }
 
     /// Run the agent non-interactively and return structured output.
@@ -483,7 +510,7 @@ impl AgentBuilder {
             builder.root = effective_root;
         }
 
-        let agent = builder.create_agent(&provider)?;
+        let (agent, provider) = builder.create_agent(&provider).await?;
 
         // Prepend file attachments
         let prompt_with_files = builder.prepend_files(prompt)?;
@@ -589,7 +616,11 @@ impl AgentBuilder {
         // Prepend file attachments
         let prompt_with_files = self.prepend_files(prompt)?;
 
-        let agent = self.create_agent(&provider)?;
+        // Streaming only works on Claude — do not allow the fallback loop
+        // to downgrade to a provider that can't stream.
+        let mut builder = self;
+        builder.provider_explicit = true;
+        let (agent, _provider) = builder.create_agent(&provider).await?;
 
         // Downcast to Claude to call execute_streaming
         let claude_agent = agent
@@ -621,7 +652,7 @@ impl AgentBuilder {
             None => None,
         };
 
-        let agent = self.create_agent(&provider)?;
+        let (agent, _provider) = self.create_agent(&provider).await?;
         agent.run_interactive(prompt_with_files.as_deref()).await?;
         agent.cleanup().await?;
         Ok(())
@@ -632,7 +663,10 @@ impl AgentBuilder {
         let provider = self.resolve_provider()?;
         debug!("resume: provider={}, session={}", provider, session_id);
 
-        let agent = self.create_agent(&provider)?;
+        // Resuming must stick with the recorded provider — no downgrade.
+        let mut builder = self;
+        builder.provider_explicit = true;
+        let (agent, _provider) = builder.create_agent(&provider).await?;
         agent.run_resume(Some(session_id), false).await?;
         agent.cleanup().await?;
         Ok(())
@@ -643,7 +677,10 @@ impl AgentBuilder {
         let provider = self.resolve_provider()?;
         debug!("continue_last: provider={}", provider);
 
-        let agent = self.create_agent(&provider)?;
+        // Resuming must stick with the recorded provider — no downgrade.
+        let mut builder = self;
+        builder.provider_explicit = true;
+        let (agent, _provider) = builder.create_agent(&provider).await?;
         agent.run_resume(None, true).await?;
         agent.cleanup().await?;
         Ok(())

@@ -103,6 +103,16 @@ zag review --uncommitted
 
 Size aliases let you write `zag -m large exec "..."` and get the right model regardless of which provider you're using. For Claude, `default` delegates model selection to the Claude CLI itself.
 
+### Provider downgrade
+
+When you don't pin a provider with `-p`, `zag` walks a tier list and falls back to the next provider if the configured one isn't usable — the binary is missing from `PATH`, or its startup probe fails (e.g. `gemini` without configured auth). Each downgrade is logged so you can see which provider actually ran:
+
+```
+! Downgrading provider: gemini → copilot ('gemini' CLI not found in PATH. ...)
+```
+
+The default tier order is `claude → codex → gemini → copilot → ollama`. Pin a provider with `-p <name>` to disable the fallback and get a hard error when the binary is missing.
+
 ## Commands
 
 ```

@@ -452,6 +452,36 @@ impl Agent for Gemini {
         CommonAgentState::run_interactive_command(&mut cmd, "Gemini").await
     }
 
+    /// Cheap startup probe that runs `gemini --version` with a short
+    /// timeout. This catches common "binary exists but can't launch"
+    /// failures (broken node install, missing dynamic deps, etc.) without
+    /// consuming any API quota. Auth failures only surface during real
+    /// invocations, so they are picked up later by the run() path.
+    async fn probe(&self) -> Result<()> {
+        use anyhow::Context;
+        use std::time::Duration;
+        let probe = async {
+            let out = Command::new("gemini")
+                .arg("--version")
+                .output()
+                .await
+                .context("failed to launch 'gemini --version'")?;
+            if !out.status.success() {
+                let stderr = String::from_utf8_lossy(&out.stderr);
+                anyhow::bail!(
+                    "'gemini --version' exited with {}: {}",
+                    out.status,
+                    stderr.trim()
+                );
+            }
+            Ok(())
+        };
+        match tokio::time::timeout(Duration::from_secs(5), probe).await {
+            Ok(res) => res,
+            Err(_) => anyhow::bail!("'gemini --version' timed out after 5s"),
+        }
+    }
+
     async fn cleanup(&self) -> Result<()> {
         log::debug!("Cleaning up Gemini agent resources");
         let base = self.common.get_base_path();
