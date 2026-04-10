@@ -91,7 +91,7 @@ A tool call with its input and result.
 
 ### Result
 
-Final session result. Emitted once at the end.
+Final session result.
 
 ```json
 {
@@ -102,6 +102,17 @@ Final session result. Emitted once at the end.
   "num_turns": 3
 }
 ```
+
+In single-shot `exec` (and `-o stream-json`), a `result` event is emitted once
+at the end of the session.
+
+In bidirectional streaming via `AgentBuilder::exec_streaming()` (Claude only),
+a `result` event is emitted at the **end of every agent turn** — not only at
+final session end. After each `result`, the session remains open and will
+accept another `send_user_message()` for the next turn. Consumers should use
+`result` as the authoritative turn-boundary signal; do **not** rely on
+replayed `user_message` events for this purpose, as they only appear when
+`--replay-user-messages` is set.
 
 ### Error
 
