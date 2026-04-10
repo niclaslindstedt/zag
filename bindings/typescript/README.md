@@ -49,6 +49,66 @@ for await (const event of new ZagBuilder().provider("claude").stream("analyze co
 }
 ```
 
+## Error handling
+
+`ZagBuilder` terminal methods throw a `ZagError` when the underlying `zag`
+subprocess fails. The error carries the process exit code and the captured
+stderr, which is usually the quickest way to see what the agent CLI complained
+about:
+
+```typescript
+import { ZagBuilder, ZagError } from "@nlindstedt/zag-agent";
+
+try {
+  const output = await new ZagBuilder()
+    .provider("claude")
+    .timeout("30s")
+    .exec("do something");
+  console.log(output.result);
+} catch (err) {
+  if (err instanceof ZagError) {
+    console.error("zag failed:");
+    console.error("  exit code:", err.exitCode); // number | null
+    console.error("  stderr:   ", err.stderr);
+    console.error("  message:  ", err.message);
+  } else {
+    throw err;
+  }
+}
+```
+
+A `ZagError` is thrown when the `zag` binary cannot be spawned, when it exits
+non-zero, when its JSON output cannot be parsed, or when a builder method
+requires a newer CLI version than the one installed.
+
+### Re-exporting `ZagError` from a barrel file
+
+If you wrap `@nlindstedt/zag-agent` in your own module, a plain re-export does
+**not** make `ZagError` usable as a value inside that same file — you can
+export it for downstream consumers, but `instanceof ZagError` checks *within*
+the barrel file will fail unless you also `import` it:
+
+```typescript
+// barrel.ts
+import { ZagError } from "@nlindstedt/zag-agent";             // needed for instanceof here
+export { ZagBuilder, ZagError } from "@nlindstedt/zag-agent"; // re-export for consumers
+
+export async function run(prompt: string) {
+  try {
+    return await new ZagBuilder().provider("claude").exec(prompt);
+  } catch (err) {
+    if (err instanceof ZagError) {
+      console.error(err.stderr);
+    }
+    throw err;
+  }
+}
+```
+
+This is a standard TypeScript/ESM re-export semantics quirk, not a zag-specific
+behavior, but it's easy to trip over when setting up error handling for the
+first time.
+
 ## Builder methods
 
 | Method | Description |
