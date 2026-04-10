@@ -49,6 +49,47 @@ for await (const event of new ZagBuilder().provider("claude").stream("analyze co
 }
 ```
 
+### Bidirectional streaming sessions
+
+`execStreaming()` returns a `StreamingSession` with piped stdin for sending
+user messages mid-flight (Claude only). Call `.close({ timeout })` when you
+are done to shut the session down gracefully — it closes stdin, waits for
+the child to exit, escalates to SIGTERM, and finally SIGKILL if the child
+refuses to stop:
+
+```typescript
+const session = await new ZagBuilder()
+  .provider("claude")
+  .execStreaming("initial prompt");
+
+session.sendUserMessage("follow-up question");
+
+for await (const event of session.events()) {
+  console.log(event.type);
+}
+
+// Graceful shutdown — replaces the closeInput/wait/terminate/kill dance.
+await session.close({ timeout: "5s" });
+```
+
+### Automatic orphan cleanup
+
+Long-running Node servers (Next.js, Express) can leak `zag`/agent
+subprocesses if the parent process dies unexpectedly. Opt in to
+`.autoCleanup()` on the builder to install process-wide shutdown handlers
+(`exit`, `SIGINT`, `SIGTERM`, `SIGHUP`, `uncaughtException`) that SIGTERM
+every tracked live session:
+
+```typescript
+const session = await new ZagBuilder()
+  .provider("claude")
+  .autoCleanup()
+  .execStreaming("hello");
+```
+
+Off by default so the SDK imposes no global side effects on consumers that
+don't need them.
+
 ## Builder methods
 
 | Method | Description |
@@ -75,6 +116,7 @@ for await (const event of new ZagBuilder().provider("claude").stream("analyze co
 | `.mcpConfig(config)` | MCP server config: JSON string or file path (Claude only) |
 | `.showUsage()` | Show token usage statistics (JSON output mode) |
 | `.size(size)` | Set Ollama model parameter size (e.g., `"2b"`, `"9b"`, `"35b"`) |
+| `.autoCleanup(enabled?)` | Install process-wide shutdown handlers that SIGTERM tracked `StreamingSession` children on parent exit (opt-in) |
 | `.verbose()` | Enable verbose output |
 | `.quiet()` | Suppress non-essential output |
 | `.debug()` | Enable debug logging |

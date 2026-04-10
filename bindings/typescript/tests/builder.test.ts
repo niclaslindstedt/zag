@@ -51,6 +51,16 @@ describe("ZagBuilder", () => {
     assert.deepStrictEqual(builder._envVars, ["FOO=bar", "BAZ=qux"]);
   });
 
+  it("should support autoCleanup()", () => {
+    const builder = new ZagBuilder().autoCleanup();
+    // @ts-expect-error -- accessing private for test
+    assert.equal(builder._autoCleanup, true);
+    // Explicit false disables it again and stays chainable.
+    const disabled = new ZagBuilder().autoCleanup(false);
+    // @ts-expect-error -- accessing private for test
+    assert.equal(disabled._autoCleanup, false);
+  });
+
   it("should support json options", () => {
     const builder = new ZagBuilder()
       .json()

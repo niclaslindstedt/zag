@@ -95,6 +95,7 @@ All setter methods return `this` for chaining.
 | `mcpConfig` | `mcpConfig(c: string): this` | `--mcp-config` | MCP server config: JSON string or file path. Claude only. Requires CLI >= 0.6.0. |
 | `showUsage` | `showUsage(s = true): this` | `--show-usage` | Show token usage statistics (JSON output mode). |
 | `size` | `size(s: string): this` | `--size` | Ollama parameter size (e.g., `"2b"`, `"9b"`, `"35b"`). Ollama only. |
+| `autoCleanup` | `autoCleanup(enabled = true): this` | *(binding-only)* | Opt in to process-wide orphan cleanup for `StreamingSession`s produced by this builder. On first use, installs idempotent `exit` / `SIGINT` / `SIGTERM` / `SIGHUP` / `uncaughtException` handlers that SIGTERM every tracked live child on parent exit. Off by default. |
 
 ### Terminal Methods
 
@@ -128,6 +129,7 @@ interface StreamingSession {
   readonly isRunning: boolean;
   terminate(): void;
   wait(): Promise<void>;
+  close(options?: { timeout?: number | string }): Promise<void>;
 }
 ```
 
@@ -140,6 +142,7 @@ interface StreamingSession {
 | `isRunning` | `readonly isRunning: boolean` | Whether the child process is still running. |
 | `terminate` | `terminate(): void` | Send `SIGTERM` to the child process. No-op if already exited. |
 | `wait` | `wait(): Promise<void>` | Wait for the process to exit. Resolves on exit code 0. Throws `ZagError` on non-zero exit. |
+| `close` | `close(options?: { timeout?: number \| string }): Promise<void>` | Graceful shutdown helper. Closes stdin, waits up to half the budget, escalates to `SIGTERM`, and finally `SIGKILL`. `timeout` is a number in ms or a humantime string (`"5s"`, `"500ms"`, `"1m"`, `"1h"`); defaults to 5000 ms. Resolves on exit regardless of exit code. Idempotent — concurrent calls share the same promise. |
 
 ---
 
@@ -674,6 +677,35 @@ session.sendUserMessage("now focus on error handling");
 // When done, close input and wait for exit
 session.closeInput();
 await session.wait();
+```
+
+### Graceful shutdown and orphan cleanup
+
+`StreamingSession.close({ timeout })` encapsulates the full shutdown dance
+so you don't have to: it closes stdin, waits for the child to exit on its
+own, escalates to SIGTERM, and finally SIGKILL. It never throws for
+non-zero exit codes — it is purely a cleanup helper. Use it inside
+request handlers (SSE, WebSocket) when the client disconnects:
+
+```typescript
+const session = await new ZagBuilder()
+  .provider("claude")
+  .execStreaming("initial prompt");
+
+request.on("close", async () => {
+  await session.close({ timeout: "5s" });
+});
+```
+
+For long-running Node servers where the parent process itself can die
+unexpectedly (uncaught exception, SIGINT, container shutdown), opt in to
+`.autoCleanup()` on the builder. The SDK will install process-wide
+shutdown handlers once and SIGTERM every tracked live session:
+
+```typescript
+const builder = new ZagBuilder().provider("claude").autoCleanup();
+const session = await builder.execStreaming("hello");
+// No orphan `zag`/agent processes left behind if the Node parent crashes.
 ```
 
 ### JSON Schema Validation

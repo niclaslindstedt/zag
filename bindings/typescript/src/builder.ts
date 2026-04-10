@@ -55,6 +55,7 @@ export class ZagBuilder {
   private _mcpConfig?: string;
   private _showUsage = false;
   private _size?: string;
+  private _autoCleanup = false;
 
   /** Override the zag binary path (default: `ZAG_BIN` env or `"zag"`). */
   bin(path: string): this {
@@ -213,6 +214,23 @@ export class ZagBuilder {
     return this;
   }
 
+  /**
+   * Opt in to automatic orphan-process cleanup for streaming sessions.
+   *
+   * When enabled, any `StreamingSession` produced by this builder is tracked
+   * in a module-level registry and process-wide shutdown handlers (`exit`,
+   * `SIGINT`, `SIGTERM`, `SIGHUP`, `uncaughtException`) are installed once.
+   * If the parent Node process dies unexpectedly, every tracked child is
+   * SIGTERM'd so orphan `zag`/agent subprocesses are not left behind.
+   *
+   * Off by default to avoid imposing global side effects on consumers that
+   * don't need them.
+   */
+  autoCleanup(enabled = true): this {
+    this._autoCleanup = enabled;
+    return this;
+  }
+
   /** Collect version requirements for features that were added after the initial release. */
   private versionRequirements(): VersionRequirement[] {
     return [
@@ -343,7 +361,9 @@ export class ZagBuilder {
     if (this._includePartialMessages) args.push("--include-partial-messages");
     if (this._outputFormat) args.push("-o", this._outputFormat);
     args.push(prompt);
-    return streamWithInput(this._bin, args);
+    return streamWithInput(this._bin, args, {
+      autoCleanup: this._autoCleanup,
+    });
   }
 
   /**
