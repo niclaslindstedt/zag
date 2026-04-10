@@ -184,7 +184,11 @@ export async function* streamZag(
 
   if (exitCode !== 0) {
     const stderr = Buffer.concat(stderrChunks).toString();
-    throw new ZagError(`zag exited with code ${exitCode}`, exitCode, stderr);
+    throw new ZagError(
+      `zag exited with code ${exitCode}${stderr ? `: ${stderr}` : ""}`,
+      exitCode,
+      stderr,
+    );
   }
 }
 
@@ -326,7 +330,11 @@ export function streamWithInput(
           if (code !== 0) {
             const stderr = Buffer.concat(stderrChunks).toString();
             reject(
-              new ZagError(`zag exited with code ${code}`, code, stderr),
+              new ZagError(
+                `zag exited with code ${code}${stderr ? `: ${stderr}` : ""}`,
+                code,
+                stderr,
+              ),
             );
           } else {
             resolve();
