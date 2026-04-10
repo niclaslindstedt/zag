@@ -22,6 +22,7 @@ from .types import (
     ResultEvent,
     SessionLogSupport,
     SizeMappings,
+    StreamingInputSupport,
     TextBlock,
     ToolExecutionEvent,
     ToolResult,
@@ -54,6 +55,7 @@ __all__ = [
     "Features",
     "FeatureSupport",
     "SessionLogSupport",
+    "StreamingInputSupport",
     "SizeMappings",
     "ResolvedModel",
 ]

@@ -301,7 +301,7 @@ public record Features
     FeatureSupport StreamJson { get; init; }
     FeatureSupport JsonSchema { get; init; }
     FeatureSupport InputFormat { get; init; }
-    FeatureSupport StreamingInput { get; init; }
+    StreamingInputSupport StreamingInput { get; init; }
     FeatureSupport Worktree { get; init; }
     FeatureSupport Sandbox { get; init; }
     FeatureSupport SystemPrompt { get; init; }
@@ -322,6 +322,14 @@ public record SessionLogSupport
     bool Supported { get; init; }
     bool Native { get; init; }
     string? Completeness { get; init; }
+}
+
+public record StreamingInputSupport
+{
+    bool Supported { get; init; }
+    bool Native { get; init; }
+    // "queue" | "interrupt" | "between-turns-only" | null
+    string? Semantics { get; init; }
 }
 ```
 

@@ -26,6 +26,21 @@ public record ProviderCapability(
             @JsonProperty("native") boolean native_,
             @JsonProperty("completeness") String completeness) {}
 
+    /**
+     * Streaming input support with mid-turn injection semantics.
+     *
+     * <p>{@code semantics} describes what happens when
+     * {@code send_user_message} is called while the agent is producing a
+     * response on the current turn. One of {@code "queue"},
+     * {@code "interrupt"}, or {@code "between-turns-only"}. {@code null} when
+     * {@code supported} is {@code false}.
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record StreamingInputSupport(
+            @JsonProperty("supported") boolean supported,
+            @JsonProperty("native") boolean native_,
+            @JsonProperty("semantics") String semantics) {}
+
     /** Size alias mappings (small/medium/large to actual model names). */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record SizeMappings(
@@ -45,7 +60,7 @@ public record ProviderCapability(
             @JsonProperty("stream_json") FeatureSupport streamJson,
             @JsonProperty("json_schema") FeatureSupport jsonSchema,
             @JsonProperty("input_format") FeatureSupport inputFormat,
-            @JsonProperty("streaming_input") FeatureSupport streamingInput,
+            @JsonProperty("streaming_input") StreamingInputSupport streamingInput,
             @JsonProperty("worktree") FeatureSupport worktree,
             @JsonProperty("sandbox") FeatureSupport sandbox,
             @JsonProperty("system_prompt") FeatureSupport systemPrompt,

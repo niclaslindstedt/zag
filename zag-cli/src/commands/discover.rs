@@ -114,7 +114,7 @@ fn print_provider_detail(cap: &ProviderCapability) {
     print_feature("  stream-json", &cap.features.stream_json);
     print_feature("  json-schema", &cap.features.json_schema);
     print_feature("  input-format", &cap.features.input_format);
-    print_feature("  streaming-input", &cap.features.streaming_input);
+    print_streaming_input("  streaming-input", &cap.features.streaming_input);
     print_feature("  worktree", &cap.features.worktree);
     print_feature("  sandbox", &cap.features.sandbox);
     print_feature("  system-prompt", &cap.features.system_prompt);
@@ -129,6 +129,19 @@ fn print_feature(label: &str, f: &capability::FeatureSupport) {
         if f.native { "native" } else { "wrapper" }
     } else {
         "no"
+    };
+    println!("{:<24} {}", label, status);
+}
+
+fn print_streaming_input(label: &str, f: &capability::StreamingInputSupport) {
+    let status = if f.supported {
+        let base = if f.native { "native" } else { "wrapper" };
+        match f.semantics.as_deref() {
+            Some(s) => format!("{} ({})", base, s),
+            None => base.to_string(),
+        }
+    } else {
+        "no".to_string()
     };
     println!("{:<24} {}", label, status);
 }

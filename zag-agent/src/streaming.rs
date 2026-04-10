@@ -19,6 +19,26 @@
 //! signal. Do **not** rely on replayed `user_message` events for this purpose;
 //! those only appear when `--replay-user-messages` is set.
 //!
+//! # Mid-turn input semantics
+//!
+//! `send_user_message` writes a user message to the agent's stdin. What the
+//! agent does when the message arrives *while it is still producing a response
+//! on the current turn* is provider-specific. Callers that need to reason about
+//! mid-turn behavior should branch on
+//! `ProviderCapability::features.streaming_input.semantics`, which is one of:
+//!
+//! - `"queue"` — the message is buffered and delivered at the next turn
+//!   boundary. The current turn runs to completion; the new message becomes
+//!   the next user turn. **Currently Claude.**
+//! - `"interrupt"` — the message cancels the current turn and starts a new one
+//!   with the new input.
+//! - `"between-turns-only"` — mid-turn sends are an error or no-op; callers
+//!   must wait for the current turn to finish before sending.
+//!
+//! Providers with `streaming_input.supported == false` (codex, gemini, copilot,
+//! ollama) do not expose a `StreamingSession` at all — `exec_streaming` is
+//! unavailable for them.
+//!
 //! # Examples
 //!
 //! ```no_run
@@ -108,6 +128,23 @@ impl StreamingSession {
     /// Send a user message to the agent.
     ///
     /// Formats the content as a `{"type":"user_message","content":"..."}` NDJSON line.
+    ///
+    /// # Mid-turn semantics
+    ///
+    /// The effect of calling this while the agent is still producing a
+    /// response on the current turn is provider-specific. Check
+    /// `ProviderCapability::features.streaming_input.semantics` at runtime
+    /// to branch on behavior. The possible values are:
+    ///
+    /// - `"queue"` — buffered and delivered at the next turn boundary; the
+    ///   current turn runs to completion. **This is Claude's behavior**, which
+    ///   is the only provider currently exposing a `StreamingSession`.
+    /// - `"interrupt"` — cancels the current turn and starts a new one with
+    ///   the new input.
+    /// - `"between-turns-only"` — mid-turn sends are an error or no-op; wait
+    ///   for the current turn to finish before sending.
+    ///
+    /// See the module-level documentation for the full matrix.
     pub async fn send_user_message(&mut self, content: &str) -> Result<()> {
         let msg = serde_json::json!({
             "type": "user_message",

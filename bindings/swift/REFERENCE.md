@@ -364,6 +364,13 @@ struct SessionLogSupport: Codable {
     let completeness: String?
 }
 
+struct StreamingInputSupport: Codable {
+    let supported: Bool
+    let native: Bool
+    // "queue" | "interrupt" | "between-turns-only" | nil
+    let semantics: String?
+}
+
 struct SizeMappings: Codable {
     let small: String
     let medium: String
@@ -380,7 +387,7 @@ struct Features: Codable {
     let streamJson: FeatureSupport
     let jsonSchema: FeatureSupport
     let inputFormat: FeatureSupport
-    let streamingInput: FeatureSupport
+    let streamingInput: StreamingInputSupport
     let worktree: FeatureSupport
     let sandbox: FeatureSupport
     let systemPrompt: FeatureSupport

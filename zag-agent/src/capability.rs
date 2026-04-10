@@ -18,6 +18,28 @@ pub struct SessionLogSupport {
     pub completeness: Option<String>,
 }
 
+/// Streaming input support with mid-turn injection semantics.
+///
+/// Describes what happens when `StreamingSession::send_user_message` is called
+/// while the agent is already producing a response on the current turn.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamingInputSupport {
+    pub supported: bool,
+    pub native: bool,
+    /// Mid-turn semantics when `send_user_message` is called while the agent
+    /// is already producing a response. One of:
+    /// - `"queue"` — message is buffered and delivered at the next turn boundary
+    ///   (the current turn runs to completion before the new message is processed).
+    /// - `"interrupt"` — message cancels the current turn and starts a new one
+    ///   with the new input.
+    /// - `"between-turns-only"` — calling mid-turn is an error or no-op; callers
+    ///   must wait for the current turn to finish before sending.
+    ///
+    /// Absent when `supported == false`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub semantics: Option<String>,
+}
+
 /// Size alias mappings for a provider.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SizeMappings {
@@ -38,7 +60,7 @@ pub struct Features {
     pub stream_json: FeatureSupport,
     pub json_schema: FeatureSupport,
     pub input_format: FeatureSupport,
-    pub streaming_input: FeatureSupport,
+    pub streaming_input: StreamingInputSupport,
     pub worktree: FeatureSupport,
     pub sandbox: FeatureSupport,
     pub system_prompt: FeatureSupport,
@@ -107,6 +129,45 @@ impl SessionLogSupport {
     }
 }
 
+impl StreamingInputSupport {
+    /// Mid-turn messages are queued and delivered at the next turn boundary.
+    /// The currently running turn is not interrupted.
+    pub fn queue() -> Self {
+        Self {
+            supported: true,
+            native: true,
+            semantics: Some("queue".to_string()),
+        }
+    }
+
+    /// Mid-turn messages cancel the current turn and start a new one.
+    pub fn interrupt() -> Self {
+        Self {
+            supported: true,
+            native: true,
+            semantics: Some("interrupt".to_string()),
+        }
+    }
+
+    /// Messages may only be sent between turns; mid-turn sends are an error.
+    pub fn between_turns_only() -> Self {
+        Self {
+            supported: true,
+            native: true,
+            semantics: Some("between-turns-only".to_string()),
+        }
+    }
+
+    /// The provider does not support streaming input at all.
+    pub fn unsupported() -> Self {
+        Self {
+            supported: false,
+            native: false,
+            semantics: None,
+        }
+    }
+}
+
 /// Get capability declarations for a provider.
 pub fn get_capability(provider: &str) -> Result<ProviderCapability> {
     use crate::agent::{Agent, ModelSize};
@@ -133,7 +194,7 @@ pub fn get_capability(provider: &str) -> Result<ProviderCapability> {
                     stream_json: FeatureSupport::native(),
                     json_schema: FeatureSupport::native(),
                     input_format: FeatureSupport::native(),
-                    streaming_input: FeatureSupport::native(),
+                    streaming_input: StreamingInputSupport::queue(),
                     worktree: FeatureSupport::wrapper(),
                     sandbox: FeatureSupport::wrapper(),
                     system_prompt: FeatureSupport::native(),
@@ -165,7 +226,7 @@ pub fn get_capability(provider: &str) -> Result<ProviderCapability> {
                     stream_json: FeatureSupport::unsupported(),
                     json_schema: FeatureSupport::wrapper(),
                     input_format: FeatureSupport::unsupported(),
-                    streaming_input: FeatureSupport::unsupported(),
+                    streaming_input: StreamingInputSupport::unsupported(),
                     worktree: FeatureSupport::wrapper(),
                     sandbox: FeatureSupport::wrapper(),
                     system_prompt: FeatureSupport::wrapper(),
@@ -197,7 +258,7 @@ pub fn get_capability(provider: &str) -> Result<ProviderCapability> {
                     stream_json: FeatureSupport::unsupported(),
                     json_schema: FeatureSupport::wrapper(),
                     input_format: FeatureSupport::unsupported(),
-                    streaming_input: FeatureSupport::unsupported(),
+                    streaming_input: StreamingInputSupport::unsupported(),
                     worktree: FeatureSupport::wrapper(),
                     sandbox: FeatureSupport::wrapper(),
                     system_prompt: FeatureSupport::wrapper(),
@@ -229,7 +290,7 @@ pub fn get_capability(provider: &str) -> Result<ProviderCapability> {
                     stream_json: FeatureSupport::unsupported(),
                     json_schema: FeatureSupport::unsupported(),
                     input_format: FeatureSupport::unsupported(),
-                    streaming_input: FeatureSupport::unsupported(),
+                    streaming_input: StreamingInputSupport::unsupported(),
                     worktree: FeatureSupport::wrapper(),
                     sandbox: FeatureSupport::wrapper(),
                     system_prompt: FeatureSupport::wrapper(),
@@ -261,7 +322,7 @@ pub fn get_capability(provider: &str) -> Result<ProviderCapability> {
                     stream_json: FeatureSupport::unsupported(),
                     json_schema: FeatureSupport::wrapper(),
                     input_format: FeatureSupport::unsupported(),
-                    streaming_input: FeatureSupport::unsupported(),
+                    streaming_input: StreamingInputSupport::unsupported(),
                     worktree: FeatureSupport::wrapper(),
                     sandbox: FeatureSupport::wrapper(),
                     system_prompt: FeatureSupport::wrapper(),

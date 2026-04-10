@@ -25,6 +25,28 @@ public record SessionLogSupport
     public string? Completeness { get; init; }
 }
 
+/// <summary>
+/// Streaming input support with mid-turn injection semantics.
+/// <para>
+/// <c>Semantics</c> describes what happens when
+/// <c>send_user_message</c> is called while the agent is producing a
+/// response on the current turn. One of <c>"queue"</c>,
+/// <c>"interrupt"</c>, or <c>"between-turns-only"</c>. <c>null</c> when
+/// <c>Supported</c> is <c>false</c>.
+/// </para>
+/// </summary>
+public record StreamingInputSupport
+{
+    [JsonPropertyName("supported")]
+    public bool Supported { get; init; }
+
+    [JsonPropertyName("native")]
+    public bool Native { get; init; }
+
+    [JsonPropertyName("semantics")]
+    public string? Semantics { get; init; }
+}
+
 /// <summary>Size alias mappings (small/medium/large to actual model names).</summary>
 public record SizeMappings
 {
@@ -69,7 +91,7 @@ public record Features
     public FeatureSupport InputFormat { get; init; } = new();
 
     [JsonPropertyName("streaming_input")]
-    public FeatureSupport StreamingInput { get; init; } = new();
+    public StreamingInputSupport StreamingInput { get; init; } = new();
 
     [JsonPropertyName("worktree")]
     public FeatureSupport Worktree { get; init; } = new();

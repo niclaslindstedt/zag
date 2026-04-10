@@ -33,7 +33,7 @@ class ZagDiscoverTests {
                     "stream_json": {"supported": true, "native": true},
                     "json_schema": {"supported": false, "native": false},
                     "input_format": {"supported": true, "native": true},
-                    "streaming_input": {"supported": true, "native": true},
+                    "streaming_input": {"supported": true, "native": true, "semantics": "queue"},
                     "worktree": {"supported": true, "native": false},
                     "sandbox": {"supported": true, "native": false},
                     "system_prompt": {"supported": true, "native": true},
@@ -62,7 +62,7 @@ class ZagDiscoverTests {
                         "stream_json": {"supported": true, "native": true},
                         "json_schema": {"supported": false, "native": false},
                         "input_format": {"supported": true, "native": true},
-                        "streaming_input": {"supported": true, "native": true},
+                        "streaming_input": {"supported": true, "native": true, "semantics": "queue"},
                         "worktree": {"supported": true, "native": false},
                         "sandbox": {"supported": true, "native": false},
                         "system_prompt": {"supported": true, "native": true},
@@ -149,6 +149,25 @@ class ZagDiscoverTests {
         assertTrue(features.review().supported());
         assertTrue(features.addDirs().supported());
         assertTrue(features.maxTurns().supported());
+    }
+
+    @Test
+    void streamingInput_deserializesWithSemantics() throws Exception {
+        var cap = MAPPER.readValue(CAPABILITY_JSON, ProviderCapability.class);
+        var si = cap.features().streamingInput();
+        assertNotNull(si);
+        assertTrue(si.supported());
+        assertTrue(si.native_());
+        assertEquals("queue", si.semantics());
+    }
+
+    @Test
+    void streamingInput_nullSemanticsWhenUnsupported() throws Exception {
+        var caps = MAPPER.readValue(CAPABILITIES_ARRAY_JSON, new TypeReference<List<ProviderCapability>>() {});
+        var codex = caps.get(1);
+        var si = codex.features().streamingInput();
+        assertFalse(si.supported());
+        assertNull(si.semantics());
     }
 
     @Test

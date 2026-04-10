@@ -115,6 +115,23 @@ export interface SessionLogSupport {
   completeness?: string;
 }
 
+/**
+ * Streaming input support with mid-turn injection semantics.
+ *
+ * `semantics` describes what happens when `send_user_message` is called
+ * while the agent is producing a response on the current turn:
+ * - `"queue"` — buffered and delivered at the next turn boundary
+ * - `"interrupt"` — cancels the current turn and starts a new one
+ * - `"between-turns-only"` — mid-turn sends are an error or no-op
+ *
+ * Absent when `supported` is false.
+ */
+export interface StreamingInputSupport {
+  supported: boolean;
+  native: boolean;
+  semantics?: "queue" | "interrupt" | "between-turns-only";
+}
+
 /** Size alias mappings (small/medium/large to actual model names). */
 export interface SizeMappings {
   small: string;
@@ -133,7 +150,7 @@ export interface Features {
   stream_json: FeatureSupport;
   json_schema: FeatureSupport;
   input_format: FeatureSupport;
-  streaming_input: FeatureSupport;
+  streaming_input: StreamingInputSupport;
   worktree: FeatureSupport;
   sandbox: FeatureSupport;
   system_prompt: FeatureSupport;
