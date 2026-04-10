@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-04-10
+
+### Added
+
+- Capability-aware errors in feature-gated builder methods (#120)
+- Add streaming_input mid-turn semantics (#118)
+- Add StreamingSession.close() and opt-in autoCleanup (#115)
+- Downgrade provider through tier list on failure (#105)
+
+### Fixed
+
+- Include stderr in streaming error messages (#116)
+- Surface per-turn result events in bidirectional streaming (#114)
+
+### Documentation
+
+- Document execStreaming defaults and per-provider flag support (#117)
+
 ## [0.10.0] - 2026-04-10
 
 - No notable changes

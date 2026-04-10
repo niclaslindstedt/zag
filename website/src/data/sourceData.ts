@@ -14,10 +14,6 @@
 export interface ProviderFeatureSupport {
   supported: boolean;
   native: boolean;
-  /** Only present on streaming_input: mid-turn injection semantics. */
-  semantics?: "queue" | "interrupt" | "between-turns-only";
-  /** Only present on session_logs: log completeness level. */
-  completeness?: string | null;
 }
 
 export interface ProviderData {
@@ -68,7 +64,7 @@ export interface ConfigSection {
 
 // --- Data ---
 
-export const version = "0.9.0";
+export const version = "0.10.0";
 
 export const providerCount = 5;
 
@@ -121,11 +117,6 @@ export const providers: ProviderData[] = [
         "supported": true,
         "native": true
       },
-      "streaming_input": {
-        "supported": true,
-        "native": true,
-        "semantics": "queue"
-      },
       "worktree": {
         "supported": true,
         "native": false
@@ -158,6 +149,11 @@ export const providers: ProviderData[] = [
         "supported": true,
         "native": true,
         "completeness": "full"
+      },
+      "streaming_input": {
+        "supported": true,
+        "native": true,
+        "semantics": "queue"
       },
       "mcp_config": {
         "supported": true,
@@ -223,10 +219,6 @@ export const providers: ProviderData[] = [
         "supported": false,
         "native": false
       },
-      "streaming_input": {
-        "supported": false,
-        "native": false
-      },
       "worktree": {
         "supported": true,
         "native": false
@@ -259,6 +251,10 @@ export const providers: ProviderData[] = [
         "supported": true,
         "native": true,
         "completeness": "partial"
+      },
+      "streaming_input": {
+        "supported": false,
+        "native": false
       },
       "mcp_config": {
         "supported": false,
@@ -320,10 +316,6 @@ export const providers: ProviderData[] = [
         "supported": false,
         "native": false
       },
-      "streaming_input": {
-        "supported": false,
-        "native": false
-      },
       "worktree": {
         "supported": true,
         "native": false
@@ -356,6 +348,10 @@ export const providers: ProviderData[] = [
         "supported": true,
         "native": true,
         "completeness": "full"
+      },
+      "streaming_input": {
+        "supported": false,
+        "native": false
       },
       "mcp_config": {
         "supported": false,
@@ -428,10 +424,6 @@ export const providers: ProviderData[] = [
         "supported": false,
         "native": false
       },
-      "streaming_input": {
-        "supported": false,
-        "native": false
-      },
       "worktree": {
         "supported": true,
         "native": false
@@ -464,6 +456,10 @@ export const providers: ProviderData[] = [
         "supported": true,
         "native": true,
         "completeness": "full"
+      },
+      "streaming_input": {
+        "supported": false,
+        "native": false
       },
       "mcp_config": {
         "supported": false,
@@ -523,10 +519,6 @@ export const providers: ProviderData[] = [
         "supported": false,
         "native": false
       },
-      "streaming_input": {
-        "supported": false,
-        "native": false
-      },
       "worktree": {
         "supported": true,
         "native": false
@@ -559,6 +551,10 @@ export const providers: ProviderData[] = [
         "supported": false,
         "native": true,
         "completeness": null
+      },
+      "streaming_input": {
+        "supported": false,
+        "native": false
       },
       "mcp_config": {
         "supported": false,
@@ -807,7 +803,7 @@ export const orchestrationCommands: CommandData[] = [
 export const builderMethods: BuilderMethod[] = [
   {
     "name": "provider",
-    "description": "Set the provider (e.g., \"claude\", \"codex\", \"gemini\", \"copilot\", \"ollama\")."
+    "description": "file) to allow automatic downgrading."
   },
   {
     "name": "model",
@@ -867,15 +863,15 @@ export const builderMethods: BuilderMethod[] = [
   },
   {
     "name": "input_format",
-    "description": "Set the input format (Claude only, e.g., \"text\", \"stream-json\")."
+    "description": "for the full per-provider support matrix."
   },
   {
     "name": "replay_user_messages",
-    "description": "/// Only works with `--input-format stream-json` and `--output-format stream-json`."
+    "description": "callers never need to set it manually. No-op for non-Claude providers."
   },
   {
     "name": "include_partial_messages",
-    "description": "/// Only works with `--output-format stream-json`."
+    "description": "[`exec_streaming`](Self::exec_streaming). No-op for non-Claude providers."
   },
   {
     "name": "verbose",
@@ -899,7 +895,7 @@ export const builderMethods: BuilderMethod[] = [
   },
   {
     "name": "mcp_config",
-    "description": "/// Accepts either a JSON string (`{\"mcpServers\": {...}}`) or a path to a JSON file."
+    "description": "`docs/providers.md` for the full per-provider support matrix."
   },
   {
     "name": "on_progress",
@@ -926,12 +922,12 @@ export const bindings: BindingData[] = [
   {
     "language": "Swift",
     "directory": "swift",
-    "installCommand": ".package(url: \"https://github.com/niclaslindstedt/zag\", from: \"0.9.0\")"
+    "installCommand": ".package(url: \"https://github.com/niclaslindstedt/zag\", from: \"0.10.0\")"
   },
   {
     "language": "Java",
     "directory": "java",
-    "installCommand": "io.zag:zag:0.9.0"
+    "installCommand": "io.zag:zag:0.10.0"
   },
   {
     "language": "Kotlin",
