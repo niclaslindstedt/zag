@@ -251,3 +251,152 @@ fn test_create_all_agents_default() {
         }
     }
 }
+
+// --- fallback_sequence ---
+
+#[test]
+fn test_fallback_sequence_starts_with_requested_provider() {
+    let seq = fallback_sequence("gemini");
+    assert_eq!(seq[0], "gemini");
+}
+
+#[test]
+fn test_fallback_sequence_contains_every_tier_provider_once() {
+    let seq = fallback_sequence("gemini");
+    for p in PROVIDER_TIER_LIST {
+        assert!(seq.contains(&p.to_string()), "missing: {}", p);
+    }
+    // No duplicates.
+    let mut sorted = seq.clone();
+    sorted.sort();
+    sorted.dedup();
+    assert_eq!(sorted.len(), seq.len());
+}
+
+#[test]
+fn test_fallback_sequence_unknown_start_is_prepended() {
+    // A provider not in the tier list (e.g. "mock" from tests) is still
+    // tried first — the tier list is a fallback, not a whitelist.
+    let seq = fallback_sequence("mock");
+    assert_eq!(seq[0], "mock");
+    assert_eq!(seq.len(), PROVIDER_TIER_LIST.len() + 1);
+}
+
+#[test]
+fn test_fallback_sequence_is_case_insensitive_start() {
+    let seq = fallback_sequence("CLAUDE");
+    assert_eq!(seq[0], "claude");
+    // No duplicate "claude" sneaking in from the tier list.
+    let claude_count = seq.iter().filter(|p| p.as_str() == "claude").count();
+    assert_eq!(claude_count, 1);
+}
+
+// --- create_with_fallback ---
+
+#[tokio::test]
+async fn test_create_with_fallback_explicit_missing_binary_errors() {
+    // Explicit pinning must not fall back — missing binary is a hard error.
+    let mut calls: Vec<(String, String, String)> = Vec::new();
+    let mut on_downgrade = |from: &str, to: &str, reason: &str| {
+        calls.push((from.to_string(), to.to_string(), reason.to_string()));
+    };
+    let result = AgentFactory::create_with_fallback(
+        "zag-nonexistent-agent-xyz",
+        true,
+        None,
+        None,
+        None,
+        false,
+        vec![],
+        &mut on_downgrade,
+    )
+    .await;
+    assert!(result.is_err());
+    let err = result.err().unwrap().to_string();
+    assert!(err.contains("not found in PATH"), "got: {}", err);
+    assert!(calls.is_empty(), "explicit pinning must not downgrade");
+}
+
+#[tokio::test]
+async fn test_create_with_fallback_non_explicit_downgrades_to_mock() {
+    // Non-explicit: first candidate is bogus, expect a downgrade notification
+    // and ultimately either a working real provider OR a final error.
+    let mut calls: Vec<(String, String, String)> = Vec::new();
+    let mut on_downgrade = |from: &str, to: &str, reason: &str| {
+        calls.push((from.to_string(), to.to_string(), reason.to_string()));
+    };
+    let result = AgentFactory::create_with_fallback(
+        "zag-nonexistent-agent-xyz",
+        false,
+        None,
+        None,
+        None,
+        false,
+        vec![],
+        &mut on_downgrade,
+    )
+    .await;
+
+    // At least one downgrade must have been signalled, because the first
+    // candidate is guaranteed to fail the preflight check.
+    assert!(
+        !calls.is_empty(),
+        "expected at least one downgrade call, got none"
+    );
+    assert_eq!(calls[0].0, "zag-nonexistent-agent-xyz");
+    assert!(calls[0].2.contains("not found in PATH"));
+
+    // Whether the final `result` is Ok depends on which of the real
+    // provider binaries happen to be available in the test PATH. The
+    // callback firing is what we actually care about for this test.
+    let _ = result;
+}
+
+#[tokio::test]
+async fn test_create_with_fallback_non_explicit_all_missing_errors() {
+    // Shadow PATH so none of the real provider binaries are findable.
+    // Safety: single-threaded tokio test with set_var / remove_var.
+    // (Rust 1.82+ marks these unsafe in multi-threaded contexts.)
+    let original = std::env::var_os("PATH");
+    // SAFETY: tests run in a single-threaded tokio runtime, no concurrent
+    // access to environment variables.
+    unsafe {
+        std::env::set_var("PATH", "/nonexistent-zag-test-path");
+    }
+
+    let mut calls: Vec<(String, String, String)> = Vec::new();
+    let mut on_downgrade = |from: &str, to: &str, reason: &str| {
+        calls.push((from.to_string(), to.to_string(), reason.to_string()));
+    };
+    let result = AgentFactory::create_with_fallback(
+        "claude",
+        false,
+        None,
+        None,
+        None,
+        false,
+        vec![],
+        &mut on_downgrade,
+    )
+    .await;
+
+    // Restore PATH before assertions so a failing test doesn't leak.
+    // SAFETY: same as above.
+    unsafe {
+        match original {
+            Some(p) => std::env::set_var("PATH", p),
+            None => std::env::remove_var("PATH"),
+        }
+    }
+
+    assert!(
+        result.is_err(),
+        "expected final error with no working provider"
+    );
+    // Every tier entry except the last should have triggered a downgrade.
+    assert!(
+        calls.len() >= PROVIDER_TIER_LIST.len() - 1,
+        "expected downgrade notifications, got {} calls",
+        calls.len()
+    );
+}

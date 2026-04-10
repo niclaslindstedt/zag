@@ -86,6 +86,25 @@ Use `zag capability -p <provider> --pretty` to see the current model list for an
 | Local / private | ollama | Runs entirely on your machine, no API keys needed |
 | Multi-provider comparison | Use `spawn` with different `-p` flags | Run the same task across providers and compare |
 
+## Provider downgrade
+
+When you run `zag` without `-p`, `zag` walks a tier list and falls back to the next provider if the configured or default one isn't usable. This covers two cases:
+
+1. **Missing binary** — The provider's CLI isn't in `PATH`. zag's pre-flight check (`preflight::check_binary`) catches this.
+2. **Startup probe failure** — The binary exists but can't actually start (e.g. Gemini with a broken install or missing credentials). Each provider can implement a cheap `probe()` check; Gemini runs `gemini --version` with a short timeout.
+
+Each downgrade is logged as a warning so you can see exactly which provider ended up running and why:
+
+```
+! Downgrading provider: gemini → copilot ('gemini' CLI not found in PATH. Install: npm install -g @anthropic-ai/gemini-cli)
+```
+
+The default tier order is `claude → codex → gemini → copilot → ollama` (defined in `PROVIDER_TIER_LIST` in `zag-agent/src/factory.rs`). The requested provider is always tried first; the rest of the tier list is tried in order afterwards, skipping duplicates.
+
+**Pinning a provider disables fallback.** If you pass `-p gemini` and the `gemini` binary is missing, zag exits with a hard error rather than silently downgrading — so `-p` means exactly what it says. Resuming a session (`zag run --continue`, `zag run --resume <id>`) also disables fallback, because the recorded provider must match.
+
+The configured default provider (from `zag config provider <name>` / `defaults.provider` in `zag.toml`) is treated as non-explicit and may be downgraded.
+
 ## Auto-selection
 
 When you use `-p auto`, `-m auto`, or both, zag uses an LLM to analyze your task and select the best provider and/or model.

@@ -165,6 +165,19 @@ pub trait Agent {
         anyhow::bail!("Resume with prompt is not supported by this agent")
     }
 
+    /// Lightweight startup probe used by the provider fallback mechanism.
+    ///
+    /// Override this in providers that can cheaply detect a broken startup
+    /// state (e.g. missing auth) without consuming paid API quota. A non-Ok
+    /// return value is treated as a reason to downgrade to the next provider
+    /// in the tier list when the user has not pinned a provider with `-p`.
+    ///
+    /// The default implementation is a no-op because pre-flight PATH lookup
+    /// (`preflight::check_binary`) already catches the missing-binary case.
+    async fn probe(&self) -> Result<()> {
+        Ok(())
+    }
+
     async fn cleanup(&self) -> Result<()>;
 }
 

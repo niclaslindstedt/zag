@@ -92,6 +92,48 @@ fn is_new_interactive_run(action: &Commands, json_mode: bool) -> bool {
         && !(json_mode && run_prompt(action).is_some())
 }
 
+/// Resolve the effective provider by walking the fallback tier list.
+///
+/// When the user has not pinned a provider with `-p`, this walks
+/// `AgentFactory::fallback_sequence(requested)` and picks the first
+/// provider whose binary is present in PATH and whose startup probe
+/// succeeds. Each downgrade is logged via `log::warn!` so the user can
+/// see which provider actually ended up running and why.
+///
+/// When `provider_explicit` is true, this is a no-op that just returns
+/// the requested provider — explicit pinning must not be downgraded.
+async fn resolve_effective_provider(
+    provider: &str,
+    provider_explicit: bool,
+    root: Option<&str>,
+) -> Result<String> {
+    if provider_explicit {
+        return Ok(provider.to_string());
+    }
+    // "auto" is already resolved by resolve_auto_selection; if we still
+    // see it here something is off — leave it alone so the normal error
+    // path catches it.
+    if provider == "auto" {
+        return Ok(provider.to_string());
+    }
+
+    let mut on_downgrade = |from: &str, to: &str, reason: &str| {
+        log::warn!("Downgrading provider: {} → {} ({})", from, to, reason);
+    };
+    let (_agent, effective) = AgentFactory::create_with_fallback(
+        provider,
+        false,
+        None,
+        None,
+        root.map(String::from),
+        false,
+        Vec::new(),
+        &mut on_downgrade,
+    )
+    .await?;
+    Ok(effective)
+}
+
 /// Handle auto provider/model selection, mutating params in place.
 async fn resolve_auto_selection(params: &mut AgentActionParams) -> Result<()> {
     let is_auto_provider = params.provider == "auto";
@@ -481,6 +523,25 @@ fn should_enable_live_session_logs(action: &Commands, json_mode: bool) -> bool {
 
 pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
     resolve_auto_selection(&mut params).await?;
+
+    // If the user did not pin a provider with `-p`, and we're not resuming
+    // an existing session, walk the fallback tier list and pick the first
+    // provider that actually works. This downgrades past missing binaries
+    // and startup probe failures, logging each downgrade so the user can
+    // see what happened.
+    if !is_resume_run(&params.action) {
+        let effective = resolve_effective_provider(
+            &params.provider,
+            params.provider_explicit,
+            params.root.as_deref(),
+        )
+        .await?;
+        if effective != params.provider {
+            params.provider = effective;
+            params.agent_name = crate::capitalize(&params.provider);
+        }
+    }
+
     log_config_details(&params);
 
     let session_metadata = std::mem::take(&mut params.session_metadata);
