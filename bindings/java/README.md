@@ -81,13 +81,26 @@ for (var event : new ZagBuilder().provider("claude").stream("analyze code")) {
 | `.debug()` | Enable debug logging |
 | `.bin(path)` | Override the `zag` binary path |
 
+### Provider support for streaming / MCP flags
+
+Four builder methods that toggle streaming I/O details and per-invocation MCP configuration are only honored by the Claude provider. Passing them to any other provider is a no-op.
+
+| Method | Claude | Codex | Gemini | Copilot | Ollama |
+|--------|--------|-------|--------|---------|--------|
+| `.inputFormat()` | Yes | No | No | No | No |
+| `.replayUserMessages()` | Yes | No | No | No | No |
+| `.includePartialMessages()` | Yes | No | No | No | No |
+| `.mcpConfig()` | Yes | No | No | No | No |
+
+`.execStreaming()` is Claude-only and always sets `-i stream-json`, `-o stream-json`, and `--replay-user-messages`. By default it emits **one `assistant_message` event per complete assistant turn** — you get one event when the model finishes speaking, not a stream of token chunks. Call `.includePartialMessages(true)` to receive token-level partial `assistant_message` chunks instead. The default stays `false` so existing callers that render whole-turn bubbles are not broken.
+
 ## Terminal methods
 
 | Method | Returns | Description |
 |--------|---------|-------------|
 | `.exec(prompt)` | `AgentOutput` | Run non-interactively, return structured output |
 | `.stream(prompt)` | `Iterable<Event>` | Stream NDJSON events |
-| `.execStreaming(prompt)` | `StreamingSession` | Bidirectional streaming (Claude only) |
+| `.execStreaming(prompt)` | `StreamingSession` | Bidirectional streaming (Claude only). Emits one `assistant_message` event per complete turn; pair with `.includePartialMessages(true)` for token-level chunks. |
 | `.run(prompt?)` | `void` | Start an interactive session (inherits stdio) |
 | `.resume(sessionId)` | `void` | Resume a previous session by ID |
 | `.continueLast()` | `void` | Resume the most recent session |

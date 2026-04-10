@@ -103,13 +103,32 @@ class ZagBuilder {
     /** Set the output format (e.g., "text", "json", "json-pretty", "stream-json"). */
     fun outputFormat(f: String) = apply { _outputFormat = f }
 
-    /** Set the input format (Claude only, e.g., "text", "stream-json"). */
+    /**
+     * Set the input format (Claude only, e.g., "text", "stream-json").
+     *
+     * No-op for Codex, Gemini, Copilot, and Ollama. See `docs/providers.md`
+     * for the full per-provider flag support matrix.
+     */
     fun inputFormat(f: String) = apply { _inputFormat = f }
 
-    /** Re-emit user messages from stdin on stdout (Claude only). */
+    /**
+     * Re-emit user messages from stdin on stdout (Claude only).
+     *
+     * Requires `-i stream-json` and `-o stream-json`. [execStreaming]
+     * auto-enables this flag, so most callers never need to set it
+     * manually. No-op for non-Claude providers.
+     */
     fun replayUserMessages(r: Boolean = true) = apply { _replayUserMessages = r }
 
-    /** Include partial message chunks in streaming output (Claude only). */
+    /**
+     * Include partial message chunks in streaming output (Claude only).
+     *
+     * Defaults to `false`. When `false`, streaming emits one
+     * `assistant_message` event per complete assistant turn. When `true`,
+     * the agent instead emits token-level partial `assistant_message`
+     * chunks as the model generates them — use this with [execStreaming]
+     * for responsive, token-by-token UIs. No-op for non-Claude providers.
+     */
     fun includePartialMessages(i: Boolean = true) = apply { _includePartialMessages = i }
 
     /** Set the maximum number of agentic turns. */
@@ -118,7 +137,12 @@ class ZagBuilder {
     /** Set a timeout duration (e.g., "30s", "5m", "1h"). Kills the agent if exceeded. */
     fun timeout(t: String) = apply { _timeout = t }
 
-    /** Set MCP server config for this invocation: JSON string or file path (Claude only). */
+    /**
+     * Set MCP server config for this invocation: JSON string or file path (Claude only).
+     *
+     * No-op for Codex, Gemini, Copilot, and Ollama — those providers manage
+     * MCP configuration through their own CLIs or do not support it.
+     */
     fun mcpConfig(c: String) = apply { _mcpConfig = c }
 
     /** Show token usage statistics (only applies to JSON output mode). */
@@ -203,7 +227,25 @@ class ZagBuilder {
         kotlinx.coroutines.flow.emitAll(ZagProcess.stream(_bin, args))
     }
 
-    /** Run the agent with streaming input and output (Claude only). */
+    /**
+     * Run the agent with streaming input and output (Claude only).
+     *
+     * Automatically sets `-i stream-json`, `-o stream-json`, and
+     * `--replay-user-messages`.
+     *
+     * ### Default emission granularity
+     *
+     * By default `assistant_message` events are emitted **once per complete
+     * assistant turn** — you get one event when the model finishes
+     * speaking, not a stream of token chunks. Call
+     * [includePartialMessages] with `true` on the builder before
+     * `execStreaming` to receive token-level partial `assistant_message`
+     * chunks instead. The default stays `false` so existing callers that
+     * render whole-turn bubbles are not broken.
+     *
+     * See `docs/providers.md` for the full per-provider flag support
+     * matrix.
+     */
     suspend fun execStreaming(prompt: String): StreamingSession {
         VersionCheck.check(_bin, versionRequirements())
         val args = mutableListOf("exec")

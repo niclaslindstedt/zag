@@ -150,14 +150,28 @@ public final class ZagBuilder {
     public func outputFormat(_ f: String) -> Self { _outputFormat = f; return self }
 
     /// Set the input format (`"text"`, `"stream-json"` — Claude only).
+    ///
+    /// No-op for Codex, Gemini, Copilot, and Ollama. See
+    /// `docs/providers.md` for the full per-provider flag support matrix.
     @discardableResult
     public func inputFormat(_ f: String) -> Self { _inputFormat = f; return self }
 
     /// Re-emit user messages from stdin on stdout (Claude only).
+    ///
+    /// Requires `-i stream-json` and `-o stream-json`. `execStreaming()`
+    /// auto-enables this flag, so most callers never need to set it
+    /// manually. No-op for non-Claude providers.
     @discardableResult
     public func replayUserMessages() -> Self { _replayUserMessages = true; return self }
 
     /// Include partial message chunks in streaming output (Claude only).
+    ///
+    /// Defaults to `false`. When `false`, streaming emits one
+    /// `assistant_message` event per complete assistant turn. When `true`,
+    /// the agent instead emits token-level partial `assistant_message`
+    /// chunks as the model generates them — use this with
+    /// `execStreaming()` for responsive, token-by-token UIs. No-op for
+    /// non-Claude providers.
     @discardableResult
     public func includePartialMessages() -> Self { _includePartialMessages = true; return self }
 
@@ -170,6 +184,10 @@ public final class ZagBuilder {
     public func timeout(_ t: String) -> Self { _timeout = t; return self }
 
     /// Set MCP server config for this invocation: JSON string or file path (Claude only).
+    ///
+    /// No-op for Codex, Gemini, Copilot, and Ollama — those providers
+    /// manage MCP configuration through their own CLIs or do not support
+    /// it.
     @discardableResult
     public func mcpConfig(_ c: String) -> Self { _mcpConfig = c; return self }
 
@@ -365,6 +383,21 @@ public final class ZagBuilder {
     /// In remote mode, this spawns a session and returns a `ZagRemoteSession`
     /// backed by WebSocket for bidirectional communication.
     /// In local mode, this returns a `StreamingSession` backed by subprocess pipes.
+    /// Automatically sets `-i stream-json`, `-o stream-json`, and
+    /// `--replay-user-messages`.
+    ///
+    /// ## Default emission granularity
+    ///
+    /// By default `assistant_message` events are emitted **once per
+    /// complete assistant turn** — you get one event when the model
+    /// finishes speaking, not a stream of token chunks. Call
+    /// `.includePartialMessages()` on the builder before `execStreaming`
+    /// to receive token-level partial `assistant_message` chunks instead.
+    /// The default stays `false` so existing callers that render
+    /// whole-turn bubbles are not broken.
+    ///
+    /// See `docs/providers.md` for the full per-provider flag support
+    /// matrix.
     ///
     /// - Note: On iOS, only remote mode is available.
     #if os(macOS) || os(Linux)

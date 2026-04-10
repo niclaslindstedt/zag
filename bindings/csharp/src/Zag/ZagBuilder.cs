@@ -101,13 +101,30 @@ public class ZagBuilder
     /// <summary>Set the output format (e.g., "text", "json", "json-pretty", "stream-json").</summary>
     public ZagBuilder OutputFormat(string f) { _outputFormat = f; return this; }
 
-    /// <summary>Set the input format (Claude only, e.g., "text", "stream-json").</summary>
+    /// <summary>
+    /// Set the input format (Claude only, e.g., "text", "stream-json").
+    /// No-op for Codex, Gemini, Copilot, and Ollama. See <c>docs/providers.md</c>
+    /// for the full per-provider flag support matrix.
+    /// </summary>
     public ZagBuilder InputFormat(string f) { _inputFormat = f; return this; }
 
-    /// <summary>Re-emit user messages from stdin on stdout (Claude only).</summary>
+    /// <summary>
+    /// Re-emit user messages from stdin on stdout (Claude only).
+    /// Requires <c>-i stream-json</c> and <c>-o stream-json</c>.
+    /// <see cref="ExecStreaming"/> auto-enables this flag, so most callers
+    /// never need to set it manually. No-op for non-Claude providers.
+    /// </summary>
     public ZagBuilder ReplayUserMessages(bool r = true) { _replayUserMessages = r; return this; }
 
-    /// <summary>Include partial message chunks in streaming output (Claude only).</summary>
+    /// <summary>
+    /// Include partial message chunks in streaming output (Claude only).
+    /// Defaults to <c>false</c>. When <c>false</c>, streaming emits one
+    /// <c>assistant_message</c> event per complete assistant turn. When
+    /// <c>true</c>, the agent instead emits token-level partial
+    /// <c>assistant_message</c> chunks as the model generates them — use
+    /// this with <see cref="ExecStreaming"/> for responsive, token-by-token
+    /// UIs. No-op for non-Claude providers.
+    /// </summary>
     public ZagBuilder IncludePartialMessages(bool i = true) { _includePartialMessages = i; return this; }
 
     /// <summary>Set the maximum number of agentic turns.</summary>
@@ -116,7 +133,11 @@ public class ZagBuilder
     /// <summary>Set a timeout duration (e.g., "30s", "5m", "1h"). Kills the agent if exceeded.</summary>
     public ZagBuilder Timeout(string t) { _timeout = t; return this; }
 
-    /// <summary>Set MCP server config for this invocation: JSON string or file path (Claude only).</summary>
+    /// <summary>
+    /// Set MCP server config for this invocation: JSON string or file path (Claude only).
+    /// No-op for Codex, Gemini, Copilot, and Ollama — those providers manage
+    /// MCP configuration through their own CLIs or do not support it.
+    /// </summary>
     public ZagBuilder McpConfig(string c) { _mcpConfig = c; return this; }
 
     /// <summary>Show token usage statistics (only applies to JSON output mode).</summary>
@@ -202,7 +223,24 @@ public class ZagBuilder
         }
     }
 
-    /// <summary>Run the agent with streaming input and output (Claude only).</summary>
+    /// <summary>
+    /// Run the agent with streaming input and output (Claude only).
+    /// Automatically sets <c>-i stream-json</c>, <c>-o stream-json</c>, and
+    /// <c>--replay-user-messages</c>.
+    ///
+    /// <para><b>Default emission granularity:</b> by default
+    /// <c>assistant_message</c> events are emitted once per complete
+    /// assistant turn — you get one event when the model finishes speaking,
+    /// not a stream of token chunks. Call
+    /// <see cref="IncludePartialMessages(bool)"/> with <c>true</c> on the
+    /// builder before <c>ExecStreaming</c> to receive token-level partial
+    /// <c>assistant_message</c> chunks instead. The default stays
+    /// <c>false</c> so existing callers that render whole-turn bubbles are
+    /// not broken.</para>
+    ///
+    /// <para>See <c>docs/providers.md</c> for the full per-provider flag
+    /// support matrix.</para>
+    /// </summary>
     public async Task<StreamingSession> ExecStreaming(string prompt)
     {
         await VersionCheck.CheckAsync(_bin, VersionRequirements());

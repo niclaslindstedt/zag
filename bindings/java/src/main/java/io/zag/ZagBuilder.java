@@ -122,19 +122,39 @@ public class ZagBuilder {
     /** Set the output format (e.g., "text", "json", "json-pretty", "stream-json"). */
     public ZagBuilder outputFormat(String f) { this.outputFormat = f; return this; }
 
-    /** Set the input format (Claude only, e.g., "text", "stream-json"). */
+    /**
+     * Set the input format (Claude only, e.g., "text", "stream-json").
+     *
+     * <p>No-op for Codex, Gemini, Copilot, and Ollama. See
+     * {@code docs/providers.md} for the full per-provider flag support matrix.
+     */
     public ZagBuilder inputFormat(String f) { this.inputFormat = f; return this; }
 
-    /** Re-emit user messages from stdin on stdout (Claude only). */
+    /**
+     * Re-emit user messages from stdin on stdout (Claude only).
+     *
+     * <p>Requires {@code -i stream-json} and {@code -o stream-json}.
+     * {@link #execStreaming(String)} auto-enables this flag, so most callers
+     * never need to set it manually. No-op for non-Claude providers.
+     */
     public ZagBuilder replayUserMessages() { this.replayUserMessages = true; return this; }
 
-    /** Enable or disable replay of user messages (Claude only). */
+    /** Enable or disable replay of user messages (Claude only). No-op for non-Claude providers. */
     public ZagBuilder replayUserMessages(boolean r) { this.replayUserMessages = r; return this; }
 
-    /** Include partial message chunks in streaming output (Claude only). */
+    /**
+     * Include partial message chunks in streaming output (Claude only).
+     *
+     * <p>Defaults to {@code false}. When {@code false}, streaming emits one
+     * {@code assistant_message} event per complete assistant turn. When
+     * {@code true}, the agent instead emits token-level partial
+     * {@code assistant_message} chunks as the model generates them — use
+     * this with {@link #execStreaming(String)} for responsive, token-by-token
+     * UIs. No-op for non-Claude providers.
+     */
     public ZagBuilder includePartialMessages() { this.includePartialMessages = true; return this; }
 
-    /** Enable or disable partial message chunks (Claude only). */
+    /** Enable or disable partial message chunks (Claude only). No-op for non-Claude providers. */
     public ZagBuilder includePartialMessages(boolean i) { this.includePartialMessages = i; return this; }
 
     /** Set the maximum number of agentic turns. */
@@ -143,7 +163,12 @@ public class ZagBuilder {
     /** Set a timeout duration (e.g., "30s", "5m", "1h"). Kills the agent if exceeded. */
     public ZagBuilder timeout(String t) { this.timeout = t; return this; }
 
-    /** Set MCP server config for this invocation: JSON string or file path (Claude only). */
+    /**
+     * Set MCP server config for this invocation: JSON string or file path (Claude only).
+     *
+     * <p>No-op for Codex, Gemini, Copilot, and Ollama — those providers manage
+     * MCP configuration through their own CLIs or do not support it.
+     */
     public ZagBuilder mcpConfig(String c) { this.mcpConfig = c; return this; }
 
     /** Show token usage statistics (only applies to JSON output mode). */
@@ -270,6 +295,20 @@ public class ZagBuilder {
      * and an iterator for reading events. Automatically enables
      * {@code --input-format stream-json}, {@code --replay-user-messages}, and
      * {@code -o stream-json}.
+     *
+     * <h4>Default emission granularity</h4>
+     *
+     * <p>By default {@code assistant_message} events are emitted <b>once per
+     * complete assistant turn</b> — you get one event when the model finishes
+     * speaking, not a stream of token chunks. Call
+     * {@link #includePartialMessages(boolean) includePartialMessages(true)}
+     * on the builder before {@code execStreaming} to receive token-level
+     * partial {@code assistant_message} chunks instead. The default stays
+     * {@code false} so existing callers that render whole-turn bubbles are
+     * not broken.
+     *
+     * <p>See {@code docs/providers.md} for the full per-provider flag
+     * support matrix.
      *
      * <pre>{@code
      * try (StreamingSession session = new ZagBuilder()

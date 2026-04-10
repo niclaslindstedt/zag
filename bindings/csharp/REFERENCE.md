@@ -76,7 +76,7 @@ Every method below returns `ZagBuilder`.
 |--------|-----------|-------------|
 | `ExecAsync` | `Task<AgentOutput> ExecAsync(string prompt, CancellationToken ct = default)` | Non-interactive execution; returns structured output |
 | `StreamAsync` | `IAsyncEnumerable<Event> StreamAsync(string prompt, CancellationToken ct = default)` | Stream NDJSON events as they arrive |
-| `ExecStreaming` | `Task<StreamingSession> ExecStreaming(string prompt)` | Bidirectional streaming with piped stdin/stdout (Claude only) |
+| `ExecStreaming` | `Task<StreamingSession> ExecStreaming(string prompt)` | Bidirectional streaming with piped stdin/stdout (Claude only). Emits one `assistant_message` event per complete turn by default; call `IncludePartialMessages(true)` on the builder for token-level chunks. |
 | `RunAsync` | `Task RunAsync(string? prompt = null, CancellationToken ct = default)` | Interactive session (inherits stdio) |
 | `ResumeAsync` | `Task ResumeAsync(string sessionId, CancellationToken ct = default)` | Resume a previous session by ID |
 | `ContinueLastAsync` | `Task ContinueLastAsync(CancellationToken ct = default)` | Resume the most recent session |

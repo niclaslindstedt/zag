@@ -113,7 +113,7 @@ Terminal methods consume the builder configuration and execute the agent. All ar
 |--------|-----------|-------------|
 | `exec` | `AgentOutput exec(String prompt) throws ZagException` | Run non-interactively. Returns structured output. Defaults to `-o json`. |
 | `stream` | `Iterable<Event> stream(String prompt) throws ZagException` | Stream NDJSON events. Returns an `Iterable<Event>` backed by a lazy iterator that reads lines from stdout. Adds `-o stream-json`. |
-| `execStreaming` | `StreamingSession execStreaming(String prompt) throws ZagException` | Bidirectional streaming. Claude only. Automatically sets `-i stream-json -o stream-json --replay-user-messages`. |
+| `execStreaming` | `StreamingSession execStreaming(String prompt) throws ZagException` | Bidirectional streaming. Claude only. Automatically sets `-i stream-json -o stream-json --replay-user-messages`. Emits one `assistant_message` event per complete assistant turn by default; call `includePartialMessages(true)` on the builder for token-level chunks. |
 | `run` | `void run(String prompt) throws ZagException` | Interactive session with inherited stdio. |
 | `run` | `void run() throws ZagException` | Interactive session without an initial prompt. |
 | `resume` | `void resume(String sessionId) throws ZagException` | Resume a previous session by ID. |

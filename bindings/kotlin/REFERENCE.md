@@ -72,7 +72,7 @@ All configuration methods use `= apply { }` pattern for chaining. Uses camelCase
 |--------|-----------|-------------|
 | `exec` | `suspend fun exec(prompt: String): AgentOutput` | Non-interactive execution, returns structured output |
 | `stream` | `fun stream(prompt: String): Flow<Event>` | Stream NDJSON events via cold Kotlin Flow |
-| `execStreaming` | `suspend fun execStreaming(prompt: String): StreamingSession` | Bidirectional streaming _(Claude only)_ |
+| `execStreaming` | `suspend fun execStreaming(prompt: String): StreamingSession` | Bidirectional streaming _(Claude only)_. Emits one `assistant_message` per complete turn by default; call `includePartialMessages(true)` on the builder for token-level chunks. |
 | `run` | `suspend fun run(prompt: String? = null)` | Interactive session (inherits stdio) |
 | `resume` | `suspend fun resume(sessionId: String)` | Resume previous session by ID |
 | `continueLast` | `suspend fun continueLast()` | Resume most recent session |

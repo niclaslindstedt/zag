@@ -166,19 +166,38 @@ export class ZagBuilder {
     return this;
   }
 
-  /** Set the input format (Claude only, e.g., "text", "stream-json"). */
+  /**
+   * Set the input format (Claude only, e.g., "text", "stream-json").
+   *
+   * No-op for Codex, Gemini, Copilot, and Ollama. See `docs/providers.md`
+   * for the full per-provider flag support matrix.
+   */
   inputFormat(f: string): this {
     this._inputFormat = f;
     return this;
   }
 
-  /** Re-emit user messages from stdin on stdout (Claude only). */
+  /**
+   * Re-emit user messages from stdin on stdout (Claude only).
+   *
+   * Requires `-i stream-json` and `-o stream-json`. `execStreaming()`
+   * auto-enables this, so most callers never need to set it manually.
+   * No-op for non-Claude providers.
+   */
   replayUserMessages(r = true): this {
     this._replayUserMessages = r;
     return this;
   }
 
-  /** Include partial message chunks in streaming output (Claude only). */
+  /**
+   * Include partial message chunks in streaming output (Claude only).
+   *
+   * Defaults to `false`. When `false`, streaming emits one `assistant_message`
+   * event per complete assistant turn. When `true`, the agent instead emits
+   * token-level partial `assistant_message` chunks as the model generates them
+   * — use this with `execStreaming()` for responsive, token-by-token UIs.
+   * No-op for non-Claude providers.
+   */
   includePartialMessages(i = true): this {
     this._includePartialMessages = i;
     return this;
@@ -196,7 +215,12 @@ export class ZagBuilder {
     return this;
   }
 
-  /** Set MCP server config for this invocation: JSON string or file path (Claude only). */
+  /**
+   * Set MCP server config for this invocation: JSON string or file path (Claude only).
+   *
+   * No-op for Codex, Gemini, Copilot, and Ollama — those providers manage
+   * MCP configuration through their own CLIs or do not support it.
+   */
   mcpConfig(c: string): this {
     this._mcpConfig = c;
     return this;
@@ -336,6 +360,18 @@ export class ZagBuilder {
    * and an async iterator for reading events. Automatically enables
    * `--input-format stream-json`, `--replay-user-messages`, and
    * `-o stream-json`.
+   *
+   * ### Default emission granularity
+   *
+   * By default `assistant_message` events are emitted **once per complete
+   * assistant turn** — you get one event when the model finishes speaking,
+   * not a stream of token chunks. For responsive, token-level UIs call
+   * `.includePartialMessages(true)` on the builder before `execStreaming`;
+   * the session will then emit partial `assistant_message` chunks as the
+   * model generates them. The default stays `false` so existing callers
+   * that render whole-turn bubbles are not broken.
+   *
+   * See `docs/providers.md` for the full per-provider flag support matrix.
    *
    * @example
    * ```ts

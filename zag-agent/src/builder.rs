@@ -237,6 +237,9 @@ impl AgentBuilder {
     }
 
     /// Set the input format (Claude only, e.g., "text", "stream-json").
+    ///
+    /// No-op for Codex, Gemini, Copilot, and Ollama. See `docs/providers.md`
+    /// for the full per-provider support matrix.
     pub fn input_format(mut self, format: &str) -> Self {
         self.input_format = Some(format.to_string());
         self
@@ -245,6 +248,8 @@ impl AgentBuilder {
     /// Re-emit user messages from stdin on stdout (Claude only).
     ///
     /// Only works with `--input-format stream-json` and `--output-format stream-json`.
+    /// [`exec_streaming`](Self::exec_streaming) auto-enables this flag, so most
+    /// callers never need to set it manually. No-op for non-Claude providers.
     pub fn replay_user_messages(mut self, replay: bool) -> Self {
         self.replay_user_messages = replay;
         self
@@ -252,7 +257,13 @@ impl AgentBuilder {
 
     /// Include partial message chunks in streaming output (Claude only).
     ///
-    /// Only works with `--output-format stream-json`.
+    /// Only works with `--output-format stream-json`. Defaults to `false`.
+    ///
+    /// When `false` (the default), streaming surfaces one `assistant_message`
+    /// event per complete assistant turn. When `true`, the agent instead emits
+    /// a stream of token-level partial `assistant_message` chunks as the model
+    /// generates them — use this for responsive, token-by-token UIs over
+    /// [`exec_streaming`](Self::exec_streaming). No-op for non-Claude providers.
     pub fn include_partial_messages(mut self, include: bool) -> Self {
         self.include_partial_messages = include;
         self
@@ -292,6 +303,9 @@ impl AgentBuilder {
     /// Set MCP server config for this invocation (Claude only).
     ///
     /// Accepts either a JSON string (`{"mcpServers": {...}}`) or a path to a JSON file.
+    /// No-op for Codex, Gemini, Copilot, and Ollama — those providers manage
+    /// MCP configuration through their own CLIs or do not support it. See
+    /// `docs/providers.md` for the full per-provider support matrix.
     pub fn mcp_config(mut self, config: &str) -> Self {
         self.mcp_config = Some(config.to_string());
         self
@@ -584,6 +598,19 @@ impl AgentBuilder {
     /// the agent's stdin and reading events from stdout. Automatically
     /// configures `--input-format stream-json`, `--output-format stream-json`,
     /// and `--replay-user-messages`.
+    ///
+    /// # Default emission granularity
+    ///
+    /// By default `assistant_message` events are emitted **once per complete
+    /// assistant turn** — you get one event when the model finishes speaking,
+    /// not a stream of token chunks. For responsive, token-level UIs call
+    /// [`include_partial_messages(true)`](Self::include_partial_messages)
+    /// on the builder before `exec_streaming`; the session will then emit
+    /// partial `assistant_message` chunks as the model generates them.
+    ///
+    /// The default is kept `false` so existing callers that render whole-turn
+    /// bubbles are not broken. See `docs/providers.md` for the full
+    /// per-provider flag support matrix.
     ///
     /// # Event lifecycle
     ///
