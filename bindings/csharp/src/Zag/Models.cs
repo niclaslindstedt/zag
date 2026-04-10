@@ -307,3 +307,35 @@ public class ZagException : Exception
         Stderr = stderr;
     }
 }
+
+/// <summary>
+/// Exception thrown when a builder option requires a provider feature that
+/// the configured provider does not support.
+///
+/// The builder validates feature-gated options (<c>ExecStreaming</c>,
+/// <c>Worktree</c>, <c>Sandbox</c>, <c>SystemPrompt</c>, <c>AddDir</c>,
+/// <c>MaxTurns</c>) against the capability declarations exposed by
+/// <c>zag discover</c> before spawning the CLI, so callers receive a
+/// clear, typed error instead of a cryptic runtime exit code.
+/// </summary>
+public class ZagFeatureUnsupportedException : ZagException
+{
+    public string Provider { get; }
+    public string Feature { get; }
+    public string Method { get; }
+    public IReadOnlyList<string> SupportedProviders { get; }
+
+    public ZagFeatureUnsupportedException(
+        string message,
+        string provider,
+        string feature,
+        string method,
+        IReadOnlyList<string> supportedProviders)
+        : base(message, null, "")
+    {
+        Provider = provider;
+        Feature = feature;
+        Method = method;
+        SupportedProviders = supportedProviders;
+    }
+}

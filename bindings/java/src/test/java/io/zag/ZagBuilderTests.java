@@ -250,6 +250,155 @@ class VersionCheckTests {
     }
 }
 
+class CapabilityCheckTests {
+
+    private static ProviderCapability fakeCapability(
+            String provider,
+            boolean streamingInput,
+            boolean addDirs) {
+        var yes = new ProviderCapability.FeatureSupport(true, true);
+        var streaming = new ProviderCapability.StreamingInputSupport(
+            streamingInput, streamingInput, streamingInput ? "queue" : null);
+        var addDirsFs = new ProviderCapability.FeatureSupport(addDirs, false);
+        var sessionLogs = new ProviderCapability.SessionLogSupport(true, true, "complete");
+        return new ProviderCapability(
+            provider,
+            "default",
+            List.of(),
+            new ProviderCapability.SizeMappings("s", "m", "l"),
+            new ProviderCapability.Features(
+                yes, yes, yes, yes,
+                sessionLogs,
+                yes, yes, yes, yes,
+                streaming,
+                yes, yes, yes, yes, yes,
+                addDirsFs,
+                yes));
+    }
+
+    @Test
+    void check_noActiveRequirements_passes() throws Exception {
+        CapabilityCheck.setCapabilitiesForTesting("zag", List.of(
+            fakeCapability("ollama", false, false)
+        ));
+        try {
+            CapabilityCheck.check("zag", "ollama", List.of(
+                new CapabilityCheck.Requirement(
+                    "execStreaming()", CapabilityCheck.FeatureKeys.STREAMING_INPUT, false)
+            ));
+        } finally {
+            CapabilityCheck.clearCapabilityCache();
+        }
+    }
+
+    @Test
+    void check_nullProvider_skips() throws Exception {
+        CapabilityCheck.setCapabilitiesForTesting("zag", List.of(
+            fakeCapability("ollama", false, false)
+        ));
+        try {
+            CapabilityCheck.check("zag", null, List.of(
+                new CapabilityCheck.Requirement(
+                    "execStreaming()", CapabilityCheck.FeatureKeys.STREAMING_INPUT, true)
+            ));
+        } finally {
+            CapabilityCheck.clearCapabilityCache();
+        }
+    }
+
+    @Test
+    void check_supportedFeature_passes() throws Exception {
+        CapabilityCheck.setCapabilitiesForTesting("zag", List.of(
+            fakeCapability("claude", true, true)
+        ));
+        try {
+            CapabilityCheck.check("zag", "claude", List.of(
+                new CapabilityCheck.Requirement(
+                    "execStreaming()", CapabilityCheck.FeatureKeys.STREAMING_INPUT, true)
+            ));
+        } finally {
+            CapabilityCheck.clearCapabilityCache();
+        }
+    }
+
+    @Test
+    void check_unsupportedFeature_throws() {
+        CapabilityCheck.setCapabilitiesForTesting("zag", List.of(
+            fakeCapability("claude", true, true),
+            fakeCapability("ollama", false, false)
+        ));
+        try {
+            var ex = assertThrows(ZagFeatureUnsupportedException.class, () ->
+                CapabilityCheck.check("zag", "ollama", List.of(
+                    new CapabilityCheck.Requirement(
+                        "execStreaming()", CapabilityCheck.FeatureKeys.STREAMING_INPUT, true)
+                )));
+            assertEquals("ollama", ex.provider());
+            assertEquals("streaming_input", ex.feature());
+            assertEquals("execStreaming()", ex.method());
+            assertEquals(List.of("claude"), ex.supportedProviders());
+            assertTrue(ex.getMessage().contains("ollama"));
+            assertTrue(ex.getMessage().contains("streaming_input"));
+            assertTrue(ex.getMessage().contains("execStreaming()"));
+            assertTrue(ex.getMessage().contains("Supported providers: claude"));
+        } finally {
+            CapabilityCheck.clearCapabilityCache();
+        }
+    }
+
+    @Test
+    void check_unknownProvider_skips() throws Exception {
+        CapabilityCheck.setCapabilitiesForTesting("zag", List.of(
+            fakeCapability("claude", true, true)
+        ));
+        try {
+            CapabilityCheck.check("zag", "imaginary", List.of(
+                new CapabilityCheck.Requirement(
+                    "execStreaming()", CapabilityCheck.FeatureKeys.STREAMING_INPUT, true)
+            ));
+        } finally {
+            CapabilityCheck.clearCapabilityCache();
+        }
+    }
+
+    @Test
+    void check_addDirsUnsupported_throws() {
+        CapabilityCheck.setCapabilitiesForTesting("zag", List.of(
+            fakeCapability("claude", true, true),
+            fakeCapability("ollama", false, false)
+        ));
+        try {
+            var ex = assertThrows(ZagFeatureUnsupportedException.class, () ->
+                CapabilityCheck.check("zag", "ollama", List.of(
+                    new CapabilityCheck.Requirement(
+                        "addDir()", CapabilityCheck.FeatureKeys.ADD_DIRS, true)
+                )));
+            assertEquals("add_dirs", ex.feature());
+            assertEquals(List.of("claude"), ex.supportedProviders());
+        } finally {
+            CapabilityCheck.clearCapabilityCache();
+        }
+    }
+
+    @Test
+    void check_noProvidersSupport_throwsWithEmptySupportList() {
+        CapabilityCheck.setCapabilitiesForTesting("zag", List.of(
+            fakeCapability("ollama", false, false)
+        ));
+        try {
+            var ex = assertThrows(ZagFeatureUnsupportedException.class, () ->
+                CapabilityCheck.check("zag", "ollama", List.of(
+                    new CapabilityCheck.Requirement(
+                        "execStreaming()", CapabilityCheck.FeatureKeys.STREAMING_INPUT, true)
+                )));
+            assertTrue(ex.supportedProviders().isEmpty());
+            assertTrue(ex.getMessage().contains("No providers currently support this feature"));
+        } finally {
+            CapabilityCheck.clearCapabilityCache();
+        }
+    }
+}
+
 class ZagExceptionTests {
 
     @Test

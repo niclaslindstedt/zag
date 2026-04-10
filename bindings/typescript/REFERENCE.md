@@ -447,6 +447,26 @@ class ZagError extends Error {
 }
 ```
 
+### ZagFeatureUnsupportedError
+
+Subclass of `ZagError` thrown when a builder option requires a provider feature that the configured provider does not support. The capability preflight raises this before spawning the CLI, so callers receive a typed, catchable error instead of a cryptic non-zero exit code.
+
+```typescript
+class ZagFeatureUnsupportedError extends ZagError {
+  /** The provider that does not support the feature. */
+  readonly provider: string;
+
+  /** The feature key (e.g. "streaming_input"). */
+  readonly feature: string;
+
+  /** The builder method that requires the feature (e.g. "execStreaming()"). */
+  readonly method: string;
+
+  /** Providers that do support the feature. */
+  readonly supportedProviders: string[];
+}
+```
+
 ### Discovery Types
 
 ```typescript
@@ -897,6 +917,30 @@ The detected version is cached per binary path for the lifetime of the process, 
 | `env()` | 0.6.0 |
 | `mcpConfig()` | 0.6.0 |
 | All others | 0.2.3 |
+
+### Capability Checking
+
+Immediately after the version check, every terminal method runs a capability preflight against the provider declared by `provider()` (or skipped if no provider is set). The preflight:
+
+1. Collects active feature requirements from the builder configuration (e.g. `worktree()`, `addDir()`, `execStreaming()` ➜ `streaming_input`).
+2. Loads the full provider capability matrix via `zag discover --json` (cached per binary path for the life of the process).
+3. Looks up the configured provider's `Features` block.
+4. For each active requirement, checks `features[<feature>].supported`. On the first unsupported feature, throws `ZagFeatureUnsupportedError` with a message of the form:
+
+   ```
+   Provider 'ollama' does not support streaming_input (required by execStreaming()). Supported providers: claude
+   ```
+
+If `zag discover` itself fails, the preflight silently returns and the subsequent CLI invocation surfaces the real error. If the configured provider isn't recognized, the check is skipped (the CLI handles unknown providers).
+
+| Builder method | Feature key gated |
+|----------------|-------------------|
+| `worktree()` | `worktree` |
+| `sandbox()` | `sandbox` |
+| `systemPrompt()` | `system_prompt` |
+| `addDir()` | `add_dirs` |
+| `maxTurns()` | `max_turns` |
+| `execStreaming()` | `streaming_input` |
 
 ---
 

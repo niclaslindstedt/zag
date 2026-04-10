@@ -445,3 +445,159 @@ public class ModelsTests
         Assert.Equal("opus", ((InitEvent)evt).Model);
     }
 }
+
+public class CapabilityCheckTests : IDisposable
+{
+    public CapabilityCheckTests()
+    {
+        CapabilityCheck.ClearCapabilityCache();
+    }
+
+    public void Dispose()
+    {
+        CapabilityCheck.ClearCapabilityCache();
+    }
+
+    private static ProviderCapability FakeCapability(
+        string provider,
+        bool streamingInput = true,
+        bool worktree = true,
+        bool sandbox = true,
+        bool systemPrompt = true,
+        bool addDirs = true,
+        bool maxTurns = true)
+    {
+        static FeatureSupport Fs(bool ok) => new() { Supported = ok, Native = ok };
+        return new ProviderCapability
+        {
+            Provider = provider,
+            DefaultModel = "default",
+            AvailableModels = ["default"],
+            SizeMappings = new SizeMappings { Small = "s", Medium = "m", Large = "l" },
+            Features = new Features
+            {
+                Interactive = Fs(true),
+                NonInteractive = Fs(true),
+                Resume = Fs(true),
+                ResumeWithPrompt = Fs(true),
+                SessionLogs = new SessionLogSupport
+                {
+                    Supported = true,
+                    Native = true,
+                    Completeness = "full",
+                },
+                JsonOutput = Fs(true),
+                StreamJson = Fs(true),
+                JsonSchema = Fs(true),
+                InputFormat = Fs(true),
+                StreamingInput = new StreamingInputSupport
+                {
+                    Supported = streamingInput,
+                    Native = streamingInput,
+                    Semantics = streamingInput ? "queue" : null,
+                },
+                Worktree = Fs(worktree),
+                Sandbox = Fs(sandbox),
+                SystemPrompt = Fs(systemPrompt),
+                AutoApprove = Fs(true),
+                Review = Fs(true),
+                AddDirs = Fs(addDirs),
+                MaxTurns = Fs(maxTurns),
+            },
+        };
+    }
+
+    [Fact]
+    public async Task Check_Skips_WhenNoRequirementsActive()
+    {
+        CapabilityCheck.SetCapabilitiesForTesting("zag", [FakeCapability("claude")]);
+        await CapabilityCheck.CheckAsync("zag", "claude", []);
+        await CapabilityCheck.CheckAsync(
+            "zag",
+            "claude",
+            [new CapabilityCheck.Requirement("Worktree()", CapabilityCheck.FeatureKeys.Worktree, false)]);
+    }
+
+    [Fact]
+    public async Task Check_Skips_WhenProviderNull()
+    {
+        CapabilityCheck.SetCapabilitiesForTesting(
+            "zag",
+            [FakeCapability("ollama", streamingInput: false)]);
+        await CapabilityCheck.CheckAsync(
+            "zag",
+            null,
+            [new CapabilityCheck.Requirement(
+                "ExecStreaming()",
+                CapabilityCheck.FeatureKeys.StreamingInput,
+                true)]);
+    }
+
+    [Fact]
+    public async Task Check_Passes_WhenFeatureSupported()
+    {
+        CapabilityCheck.SetCapabilitiesForTesting(
+            "zag",
+            [FakeCapability("claude", streamingInput: true)]);
+        await CapabilityCheck.CheckAsync(
+            "zag",
+            "claude",
+            [new CapabilityCheck.Requirement(
+                "ExecStreaming()",
+                CapabilityCheck.FeatureKeys.StreamingInput,
+                true)]);
+    }
+
+    [Fact]
+    public async Task Check_Throws_WhenFeatureUnsupported()
+    {
+        CapabilityCheck.SetCapabilitiesForTesting(
+            "zag",
+            [
+                FakeCapability("claude", streamingInput: true),
+                FakeCapability("ollama", streamingInput: false),
+            ]);
+        var ex = await Assert.ThrowsAsync<ZagFeatureUnsupportedException>(() =>
+            CapabilityCheck.CheckAsync(
+                "zag",
+                "ollama",
+                [new CapabilityCheck.Requirement(
+                    "ExecStreaming()",
+                    CapabilityCheck.FeatureKeys.StreamingInput,
+                    true)]));
+        Assert.Equal("ollama", ex.Provider);
+        Assert.Equal("streaming_input", ex.Feature);
+        Assert.Equal("ExecStreaming()", ex.Method);
+        Assert.Equal(new[] { "claude" }, ex.SupportedProviders);
+        Assert.Contains("ollama", ex.Message);
+        Assert.Contains("streaming_input", ex.Message);
+        Assert.Contains("claude", ex.Message);
+    }
+
+    [Fact]
+    public async Task Check_Silent_ForUnknownProvider()
+    {
+        CapabilityCheck.SetCapabilitiesForTesting("zag", [FakeCapability("claude")]);
+        await CapabilityCheck.CheckAsync(
+            "zag",
+            "does-not-exist",
+            [new CapabilityCheck.Requirement("Worktree()", CapabilityCheck.FeatureKeys.Worktree, true)]);
+    }
+
+    [Fact]
+    public void ZagFeatureUnsupportedException_IsZagException()
+    {
+        var ex = new ZagFeatureUnsupportedException(
+            "Provider 'ollama' does not support streaming_input",
+            "ollama",
+            "streaming_input",
+            "ExecStreaming()",
+            ["claude"]);
+        Assert.IsAssignableFrom<ZagException>(ex);
+        Assert.IsAssignableFrom<Exception>(ex);
+        Assert.Equal("ollama", ex.Provider);
+        Assert.Equal("streaming_input", ex.Feature);
+        Assert.Equal("ExecStreaming()", ex.Method);
+        Assert.Equal(new[] { "claude" }, ex.SupportedProviders);
+    }
+}

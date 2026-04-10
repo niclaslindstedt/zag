@@ -1,8 +1,12 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { ZagBuilder } from "../src/builder.js";
-import { ZagError } from "../src/types.js";
-import type { AgentOutput, Event } from "../src/types.js";
+import { ZagError, ZagFeatureUnsupportedError } from "../src/types.js";
+import type {
+  AgentOutput,
+  Event,
+  ProviderCapability,
+} from "../src/types.js";
 import {
   parseSemver,
   compareSemver,
@@ -10,6 +14,11 @@ import {
   _setVersionForTesting,
   _clearVersionCache,
 } from "../src/version.js";
+import {
+  checkCapabilities,
+  _setCapabilitiesForTesting,
+  _clearCapabilityCache,
+} from "../src/capability-check.js";
 
 describe("ZagBuilder", () => {
   it("should construct with defaults", () => {
@@ -226,6 +235,187 @@ describe("Version checking", () => {
     } finally {
       _clearVersionCache();
     }
+  });
+});
+
+function fakeCapability(
+  provider: string,
+  overrides: Partial<{
+    streaming_input: boolean;
+    worktree: boolean;
+    sandbox: boolean;
+    system_prompt: boolean;
+    add_dirs: boolean;
+    max_turns: boolean;
+  }> = {},
+): ProviderCapability {
+  const support = (ok: boolean) => ({ supported: ok, native: ok });
+  return {
+    provider,
+    default_model: "default",
+    available_models: ["default"],
+    size_mappings: { small: "s", medium: "m", large: "l" },
+    features: {
+      interactive: support(true),
+      non_interactive: support(true),
+      resume: support(true),
+      resume_with_prompt: support(true),
+      session_logs: { supported: true, native: true, completeness: "full" },
+      json_output: support(true),
+      stream_json: support(true),
+      json_schema: support(true),
+      input_format: support(true),
+      streaming_input: {
+        supported: overrides.streaming_input ?? true,
+        native: overrides.streaming_input ?? true,
+        semantics:
+          (overrides.streaming_input ?? true) ? "queue" : undefined,
+      },
+      worktree: support(overrides.worktree ?? true),
+      sandbox: support(overrides.sandbox ?? true),
+      system_prompt: support(overrides.system_prompt ?? true),
+      auto_approve: support(true),
+      review: support(true),
+      add_dirs: support(overrides.add_dirs ?? true),
+      max_turns: support(overrides.max_turns ?? true),
+    },
+  };
+}
+
+describe("Capability checking", () => {
+  it("should skip checks when no requirements are active", async () => {
+    _setCapabilitiesForTesting("zag", [fakeCapability("claude")]);
+    try {
+      await checkCapabilities("zag", "claude", []);
+      await checkCapabilities("zag", "claude", [
+        {
+          method: "worktree()",
+          feature: "worktree",
+          isSet: false,
+        },
+      ]);
+    } finally {
+      _clearCapabilityCache();
+    }
+  });
+
+  it("should skip checks when no provider is set", async () => {
+    _setCapabilitiesForTesting("zag", [
+      fakeCapability("ollama", { streaming_input: false }),
+    ]);
+    try {
+      await checkCapabilities("zag", undefined, [
+        {
+          method: "execStreaming()",
+          feature: "streaming_input",
+          isSet: true,
+        },
+      ]);
+    } finally {
+      _clearCapabilityCache();
+    }
+  });
+
+  it("should pass when the provider supports the feature", async () => {
+    _setCapabilitiesForTesting("zag", [
+      fakeCapability("claude", { streaming_input: true }),
+    ]);
+    try {
+      await checkCapabilities("zag", "claude", [
+        {
+          method: "execStreaming()",
+          feature: "streaming_input",
+          isSet: true,
+        },
+      ]);
+    } finally {
+      _clearCapabilityCache();
+    }
+  });
+
+  it("should throw ZagFeatureUnsupportedError for unsupported features", async () => {
+    _setCapabilitiesForTesting("zag", [
+      fakeCapability("claude", { streaming_input: true }),
+      fakeCapability("ollama", { streaming_input: false }),
+    ]);
+    try {
+      await assert.rejects(
+        () =>
+          checkCapabilities("zag", "ollama", [
+            {
+              method: "execStreaming()",
+              feature: "streaming_input",
+              isSet: true,
+            },
+          ]),
+        (err: unknown) => {
+          if (!(err instanceof ZagFeatureUnsupportedError)) return false;
+          assert.equal(err.provider, "ollama");
+          assert.equal(err.feature, "streaming_input");
+          assert.equal(err.method, "execStreaming()");
+          assert.deepStrictEqual(err.supportedProviders, ["claude"]);
+          assert.ok(err.message.includes("ollama"));
+          assert.ok(err.message.includes("streaming_input"));
+          assert.ok(err.message.includes("claude"));
+          return true;
+        },
+      );
+    } finally {
+      _clearCapabilityCache();
+    }
+  });
+
+  it("should surface add_dirs / max_turns gaps for ollama", async () => {
+    _setCapabilitiesForTesting("zag", [
+      fakeCapability("claude"),
+      fakeCapability("ollama", { add_dirs: false, max_turns: false }),
+    ]);
+    try {
+      await assert.rejects(
+        () =>
+          checkCapabilities("zag", "ollama", [
+            { method: "addDir()", feature: "add_dirs", isSet: true },
+          ]),
+        ZagFeatureUnsupportedError,
+      );
+      await assert.rejects(
+        () =>
+          checkCapabilities("zag", "ollama", [
+            { method: "maxTurns()", feature: "max_turns", isSet: true },
+          ]),
+        ZagFeatureUnsupportedError,
+      );
+    } finally {
+      _clearCapabilityCache();
+    }
+  });
+
+  it("should be silent for unknown providers", async () => {
+    _setCapabilitiesForTesting("zag", [fakeCapability("claude")]);
+    try {
+      await checkCapabilities("zag", "does-not-exist", [
+        { method: "worktree()", feature: "worktree", isSet: true },
+      ]);
+    } finally {
+      _clearCapabilityCache();
+    }
+  });
+
+  it("ZagFeatureUnsupportedError is a ZagError", () => {
+    const err = new ZagFeatureUnsupportedError(
+      "Provider 'ollama' does not support streaming_input",
+      "ollama",
+      "streaming_input",
+      "execStreaming()",
+      ["claude"],
+    );
+    assert.ok(err instanceof ZagError);
+    assert.ok(err instanceof Error);
+    assert.equal(err.name, "ZagFeatureUnsupportedError");
+    assert.equal(err.provider, "ollama");
+    assert.equal(err.feature, "streaming_input");
+    assert.equal(err.method, "execStreaming()");
+    assert.deepStrictEqual(err.supportedProviders, ["claude"]);
   });
 });
 

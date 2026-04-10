@@ -236,6 +236,18 @@ class ZagError(Exception):
     stderr: str
 ```
 
+### ZagFeatureUnsupportedError
+
+Subclass of `ZagError` raised when a builder option requires a provider feature that the configured provider does not support. The capability preflight raises this before spawning the CLI, so callers receive a typed, catchable error instead of a cryptic non-zero exit code.
+
+```python
+class ZagFeatureUnsupportedError(ZagError):
+    provider: str               # the provider that does not support the feature
+    feature: str                # feature key (e.g. "streaming_input")
+    method: str                 # builder method that requires it (e.g. "exec_streaming()")
+    supported_providers: list[str]  # providers that do support the feature
+```
+
 ### Discovery Types
 
 ```python
@@ -390,16 +402,26 @@ print(parsed["summary"])
 ### Error handling
 
 ```python
-from zag import ZagBuilder, ZagError
+from zag import ZagBuilder, ZagError, ZagFeatureUnsupportedError
 
 try:
     output = await ZagBuilder() \
         .provider("claude") \
         .exec("do something")
+except ZagFeatureUnsupportedError as e:
+    print(f"{e.method} not supported on {e.provider}; try: {e.supported_providers}")
 except ZagError as e:
     print(f"Exit code: {e.exit_code}")
     print(f"Stderr: {e.stderr}")
 ```
+
+Capability-gated builder methods (`worktree()`, `sandbox()`, `system_prompt()`, `add_dir()`, `max_turns()`, `exec_streaming()`) trigger a preflight against the provider's capability matrix from `zag discover --json`. If the configured provider doesn't support a feature, `ZagFeatureUnsupportedError` is raised before the subprocess is spawned, with the message:
+
+```
+Provider 'ollama' does not support streaming_input (required by exec_streaming()). Supported providers: claude
+```
+
+The capability matrix is cached per binary path for the life of the process.
 
 ### Discovery
 

@@ -428,3 +428,193 @@ class TestEventParsing:
         assert len(events) == 2
         assert isinstance(events[0], InitEvent)
         assert isinstance(events[1], ErrorEvent)
+
+
+# ---------------------------------------------------------------------------
+# Capability checking
+# ---------------------------------------------------------------------------
+
+
+import pytest
+
+from zag import ZagFeatureUnsupportedError
+from zag.capability_check import (
+    FeatureRequirement,
+    _clear_capability_cache,
+    _set_capabilities_for_testing,
+    check_capabilities,
+)
+from zag.types import (
+    FeatureSupport,
+    Features,
+    ProviderCapability,
+    SessionLogSupport,
+    SizeMappings,
+    StreamingInputSupport,
+)
+
+
+def _fake_capability(
+    provider: str,
+    *,
+    streaming_input: bool = True,
+    worktree: bool = True,
+    sandbox: bool = True,
+    system_prompt: bool = True,
+    add_dirs: bool = True,
+    max_turns: bool = True,
+) -> ProviderCapability:
+    fs = lambda ok: FeatureSupport(supported=ok, native=ok)
+    return ProviderCapability(
+        provider=provider,
+        default_model="default",
+        available_models=["default"],
+        size_mappings=SizeMappings(small="s", medium="m", large="l"),
+        features=Features(
+            interactive=fs(True),
+            non_interactive=fs(True),
+            resume=fs(True),
+            resume_with_prompt=fs(True),
+            session_logs=SessionLogSupport(
+                supported=True, native=True, completeness="full"
+            ),
+            json_output=fs(True),
+            stream_json=fs(True),
+            json_schema=fs(True),
+            input_format=fs(True),
+            streaming_input=StreamingInputSupport(
+                supported=streaming_input,
+                native=streaming_input,
+                semantics="queue" if streaming_input else None,
+            ),
+            worktree=fs(worktree),
+            sandbox=fs(sandbox),
+            system_prompt=fs(system_prompt),
+            auto_approve=fs(True),
+            review=fs(True),
+            add_dirs=fs(add_dirs),
+            max_turns=fs(max_turns),
+        ),
+    )
+
+
+class TestCapabilityChecking:
+    def setup_method(self) -> None:
+        _clear_capability_cache()
+
+    def teardown_method(self) -> None:
+        _clear_capability_cache()
+
+    @pytest.mark.asyncio
+    async def test_skips_when_no_requirements_active(self) -> None:
+        _set_capabilities_for_testing("zag", [_fake_capability("claude")])
+        await check_capabilities("zag", "claude", [])
+        await check_capabilities(
+            "zag",
+            "claude",
+            [FeatureRequirement("worktree()", "worktree", is_set=False)],
+        )
+
+    @pytest.mark.asyncio
+    async def test_skips_when_provider_is_none(self) -> None:
+        _set_capabilities_for_testing(
+            "zag", [_fake_capability("ollama", streaming_input=False)]
+        )
+        await check_capabilities(
+            "zag",
+            None,
+            [
+                FeatureRequirement(
+                    "exec_streaming()", "streaming_input", is_set=True
+                )
+            ],
+        )
+
+    @pytest.mark.asyncio
+    async def test_passes_when_feature_supported(self) -> None:
+        _set_capabilities_for_testing(
+            "zag", [_fake_capability("claude", streaming_input=True)]
+        )
+        await check_capabilities(
+            "zag",
+            "claude",
+            [
+                FeatureRequirement(
+                    "exec_streaming()", "streaming_input", is_set=True
+                )
+            ],
+        )
+
+    @pytest.mark.asyncio
+    async def test_raises_on_unsupported(self) -> None:
+        _set_capabilities_for_testing(
+            "zag",
+            [
+                _fake_capability("claude", streaming_input=True),
+                _fake_capability("ollama", streaming_input=False),
+            ],
+        )
+        with pytest.raises(ZagFeatureUnsupportedError) as excinfo:
+            await check_capabilities(
+                "zag",
+                "ollama",
+                [
+                    FeatureRequirement(
+                        "exec_streaming()", "streaming_input", is_set=True
+                    )
+                ],
+            )
+        err = excinfo.value
+        assert err.provider == "ollama"
+        assert err.feature == "streaming_input"
+        assert err.method == "exec_streaming()"
+        assert err.supported_providers == ["claude"]
+        assert "ollama" in str(err)
+        assert "streaming_input" in str(err)
+        assert "claude" in str(err)
+
+    @pytest.mark.asyncio
+    async def test_reports_add_dirs_gap(self) -> None:
+        _set_capabilities_for_testing(
+            "zag",
+            [
+                _fake_capability("claude"),
+                _fake_capability("ollama", add_dirs=False, max_turns=False),
+            ],
+        )
+        with pytest.raises(ZagFeatureUnsupportedError):
+            await check_capabilities(
+                "zag",
+                "ollama",
+                [FeatureRequirement("add_dir()", "add_dirs", is_set=True)],
+            )
+        with pytest.raises(ZagFeatureUnsupportedError):
+            await check_capabilities(
+                "zag",
+                "ollama",
+                [FeatureRequirement("max_turns()", "max_turns", is_set=True)],
+            )
+
+    @pytest.mark.asyncio
+    async def test_silent_for_unknown_provider(self) -> None:
+        _set_capabilities_for_testing("zag", [_fake_capability("claude")])
+        await check_capabilities(
+            "zag",
+            "does-not-exist",
+            [FeatureRequirement("worktree()", "worktree", is_set=True)],
+        )
+
+    def test_error_class_hierarchy(self) -> None:
+        err = ZagFeatureUnsupportedError(
+            "Provider 'ollama' does not support streaming_input",
+            "ollama",
+            "streaming_input",
+            "exec_streaming()",
+            ["claude"],
+        )
+        assert isinstance(err, ZagError)
+        assert isinstance(err, Exception)
+        assert err.provider == "ollama"
+        assert err.feature == "streaming_input"
+        assert err.method == "exec_streaming()"
+        assert err.supported_providers == ["claude"]

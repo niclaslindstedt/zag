@@ -371,6 +371,170 @@ struct VersionCheckTests {
     #endif
 }
 
+// MARK: - CapabilityCheck tests
+
+#if os(macOS) || os(Linux)
+@Suite("CapabilityCheck")
+struct CapabilityCheckTests {
+
+    /// Build a fake `ProviderCapability` with per-feature support flags.
+    private static func fakeCapability(
+        provider: String,
+        streamingInput: Bool = false,
+        worktree: Bool = true,
+        sandbox: Bool = true,
+        systemPrompt: Bool = true,
+        addDirs: Bool = true,
+        maxTurns: Bool = true
+    ) -> ProviderCapability {
+        let yes = FeatureSupport(supported: true, native: true)
+        let on = { (b: Bool) in FeatureSupport(supported: b, native: false) }
+        return ProviderCapability(
+            provider: provider,
+            defaultModel: "default",
+            availableModels: [],
+            sizeMappings: SizeMappings(small: "s", medium: "m", large: "l"),
+            features: Features(
+                interactive: yes,
+                nonInteractive: yes,
+                resume: yes,
+                resumeWithPrompt: yes,
+                sessionLogs: SessionLogSupport(supported: true, native: true),
+                jsonOutput: yes,
+                streamJson: yes,
+                jsonSchema: yes,
+                inputFormat: yes,
+                streamingInput: StreamingInputSupport(
+                    supported: streamingInput,
+                    native: streamingInput,
+                    semantics: streamingInput ? "queue" : nil),
+                worktree: on(worktree),
+                sandbox: on(sandbox),
+                systemPrompt: on(systemPrompt),
+                autoApprove: yes,
+                review: yes,
+                addDirs: on(addDirs),
+                maxTurns: on(maxTurns)))
+    }
+
+    @Test("no requirements active passes")
+    func noRequirementsActive() async throws {
+        CapabilityCheck.setCapabilitiesForTesting(bin: "zag", caps: [
+            Self.fakeCapability(provider: "ollama", streamingInput: false),
+        ])
+        defer { CapabilityCheck.clearCapabilityCache() }
+        try await CapabilityCheck.check(bin: "zag", provider: "ollama", requirements: [
+            CapabilityCheck.Requirement(
+                method: "execStreaming()", feature: .streamingInput, isSet: false),
+        ])
+    }
+
+    @Test("nil provider skips check")
+    func nilProviderSkips() async throws {
+        CapabilityCheck.setCapabilitiesForTesting(bin: "zag", caps: [
+            Self.fakeCapability(provider: "ollama", streamingInput: false),
+        ])
+        defer { CapabilityCheck.clearCapabilityCache() }
+        try await CapabilityCheck.check(bin: "zag", provider: nil, requirements: [
+            CapabilityCheck.Requirement(
+                method: "execStreaming()", feature: .streamingInput, isSet: true),
+        ])
+    }
+
+    @Test("supported feature passes")
+    func supportedFeaturePasses() async throws {
+        CapabilityCheck.setCapabilitiesForTesting(bin: "zag", caps: [
+            Self.fakeCapability(provider: "claude", streamingInput: true),
+        ])
+        defer { CapabilityCheck.clearCapabilityCache() }
+        try await CapabilityCheck.check(bin: "zag", provider: "claude", requirements: [
+            CapabilityCheck.Requirement(
+                method: "execStreaming()", feature: .streamingInput, isSet: true),
+        ])
+    }
+
+    @Test("unsupported feature throws")
+    func unsupportedFeatureThrows() async {
+        CapabilityCheck.setCapabilitiesForTesting(bin: "zag", caps: [
+            Self.fakeCapability(provider: "claude", streamingInput: true),
+            Self.fakeCapability(provider: "ollama", streamingInput: false),
+        ])
+        defer { CapabilityCheck.clearCapabilityCache() }
+        do {
+            try await CapabilityCheck.check(bin: "zag", provider: "ollama", requirements: [
+                CapabilityCheck.Requirement(
+                    method: "execStreaming()", feature: .streamingInput, isSet: true),
+            ])
+            Issue.record("Expected ZagFeatureUnsupportedError")
+        } catch let error as ZagFeatureUnsupportedError {
+            #expect(error.provider == "ollama")
+            #expect(error.feature == "streaming_input")
+            #expect(error.method == "execStreaming()")
+            #expect(error.supportedProviders == ["claude"])
+            #expect(error.message.contains("ollama"))
+            #expect(error.message.contains("streaming_input"))
+            #expect(error.message.contains("execStreaming()"))
+            #expect(error.message.contains("Supported providers: claude"))
+        } catch {
+            Issue.record("Expected ZagFeatureUnsupportedError, got \(error)")
+        }
+    }
+
+    @Test("unknown provider skips check")
+    func unknownProviderSkips() async throws {
+        CapabilityCheck.setCapabilitiesForTesting(bin: "zag", caps: [
+            Self.fakeCapability(provider: "claude", streamingInput: true),
+        ])
+        defer { CapabilityCheck.clearCapabilityCache() }
+        try await CapabilityCheck.check(bin: "zag", provider: "imaginary", requirements: [
+            CapabilityCheck.Requirement(
+                method: "execStreaming()", feature: .streamingInput, isSet: true),
+        ])
+    }
+
+    @Test("addDirs unsupported on ollama throws")
+    func addDirsUnsupportedThrows() async {
+        CapabilityCheck.setCapabilitiesForTesting(bin: "zag", caps: [
+            Self.fakeCapability(provider: "claude", addDirs: true),
+            Self.fakeCapability(provider: "ollama", addDirs: false),
+        ])
+        defer { CapabilityCheck.clearCapabilityCache() }
+        do {
+            try await CapabilityCheck.check(bin: "zag", provider: "ollama", requirements: [
+                CapabilityCheck.Requirement(
+                    method: "addDir()", feature: .addDirs, isSet: true),
+            ])
+            Issue.record("Expected ZagFeatureUnsupportedError")
+        } catch let error as ZagFeatureUnsupportedError {
+            #expect(error.feature == "add_dirs")
+            #expect(error.supportedProviders == ["claude"])
+        } catch {
+            Issue.record("Expected ZagFeatureUnsupportedError, got \(error)")
+        }
+    }
+
+    @Test("no providers support feature")
+    func noProvidersSupport() async {
+        CapabilityCheck.setCapabilitiesForTesting(bin: "zag", caps: [
+            Self.fakeCapability(provider: "ollama", streamingInput: false),
+        ])
+        defer { CapabilityCheck.clearCapabilityCache() }
+        do {
+            try await CapabilityCheck.check(bin: "zag", provider: "ollama", requirements: [
+                CapabilityCheck.Requirement(
+                    method: "execStreaming()", feature: .streamingInput, isSet: true),
+            ])
+            Issue.record("Expected ZagFeatureUnsupportedError")
+        } catch let error as ZagFeatureUnsupportedError {
+            #expect(error.supportedProviders.isEmpty)
+            #expect(error.message.contains("No providers currently support this feature"))
+        } catch {
+            Issue.record("Expected ZagFeatureUnsupportedError, got \(error)")
+        }
+    }
+}
+#endif
+
 // MARK: - ZagError tests
 
 @Suite("ZagError")
