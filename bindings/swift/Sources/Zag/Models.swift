@@ -160,6 +160,7 @@ public enum Event: Codable, Equatable, Sendable {
     case userMessage(UserMessagePayload)
     case assistantMessage(AssistantMessagePayload)
     case toolExecution(ToolExecutionPayload)
+    case turnComplete(TurnCompletePayload)
     case result(ResultPayload)
     case error(ErrorPayload)
     case permissionRequest(PermissionRequestPayload)
@@ -224,6 +225,31 @@ public enum Event: Codable, Equatable, Sendable {
         }
     }
 
+    /// End of a single assistant turn in a streaming session.
+    ///
+    /// Fires exactly once per turn, after the final assistant message /
+    /// tool execution of the turn and immediately before the per-turn
+    /// `result`. Prefer this event over `result` as the turn-boundary
+    /// signal in new code: it carries the provider's `stopReason` and a
+    /// zero-based monotonic `turnIndex`.
+    public struct TurnCompletePayload: Codable, Equatable, Sendable {
+        /// Reason the turn stopped, as reported by the provider. For
+        /// Claude, well-known values are `end_turn`, `tool_use`,
+        /// `max_tokens`, and `stop_sequence`. `nil` when the provider
+        /// didn't surface a stop reason.
+        public let stopReason: String?
+        /// Zero-based monotonic turn index within the streaming session.
+        public let turnIndex: UInt32
+        /// Usage reported for the final assistant message of this turn.
+        public let usage: Usage?
+
+        public init(stopReason: String? = nil, turnIndex: UInt32 = 0, usage: Usage? = nil) {
+            self.stopReason = stopReason
+            self.turnIndex = turnIndex
+            self.usage = usage
+        }
+    }
+
     public struct ResultPayload: Codable, Equatable, Sendable {
         public let success: Bool
         public let message: String?
@@ -278,6 +304,8 @@ public enum Event: Codable, Equatable, Sendable {
             self = .assistantMessage(try AssistantMessagePayload(from: decoder))
         case "tool_execution":
             self = .toolExecution(try ToolExecutionPayload(from: decoder))
+        case "turn_complete":
+            self = .turnComplete(try TurnCompletePayload(from: decoder))
         case "result":
             self = .result(try ResultPayload(from: decoder))
         case "error":
@@ -305,6 +333,9 @@ public enum Event: Codable, Equatable, Sendable {
             try p.encode(to: encoder)
         case .toolExecution(let p):
             try container.encode("tool_execution", forKey: .type)
+            try p.encode(to: encoder)
+        case .turnComplete(let p):
+            try container.encode("turn_complete", forKey: .type)
             try p.encode(to: encoder)
         case .result(let p):
             try container.encode("result", forKey: .type)

@@ -155,6 +155,23 @@ fn record_event(writer: &SessionLogWriter, event: &Event) -> Result<()> {
                 },
             )?;
         }
+        Event::TurnComplete {
+            stop_reason,
+            turn_index,
+            usage,
+        } => {
+            writer.emit(
+                LogSourceKind::Wrapper,
+                LogEventKind::ProviderStatus {
+                    message: format!("Turn {} complete", turn_index),
+                    data: Some(serde_json::json!({
+                        "stop_reason": stop_reason,
+                        "turn_index": turn_index,
+                        "usage": usage,
+                    })),
+                },
+            )?;
+        }
     }
     Ok(())
 }

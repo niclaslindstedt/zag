@@ -310,6 +310,101 @@ fn test_event_to_log_entry_permission() {
     assert_eq!(event_to_log_entry(&denied).unwrap().level, LogLevel::Warn);
 }
 
+#[test]
+fn test_event_to_log_entry_turn_complete_with_reason() {
+    let event = Event::TurnComplete {
+        stop_reason: Some("end_turn".to_string()),
+        turn_index: 2,
+        usage: None,
+    };
+    let entry = event_to_log_entry(&event).unwrap();
+    assert_eq!(entry.level, LogLevel::Debug);
+    assert!(entry.message.contains("Turn 2"));
+    assert!(entry.message.contains("end_turn"));
+}
+
+#[test]
+fn test_event_to_log_entry_turn_complete_without_reason() {
+    let event = Event::TurnComplete {
+        stop_reason: None,
+        turn_index: 0,
+        usage: None,
+    };
+    let entry = event_to_log_entry(&event).unwrap();
+    assert_eq!(entry.level, LogLevel::Debug);
+    assert!(entry.message.contains("Turn 0"));
+    assert!(entry.message.contains("none"));
+}
+
+// --- TurnComplete serde round-trip ---
+
+#[test]
+fn test_turn_complete_serializes_with_snake_case_type_tag() {
+    let event = Event::TurnComplete {
+        stop_reason: Some("tool_use".to_string()),
+        turn_index: 3,
+        usage: Some(Usage {
+            input_tokens: 120,
+            output_tokens: 45,
+            cache_read_tokens: Some(10),
+            cache_creation_tokens: Some(0),
+            web_search_requests: None,
+            web_fetch_requests: None,
+        }),
+    };
+    let json = serde_json::to_value(&event).unwrap();
+    assert_eq!(json["type"], "turn_complete");
+    assert_eq!(json["stop_reason"], "tool_use");
+    assert_eq!(json["turn_index"], 3);
+    assert_eq!(json["usage"]["input_tokens"], 120);
+    assert_eq!(json["usage"]["output_tokens"], 45);
+}
+
+#[test]
+fn test_turn_complete_deserializes_from_json() {
+    let json = r#"{
+        "type": "turn_complete",
+        "stop_reason": "end_turn",
+        "turn_index": 0,
+        "usage": null
+    }"#;
+    let event: Event = serde_json::from_str(json).unwrap();
+    match event {
+        Event::TurnComplete {
+            stop_reason,
+            turn_index,
+            usage,
+        } => {
+            assert_eq!(stop_reason.as_deref(), Some("end_turn"));
+            assert_eq!(turn_index, 0);
+            assert!(usage.is_none());
+        }
+        other => panic!("expected TurnComplete, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_turn_complete_round_trips_with_null_stop_reason() {
+    let event = Event::TurnComplete {
+        stop_reason: None,
+        turn_index: 5,
+        usage: None,
+    };
+    let json = serde_json::to_string(&event).unwrap();
+    let parsed: Event = serde_json::from_str(&json).unwrap();
+    match parsed {
+        Event::TurnComplete {
+            stop_reason,
+            turn_index,
+            ..
+        } => {
+            assert!(stop_reason.is_none());
+            assert_eq!(turn_index, 5);
+        }
+        other => panic!("expected TurnComplete, got {:?}", other),
+    }
+}
+
 // --- LogEntry Display ---
 
 #[test]

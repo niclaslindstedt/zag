@@ -15,6 +15,7 @@ import java.util.Map;
     @JsonSubTypes.Type(value = Event.UserMessage.class, name = "user_message"),
     @JsonSubTypes.Type(value = Event.AssistantMessage.class, name = "assistant_message"),
     @JsonSubTypes.Type(value = Event.ToolExecution.class, name = "tool_execution"),
+    @JsonSubTypes.Type(value = Event.TurnComplete.class, name = "turn_complete"),
     @JsonSubTypes.Type(value = Event.Result.class, name = "result"),
     @JsonSubTypes.Type(value = Event.Error.class, name = "error"),
     @JsonSubTypes.Type(value = Event.PermissionRequest.class, name = "permission_request"),
@@ -73,7 +74,38 @@ public sealed interface Event {
         }
     }
 
-    /** Final session result event. */
+    /**
+     * End of a single assistant turn in a streaming session.
+     *
+     * <p>Fires exactly once per turn, after the final {@link AssistantMessage}
+     * / {@link ToolExecution} of the turn and immediately before the per-turn
+     * {@link Result}. Prefer this event over {@link Result} as the
+     * turn-boundary signal in new code: it carries the provider's
+     * {@code stopReason} and a zero-based monotonic {@code turnIndex}.
+     *
+     * <p>{@code stopReason} well-known values (Claude): {@code end_turn},
+     * {@code tool_use}, {@code max_tokens}, {@code stop_sequence}.
+     * {@code null} when the provider didn't surface a stop reason.
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record TurnComplete(
+            @JsonProperty("stop_reason") String stopReason,
+            @JsonProperty("turn_index") long turnIndex,
+            @JsonProperty("usage") Usage usage)
+            implements Event {
+        @Override
+        public String type() {
+            return "turn_complete";
+        }
+    }
+
+    /**
+     * Session-final or per-turn result summary from the provider.
+     *
+     * <p>In bidirectional streaming mode this fires after
+     * {@link TurnComplete} at the end of every turn. In batch mode it fires
+     * once when the provider reports the session-final result.
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Result(
             @JsonProperty("success") boolean success,

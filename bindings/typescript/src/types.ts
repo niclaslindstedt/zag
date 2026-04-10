@@ -27,6 +27,7 @@ export type Event =
   | UserMessageEvent
   | AssistantMessageEvent
   | ToolExecutionEvent
+  | TurnCompleteEvent
   | ResultEvent
   | ErrorEvent
   | PermissionRequestEvent;
@@ -56,6 +57,30 @@ export interface ToolExecutionEvent {
   tool_id: string;
   input: unknown;
   result: ToolResult;
+}
+
+/**
+ * End of a single assistant turn in a streaming session.
+ *
+ * Fires exactly once per turn, after the final `assistant_message` /
+ * `tool_execution` of the turn and immediately before the per-turn
+ * `result`. New consumers should prefer this event over `result` as the
+ * turn-boundary signal because it carries `stop_reason` and a monotonic
+ * `turn_index`.
+ */
+export interface TurnCompleteEvent {
+  type: "turn_complete";
+  /**
+   * Reason the turn stopped, as reported by the provider. For Claude,
+   * well-known values are `end_turn`, `tool_use`, `max_tokens`, and
+   * `stop_sequence`. `null` when the provider didn't surface a stop
+   * reason.
+   */
+  stop_reason: string | null;
+  /** Zero-based monotonic turn index within the streaming session. */
+  turn_index: number;
+  /** Usage reported for the final assistant message of this turn. */
+  usage: Usage | null;
 }
 
 export interface ResultEvent {

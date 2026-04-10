@@ -465,6 +465,12 @@ class ModelsTests {
                 "result": {"success": true, "output": "hello", "error": null, "data": null}
             },
             {
+                "type": "turn_complete",
+                "stop_reason": "end_turn",
+                "turn_index": 0,
+                "usage": {"input_tokens": 80, "output_tokens": 40}
+            },
+            {
                 "type": "result",
                 "success": true,
                 "message": "Done",
@@ -495,7 +501,7 @@ class ModelsTests {
         val output = ZagJson.decodeFromString<AgentOutput>(sampleJson)
         assertEquals("claude", output.agent)
         assertEquals("sess-123", output.sessionId)
-        assertEquals(6, output.events.size)
+        assertEquals(7, output.events.size)
         assertEquals("Hello!", output.result)
         assertFalse(output.isError)
         assertNull(output.exitCode)
@@ -512,9 +518,32 @@ class ModelsTests {
         assertIs<InitEvent>(output.events[0])
         assertIs<AssistantMessageEvent>(output.events[1])
         assertIs<ToolExecutionEvent>(output.events[2])
-        assertIs<ResultEvent>(output.events[3])
-        assertIs<ErrorEvent>(output.events[4])
-        assertIs<PermissionRequestEvent>(output.events[5])
+        assertIs<TurnCompleteEvent>(output.events[3])
+        assertIs<ResultEvent>(output.events[4])
+        assertIs<ErrorEvent>(output.events[5])
+        assertIs<PermissionRequestEvent>(output.events[6])
+    }
+
+    @Test
+    fun `turn complete fields`() {
+        val output = ZagJson.decodeFromString<AgentOutput>(sampleJson)
+        val turn = output.events[3] as TurnCompleteEvent
+        assertEquals("end_turn", turn.stopReason)
+        assertEquals(0L, turn.turnIndex)
+        assertNotNull(turn.usage)
+        assertEquals(80, turn.usage!!.inputTokens)
+        assertEquals(40, turn.usage!!.outputTokens)
+    }
+
+    @Test
+    fun `turn complete null stop reason round-trips`() {
+        val line = """{"type":"turn_complete","stop_reason":null,"turn_index":2,"usage":null}"""
+        val event = ZagJson.decodeFromString<Event>(line)
+        assertIs<TurnCompleteEvent>(event)
+        val turn = event as TurnCompleteEvent
+        assertNull(turn.stopReason)
+        assertEquals(2L, turn.turnIndex)
+        assertNull(turn.usage)
     }
 
     @Test
@@ -550,14 +579,14 @@ class ModelsTests {
     @Test
     fun `error event fields`() {
         val output = ZagJson.decodeFromString<AgentOutput>(sampleJson)
-        val err = output.events[4] as ErrorEvent
+        val err = output.events[5] as ErrorEvent
         assertEquals("oops", err.message)
     }
 
     @Test
     fun `permission request fields`() {
         val output = ZagJson.decodeFromString<AgentOutput>(sampleJson)
-        val perm = output.events[5] as PermissionRequestEvent
+        val perm = output.events[6] as PermissionRequestEvent
         assertEquals("Bash", perm.toolName)
         assertTrue(perm.granted)
     }

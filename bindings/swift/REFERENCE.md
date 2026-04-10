@@ -263,6 +263,7 @@ enum Event: Codable {
     case userMessage(UserMessageEvent)
     case assistantMessage(AssistantMessageEvent)
     case toolExecution(ToolExecutionEvent)
+    case turnComplete(TurnCompletePayload)
     case result(ResultEvent)
     case error(ErrorEvent)
     case permissionRequest(PermissionRequestEvent)
@@ -289,6 +290,12 @@ struct ToolExecutionEvent: Codable {
     let toolId: String                  // Unique invocation ID
     let input: AnyCodable?              // Tool input parameters
     let result: ToolResult              // Tool execution result
+}
+
+struct TurnCompletePayload: Codable {
+    let stopReason: String?             // "end_turn" / "tool_use" / "max_tokens" / "stop_sequence" / nil
+    let turnIndex: UInt32                // Zero-based monotonic turn index
+    let usage: Usage?                    // Usage for this turn only
 }
 
 struct ResultEvent: Codable {

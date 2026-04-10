@@ -144,8 +144,9 @@ fn test_parse_with_tool_use() {
     assert_eq!(agent_output.session_id, "sess1");
     assert_eq!(agent_output.result, Some("Found 2 files.".to_string()));
 
-    // Should have: Init, AssistantMessage (with tool_use), ToolExecution, AssistantMessage, Result
-    assert_eq!(agent_output.events.len(), 5);
+    // Should have: Init, AssistantMessage (with tool_use), ToolExecution,
+    // AssistantMessage, TurnComplete, Result
+    assert_eq!(agent_output.events.len(), 6);
 
     // Verify tool execution was extracted
     let tool_execs = agent_output.tool_executions();

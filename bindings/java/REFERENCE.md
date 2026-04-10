@@ -236,6 +236,24 @@ record ToolExecution(
 
 Type string: `"tool_execution"`. The `input` field is a Jackson `JsonNode` (arbitrary JSON).
 
+#### Event.TurnComplete
+
+```java
+record TurnComplete(
+    String stopReason,
+    long turnIndex,
+    Usage usage
+) implements Event
+```
+
+Type string: `"turn_complete"`. End of a single assistant turn in a
+streaming session. Fires exactly once per turn, after the final
+`AssistantMessage` / `ToolExecution` and immediately before the per-turn
+`Result`. Prefer this event over `Result` as the turn-boundary signal in
+new code: it carries the provider's `stopReason` (for Claude:
+`end_turn`, `tool_use`, `max_tokens`, `stop_sequence`, or `null`) and a
+zero-based monotonic `turnIndex`.
+
 #### Event.Result
 
 ```java
@@ -247,7 +265,9 @@ record Result(
 ) implements Event
 ```
 
-Type string: `"result"`. Final session outcome. `durationMs` and `numTurns` are nullable.
+Type string: `"result"`. Session-final or per-turn result summary. In
+bidirectional streaming mode this fires after `TurnComplete` at the end
+of every turn. `durationMs` and `numTurns` are nullable.
 
 #### Event.Error
 

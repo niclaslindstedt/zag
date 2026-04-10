@@ -144,8 +144,8 @@ Events are a union type discriminated on the `type` field.
 ```python
 Event = (
     InitEvent | UserMessageEvent | AssistantMessageEvent
-    | ToolExecutionEvent | ResultEvent | ErrorEvent
-    | PermissionRequestEvent
+    | ToolExecutionEvent | TurnCompleteEvent | ResultEvent
+    | ErrorEvent | PermissionRequestEvent
 )
 ```
 
@@ -176,6 +176,13 @@ class ToolExecutionEvent:
     tool_id: str                        # Unique invocation ID
     input: Any                          # Tool input parameters
     result: ToolResult                  # Tool execution result
+
+@dataclass
+class TurnCompleteEvent:
+    type: str                           # "turn_complete"
+    stop_reason: str | None             # "end_turn"|"tool_use"|"max_tokens"|...
+    turn_index: int                     # Zero-based monotonic turn index
+    usage: Usage | None                 # Usage for this turn only
 
 @dataclass
 class ResultEvent:
