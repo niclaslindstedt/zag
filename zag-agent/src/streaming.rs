@@ -4,10 +4,26 @@
 //! stdout, allowing callers to send NDJSON messages to the agent and read
 //! unified events back.
 //!
+//! # Event lifecycle
+//!
+//! In bidirectional streaming mode (Claude only), [`StreamingSession::next_event`]
+//! yields unified [`Event`](crate::output::Event) values converted from Claude's
+//! native `stream-json` output. A [`Event::Result`](crate::output::Event::Result)
+//! is emitted at the **end of every agent turn** — not only at final session
+//! end. After a `Result`, the session remains open and accepts another
+//! [`StreamingSession::send_user_message`] for the next turn. `next_event`
+//! returns `Ok(None)` only when the subprocess exits (e.g. after
+//! [`StreamingSession::close_input`] and EOF).
+//!
+//! Consumers should use the `Result` event as the authoritative turn-boundary
+//! signal. Do **not** rely on replayed `user_message` events for this purpose;
+//! those only appear when `--replay-user-messages` is set.
+//!
 //! # Examples
 //!
 //! ```no_run
 //! use zag_agent::builder::AgentBuilder;
+//! use zag_agent::output::Event;
 //!
 //! # async fn example() -> anyhow::Result<()> {
 //! let mut session = AgentBuilder::new()
@@ -15,14 +31,25 @@
 //!     .exec_streaming("initial prompt")
 //!     .await?;
 //!
-//! // Send a user message
-//! session.send_user_message("do something").await?;
-//!
-//! // Read events
+//! // First turn: drain events until the per-turn Result.
 //! while let Some(event) = session.next_event().await? {
 //!     println!("{:?}", event);
+//!     if matches!(event, Event::Result { .. }) {
+//!         break; // turn complete
+//!     }
 //! }
 //!
+//! // Send a follow-up user message for the next turn.
+//! session.send_user_message("do something else").await?;
+//!
+//! // Drain the second turn, then close the session.
+//! while let Some(event) = session.next_event().await? {
+//!     if matches!(event, Event::Result { .. }) {
+//!         break;
+//!     }
+//! }
+//!
+//! session.close_input();
 //! session.wait().await?;
 //! # Ok(())
 //! # }
@@ -89,11 +116,19 @@ impl StreamingSession {
         self.send(&serde_json::to_string(&msg)?).await
     }
 
-    /// Read the next event from the agent's stdout.
+    /// Read the next unified event from the agent's stdout.
     ///
-    /// Returns `None` when stdout is closed (agent exited).
-    /// Skips lines that fail to parse as JSON events.
+    /// Lines are parsed as Claude's native `stream-json` schema and then
+    /// converted into the unified [`Event`] enum. Events that don't map to a
+    /// user-visible unified event (e.g. `thinking` blocks) are skipped
+    /// transparently, as are blank and unparseable lines.
+    ///
+    /// A unified `Result` event is returned at the end of each agent turn;
+    /// callers can use it as a turn boundary. `Ok(None)` is returned only
+    /// when the subprocess closes its stdout (EOF).
     pub async fn next_event(&mut self) -> Result<Option<Event>> {
+        use crate::providers::claude::{convert_claude_event_to_unified, models::ClaudeEvent};
+
         loop {
             match self.lines.next_line().await? {
                 None => return Ok(None),
@@ -102,8 +137,15 @@ impl StreamingSession {
                     if trimmed.is_empty() {
                         continue;
                     }
-                    match serde_json::from_str::<Event>(trimmed) {
-                        Ok(event) => return Ok(Some(event)),
+                    match serde_json::from_str::<ClaudeEvent>(trimmed) {
+                        Ok(claude_event) => {
+                            if let Some(event) = convert_claude_event_to_unified(&claude_event) {
+                                return Ok(Some(event));
+                            }
+                            // Converter filtered this event (e.g. thinking block
+                            // or ClaudeEvent::Other); read the next line.
+                            continue;
+                        }
                         Err(e) => {
                             log::debug!(
                                 "Skipping unparseable streaming event: {}. Line: {}",

@@ -156,3 +156,163 @@ async fn test_wait_failure() {
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("failed"));
 }
+
+// ---------------------------------------------------------------------------
+// Tests for Claude stream-json parsing (bidirectional streaming)
+// ---------------------------------------------------------------------------
+
+use crate::output::{ContentBlock, Event};
+
+/// Spawn a `sh -c` child whose stdout is a fixed sequence of JSON lines.
+/// JSON lines must not contain single quotes (they don't in Claude output).
+fn spawn_with_jsonl(lines: &[&str]) -> tokio::process::Child {
+    // Join with literal newlines between each single-quoted arg; printf handles
+    // the trailing newline per entry.
+    let joined = lines
+        .iter()
+        .map(|l| format!("'{}'", l))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let script = format!("printf '%s\\n' {}", joined);
+    Command::new("sh")
+        .arg("-c")
+        .arg(script)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn sh")
+}
+
+/// Build a minimal Claude `assistant` event with a single text block.
+fn claude_assistant_text_line(text: &str) -> String {
+    format!(
+        r#"{{"type":"assistant","message":{{"model":"claude-sonnet-4-5","id":"msg_1","type":"message","role":"assistant","content":[{{"type":"text","text":"{}"}}],"stop_reason":null,"stop_sequence":null,"usage":{{"input_tokens":10,"output_tokens":5}},"context_management":null}},"parent_tool_use_id":null,"session_id":"s1","uuid":"u1"}}"#,
+        text
+    )
+}
+
+/// Build a minimal Claude `result` event for an agent turn.
+fn claude_result_line(turns: u32) -> String {
+    format!(
+        r#"{{"type":"result","subtype":"success","is_error":false,"duration_ms":1234,"duration_api_ms":1000,"num_turns":{},"result":"done","session_id":"s1","total_cost_usd":0.01,"usage":{{"input_tokens":10,"output_tokens":5}},"uuid":"u2"}}"#,
+        turns
+    )
+}
+
+#[tokio::test]
+async fn test_next_event_parses_claude_assistant_message() {
+    let line = claude_assistant_text_line("hello");
+    let child = spawn_with_jsonl(&[&line]);
+    let mut session = StreamingSession::new(child).unwrap();
+
+    let event = session.next_event().await.unwrap();
+    match event {
+        Some(Event::AssistantMessage { content, .. }) => {
+            assert_eq!(content.len(), 1);
+            match &content[0] {
+                ContentBlock::Text { text } => assert_eq!(text, "hello"),
+                other => panic!("expected text block, got {:?}", other),
+            }
+        }
+        other => panic!("expected AssistantMessage, got {:?}", other),
+    }
+
+    // EOF after the one line.
+    assert!(session.next_event().await.unwrap().is_none());
+}
+
+#[tokio::test]
+async fn test_next_event_parses_claude_result_per_turn() {
+    // Two agent turns, each an assistant message followed by a result event.
+    let turn1_assistant = claude_assistant_text_line("first answer");
+    let turn1_result = claude_result_line(1);
+    let turn2_assistant = claude_assistant_text_line("second answer");
+    let turn2_result = claude_result_line(2);
+
+    let child = spawn_with_jsonl(&[
+        &turn1_assistant,
+        &turn1_result,
+        &turn2_assistant,
+        &turn2_result,
+    ]);
+    let mut session = StreamingSession::new(child).unwrap();
+
+    let mut events = Vec::new();
+    while let Some(event) = session.next_event().await.unwrap() {
+        events.push(event);
+    }
+
+    assert_eq!(
+        events.len(),
+        4,
+        "expected 4 unified events, got {:?}",
+        events
+    );
+    assert!(matches!(events[0], Event::AssistantMessage { .. }));
+    assert!(
+        matches!(
+            events[1],
+            Event::Result {
+                success: true,
+                num_turns: Some(1),
+                ..
+            }
+        ),
+        "expected turn-1 Result, got {:?}",
+        events[1]
+    );
+    assert!(matches!(events[2], Event::AssistantMessage { .. }));
+    assert!(
+        matches!(
+            events[3],
+            Event::Result {
+                success: true,
+                num_turns: Some(2),
+                ..
+            }
+        ),
+        "expected turn-2 Result, got {:?}",
+        events[3]
+    );
+}
+
+#[tokio::test]
+async fn test_next_event_skips_thinking_blocks() {
+    // An assistant message whose only content block is `thinking` should be
+    // filtered down to an AssistantMessage with empty content — but still
+    // emitted. We want to assert that the thinking block itself is stripped.
+    let line = r#"{"type":"assistant","message":{"model":"claude-sonnet-4-5","id":"msg_1","type":"message","role":"assistant","content":[{"type":"thinking","thinking":"internal reasoning"}],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":10,"output_tokens":5},"context_management":null},"parent_tool_use_id":null,"session_id":"s1","uuid":"u1"}"#;
+    let child = spawn_with_jsonl(&[line]);
+    let mut session = StreamingSession::new(child).unwrap();
+
+    let event = session.next_event().await.unwrap();
+    match event {
+        Some(Event::AssistantMessage { content, .. }) => {
+            assert!(
+                content.is_empty(),
+                "thinking block should be stripped, got {:?}",
+                content
+            );
+        }
+        other => panic!("expected AssistantMessage, got {:?}", other),
+    }
+}
+
+#[tokio::test]
+async fn test_next_event_skips_unknown_claude_events() {
+    // Unknown event types become ClaudeEvent::Other and should be skipped
+    // transparently rather than surfaced. Feed one unknown event followed by
+    // a real assistant message; next_event should return the assistant.
+    let unknown = r#"{"type":"rate_limit_event","foo":"bar"}"#;
+    let known = claude_assistant_text_line("after unknown");
+    let child = spawn_with_jsonl(&[unknown, &known]);
+    let mut session = StreamingSession::new(child).unwrap();
+
+    let event = session.next_event().await.unwrap();
+    assert!(
+        matches!(event, Some(Event::AssistantMessage { .. })),
+        "expected AssistantMessage after skipping unknown event, got {:?}",
+        event
+    );
+}

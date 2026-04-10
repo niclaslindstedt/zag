@@ -580,14 +580,31 @@ impl AgentBuilder {
 
     /// Run the agent with streaming input and output (Claude only).
     ///
-    /// Returns a `StreamingSession` that allows sending NDJSON messages to
+    /// Returns a [`StreamingSession`] that allows sending NDJSON messages to
     /// the agent's stdin and reading events from stdout. Automatically
-    /// configures `--input-format stream-json` and `--replay-user-messages`.
+    /// configures `--input-format stream-json`, `--output-format stream-json`,
+    /// and `--replay-user-messages`.
+    ///
+    /// # Event lifecycle
+    ///
+    /// The session emits a unified
+    /// [`Event::Result`](crate::output::Event::Result) at the **end of every
+    /// agent turn** — not only at final session end. Use that event as the
+    /// authoritative turn-boundary signal. After a `Result`, the session
+    /// remains open and accepts another
+    /// [`send_user_message`](StreamingSession::send_user_message) for the next
+    /// turn. Call
+    /// [`close_input`](StreamingSession::close_input) followed by
+    /// [`wait`](StreamingSession::wait) to terminate the session cleanly.
+    ///
+    /// Do not depend on replayed `user_message` events to detect turn
+    /// boundaries; those only appear while `--replay-user-messages` is set.
     ///
     /// # Examples
     ///
     /// ```no_run
     /// use zag_agent::builder::AgentBuilder;
+    /// use zag_agent::output::Event;
     ///
     /// # async fn example() -> anyhow::Result<()> {
     /// let mut session = AgentBuilder::new()
@@ -595,12 +612,23 @@ impl AgentBuilder {
     ///     .exec_streaming("initial prompt")
     ///     .await?;
     ///
-    /// session.send_user_message("do something").await?;
-    ///
+    /// // Drain the first turn until Result.
     /// while let Some(event) = session.next_event().await? {
     ///     println!("{:?}", event);
+    ///     if matches!(event, Event::Result { .. }) {
+    ///         break;
+    ///     }
     /// }
     ///
+    /// // Follow-up turn.
+    /// session.send_user_message("do something else").await?;
+    /// while let Some(event) = session.next_event().await? {
+    ///     if matches!(event, Event::Result { .. }) {
+    ///         break;
+    ///     }
+    /// }
+    ///
+    /// session.close_input();
     /// session.wait().await?;
     /// # Ok(())
     /// # }

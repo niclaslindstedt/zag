@@ -507,7 +507,9 @@ impl Claude {
 
 /// Convert a single Claude event to a unified event format.
 /// Returns None if the event doesn't map to a user-visible unified event.
-fn convert_claude_event_to_unified(event: &models::ClaudeEvent) -> Option<crate::output::Event> {
+pub(crate) fn convert_claude_event_to_unified(
+    event: &models::ClaudeEvent,
+) -> Option<crate::output::Event> {
     use crate::output::{
         ContentBlock as UnifiedContentBlock, Event as UnifiedEvent, ToolResult,
         Usage as UnifiedUsage,
