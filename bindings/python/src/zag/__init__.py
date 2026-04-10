@@ -29,6 +29,7 @@ from .types import (
     ToolUseBlock,
     Usage,
     ZagError,
+    ZagFeatureUnsupportedError,
 )
 
 __all__ = [
@@ -47,6 +48,7 @@ __all__ = [
     "ToolUseBlock",
     "ToolResult",
     "ZagError",
+    "ZagFeatureUnsupportedError",
     "list_providers",
     "get_capability",
     "get_all_capabilities",

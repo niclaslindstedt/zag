@@ -265,6 +265,20 @@ class ZagError(
 ) : RuntimeException(message)
 ```
 
+### ZagFeatureUnsupportedException
+
+```kotlin
+class ZagFeatureUnsupportedException(
+    message: String,
+    val provider: String,
+    val feature: String,
+    val method: String,
+    val supportedProviders: List<String>,
+) : ZagException(message, null, "")
+```
+
+Thrown by the capability preflight when a builder option is set whose underlying feature is not supported by the configured provider. See [Capability checking](#capability-checking) below.
+
 ### Discovery Types
 
 ```kotlin
@@ -519,6 +533,27 @@ The SDK checks the installed `zag` CLI version (via `zag --version`) once per pr
 | `env()` | 0.6.0 |
 | `mcpConfig()` | 0.6.0 |
 | All others | 0.2.3 |
+
+### Capability checking
+
+After the version check, every terminal method runs a capability preflight against the provider declared by `provider()` (skipped when no provider is set). The preflight loads the capability matrix from `zag discover --json` (cached per binary path for the lifetime of the JVM process) and verifies that every active feature-gated builder option is supported by the configured provider's `Features` block. On the first unsupported feature it throws `ZagFeatureUnsupportedException` with a message of the form:
+
+```
+Provider 'ollama' does not support streaming_input (required by execStreaming()). Supported providers: claude
+```
+
+Gated methods and their `Features` keys:
+
+| Method | Feature key |
+|--------|-------------|
+| `worktree()` | `worktree` |
+| `sandbox()` | `sandbox` |
+| `systemPrompt()` | `system_prompt` |
+| `addDir()` | `add_dirs` |
+| `maxTurns()` | `max_turns` |
+| `execStreaming()` | `streaming_input` |
+
+If `zag discover` itself fails the preflight silently returns and the subsequent CLI invocation surfaces the real error. `mcpConfig()` is intentionally not gated because no `Features` field tracks it.
 
 ## Provider-Specific Notes
 

@@ -15,6 +15,32 @@ class ZagError(Exception):
         self.stderr = stderr
 
 
+class ZagFeatureUnsupportedError(ZagError):
+    """Error raised when a builder option requires a provider feature that the
+    configured provider does not support.
+
+    The builder validates feature-gated options (``exec_streaming``,
+    ``worktree``, ``sandbox``, ``system_prompt``, ``add_dir``, ``max_turns``)
+    against the capability declarations exposed by ``zag discover`` before
+    spawning the CLI, so callers receive a clear, typed error instead of a
+    cryptic runtime exit code.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        provider: str,
+        feature: str,
+        method: str,
+        supported_providers: list[str],
+    ) -> None:
+        super().__init__(message, None, "")
+        self.provider = provider
+        self.feature = feature
+        self.method = method
+        self.supported_providers = supported_providers
+
+
 # ---------------------------------------------------------------------------
 # Usage
 # ---------------------------------------------------------------------------

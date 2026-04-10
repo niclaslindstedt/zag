@@ -2,6 +2,7 @@ package zag
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertFalse
@@ -254,6 +255,173 @@ class VersionCheckTests {
             assertTrue(ex.message!!.contains("mcpConfig()"))
         } finally {
             VersionCheck.clearVersionCache()
+        }
+    }
+}
+
+class CapabilityCheckTests {
+
+    private fun fakeCapability(
+        provider: String,
+        streamingInput: Boolean = false,
+        addDirs: Boolean = true,
+    ): ProviderCapability {
+        val yes = FeatureSupport(supported = true, isNative = true)
+        return ProviderCapability(
+            provider = provider,
+            defaultModel = "default",
+            availableModels = emptyList(),
+            sizeMappings = SizeMappings("s", "m", "l"),
+            features = Features(
+                interactive = yes,
+                nonInteractive = yes,
+                resume = yes,
+                resumeWithPrompt = yes,
+                sessionLogs = SessionLogSupport(supported = true, isNative = true),
+                jsonOutput = yes,
+                streamJson = yes,
+                jsonSchema = yes,
+                inputFormat = yes,
+                streamingInput = StreamingInputSupport(
+                    supported = streamingInput,
+                    isNative = streamingInput,
+                    semantics = if (streamingInput) "queue" else null),
+                worktree = yes,
+                sandbox = yes,
+                systemPrompt = yes,
+                autoApprove = yes,
+                review = yes,
+                addDirs = FeatureSupport(supported = addDirs, isNative = false),
+                maxTurns = yes,
+            ),
+        )
+    }
+
+    @Test
+    fun `no active requirements passes`() = kotlinx.coroutines.test.runTest {
+        CapabilityCheck.setCapabilitiesForTesting("zag", listOf(
+            fakeCapability("ollama", streamingInput = false),
+        ))
+        try {
+            CapabilityCheck.check("zag", "ollama", listOf(
+                CapabilityCheck.Requirement(
+                    "execStreaming()", CapabilityCheck.FeatureKeys.STREAMING_INPUT, false),
+            ))
+        } finally {
+            CapabilityCheck.clearCapabilityCache()
+        }
+    }
+
+    @Test
+    fun `null provider skips check`() = kotlinx.coroutines.test.runTest {
+        CapabilityCheck.setCapabilitiesForTesting("zag", listOf(
+            fakeCapability("ollama", streamingInput = false),
+        ))
+        try {
+            CapabilityCheck.check("zag", null, listOf(
+                CapabilityCheck.Requirement(
+                    "execStreaming()", CapabilityCheck.FeatureKeys.STREAMING_INPUT, true),
+            ))
+        } finally {
+            CapabilityCheck.clearCapabilityCache()
+        }
+    }
+
+    @Test
+    fun `supported feature passes`() = kotlinx.coroutines.test.runTest {
+        CapabilityCheck.setCapabilitiesForTesting("zag", listOf(
+            fakeCapability("claude", streamingInput = true),
+        ))
+        try {
+            CapabilityCheck.check("zag", "claude", listOf(
+                CapabilityCheck.Requirement(
+                    "execStreaming()", CapabilityCheck.FeatureKeys.STREAMING_INPUT, true),
+            ))
+        } finally {
+            CapabilityCheck.clearCapabilityCache()
+        }
+    }
+
+    @Test
+    fun `unsupported feature throws`() = kotlinx.coroutines.test.runTest {
+        CapabilityCheck.setCapabilitiesForTesting("zag", listOf(
+            fakeCapability("claude", streamingInput = true),
+            fakeCapability("ollama", streamingInput = false),
+        ))
+        try {
+            val ex = assertFails {
+                CapabilityCheck.check("zag", "ollama", listOf(
+                    CapabilityCheck.Requirement(
+                        "execStreaming()", CapabilityCheck.FeatureKeys.STREAMING_INPUT, true),
+                ))
+            }
+            assertIs<ZagFeatureUnsupportedException>(ex)
+            assertEquals("ollama", ex.provider)
+            assertEquals("streaming_input", ex.feature)
+            assertEquals("execStreaming()", ex.method)
+            assertEquals(listOf("claude"), ex.supportedProviders)
+            assertTrue(ex.message!!.contains("ollama"))
+            assertTrue(ex.message!!.contains("streaming_input"))
+            assertTrue(ex.message!!.contains("execStreaming()"))
+            assertTrue(ex.message!!.contains("Supported providers: claude"))
+        } finally {
+            CapabilityCheck.clearCapabilityCache()
+        }
+    }
+
+    @Test
+    fun `unknown provider skips check`() = kotlinx.coroutines.test.runTest {
+        CapabilityCheck.setCapabilitiesForTesting("zag", listOf(
+            fakeCapability("claude", streamingInput = true),
+        ))
+        try {
+            CapabilityCheck.check("zag", "imaginary", listOf(
+                CapabilityCheck.Requirement(
+                    "execStreaming()", CapabilityCheck.FeatureKeys.STREAMING_INPUT, true),
+            ))
+        } finally {
+            CapabilityCheck.clearCapabilityCache()
+        }
+    }
+
+    @Test
+    fun `addDirs unsupported on ollama throws`() = kotlinx.coroutines.test.runTest {
+        CapabilityCheck.setCapabilitiesForTesting("zag", listOf(
+            fakeCapability("claude", addDirs = true),
+            fakeCapability("ollama", addDirs = false),
+        ))
+        try {
+            val ex = assertFails {
+                CapabilityCheck.check("zag", "ollama", listOf(
+                    CapabilityCheck.Requirement(
+                        "addDir()", CapabilityCheck.FeatureKeys.ADD_DIRS, true),
+                ))
+            }
+            assertIs<ZagFeatureUnsupportedException>(ex)
+            assertEquals("add_dirs", ex.feature)
+            assertEquals(listOf("claude"), ex.supportedProviders)
+        } finally {
+            CapabilityCheck.clearCapabilityCache()
+        }
+    }
+
+    @Test
+    fun `no providers support feature throws`() = kotlinx.coroutines.test.runTest {
+        CapabilityCheck.setCapabilitiesForTesting("zag", listOf(
+            fakeCapability("ollama", streamingInput = false),
+        ))
+        try {
+            val ex = assertFails {
+                CapabilityCheck.check("zag", "ollama", listOf(
+                    CapabilityCheck.Requirement(
+                        "execStreaming()", CapabilityCheck.FeatureKeys.STREAMING_INPUT, true),
+                ))
+            }
+            assertIs<ZagFeatureUnsupportedException>(ex)
+            assertTrue(ex.supportedProviders.isEmpty())
+            assertTrue(ex.message!!.contains("No providers currently support this feature"))
+        } finally {
+            CapabilityCheck.clearCapabilityCache()
         }
     }
 }

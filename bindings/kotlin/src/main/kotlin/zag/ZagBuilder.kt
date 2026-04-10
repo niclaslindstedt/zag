@@ -211,18 +211,39 @@ class ZagBuilder {
         VersionCheck.Requirement("mcpConfig()", "0.6.0", _mcpConfig != null),
     )
 
+    private fun featureRequirements(
+        extras: List<CapabilityCheck.Requirement> = emptyList(),
+    ): List<CapabilityCheck.Requirement> = listOf(
+        CapabilityCheck.Requirement(
+            "worktree()", CapabilityCheck.FeatureKeys.WORKTREE, _worktree != null),
+        CapabilityCheck.Requirement(
+            "sandbox()", CapabilityCheck.FeatureKeys.SANDBOX, _sandbox != null),
+        CapabilityCheck.Requirement(
+            "systemPrompt()", CapabilityCheck.FeatureKeys.SYSTEM_PROMPT, _systemPrompt != null),
+        CapabilityCheck.Requirement(
+            "addDir()", CapabilityCheck.FeatureKeys.ADD_DIRS, _addDirs.isNotEmpty()),
+        CapabilityCheck.Requirement(
+            "maxTurns()", CapabilityCheck.FeatureKeys.MAX_TURNS, _maxTurns != null),
+    ) + extras
+
+    /** Run version + capability preflight checks before spawning. */
+    private suspend fun preflight(extras: List<CapabilityCheck.Requirement> = emptyList()) {
+        VersionCheck.check(_bin, versionRequirements())
+        CapabilityCheck.check(_bin, _provider, featureRequirements(extras))
+    }
+
     // -- Terminal methods ----------------------------------------------------
 
     /** Run the agent non-interactively and return structured output. */
     suspend fun exec(prompt: String): AgentOutput {
-        VersionCheck.check(_bin, versionRequirements())
+        preflight()
         val args = buildExecArgs(prompt)
         return ZagProcess.exec(_bin, args)
     }
 
     /** Run the agent in streaming mode, yielding events as they arrive. */
     fun stream(prompt: String): Flow<Event> = kotlinx.coroutines.flow.flow {
-        VersionCheck.check(_bin, versionRequirements())
+        preflight()
         val args = buildExecArgs(prompt, streaming = true)
         kotlinx.coroutines.flow.emitAll(ZagProcess.stream(_bin, args))
     }
@@ -247,7 +268,8 @@ class ZagBuilder {
      * matrix.
      */
     suspend fun execStreaming(prompt: String): StreamingSession {
-        VersionCheck.check(_bin, versionRequirements())
+        preflight(listOf(CapabilityCheck.Requirement(
+            "execStreaming()", CapabilityCheck.FeatureKeys.STREAMING_INPUT, true)))
         val args = mutableListOf("exec")
         args.addAll(buildGlobalArgs())
         args.addAll(listOf("-i", "stream-json"))
@@ -260,7 +282,7 @@ class ZagBuilder {
 
     /** Start an interactive agent session (inherits stdio). */
     suspend fun run(prompt: String? = null) {
-        VersionCheck.check(_bin, versionRequirements())
+        preflight()
         val args = mutableListOf("run")
         args.addAll(buildGlobalArgs())
         if (_json) args.add("--json")
@@ -274,7 +296,7 @@ class ZagBuilder {
 
     /** Resume a previous session by ID. */
     suspend fun resume(sessionId: String) {
-        VersionCheck.check(_bin, versionRequirements())
+        preflight()
         val args = mutableListOf("run")
         args.addAll(buildGlobalArgs())
         args.add("--resume")
@@ -284,7 +306,7 @@ class ZagBuilder {
 
     /** Resume the most recent session. */
     suspend fun continueLast() {
-        VersionCheck.check(_bin, versionRequirements())
+        preflight()
         val args = mutableListOf("run")
         args.addAll(buildGlobalArgs())
         args.add("--continue")
@@ -293,7 +315,7 @@ class ZagBuilder {
 
     /** Resume a previous session non-interactively with a follow-up prompt. */
     suspend fun execResume(sessionId: String, prompt: String): AgentOutput {
-        VersionCheck.check(_bin, versionRequirements())
+        preflight()
         val args = buildExecArgs(prompt).toMutableList()
         val promptIdx = args.size - 1
         args.add(promptIdx, "--resume")
@@ -303,7 +325,7 @@ class ZagBuilder {
 
     /** Resume the most recent session non-interactively with a follow-up prompt. */
     suspend fun execContinue(prompt: String): AgentOutput {
-        VersionCheck.check(_bin, versionRequirements())
+        preflight()
         val args = buildExecArgs(prompt).toMutableList()
         val promptIdx = args.size - 1
         args.add(promptIdx, "--continue")
@@ -312,7 +334,7 @@ class ZagBuilder {
 
     /** Resume a previous session in streaming mode with a follow-up prompt. */
     fun streamResume(sessionId: String, prompt: String): Flow<Event> = kotlinx.coroutines.flow.flow {
-        VersionCheck.check(_bin, versionRequirements())
+        preflight()
         val args = buildExecArgs(prompt, streaming = true).toMutableList()
         val promptIdx = args.size - 1
         args.add(promptIdx, "--resume")
@@ -322,7 +344,7 @@ class ZagBuilder {
 
     /** Resume the most recent session in streaming mode with a follow-up prompt. */
     fun streamContinue(prompt: String): Flow<Event> = kotlinx.coroutines.flow.flow {
-        VersionCheck.check(_bin, versionRequirements())
+        preflight()
         val args = buildExecArgs(prompt, streaming = true).toMutableList()
         val promptIdx = args.size - 1
         args.add(promptIdx, "--continue")

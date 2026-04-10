@@ -152,6 +152,30 @@ public class ZagBuilder
         new VersionCheck.Requirement("McpConfig()", "0.6.0", _mcpConfig != null),
     };
 
+    private IReadOnlyList<CapabilityCheck.Requirement> FeatureRequirements(
+        IEnumerable<CapabilityCheck.Requirement>? extras = null)
+    {
+        var reqs = new List<CapabilityCheck.Requirement>
+        {
+            new("Worktree()", CapabilityCheck.FeatureKeys.Worktree, _worktree != null),
+            new("Sandbox()", CapabilityCheck.FeatureKeys.Sandbox, _sandbox != null),
+            new("SystemPrompt()", CapabilityCheck.FeatureKeys.SystemPrompt, _systemPrompt != null),
+            new("AddDir()", CapabilityCheck.FeatureKeys.AddDirs, _addDirs.Count > 0),
+            new("MaxTurns()", CapabilityCheck.FeatureKeys.MaxTurns, _maxTurns.HasValue),
+        };
+        if (extras != null) reqs.AddRange(extras);
+        return reqs;
+    }
+
+    /// <summary>Run version + capability preflight checks before spawning.</summary>
+    private async Task PreflightAsync(
+        IEnumerable<CapabilityCheck.Requirement>? extras = null,
+        CancellationToken ct = default)
+    {
+        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await CapabilityCheck.CheckAsync(_bin, _provider, FeatureRequirements(extras), ct);
+    }
+
     // -- Arg building --------------------------------------------------------
 
     internal List<string> BuildGlobalArgs()
@@ -207,7 +231,7 @@ public class ZagBuilder
     /// <summary>Run the agent non-interactively and return structured output.</summary>
     public async Task<AgentOutput> ExecAsync(string prompt, CancellationToken ct = default)
     {
-        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await PreflightAsync(ct: ct);
         var args = BuildExecArgs(prompt);
         return await ZagProcess.ExecAsync(_bin, [.. args], ct);
     }
@@ -215,7 +239,7 @@ public class ZagBuilder
     /// <summary>Run the agent in streaming mode, yielding events as they arrive.</summary>
     public async IAsyncEnumerable<Event> StreamAsync(string prompt, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
-        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await PreflightAsync(ct: ct);
         var args = BuildExecArgs(prompt, streaming: true);
         await foreach (var evt in ZagProcess.StreamAsync(_bin, [.. args], ct).WithCancellation(ct))
         {
@@ -243,7 +267,13 @@ public class ZagBuilder
     /// </summary>
     public async Task<StreamingSession> ExecStreaming(string prompt)
     {
-        await VersionCheck.CheckAsync(_bin, VersionRequirements());
+        await PreflightAsync(
+        [
+            new CapabilityCheck.Requirement(
+                "ExecStreaming()",
+                CapabilityCheck.FeatureKeys.StreamingInput,
+                true),
+        ]);
         var args = new List<string> { "exec" };
         args.AddRange(BuildGlobalArgs());
         args.Add("-i"); args.Add("stream-json");
@@ -257,7 +287,7 @@ public class ZagBuilder
     /// <summary>Start an interactive agent session (inherits stdio).</summary>
     public async Task RunAsync(string? prompt = null, CancellationToken ct = default)
     {
-        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await PreflightAsync(ct: ct);
         var args = new List<string> { "run" };
         args.AddRange(BuildGlobalArgs());
         if (_json) args.Add("--json");
@@ -273,7 +303,7 @@ public class ZagBuilder
     /// <summary>Resume a previous session by ID.</summary>
     public async Task ResumeAsync(string sessionId, CancellationToken ct = default)
     {
-        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await PreflightAsync(ct: ct);
         var args = new List<string> { "run" };
         args.AddRange(BuildGlobalArgs());
         args.Add("--resume");
@@ -284,7 +314,7 @@ public class ZagBuilder
     /// <summary>Resume the most recent session.</summary>
     public async Task ContinueLastAsync(CancellationToken ct = default)
     {
-        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await PreflightAsync(ct: ct);
         var args = new List<string> { "run" };
         args.AddRange(BuildGlobalArgs());
         args.Add("--continue");
@@ -294,7 +324,7 @@ public class ZagBuilder
     /// <summary>Resume a previous session non-interactively with a follow-up prompt.</summary>
     public async Task<AgentOutput> ExecResumeAsync(string sessionId, string prompt, CancellationToken ct = default)
     {
-        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await PreflightAsync(ct: ct);
         var args = BuildExecArgs(prompt);
         args.Insert(args.Count - 1, "--resume");
         args.Insert(args.Count - 1, sessionId);
@@ -304,7 +334,7 @@ public class ZagBuilder
     /// <summary>Resume the most recent session non-interactively with a follow-up prompt.</summary>
     public async Task<AgentOutput> ExecContinueAsync(string prompt, CancellationToken ct = default)
     {
-        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await PreflightAsync(ct: ct);
         var args = BuildExecArgs(prompt);
         args.Insert(args.Count - 1, "--continue");
         return await ZagProcess.ExecAsync(_bin, [.. args], ct);
@@ -313,7 +343,7 @@ public class ZagBuilder
     /// <summary>Resume a previous session in streaming mode with a follow-up prompt.</summary>
     public async IAsyncEnumerable<Event> StreamResumeAsync(string sessionId, string prompt, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
-        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await PreflightAsync(ct: ct);
         var args = BuildExecArgs(prompt, streaming: true);
         args.Insert(args.Count - 1, "--resume");
         args.Insert(args.Count - 1, sessionId);
@@ -326,7 +356,7 @@ public class ZagBuilder
     /// <summary>Resume the most recent session in streaming mode with a follow-up prompt.</summary>
     public async IAsyncEnumerable<Event> StreamContinueAsync(string prompt, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
-        await VersionCheck.CheckAsync(_bin, VersionRequirements(), ct);
+        await PreflightAsync(ct: ct);
         var args = BuildExecArgs(prompt, streaming: true);
         args.Insert(args.Count - 1, "--continue");
         await foreach (var evt in ZagProcess.StreamAsync(_bin, [.. args], ct).WithCancellation(ct))

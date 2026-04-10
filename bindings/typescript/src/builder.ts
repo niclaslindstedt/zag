@@ -11,6 +11,10 @@ import {
   checkVersion,
   type VersionRequirement,
 } from "./version.js";
+import {
+  checkCapabilities,
+  type FeatureRequirement,
+} from "./capability-check.js";
 
 /**
  * Fluent builder for configuring and running zag agent sessions.
@@ -263,6 +267,52 @@ export class ZagBuilder {
     ];
   }
 
+  /**
+   * Collect provider-capability requirements for the currently configured
+   * builder options. Each entry maps a user-visible setter to the
+   * capability feature that backs it.
+   */
+  private featureRequirements(extras: FeatureRequirement[] = []): FeatureRequirement[] {
+    return [
+      {
+        method: "worktree()",
+        feature: "worktree",
+        isSet: this._worktree !== undefined,
+      },
+      {
+        method: "sandbox()",
+        feature: "sandbox",
+        isSet: this._sandbox !== undefined,
+      },
+      {
+        method: "systemPrompt()",
+        feature: "system_prompt",
+        isSet: this._systemPrompt != null,
+      },
+      {
+        method: "addDir()",
+        feature: "add_dirs",
+        isSet: this._addDirs.length > 0,
+      },
+      {
+        method: "maxTurns()",
+        feature: "max_turns",
+        isSet: this._maxTurns != null,
+      },
+      ...extras,
+    ];
+  }
+
+  /** Run both version and capability preflight checks before spawning. */
+  private async preflight(extras: FeatureRequirement[] = []): Promise<void> {
+    await checkVersion(this._bin, this.versionRequirements());
+    await checkCapabilities(
+      this._bin,
+      this._provider,
+      this.featureRequirements(extras),
+    );
+  }
+
   /** Build the shared CLI flags (provider, model, session isolation, etc.). */
   private buildGlobalArgs(): string[] {
     const args: string[] = [];
@@ -330,7 +380,7 @@ export class ZagBuilder {
    * ```
    */
   async exec(prompt: string): Promise<AgentOutput> {
-    await checkVersion(this._bin, this.versionRequirements());
+    await this.preflight();
     const args = this.buildExecArgs(prompt, false);
     return execZag(this._bin, args);
   }
@@ -348,7 +398,7 @@ export class ZagBuilder {
    * ```
    */
   async *stream(prompt: string): AsyncGenerator<Event> {
-    await checkVersion(this._bin, this.versionRequirements());
+    await this.preflight();
     const args = this.buildExecArgs(prompt, true);
     yield* streamZag(this._bin, args);
   }
@@ -389,7 +439,13 @@ export class ZagBuilder {
    * ```
    */
   async execStreaming(prompt: string): Promise<StreamingSession> {
-    await checkVersion(this._bin, this.versionRequirements());
+    await this.preflight([
+      {
+        method: "execStreaming()",
+        feature: "streaming_input",
+        isSet: true,
+      },
+    ]);
     const args = ["exec", ...this.buildGlobalArgs()];
     args.push("-i", "stream-json");
     args.push("-o", "stream-json");
@@ -407,7 +463,7 @@ export class ZagBuilder {
    * Inherits stdin/stdout/stderr.
    */
   async run(prompt?: string): Promise<void> {
-    await checkVersion(this._bin, this.versionRequirements());
+    await this.preflight();
     const args = ["run", ...this.buildGlobalArgs()];
     if (this._json) args.push("--json");
     if (this._jsonSchema) {
@@ -419,14 +475,14 @@ export class ZagBuilder {
 
   /** Resume a previous session by ID. */
   async resume(sessionId: string): Promise<void> {
-    await checkVersion(this._bin, this.versionRequirements());
+    await this.preflight();
     const args = ["run", ...this.buildGlobalArgs(), "--resume", sessionId];
     return runZag(this._bin, args);
   }
 
   /** Resume the most recent session. */
   async continueLast(): Promise<void> {
-    await checkVersion(this._bin, this.versionRequirements());
+    await this.preflight();
     const args = ["run", ...this.buildGlobalArgs(), "--continue"];
     return runZag(this._bin, args);
   }
@@ -443,7 +499,7 @@ export class ZagBuilder {
    * ```
    */
   async execResume(sessionId: string, prompt: string): Promise<AgentOutput> {
-    await checkVersion(this._bin, this.versionRequirements());
+    await this.preflight();
     const args = this.buildExecArgs(prompt, false);
     // Insert --resume before the prompt positional arg
     const promptIdx = args.lastIndexOf(prompt);
@@ -463,7 +519,7 @@ export class ZagBuilder {
    * ```
    */
   async execContinue(prompt: string): Promise<AgentOutput> {
-    await checkVersion(this._bin, this.versionRequirements());
+    await this.preflight();
     const args = this.buildExecArgs(prompt, false);
     const promptIdx = args.lastIndexOf(prompt);
     args.splice(promptIdx, 0, "--continue");
@@ -475,7 +531,7 @@ export class ZagBuilder {
     sessionId: string,
     prompt: string,
   ): AsyncGenerator<Event> {
-    await checkVersion(this._bin, this.versionRequirements());
+    await this.preflight();
     const args = this.buildExecArgs(prompt, true);
     const promptIdx = args.lastIndexOf(prompt);
     args.splice(promptIdx, 0, "--resume", sessionId);
@@ -484,7 +540,7 @@ export class ZagBuilder {
 
   /** Resume the most recent session in streaming mode with a follow-up prompt. */
   async *streamContinue(prompt: string): AsyncGenerator<Event> {
-    await checkVersion(this._bin, this.versionRequirements());
+    await this.preflight();
     const args = this.buildExecArgs(prompt, true);
     const promptIdx = args.lastIndexOf(prompt);
     args.splice(promptIdx, 0, "--continue");

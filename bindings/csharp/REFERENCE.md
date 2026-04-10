@@ -236,6 +236,20 @@ public class ZagException : Exception
 }
 ```
 
+### ZagFeatureUnsupportedException
+
+Subclass of `ZagException` thrown when a builder option requires a provider feature that the configured provider does not support. The capability preflight raises this before spawning the CLI, so callers receive a typed, catchable error instead of a cryptic non-zero exit code.
+
+```csharp
+public class ZagFeatureUnsupportedException : ZagException
+{
+    string Provider { get; }                            // provider that does not support the feature
+    string Feature { get; }                             // feature key (e.g. "streaming_input")
+    string Method { get; }                              // builder method (e.g. "ExecStreaming()")
+    IReadOnlyList<string> SupportedProviders { get; }   // providers that do support the feature
+}
+```
+
 ---
 
 ## Discovery API -- `ZagDiscover`
@@ -625,6 +639,16 @@ The builder constructs CLI arguments in two groups:
 ### Version Checking
 
 Before any terminal method executes, the SDK runs `zag --version` to detect the installed CLI version. The result is cached per binary path for the lifetime of the process. If a configured method requires a newer CLI version, `ZagException` is thrown with an actionable message before the subprocess is started.
+
+### Capability Checking
+
+After the version check, every terminal method runs a capability preflight against the provider declared by `Provider()` (or skipped if no provider is set). The preflight loads the capability matrix from `zag discover --json` (cached per binary path) and verifies that every active feature-gated builder option (`Worktree()`, `Sandbox()`, `SystemPrompt()`, `AddDir()`, `MaxTurns()`, `ExecStreaming()` ➜ `streaming_input`) is supported by the configured provider's `Features` block. On the first unsupported feature it throws `ZagFeatureUnsupportedException` with a message of the form:
+
+```
+Provider 'ollama' does not support streaming_input (required by ExecStreaming()). Supported providers: claude
+```
+
+If `zag discover` itself fails the preflight silently returns and the subsequent CLI invocation surfaces the real error.
 
 ### Process Management
 

@@ -299,6 +299,34 @@ public final class ZagBuilder {
             VersionCheck.Requirement(method: "mcpConfig()", version: "0.6.0", isSet: _mcpConfig != nil),
         ]
     }
+
+    private func featureRequirements(
+        extras: [CapabilityCheck.Requirement] = []
+    ) -> [CapabilityCheck.Requirement] {
+        var reqs: [CapabilityCheck.Requirement] = [
+            CapabilityCheck.Requirement(
+                method: "worktree()", feature: .worktree, isSet: _worktree != nil),
+            CapabilityCheck.Requirement(
+                method: "sandbox()", feature: .sandbox, isSet: _sandbox != nil),
+            CapabilityCheck.Requirement(
+                method: "systemPrompt()", feature: .systemPrompt, isSet: _systemPrompt != nil),
+            CapabilityCheck.Requirement(
+                method: "addDir()", feature: .addDirs, isSet: !_addDirs.isEmpty),
+            CapabilityCheck.Requirement(
+                method: "maxTurns()", feature: .maxTurns, isSet: _maxTurns != nil),
+        ]
+        reqs.append(contentsOf: extras)
+        return reqs
+    }
+
+    /// Run version + capability preflight checks before spawning.
+    private func preflight(
+        extras: [CapabilityCheck.Requirement] = []
+    ) async throws {
+        try await VersionCheck.check(bin: bin, requirements: versionRequirements())
+        try await CapabilityCheck.check(
+            bin: bin, provider: _provider, requirements: featureRequirements(extras: extras))
+    }
     #endif
 
     // MARK: - Terminal methods
@@ -322,7 +350,7 @@ public final class ZagBuilder {
                 isError: false)
         }
         #if os(macOS) || os(Linux)
-        try await VersionCheck.check(bin: bin, requirements: versionRequirements())
+        try await preflight()
         let args = buildExecArgs(prompt: prompt)
         return try await ZagProcess.exec(bin: bin, args: args)
         #else
@@ -355,11 +383,15 @@ public final class ZagBuilder {
         #if os(macOS) || os(Linux)
         let args = buildExecArgs(prompt: prompt, streaming: true)
         let binPath = bin
-        let requirements = versionRequirements()
+        let versionReqs = versionRequirements()
+        let featureReqs = featureRequirements()
+        let providerName = _provider
         return AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await VersionCheck.check(bin: binPath, requirements: requirements)
+                    try await VersionCheck.check(bin: binPath, requirements: versionReqs)
+                    try await CapabilityCheck.check(
+                        bin: binPath, provider: providerName, requirements: featureReqs)
                     let innerStream = ZagProcess.stream(bin: binPath, args: args)
                     for try await event in innerStream {
                         continuation.yield(event)
@@ -405,7 +437,10 @@ public final class ZagBuilder {
         if _connection != nil {
             fatalError("Use execStreamingRemote(_:) for remote streaming sessions.")
         }
-        try await VersionCheck.check(bin: bin, requirements: versionRequirements())
+        try await preflight(extras: [
+            CapabilityCheck.Requirement(
+                method: "execStreaming()", feature: .streamingInput, isSet: true),
+        ])
         var args: [String] = ["exec"]
         args += buildGlobalArgs()
         args += ["-i", "stream-json"]
@@ -445,7 +480,7 @@ public final class ZagBuilder {
     /// Only available in local mode (macOS/Linux).
     #if os(macOS) || os(Linux)
     public func run(_ prompt: String? = nil) async throws {
-        try await VersionCheck.check(bin: bin, requirements: versionRequirements())
+        try await preflight()
         var args: [String] = ["run"]
         args += buildGlobalArgs()
         if _json { args.append("--json") }
@@ -456,7 +491,7 @@ public final class ZagBuilder {
 
     /// Resume a previous session by ID.
     public func resume(_ sessionId: String) async throws {
-        try await VersionCheck.check(bin: bin, requirements: versionRequirements())
+        try await preflight()
         var args: [String] = ["run"]
         args += buildGlobalArgs()
         args += ["--resume", sessionId]
@@ -465,7 +500,7 @@ public final class ZagBuilder {
 
     /// Resume the most recent session.
     public func continueLast() async throws {
-        try await VersionCheck.check(bin: bin, requirements: versionRequirements())
+        try await preflight()
         var args: [String] = ["run"]
         args += buildGlobalArgs()
         args.append("--continue")
@@ -474,7 +509,7 @@ public final class ZagBuilder {
 
     /// Resume a previous session non-interactively with a follow-up prompt.
     public func execResume(sessionId: String, prompt: String) async throws -> AgentOutput {
-        try await VersionCheck.check(bin: bin, requirements: versionRequirements())
+        try await preflight()
         var args = buildExecArgs(prompt: prompt)
         let promptIdx = args.count - 1
         args.insert(contentsOf: ["--resume", sessionId], at: promptIdx)
@@ -483,7 +518,7 @@ public final class ZagBuilder {
 
     /// Resume the most recent session non-interactively with a follow-up prompt.
     public func execContinue(prompt: String) async throws -> AgentOutput {
-        try await VersionCheck.check(bin: bin, requirements: versionRequirements())
+        try await preflight()
         var args = buildExecArgs(prompt: prompt)
         let promptIdx = args.count - 1
         args.insert("--continue", at: promptIdx)
@@ -493,7 +528,9 @@ public final class ZagBuilder {
     /// Resume a previous session in streaming mode with a follow-up prompt.
     public func streamResume(sessionId: String, prompt: String) -> AsyncThrowingStream<Event, Error> {
         let binPath = bin
-        let requirements = versionRequirements()
+        let versionReqs = versionRequirements()
+        let featureReqs = featureRequirements()
+        let providerName = _provider
         var args = buildExecArgs(prompt: prompt, streaming: true)
         let promptIdx = args.count - 1
         args.insert(contentsOf: ["--resume", sessionId], at: promptIdx)
@@ -501,7 +538,9 @@ public final class ZagBuilder {
         return AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await VersionCheck.check(bin: binPath, requirements: requirements)
+                    try await VersionCheck.check(bin: binPath, requirements: versionReqs)
+                    try await CapabilityCheck.check(
+                        bin: binPath, provider: providerName, requirements: featureReqs)
                     let innerStream = ZagProcess.stream(bin: binPath, args: capturedArgs)
                     for try await event in innerStream {
                         continuation.yield(event)
@@ -517,7 +556,9 @@ public final class ZagBuilder {
     /// Resume the most recent session in streaming mode with a follow-up prompt.
     public func streamContinue(prompt: String) -> AsyncThrowingStream<Event, Error> {
         let binPath = bin
-        let requirements = versionRequirements()
+        let versionReqs = versionRequirements()
+        let featureReqs = featureRequirements()
+        let providerName = _provider
         var args = buildExecArgs(prompt: prompt, streaming: true)
         let promptIdx = args.count - 1
         args.insert("--continue", at: promptIdx)
@@ -525,7 +566,9 @@ public final class ZagBuilder {
         return AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await VersionCheck.check(bin: binPath, requirements: requirements)
+                    try await VersionCheck.check(bin: binPath, requirements: versionReqs)
+                    try await CapabilityCheck.check(
+                        bin: binPath, provider: providerName, requirements: featureReqs)
                     let innerStream = ZagProcess.stream(bin: binPath, args: capturedArgs)
                     for try await event in innerStream {
                         continuation.yield(event)

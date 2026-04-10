@@ -188,3 +188,39 @@ export class ZagError extends Error {
     this.name = "ZagError";
   }
 }
+
+/**
+ * Error thrown when a builder method requires a provider feature that the
+ * configured provider does not support.
+ *
+ * The builder validates feature-gated options (`execStreaming()`, `worktree()`,
+ * `sandbox()`, `systemPrompt()`, `addDir()`, `maxTurns()`) against the
+ * capability declarations exposed by `zag discover` before spawning the CLI,
+ * so callers receive a clear, typed error instead of a cryptic runtime exit
+ * code.
+ *
+ * @example
+ * ```ts
+ * try {
+ *   await new ZagBuilder().provider("ollama").execStreaming("hi");
+ * } catch (err) {
+ *   if (err instanceof ZagFeatureUnsupportedError) {
+ *     console.error(
+ *       `${err.method} requires ${err.feature}; try one of: ${err.supportedProviders.join(", ")}`,
+ *     );
+ *   }
+ * }
+ * ```
+ */
+export class ZagFeatureUnsupportedError extends ZagError {
+  constructor(
+    message: string,
+    public readonly provider: string,
+    public readonly feature: string,
+    public readonly method: string,
+    public readonly supportedProviders: string[],
+  ) {
+    super(message, null, "");
+    this.name = "ZagFeatureUnsupportedError";
+  }
+}
