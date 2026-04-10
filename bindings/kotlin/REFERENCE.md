@@ -50,7 +50,6 @@ All configuration methods use `= apply { }` pattern for chaining. Uses camelCase
 | `env` | `fun env(key: String, value: String) = apply { ... }` | `--env KEY=VALUE` | Add environment variable _(CLI >= 0.6.0)_ |
 | `json` | `fun json(v: Boolean = true) = apply { ... }` | `--json` | Request JSON output |
 | `jsonSchema` | `fun jsonSchema(schema: String) = apply { ... }` | `--json-schema` | JSON schema for validation (implies `json()`) |
-| `jsonStream` | `fun jsonStream(v: Boolean = true) = apply { ... }` | `--json-stream` | Enable NDJSON streaming output |
 | `worktree` | `fun worktree(name: String? = null) = apply { ... }` | `-w, --worktree [NAME]` | Git worktree isolation (auto-named if no arg) |
 | `sandbox` | `fun sandbox(name: String? = null) = apply { ... }` | `--sandbox [NAME]` | Docker sandbox isolation (auto-named if no arg) |
 | `verbose` | `fun verbose(v: Boolean = true) = apply { ... }` | `--verbose` | Enable verbose output |
@@ -486,12 +485,12 @@ Arguments are split into two groups:
 
 **Global args** (before the subcommand): `--provider`, `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir`, `--file`, `--env`, `-w`/`--worktree`, `--sandbox`, `--verbose`, `--quiet`, `--debug`, `--session`, `--max-turns`, `--mcp-config`, `--show-usage`, `--size`
 
-**Exec args** (after `exec`): `--json`, `--json-schema`, `--json-stream`, `-o`/`--output`, `-i`/`--input-format`, `--replay-user-messages`, `--include-partial-messages`, `--timeout`
+**Exec args** (after `exec`): `--json`, `--json-schema`, `-o`/`--output`, `-i`/`--input-format`, `--replay-user-messages`, `--include-partial-messages`, `--timeout`
 
 ### Default behaviors
 
-- `exec()` automatically adds `-o json` when no explicit `outputFormat` or `jsonStream` is set, so the output can be parsed as structured `AgentOutput`.
-- `stream()` always adds `--json-stream` for NDJSON event output. Returns a cold `Flow<Event>` (lazy, collects on demand).
+- `exec()` automatically adds `-o json` when no explicit `outputFormat` is set, so the output can be parsed as structured `AgentOutput`.
+- `stream()` adds `-o stream-json` for NDJSON event output (unless an explicit `outputFormat` is set). Returns a cold `Flow<Event>` (lazy, collects on demand).
 - `execStreaming()` forces `-i stream-json`, `-o stream-json`, and `--replay-user-messages` for bidirectional communication.
 - `run()` inherits stdin/stdout/stderr for interactive terminal use.
 - `resume()` dispatches to `run --resume <id>`.

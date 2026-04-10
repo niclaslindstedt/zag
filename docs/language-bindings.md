@@ -136,7 +136,6 @@ All bindings support the same set of builder methods (naming follows each langua
 | `max_turns` | Limit agentic turns |
 | `json` | Request JSON output |
 | `json_schema` | Set a JSON schema for validation |
-| `json_stream` | Enable NDJSON streaming |
 | `worktree` | Enable git worktree isolation |
 | `sandbox` | Enable Docker sandbox isolation |
 | `session_id` | Set a pre-determined session ID |

@@ -54,10 +54,18 @@ describe("ZagBuilder", () => {
   it("should support json options", () => {
     const builder = new ZagBuilder()
       .json()
-      .jsonSchema({ type: "object" })
-      .jsonStream();
+      .jsonSchema({ type: "object" });
 
     assert.ok(builder);
+  });
+
+  it("should default stream() to -o stream-json", () => {
+    const builder = new ZagBuilder().provider("claude");
+    const args = (builder as any).buildExecArgs("hello", true);
+    assert.ok(!args.includes("--json-stream"));
+    const oi = args.indexOf("-o");
+    assert.notEqual(oi, -1);
+    assert.equal(args[oi + 1], "stream-json");
   });
 
   it("should support isolation modes", () => {

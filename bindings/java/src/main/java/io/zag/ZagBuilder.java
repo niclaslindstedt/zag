@@ -32,7 +32,6 @@ public class ZagBuilder {
     private final List<String> envVars = new ArrayList<>();
     private boolean json;
     private Object jsonSchema;
-    private boolean jsonStream;
     private Object worktree;   // Boolean.TRUE or String
     private Object sandbox;    // Boolean.TRUE or String
     private boolean verbose;
@@ -86,9 +85,6 @@ public class ZagBuilder {
 
     /** Set a JSON schema for structured output validation. Implies {@link #json()}. */
     public ZagBuilder jsonSchema(Object s) { this.jsonSchema = s; this.json = true; return this; }
-
-    /** Enable streaming JSON output (NDJSON format). */
-    public ZagBuilder jsonStream() { this.jsonStream = true; return this; }
 
     /** Enable worktree mode. */
     public ZagBuilder worktree() { this.worktree = Boolean.TRUE; return this; }
@@ -207,16 +203,18 @@ public class ZagBuilder {
                 throw new IllegalArgumentException("Failed to serialize JSON schema", e);
             }
         }
-        if (jsonStream || streaming) args.add("--json-stream");
-        if (outputFormat != null) { args.add("-o"); args.add(outputFormat); }
+        if (outputFormat != null) {
+            args.add("-o"); args.add(outputFormat);
+        } else if (streaming) {
+            args.add("-o"); args.add("stream-json");
+        } else {
+            // Default to json output for structured parsing
+            args.add("-o"); args.add("json");
+        }
         if (inputFormat != null) { args.add("-i"); args.add(inputFormat); }
         if (replayUserMessages) args.add("--replay-user-messages");
         if (includePartialMessages) args.add("--include-partial-messages");
         if (timeout != null) { args.add("--timeout"); args.add(timeout); }
-        // Default to json output for structured parsing
-        if (!streaming && outputFormat == null && !jsonStream) {
-            args.add("-o"); args.add("json");
-        }
         args.add(prompt);
         return args;
     }

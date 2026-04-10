@@ -88,7 +88,7 @@ Use this table to map changed files/scopes to affected manpages:
 These structs in `cli.rs` are flattened into multiple commands. When they change, all commands that use them need updating:
 
 - **AgentArgs** (provider, model, root, auto_approve, system_prompt, add_dirs, size, show_usage, max_turns) — used by: Run, Exec, Review, Spawn, Pipe
-- **SessionIsolationArgs** (worktree, sandbox, session, json, json_schema, json_stream) — used by: Run, Exec
+- **SessionIsolationArgs** (worktree, sandbox, session, json, json_schema) — used by: Run, Exec
 - **SessionMetadataArgs** (name, description, tags) — used by: Run, Exec, Spawn
 
 ## Implementation Files

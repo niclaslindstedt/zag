@@ -81,7 +81,6 @@ pub struct AgentBuilder {
     size: Option<String>,
     json_mode: bool,
     json_schema: Option<serde_json::Value>,
-    json_stream: bool,
     session_id: Option<String>,
     output_format: Option<String>,
     input_format: Option<String>,
@@ -119,7 +118,6 @@ impl AgentBuilder {
             size: None,
             json_mode: false,
             json_schema: None,
-            json_stream: false,
             session_id: None,
             output_format: None,
             input_format: None,
@@ -212,12 +210,6 @@ impl AgentBuilder {
     pub fn json_schema(mut self, schema: serde_json::Value) -> Self {
         self.json_schema = Some(schema);
         self.json_mode = true;
-        self
-    }
-
-    /// Enable streaming JSON output (NDJSON format).
-    pub fn json_stream(mut self) -> Self {
-        self.json_stream = true;
         self
     }
 
@@ -393,9 +385,6 @@ impl AgentBuilder {
             if provider != "claude" {
                 agent.set_capture_output(true);
             }
-        }
-        if self.json_stream && output_format.is_none() {
-            output_format = Some("stream-json".to_string());
         }
         agent.set_output_format(output_format);
 

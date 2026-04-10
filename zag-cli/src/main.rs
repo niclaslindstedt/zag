@@ -106,37 +106,6 @@ async fn main() -> Result<()> {
         .as_ref()
         .map(|s| s.json || s.json_schema.is_some())
         .unwrap_or(false);
-    let json_stream = session_args
-        .as_ref()
-        .map(|s| s.json_stream)
-        .unwrap_or(false);
-
-    // Validate --json-stream is mutually exclusive with --json/--json-schema
-    if json_stream && json_mode {
-        bail!("--json-stream cannot be combined with --json or --json-schema");
-    }
-
-    // Validate --json-stream usage with resume/continue
-    if json_stream {
-        match &cli.command {
-            Commands::Run {
-                resume,
-                continue_session,
-                ..
-            }
-            | Commands::Exec {
-                resume,
-                continue_session,
-                ..
-            } if resume.is_some() || *continue_session => {
-                bail!("--json-stream cannot be used with --resume or --continue")
-            }
-            Commands::Run { prompt, .. } if prompt.is_none() => {
-                bail!("--json-stream requires a prompt (use exec or run with a prompt)")
-            }
-            _ => {}
-        }
-    }
 
     // Validate --json/--json-schema usage and parse schema once
     let json_schema: Option<serde_json::Value> = if json_mode {
@@ -866,7 +835,6 @@ async fn main() -> Result<()> {
                 session: None,
                 json: false,
                 json_schema: None,
-                json_stream: false,
             });
             let provider =
                 resolve_provider(agent_args.provider.as_deref(), agent_args.root.as_deref())?;
@@ -890,7 +858,6 @@ async fn main() -> Result<()> {
                 size: agent_args.size,
                 json_mode,
                 json_schema,
-                json_stream,
                 session: session_isolation.session,
                 max_turns: agent_args.max_turns,
                 mcp_config: agent_args.mcp_config,

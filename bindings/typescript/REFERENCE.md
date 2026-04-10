@@ -80,7 +80,6 @@ All setter methods return `this` for chaining.
 | `env` | `env(key: string, value: string): this` | `--env KEY=VALUE` | Add an environment variable for the agent subprocess. Requires CLI >= 0.6.0. |
 | `json` | `json(): this` | `--json` | Request JSON output from the agent. |
 | `jsonSchema` | `jsonSchema(s: object): this` | `--json-schema` | Set a JSON schema for structured output validation. Implies `.json()`. |
-| `jsonStream` | `jsonStream(): this` | `--json-stream` | Enable NDJSON streaming output. |
 | `worktree` | `worktree(name?: string): this` | `-w, --worktree [NAME]` | Git worktree isolation. No argument = auto-generated name. |
 | `sandbox` | `sandbox(name?: string): this` | `--sandbox [NAME]` | Docker sandbox isolation. No argument = auto-generated name. |
 | `verbose` | `verbose(v = true): this` | `--verbose` | Enable verbose output. Pass `false` to disable. |
@@ -806,7 +805,7 @@ These are built by `buildGlobalArgs()` and include: `--provider`, `--model`, `--
 
 **Exec args** (placed after the `exec` subcommand):
 
-These are built by `buildExecArgs()` and include: `--json`, `--json-schema`, `--json-stream`, `-o` (output format), `-i` (input format), `--replay-user-messages`, `--include-partial-messages`, `--timeout`. The prompt string is always the last argument.
+These are built by `buildExecArgs()` and include: `--json`, `--json-schema`, `-o` (output format), `-i` (input format), `--replay-user-messages`, `--include-partial-messages`, `--timeout`. The prompt string is always the last argument.
 
 The final CLI invocation has the form:
 
@@ -824,16 +823,16 @@ zag [global-args...] run --continue
 
 ### Default Behaviors
 
-- **`exec()`**: When no explicit `outputFormat` or `jsonStream` is set, automatically adds `-o json` to enable structured JSON parsing of the output.
-- **`stream()`**: Always adds `--json-stream` to the exec args, regardless of whether `.jsonStream()` was called.
+- **`exec()`**: When no explicit `outputFormat` is set, automatically adds `-o json` to enable structured JSON parsing of the output.
+- **`stream()`**: When no explicit `outputFormat` is set, automatically adds `-o stream-json` for NDJSON event streaming.
 - **`execStreaming()`**: Forces `-i stream-json -o stream-json --replay-user-messages`. If `includePartialMessages` was set, that flag is also added. Does not use `buildExecArgs()` -- it constructs exec-specific args directly.
 - **`run()`**: Inherits stdio from the parent process (interactive terminal mode). Supports optional `--json` and `--json-schema` flags. No output format is forced.
 - **`resume()`**: Calls `zag [global-args...] run --resume <id>` with inherited stdio.
 - **`continueLast()`**: Calls `zag [global-args...] run --continue` with inherited stdio.
 - **`execResume()`**: Calls `zag exec [exec-args...] --resume <id> <prompt>` non-interactively. Returns structured `AgentOutput`.
 - **`execContinue()`**: Calls `zag exec [exec-args...] --continue <prompt>` non-interactively. Returns structured `AgentOutput`.
-- **`streamResume()`**: Like `execResume()` but with `--json-stream` for streaming events.
-- **`streamContinue()`**: Like `execContinue()` but with `--json-stream` for streaming events.
+- **`streamResume()`**: Like `execResume()` but with `-o stream-json` for streaming events.
+- **`streamContinue()`**: Like `execContinue()` but with `-o stream-json` for streaming events.
 
 ### Version Checking
 

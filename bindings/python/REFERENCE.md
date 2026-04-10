@@ -42,7 +42,6 @@ All configuration methods return `ZagBuilder` for chaining. Uses `snake_case`.
 | `env` | `def env(self, key: str, value: str) -> ZagBuilder` | `--env KEY=VALUE` | Add environment variable _(CLI >= 0.6.0)_ |
 | `json_mode` | `def json_mode(self) -> ZagBuilder` | `--json` | Request JSON output |
 | `json_schema` | `def json_schema(self, s: dict) -> ZagBuilder` | `--json-schema` | JSON schema for validation (implies `json_mode()`) |
-| `json_stream` | `def json_stream(self) -> ZagBuilder` | `--json-stream` | Enable NDJSON streaming output |
 | `worktree` | `def worktree(self, name: str \| None = None) -> ZagBuilder` | `-w, --worktree [NAME]` | Git worktree isolation (auto-named if no arg) |
 | `sandbox` | `def sandbox(self, name: str \| None = None) -> ZagBuilder` | `--sandbox [NAME]` | Docker sandbox isolation (auto-named if no arg) |
 | `verbose` | `def verbose(self, v: bool = True) -> ZagBuilder` | `--verbose` | Enable verbose output |
@@ -424,20 +423,20 @@ Arguments are split into two groups:
 
 **Global args** (before the subcommand): `--provider`, `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir`, `--file`, `--env`, `-w`/`--worktree`, `--sandbox`, `--verbose`, `--quiet`, `--debug`, `--session`, `--max-turns`, `--mcp-config`, `--show-usage`, `--size`
 
-**Exec args** (after `exec`): `--json`, `--json-schema`, `--json-stream`, `-o`/`--output`, `-i`/`--input-format`, `--replay-user-messages`, `--include-partial-messages`, `--timeout`
+**Exec args** (after `exec`): `--json`, `--json-schema`, `-o`/`--output`, `-i`/`--input-format`, `--replay-user-messages`, `--include-partial-messages`, `--timeout`
 
 ### Default behaviors
 
-- `exec()` automatically adds `-o json` when no explicit `output_format` or `json_stream` is set, so the output can be parsed as structured `AgentOutput`.
-- `stream()` always adds `--json-stream` for NDJSON event output.
+- `exec()` automatically adds `-o json` when no explicit `output_format` is set, so the output can be parsed as structured `AgentOutput`.
+- `stream()` adds `-o stream-json` for NDJSON event output (unless an explicit `output_format` is set).
 - `exec_streaming()` forces `-i stream-json`, `-o stream-json`, and `--replay-user-messages` for bidirectional communication.
 - `run()` inherits stdin/stdout/stderr for interactive terminal use.
 - `resume()` dispatches to `run --resume <id>`.
 - `continue_last()` dispatches to `run --continue`.
 - `exec_resume()` dispatches to `exec [exec-args...] --resume <id> <prompt>` non-interactively. Returns structured `AgentOutput`.
 - `exec_continue()` dispatches to `exec [exec-args...] --continue <prompt>` non-interactively. Returns structured `AgentOutput`.
-- `stream_resume()` like `exec_resume()` but with `--json-stream` for streaming events.
-- `stream_continue()` like `exec_continue()` but with `--json-stream` for streaming events.
+- `stream_resume()` like `exec_resume()` but with `-o stream-json` for streaming events.
+- `stream_continue()` like `exec_continue()` but with `-o stream-json` for streaming events.
 
 ### Version checking
 

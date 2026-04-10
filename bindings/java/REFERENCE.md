@@ -79,7 +79,6 @@ All setters return `ZagBuilder` for method chaining. Boolean options have both a
 | `env` | `ZagBuilder env(String key, String value)` | `--env` | Set an environment variable for the subprocess. Repeatable. Requires CLI >= 0.6.0. |
 | `json` | `ZagBuilder json()` | `--json` | Request JSON output. |
 | `jsonSchema` | `ZagBuilder jsonSchema(Object schema)` | `--json-schema` | JSON schema for structured output validation. Implies `json()`. The object is serialized via Jackson. |
-| `jsonStream` | `ZagBuilder jsonStream()` | `--json-stream` | Enable NDJSON streaming output. |
 | `worktree` | `ZagBuilder worktree()` | `-w` | Run in an isolated git worktree (auto-named). |
 | `worktree` | `ZagBuilder worktree(String name)` | `-w <name>` | Run in a named git worktree. |
 | `sandbox` | `ZagBuilder sandbox()` | `--sandbox` | Run in a Docker sandbox (auto-named). |
@@ -113,7 +112,7 @@ Terminal methods consume the builder configuration and execute the agent. All ar
 | Method | Signature | Description |
 |--------|-----------|-------------|
 | `exec` | `AgentOutput exec(String prompt) throws ZagException` | Run non-interactively. Returns structured output. Defaults to `-o json`. |
-| `stream` | `Iterable<Event> stream(String prompt) throws ZagException` | Stream NDJSON events. Returns an `Iterable<Event>` backed by a lazy iterator that reads lines from stdout. Adds `--json-stream`. |
+| `stream` | `Iterable<Event> stream(String prompt) throws ZagException` | Stream NDJSON events. Returns an `Iterable<Event>` backed by a lazy iterator that reads lines from stdout. Adds `-o stream-json`. |
 | `execStreaming` | `StreamingSession execStreaming(String prompt) throws ZagException` | Bidirectional streaming. Claude only. Automatically sets `-i stream-json -o stream-json --replay-user-messages`. |
 | `run` | `void run(String prompt) throws ZagException` | Interactive session with inherited stdio. |
 | `run` | `void run() throws ZagException` | Interactive session without an initial prompt. |
@@ -652,7 +651,7 @@ try {
 The SDK does not communicate with AI providers directly. It spawns the `zag` CLI as a child process via `ProcessBuilder` and parses the structured output.
 
 - `exec()` runs `zag [global-flags] exec -o json <prompt>` and reads all of stdout into an `AgentOutput`.
-- `stream()` runs `zag [global-flags] exec --json-stream <prompt>` and returns a lazy `Iterable<Event>` that parses NDJSON lines from stdout one at a time.
+- `stream()` runs `zag [global-flags] exec -o stream-json <prompt>` and returns a lazy `Iterable<Event>` that parses NDJSON lines from stdout one at a time.
 - `execStreaming()` runs `zag [global-flags] exec -i stream-json -o stream-json --replay-user-messages <prompt>` with piped stdin and stdout.
 - `run()`, `resume()`, and `continueLast()` use `ProcessBuilder.inheritIO()` so the user interacts with the agent directly in the terminal.
 

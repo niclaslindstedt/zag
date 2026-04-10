@@ -853,10 +853,6 @@ export const builderMethods: BuilderMethod[] = [
     "description": "Implies `json()`."
   },
   {
-    "name": "json_stream",
-    "description": "Enable streaming JSON output (NDJSON format)."
-  },
-  {
     "name": "session_id",
     "description": "Set a specific session ID (UUID)."
   },

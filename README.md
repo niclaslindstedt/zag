@@ -162,7 +162,6 @@ zag man [command]             Built-in manual pages
 | `--sandbox [name]` | | Run inside a Docker sandbox |
 | `--json` | | Request structured JSON output |
 | `--json-schema <schema>` | | Validate output against a JSON schema |
-| `--json-stream` | | Stream JSON events (NDJSON) |
 | `--session <uuid>` | | Pre-set the session ID |
 | `--name <name>` | | Human-readable session name (for discovery) |
 | `--description <text>` | | Short description of the session's purpose |
@@ -344,7 +343,7 @@ zag exec --json "list 3 programming languages"
 zag exec --json-schema '{"type":"object","required":["languages"]}' "list 3 languages"
 
 # Stream events as NDJSON
-zag exec --json-stream "complex task"
+zag exec -o stream-json "complex task"
 ```
 
 Claude uses its native `--json-schema` support. Other providers get JSON instructions injected into the system prompt. On validation failure, `zag` retries up to 3 times via session resume.

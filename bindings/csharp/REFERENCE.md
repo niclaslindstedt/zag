@@ -52,7 +52,6 @@ Every method below returns `ZagBuilder`.
 | `Env` | `Env(string key, string value)` | `--env` | Environment variable for the agent subprocess (repeatable, CLI >= 0.6.0) |
 | `Json` | `Json()` | `--json` | Request JSON output |
 | `JsonSchema` | `JsonSchema(object schema)` | `--json-schema` | JSON schema for structured output validation (implies `Json()`) |
-| `JsonStream` | `JsonStream()` | `--json-stream` | Enable NDJSON streaming output |
 | `Worktree` | `Worktree(string? name = null)` | `-w` | Git worktree isolation; optional name |
 | `Sandbox` | `Sandbox(string? name = null)` | `--sandbox` | Docker sandbox isolation; optional name |
 | `Verbose` | `Verbose(bool v = true)` | `--verbose` | Verbose output |
@@ -605,12 +604,12 @@ The builder constructs CLI arguments in two groups:
 
 **Global args** (applied before the subcommand): provider, model, system-prompt, root, auto-approve, add-dir, file, env, worktree, sandbox, verbose, quiet, debug, session, max-turns, mcp-config, show-usage, size.
 
-**Exec args** (applied after `exec`): json, json-schema, json-stream, output format, input format, replay-user-messages, include-partial-messages, timeout, then the prompt.
+**Exec args** (applied after `exec`): json, json-schema, output format, input format, replay-user-messages, include-partial-messages, timeout, then the prompt.
 
 ### Implicit Defaults
 
-- `ExecAsync()` adds `-o json` automatically unless `OutputFormat()`, `JsonStream()`, or `Json()` was set. This ensures output is parseable as `AgentOutput`.
-- `StreamAsync()` always adds `--json-stream`.
+- `ExecAsync()` adds `-o json` automatically unless `OutputFormat()` or `Json()` was set. This ensures output is parseable as `AgentOutput`.
+- `StreamAsync()` adds `-o stream-json` for NDJSON event output (unless an explicit `OutputFormat()` is set).
 - `ExecStreaming()` forces `-i stream-json -o stream-json --replay-user-messages`. If `IncludePartialMessages()` was called, `--include-partial-messages` is also added.
 - `RunAsync()` does not redirect stdio (the process inherits the terminal).
 - `JsonSchema()` calls `Json()` internally, setting `--json` in addition to `--json-schema`.

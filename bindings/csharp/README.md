@@ -52,7 +52,6 @@ await foreach (var evt in new ZagBuilder().Provider("claude").StreamAsync("analy
 | `.Env(key, value)` | Add an environment variable for the agent subprocess (chainable) |
 | `.Json()` | Request JSON output |
 | `.JsonSchema(schema)` | Validate output against a JSON schema (implies `.Json()`) |
-| `.JsonStream()` | Enable streaming NDJSON output |
 | `.Worktree(name?)` | Run in an isolated git worktree |
 | `.Sandbox(name?)` | Run in a Docker sandbox |
 | `.SessionId(uuid)` | Use a specific session ID |

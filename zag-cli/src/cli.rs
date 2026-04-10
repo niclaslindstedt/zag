@@ -117,10 +117,6 @@ pub(crate) struct SessionIsolationArgs {
     /// JSON schema for structured output (file path or inline JSON string)
     #[arg(long, value_name = "SCHEMA")]
     pub(crate) json_schema: Option<String>,
-
-    /// Stream JSON events (NDJSON format) — sets output format to stream-json
-    #[arg(long)]
-    pub(crate) json_stream: bool,
 }
 
 #[derive(Subcommand)]

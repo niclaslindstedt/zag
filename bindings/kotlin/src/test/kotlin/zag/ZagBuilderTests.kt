@@ -79,7 +79,10 @@ class ZagBuilderTests {
     fun `exec args streaming`() {
         val builder = ZagBuilder()
         val args = builder.buildExecArgs("hello", streaming = true)
-        assertTrue(args.contains("--json-stream"))
+        assertFalse(args.contains("--json-stream"))
+        val oi = args.indexOf("-o")
+        assertTrue(oi >= 0)
+        assertEquals("stream-json", args[oi + 1])
     }
 
     @Test

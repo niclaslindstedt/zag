@@ -144,7 +144,9 @@ class TestZagBuilder:
     def test_exec_args_streaming(self) -> None:
         builder = ZagBuilder()
         args = builder._exec_args("hello", streaming=True)
-        assert "--json-stream" in args
+        assert "--json-stream" not in args
+        oi = args.index("-o")
+        assert args[oi + 1] == "stream-json"
 
     def test_worktree_args(self) -> None:
         args = ZagBuilder().worktree()._global_args()

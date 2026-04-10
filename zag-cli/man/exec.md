@@ -81,7 +81,7 @@ Control the output format with `-o <format>`:
 
 ## JSON Output Mode
 
-The `--json`, `--json-schema`, and `--json-stream` global flags provide a higher-level JSON mode designed for getting structured data from agents:
+The `--json` and `--json-schema` global flags provide a higher-level JSON mode designed for getting structured data from agents:
 
     --json               Instruct the agent to respond with JSON. Non-Claude agents
                          get an augmented system prompt with JSON instructions. The
@@ -93,8 +93,7 @@ The `--json`, `--json-schema`, and `--json-stream` global flags provide a higher
                          validation failure, retries up to 3 times by resuming the
                          session with a correction prompt.
 
-    --json-stream        Stream JSON events (NDJSON). Mutually exclusive with --json
-                         and --json-schema. Convenience shorthand for -o stream-json.
+For NDJSON streaming output, use `-o stream-json` (works with `--resume`/`--continue` too).
 
 The difference between `-o json` and `--json`:
 - `-o json` outputs the full AgentOutput envelope (session ID, events, usage, etc.)

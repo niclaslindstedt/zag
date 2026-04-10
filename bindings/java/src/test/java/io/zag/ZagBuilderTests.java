@@ -75,7 +75,10 @@ class ZagBuilderTests {
     void builderExecArgs_streaming() {
         var builder = new ZagBuilder();
         var args = builder.buildExecArgs("hello", true);
-        assertTrue(args.contains("--json-stream"));
+        assertFalse(args.contains("--json-stream"));
+        int oi = args.indexOf("-o");
+        assertTrue(oi >= 0);
+        assertEquals("stream-json", args.get(oi + 1));
     }
 
     @Test

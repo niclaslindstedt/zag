@@ -29,7 +29,6 @@ public class ZagBuilder
     private readonly List<string> _envVars = [];
     private bool _json;
     private object? _jsonSchema;
-    private bool _jsonStream;
     private object? _worktree;   // true or string
     private object? _sandbox;    // true or string
     private bool _verbose;
@@ -80,9 +79,6 @@ public class ZagBuilder
 
     /// <summary>Set a JSON schema for structured output validation. Implies Json().</summary>
     public ZagBuilder JsonSchema(object s) { _jsonSchema = s; _json = true; return this; }
-
-    /// <summary>Enable streaming JSON output (NDJSON format).</summary>
-    public ZagBuilder JsonStream() { _jsonStream = true; return this; }
 
     /// <summary>Enable worktree mode with an optional name.</summary>
     public ZagBuilder Worktree(string? name = null) { _worktree = name ?? (object)true; return this; }
@@ -173,18 +169,14 @@ public class ZagBuilder
             args.Add("--json-schema");
             args.Add(JsonSerializer.Serialize(_jsonSchema));
         }
-        if (_jsonStream || streaming) args.Add("--json-stream");
         if (_outputFormat != null) { args.Add("-o"); args.Add(_outputFormat); }
+        else if (streaming) { args.Add("-o"); args.Add("stream-json"); }
+        // Default to json output for structured parsing
+        else { args.Add("-o"); args.Add("json"); }
         if (_inputFormat != null) { args.Add("-i"); args.Add(_inputFormat); }
         if (_replayUserMessages) args.Add("--replay-user-messages");
         if (_includePartialMessages) args.Add("--include-partial-messages");
         if (_timeout != null) { args.Add("--timeout"); args.Add(_timeout); }
-        // Default to json output for structured parsing
-        if (!streaming && _outputFormat == null && !_jsonStream)
-        {
-            args.Add("-o");
-            args.Add("json");
-        }
         args.Add(prompt);
         return args;
     }

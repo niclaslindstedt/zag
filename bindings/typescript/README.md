@@ -63,7 +63,6 @@ for await (const event of new ZagBuilder().provider("claude").stream("analyze co
 | `.env(key, value)` | Add an environment variable for the agent subprocess (chainable) |
 | `.json()` | Request JSON output |
 | `.jsonSchema(schema)` | Validate output against a JSON schema (implies `.json()`) |
-| `.jsonStream()` | Enable streaming NDJSON output |
 | `.worktree(name?)` | Run in an isolated git worktree |
 | `.sandbox(name?)` | Run in a Docker sandbox |
 | `.sessionId(uuid)` | Use a specific session ID |
