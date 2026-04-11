@@ -65,7 +65,7 @@ fn connect_config_round_trip() {
 #[test]
 fn health_cache_round_trip_and_stale() {
     // Combined into one test to avoid race conditions when tests run in parallel,
-    // since both use the same global health cache path.
+    // since all health cache checks use the same global path.
     let path = ConnectConfig::health_cache_path();
 
     // Part 1: update + is_valid (round trip)
@@ -86,18 +86,10 @@ fn health_cache_round_trip_and_stale() {
     let _ = std::fs::write(&path, stale_ts.to_string());
     assert!(!ConnectConfig::is_health_cache_valid(30));
 
-    // Clean up
-    let _ = std::fs::remove_file(&path);
-}
-
-#[test]
-fn health_cache_invalid_with_garbage_content() {
-    let path = ConnectConfig::health_cache_path();
-    if let Some(parent) = path.parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
+    // Part 3: garbage content should be invalid
     let _ = std::fs::write(&path, "not-a-number");
     assert!(!ConnectConfig::is_health_cache_valid(30));
+
     // Clean up
     let _ = std::fs::remove_file(&path);
 }
