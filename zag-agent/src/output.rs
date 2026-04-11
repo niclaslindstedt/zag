@@ -84,7 +84,34 @@ pub enum Event {
         parent_tool_use_id: Option<String>,
     },
 
-    /// Final session result
+    /// End of a single assistant turn.
+    ///
+    /// In bidirectional streaming mode, this fires exactly once per turn,
+    /// after the final [`Event::AssistantMessage`] / [`Event::ToolExecution`]
+    /// of the turn and immediately before the per-turn [`Event::Result`].
+    /// Prefer this over `Result` as the turn-boundary signal in new code.
+    ///
+    /// For providers that don't expose a bidirectional streaming session
+    /// (currently everything except Claude), this event is not emitted.
+    TurnComplete {
+        /// Reason the turn stopped, as reported by the provider.
+        ///
+        /// For Claude, well-known values are `end_turn`, `tool_use`,
+        /// `max_tokens`, and `stop_sequence`. `None` when the provider
+        /// didn't surface a stop reason (for example, interrupted turns
+        /// or providers that don't report one).
+        stop_reason: Option<String>,
+        /// Zero-based monotonic turn index within the streaming session.
+        turn_index: u32,
+        /// Usage reported for the final assistant message of this turn.
+        usage: Option<Usage>,
+    },
+
+    /// Session-final or per-turn result summary from the provider.
+    ///
+    /// In bidirectional streaming mode this fires after
+    /// [`Event::TurnComplete`] at the end of every turn. In batch mode it
+    /// fires once when the provider reports the session-final result.
     Result {
         success: bool,
         message: Option<String>,
@@ -404,6 +431,21 @@ fn event_to_log_entry(event: &Event) -> Option<LogEntry> {
                 })
             }
         }
+
+        Event::TurnComplete {
+            stop_reason,
+            turn_index,
+            ..
+        } => Some(LogEntry {
+            level: LogLevel::Debug,
+            message: format!(
+                "Turn {} complete (stop_reason: {})",
+                turn_index,
+                stop_reason.as_deref().unwrap_or("none")
+            ),
+            data: None,
+            timestamp: None,
+        }),
     }
 }
 
@@ -629,6 +671,11 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
 
             // Add blank line after
             Some(format!("{}\n", formatted_lines.join("\n")))
+        }
+
+        Event::TurnComplete { .. } => {
+            // Turn boundary marker — not surfaced in terminal display.
+            None
         }
 
         Event::Result { .. } => {

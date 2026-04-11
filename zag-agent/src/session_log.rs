@@ -766,6 +766,23 @@ pub fn record_agent_output(writer: &SessionLogWriter, output: &AgentOutput) -> R
                     },
                 )?;
             }
+            Event::TurnComplete {
+                stop_reason,
+                turn_index,
+                usage,
+            } => {
+                writer.emit(
+                    LogSourceKind::Wrapper,
+                    LogEventKind::ProviderStatus {
+                        message: format!("Turn {} complete", turn_index),
+                        data: Some(serde_json::json!({
+                            "stop_reason": stop_reason,
+                            "turn_index": turn_index,
+                            "usage": usage,
+                        })),
+                    },
+                )?;
+            }
         }
     }
 

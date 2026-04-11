@@ -4,8 +4,10 @@ export type {
   Usage,
   Event,
   InitEvent,
+  UserMessageEvent,
   AssistantMessageEvent,
   ToolExecutionEvent,
+  TurnCompleteEvent,
   ResultEvent,
   ErrorEvent,
   PermissionRequestEvent,
@@ -18,6 +20,7 @@ export type {
   FeatureSupport,
   SizeMappings,
   SessionLogSupport,
+  StreamingInputSupport,
   ResolvedModel,
 } from "./types.js";
 export { ZagError, ZagFeatureUnsupportedError } from "./types.js";

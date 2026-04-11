@@ -12,6 +12,7 @@ from zag.types import (
     ResultEvent,
     TextBlock,
     ToolExecutionEvent,
+    TurnCompleteEvent,
     Usage,
     parse_event,
 )
@@ -410,6 +411,34 @@ class TestEventParsing:
         event = parse_event(data)
         assert isinstance(event, PermissionRequestEvent)
         assert event.granted is True
+
+    def test_parse_turn_complete(self) -> None:
+        data = {
+            "type": "turn_complete",
+            "stop_reason": "end_turn",
+            "turn_index": 0,
+            "usage": {"input_tokens": 10, "output_tokens": 5},
+        }
+        event = parse_event(data)
+        assert isinstance(event, TurnCompleteEvent)
+        assert event.stop_reason == "end_turn"
+        assert event.turn_index == 0
+        assert event.usage is not None
+        assert event.usage.input_tokens == 10
+        assert event.usage.output_tokens == 5
+
+    def test_parse_turn_complete_with_null_stop_reason(self) -> None:
+        data = {
+            "type": "turn_complete",
+            "stop_reason": None,
+            "turn_index": 3,
+            "usage": None,
+        }
+        event = parse_event(data)
+        assert isinstance(event, TurnCompleteEvent)
+        assert event.stop_reason is None
+        assert event.turn_index == 3
+        assert event.usage is None
 
     def test_parse_unknown_raises(self) -> None:
         try:

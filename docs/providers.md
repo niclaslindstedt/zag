@@ -56,6 +56,8 @@ Four builder flags that toggle streaming I/O details and per-invocation MCP conf
 
 `execStreaming()` is Claude-only and always sets `--input-format stream-json`, `--output-format stream-json`, and `--replay-user-messages`. By default it emits **one `assistant_message` event per complete assistant turn** — you get one event when the model finishes speaking, not a stream of token chunks. Call `.includePartialMessages(true)` (or pass `--include-partial-messages` on the CLI) to receive per-token partial `assistant_message` chunks instead. The default stays `false` so existing callers that render whole-turn bubbles aren't broken.
 
+At the end of every agent turn the session emits a **`turn_complete`** event carrying the provider's `stop_reason` (`end_turn`, `tool_use`, `max_tokens`, `stop_sequence`, or `null`), a zero-based monotonic `turn_index`, and the turn's `usage`. A per-turn `result` event fires immediately after. Prefer `turn_complete` as the turn-boundary signal in new code — it is emitted in ordering-guaranteed position (after the last `assistant_message` of the turn, before `result`) and carries richer metadata than `result`. Since `execStreaming()` is Claude-only today, only Claude currently emits `turn_complete`; other providers will gain it when they grow a bidirectional streaming path. See [Events and Logging: TurnComplete](events-and-logging.md#turncomplete) for the full ordering contract.
+
 ### Notes
 
 - **Streaming**: Claude uses `stream-json` format natively. Codex emits NDJSON. Gemini supports output format flags. Copilot and Ollama do not support streaming in a structured format.

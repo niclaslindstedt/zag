@@ -146,6 +146,19 @@ they are buffered and replayed as the next user turn once the current one
 completes. If you need "interrupt" semantics on Claude, cancel the session
 (drop the `StreamingSession`) and start a new one.
 
+### Detecting turn boundaries
+
+At the end of every agent turn a `StreamingSession` emits a `turn_complete`
+event (with the provider's `stop_reason`, a zero-based `turn_index`, and
+the turn's `usage`) followed immediately by a per-turn `result`. Drain
+events until `turn_complete` to know the turn is over, then call
+`send_user_message` to start the next turn. `turn_complete` is the
+authoritative turn-boundary signal — don't key UI state off replayed
+`user_message` events (they only appear when `--replay-user-messages` is
+set and only fire *after* the next user message is sent). See
+[Events and Logging: TurnComplete](events-and-logging.md#turncomplete) for
+the full ordering contract.
+
 ### Branching on semantics
 
 Consumers should branch on the `semantics` field rather than empirically

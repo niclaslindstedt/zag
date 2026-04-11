@@ -177,7 +177,46 @@ public record ToolExecutionEvent : Event
     public ToolResult Result { get; init; } = new();
 }
 
-/// <summary>Final session result event.</summary>
+/// <summary>
+/// End of a single assistant turn in a streaming session.
+///
+/// Fires exactly once per turn, after the final <see cref="AssistantMessageEvent"/>
+/// / <see cref="ToolExecutionEvent"/> of the turn and immediately before
+/// the per-turn <see cref="ResultEvent"/>. Prefer this event over
+/// <see cref="ResultEvent"/> as the turn-boundary signal in new code: it
+/// carries the provider's <see cref="StopReason"/> and a zero-based
+/// monotonic <see cref="TurnIndex"/>.
+/// </summary>
+public record TurnCompleteEvent : Event
+{
+    public override string Type => "turn_complete";
+
+    /// <summary>
+    /// Reason the turn stopped, as reported by the provider. For Claude,
+    /// well-known values are <c>end_turn</c>, <c>tool_use</c>,
+    /// <c>max_tokens</c>, and <c>stop_sequence</c>. <c>null</c> when the
+    /// provider didn't surface a stop reason.
+    /// </summary>
+    [JsonPropertyName("stop_reason")]
+    public string? StopReason { get; init; }
+
+    /// <summary>Zero-based monotonic turn index within the streaming session.</summary>
+    [JsonPropertyName("turn_index")]
+    public uint TurnIndex { get; init; }
+
+    /// <summary>Usage reported for the final assistant message of this turn.</summary>
+    [JsonPropertyName("usage")]
+    public Usage? Usage { get; init; }
+}
+
+/// <summary>
+/// Session-final or per-turn result summary from the provider.
+///
+/// In bidirectional streaming mode this fires after
+/// <see cref="TurnCompleteEvent"/> at the end of every turn. In batch
+/// mode it fires once when the provider reports the session-final
+/// result.
+/// </summary>
 public record ResultEvent : Event
 {
     public override string Type => "result";
@@ -242,6 +281,7 @@ public class EventConverter : JsonConverter<Event>
             "user_message" => JsonSerializer.Deserialize<UserMessageEvent>(raw, ConverterFreeOptions)!,
             "assistant_message" => JsonSerializer.Deserialize<AssistantMessageEvent>(raw, ConverterFreeOptions)!,
             "tool_execution" => JsonSerializer.Deserialize<ToolExecutionEvent>(raw, ConverterFreeOptions)!,
+            "turn_complete" => JsonSerializer.Deserialize<TurnCompleteEvent>(raw, ConverterFreeOptions)!,
             "result" => JsonSerializer.Deserialize<ResultEvent>(raw, ConverterFreeOptions)!,
             "error" => JsonSerializer.Deserialize<ErrorEvent>(raw, ConverterFreeOptions)!,
             "permission_request" => JsonSerializer.Deserialize<PermissionRequestEvent>(raw, ConverterFreeOptions)!,

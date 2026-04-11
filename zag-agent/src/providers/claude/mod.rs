@@ -437,14 +437,16 @@ impl Claude {
                 let format_as_text = output_format.is_none(); // Default: beautiful text
                 let format_as_json = output_format == Some("stream-json"); // Explicit: unified JSON
 
+                // Per-line batch path uses the stateful translator so that
+                // TurnComplete events are synthesized alongside Result.
+                let mut translator = ClaudeEventTranslator::new();
+
                 // Stream each line, dispatching via event_handler if set
                 while let Some(line) = lines.next_line().await? {
                     if format_as_text || format_as_json {
                         match serde_json::from_str::<models::ClaudeEvent>(&line) {
                             Ok(claude_event) => {
-                                if let Some(unified_event) =
-                                    convert_claude_event_to_unified(&claude_event)
-                                {
+                                for unified_event in translator.translate(&claude_event) {
                                     if let Some(ref handler) = self.event_handler {
                                         handler(&unified_event, self.verbose);
                                     }
@@ -517,8 +519,94 @@ impl Claude {
     }
 }
 
+/// Stateful translator from Claude `stream-json` events to unified
+/// [`crate::output::Event`]s.
+///
+/// Some unified events are synthesized from cross-event state —
+/// specifically [`crate::output::Event::TurnComplete`], which carries
+/// `stop_reason` and `usage` from the *last* assistant message of a turn
+/// and is emitted immediately before the corresponding per-turn
+/// [`crate::output::Event::Result`]. This translator owns that state.
+///
+/// Stateless per-event conversion still goes through
+/// [`convert_claude_event_to_unified`]; the translator is a thin stateful
+/// wrapper on top.
+#[derive(Debug, Default)]
+pub(crate) struct ClaudeEventTranslator {
+    /// `stop_reason` from the most recent `ClaudeEvent::Assistant` in the
+    /// current turn. Consumed when `TurnComplete` is emitted.
+    pending_stop_reason: Option<String>,
+    /// `usage` from the most recent `ClaudeEvent::Assistant`.
+    pending_usage: Option<crate::output::Usage>,
+    /// Zero-based turn index within the session. Incremented after each
+    /// emitted `TurnComplete`.
+    next_turn_index: u32,
+}
+
+impl ClaudeEventTranslator {
+    pub(crate) fn new() -> Self {
+        Self::default()
+    }
+
+    /// Translate one Claude event into zero or more unified events.
+    ///
+    /// A `ClaudeEvent::Result` expands into `[TurnComplete, Result]`; all
+    /// other events pass through [`convert_claude_event_to_unified`] and
+    /// yield at most one unified event.
+    pub(crate) fn translate(&mut self, event: &models::ClaudeEvent) -> Vec<crate::output::Event> {
+        use crate::output::{Event as UnifiedEvent, Usage as UnifiedUsage};
+
+        // Observe assistant-side turn state. Every assistant message
+        // within the current turn updates the pending stop_reason / usage;
+        // the final one wins because it is the message that actually ends
+        // the turn (its `stop_reason` will be `end_turn`, `tool_use`,
+        // `max_tokens`, or `stop_sequence`).
+        if let models::ClaudeEvent::Assistant { message, .. } = event {
+            if let Some(reason) = &message.stop_reason {
+                self.pending_stop_reason = Some(reason.clone());
+            }
+            self.pending_usage = Some(UnifiedUsage {
+                input_tokens: message.usage.input_tokens,
+                output_tokens: message.usage.output_tokens,
+                cache_read_tokens: Some(message.usage.cache_read_input_tokens),
+                cache_creation_tokens: Some(message.usage.cache_creation_input_tokens),
+                web_search_requests: message
+                    .usage
+                    .server_tool_use
+                    .as_ref()
+                    .map(|s| s.web_search_requests),
+                web_fetch_requests: message
+                    .usage
+                    .server_tool_use
+                    .as_ref()
+                    .map(|s| s.web_fetch_requests),
+            });
+        }
+
+        let unified = convert_claude_event_to_unified(event);
+
+        match unified {
+            Some(UnifiedEvent::Result { .. }) => {
+                let turn_complete = UnifiedEvent::TurnComplete {
+                    stop_reason: self.pending_stop_reason.take(),
+                    turn_index: self.next_turn_index,
+                    usage: self.pending_usage.take(),
+                };
+                self.next_turn_index = self.next_turn_index.saturating_add(1);
+                vec![turn_complete, unified.unwrap()]
+            }
+            Some(ev) => vec![ev],
+            None => Vec::new(),
+        }
+    }
+}
+
 /// Convert a single Claude event to a unified event format.
 /// Returns None if the event doesn't map to a user-visible unified event.
+///
+/// This is the stateless per-event converter. Callers that need
+/// cross-event synthesis (e.g. [`crate::output::Event::TurnComplete`])
+/// should use [`ClaudeEventTranslator`] instead.
 pub(crate) fn convert_claude_event_to_unified(
     event: &models::ClaudeEvent,
 ) -> Option<crate::output::Event> {

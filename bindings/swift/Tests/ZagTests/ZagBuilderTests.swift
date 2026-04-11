@@ -587,6 +587,12 @@ struct ModelsTests {
                 "result": {"success": true, "output": "hello", "error": null, "data": null}
             },
             {
+                "type": "turn_complete",
+                "stop_reason": "end_turn",
+                "turn_index": 0,
+                "usage": {"input_tokens": 80, "output_tokens": 40}
+            },
+            {
                 "type": "result",
                 "success": true,
                 "message": "Done",
@@ -623,7 +629,7 @@ struct ModelsTests {
 
         #expect(output.agent == "claude")
         #expect(output.sessionId == "sess-123")
-        #expect(output.events.count == 7)
+        #expect(output.events.count == 8)
         #expect(output.result == "Hello!")
         #expect(output.isError == false)
         #expect(output.exitCode == nil)
@@ -641,10 +647,42 @@ struct ModelsTests {
         if case .`init` = output.events[0] {} else { Issue.record("Expected init event") }
         if case .assistantMessage = output.events[1] {} else { Issue.record("Expected assistant_message event") }
         if case .toolExecution = output.events[2] {} else { Issue.record("Expected tool_execution event") }
-        if case .result = output.events[3] {} else { Issue.record("Expected result event") }
-        if case .error = output.events[4] {} else { Issue.record("Expected error event") }
-        if case .permissionRequest = output.events[5] {} else { Issue.record("Expected permission_request event") }
-        if case .userMessage = output.events[6] {} else { Issue.record("Expected user_message event") }
+        if case .turnComplete = output.events[3] {} else { Issue.record("Expected turn_complete event") }
+        if case .result = output.events[4] {} else { Issue.record("Expected result event") }
+        if case .error = output.events[5] {} else { Issue.record("Expected error event") }
+        if case .permissionRequest = output.events[6] {} else { Issue.record("Expected permission_request event") }
+        if case .userMessage = output.events[7] {} else { Issue.record("Expected user_message event") }
+    }
+
+    @Test("turn_complete fields")
+    func turnCompleteFields() throws {
+        let data = ModelsTests.sampleJSON.data(using: .utf8)!
+        let output = try JSONDecoder.zag.decode(AgentOutput.self, from: data)
+
+        guard case .turnComplete(let payload) = output.events[3] else {
+            Issue.record("Expected turn_complete event")
+            return
+        }
+        #expect(payload.stopReason == "end_turn")
+        #expect(payload.turnIndex == 0)
+        #expect(payload.usage?.inputTokens == 80)
+        #expect(payload.usage?.outputTokens == 40)
+    }
+
+    @Test("turn_complete null stop_reason round-trips")
+    func turnCompleteNullStopReason() throws {
+        let line = """
+        {"type":"turn_complete","stop_reason":null,"turn_index":2,"usage":null}
+        """
+        let data = line.data(using: .utf8)!
+        let event = try JSONDecoder.zag.decode(Event.self, from: data)
+        guard case .turnComplete(let payload) = event else {
+            Issue.record("Expected turn_complete event")
+            return
+        }
+        #expect(payload.stopReason == nil)
+        #expect(payload.turnIndex == 2)
+        #expect(payload.usage == nil)
     }
 
     @Test("init event fields")
@@ -699,7 +737,7 @@ struct ModelsTests {
         let data = ModelsTests.sampleJSON.data(using: .utf8)!
         let output = try JSONDecoder.zag.decode(AgentOutput.self, from: data)
 
-        guard case .error(let payload) = output.events[4] else {
+        guard case .error(let payload) = output.events[5] else {
             Issue.record("Expected error event")
             return
         }
@@ -711,7 +749,7 @@ struct ModelsTests {
         let data = ModelsTests.sampleJSON.data(using: .utf8)!
         let output = try JSONDecoder.zag.decode(AgentOutput.self, from: data)
 
-        guard case .permissionRequest(let payload) = output.events[5] else {
+        guard case .permissionRequest(let payload) = output.events[6] else {
             Issue.record("Expected permission_request event")
             return
         }

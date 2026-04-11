@@ -86,6 +86,8 @@ Four builder methods that toggle streaming I/O details and per-invocation MCP co
 
 `.execStreaming()` is Claude-only and always sets `-i stream-json`, `-o stream-json`, and `--replay-user-messages`. By default it emits **one `assistant_message` event per complete assistant turn** — you get one event when the model finishes speaking, not a stream of token chunks. Call `.includePartialMessages(true)` to receive token-level partial `assistant_message` chunks instead. The default stays `false` so existing callers that render whole-turn bubbles are not broken.
 
+At the end of every agent turn the session emits a **`turn_complete`** event (Kotlin type `TurnCompleteEvent`) carrying the provider's `stopReason` (`end_turn`, `tool_use`, `max_tokens`, `stop_sequence`, or `null`), a zero-based monotonic `turnIndex`, and the turn's `usage`. A per-turn `result` event fires immediately after. New code should key turn-boundary UI off `turn_complete` — it is the authoritative signal and carries richer metadata than `result`. `result` continues to fire per-turn for backward compatibility.
+
 ## Terminal methods
 
 | Method | Returns | Description |

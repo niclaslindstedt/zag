@@ -440,6 +440,12 @@ class ModelsTests {
                         "result": {"success": true, "output": "hello", "error": null, "data": null}
                     },
                     {
+                        "type": "turn_complete",
+                        "stop_reason": "end_turn",
+                        "turn_index": 0,
+                        "usage": {"input_tokens": 80, "output_tokens": 40}
+                    },
+                    {
                         "type": "result",
                         "success": true,
                         "message": "Done",
@@ -471,7 +477,7 @@ class ModelsTests {
         assertNotNull(output);
         assertEquals("claude", output.agent());
         assertEquals("sess-123", output.sessionId());
-        assertEquals(6, output.events().size());
+        assertEquals(7, output.events().size());
         assertEquals("Hello!", output.result());
         assertFalse(output.isError());
         assertNull(output.exitCode());
@@ -488,9 +494,32 @@ class ModelsTests {
         assertInstanceOf(Event.Init.class, output.events().get(0));
         assertInstanceOf(Event.AssistantMessage.class, output.events().get(1));
         assertInstanceOf(Event.ToolExecution.class, output.events().get(2));
-        assertInstanceOf(Event.Result.class, output.events().get(3));
-        assertInstanceOf(Event.Error.class, output.events().get(4));
-        assertInstanceOf(Event.PermissionRequest.class, output.events().get(5));
+        assertInstanceOf(Event.TurnComplete.class, output.events().get(3));
+        assertInstanceOf(Event.Result.class, output.events().get(4));
+        assertInstanceOf(Event.Error.class, output.events().get(5));
+        assertInstanceOf(Event.PermissionRequest.class, output.events().get(6));
+    }
+
+    @Test
+    void turnComplete_fields() throws Exception {
+        var output = MAPPER.readValue(SAMPLE_JSON, AgentOutput.class);
+        var turn = (Event.TurnComplete) output.events().get(3);
+        assertEquals("end_turn", turn.stopReason());
+        assertEquals(0L, turn.turnIndex());
+        assertNotNull(turn.usage());
+        assertEquals(80, turn.usage().inputTokens());
+        assertEquals(40, turn.usage().outputTokens());
+    }
+
+    @Test
+    void turnComplete_nullStopReason_roundTrips() throws Exception {
+        var line =
+                "{\"type\":\"turn_complete\",\"stop_reason\":null,\"turn_index\":3,\"usage\":null}";
+        var evt = MAPPER.readValue(line, Event.class);
+        var turn = assertInstanceOf(Event.TurnComplete.class, evt);
+        assertNull(turn.stopReason());
+        assertEquals(3L, turn.turnIndex());
+        assertNull(turn.usage());
     }
 
     @Test
@@ -527,14 +556,14 @@ class ModelsTests {
     @Test
     void errorEvent_fields() throws Exception {
         var output = MAPPER.readValue(SAMPLE_JSON, AgentOutput.class);
-        var err = (Event.Error) output.events().get(4);
+        var err = (Event.Error) output.events().get(5);
         assertEquals("oops", err.message());
     }
 
     @Test
     void permissionRequest_fields() throws Exception {
         var output = MAPPER.readValue(SAMPLE_JSON, AgentOutput.class);
-        var perm = (Event.PermissionRequest) output.events().get(5);
+        var perm = (Event.PermissionRequest) output.events().get(6);
         assertEquals("Bash", perm.toolName());
         assertTrue(perm.granted());
     }

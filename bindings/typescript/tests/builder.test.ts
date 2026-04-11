@@ -520,4 +520,32 @@ describe("Event parsing", () => {
       assert.equal(events[3].granted, true);
     }
   });
+
+  it("should parse turn_complete events", () => {
+    const line =
+      '{"type":"turn_complete","stop_reason":"end_turn","turn_index":0,"usage":{"input_tokens":10,"output_tokens":5}}';
+    const event: Event = JSON.parse(line);
+
+    assert.equal(event.type, "turn_complete");
+    if (event.type === "turn_complete") {
+      assert.equal(event.stop_reason, "end_turn");
+      assert.equal(event.turn_index, 0);
+      assert.ok(event.usage);
+      assert.equal(event.usage?.input_tokens, 10);
+      assert.equal(event.usage?.output_tokens, 5);
+    }
+  });
+
+  it("should parse turn_complete events with null stop_reason", () => {
+    const line =
+      '{"type":"turn_complete","stop_reason":null,"turn_index":3,"usage":null}';
+    const event: Event = JSON.parse(line);
+
+    assert.equal(event.type, "turn_complete");
+    if (event.type === "turn_complete") {
+      assert.equal(event.stop_reason, null);
+      assert.equal(event.turn_index, 3);
+      assert.equal(event.usage, null);
+    }
+  });
 });

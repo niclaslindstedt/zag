@@ -89,9 +89,53 @@ A tool call with its input and result.
 }
 ```
 
+### TurnComplete
+
+End of a single assistant turn. Fires exactly once per turn, after the
+final `assistant_message` / `tool_execution` of the turn and immediately
+**before** the per-turn `result`. This is the authoritative turn-boundary
+signal — prefer it over `result` in new code because it carries the
+provider's `stop_reason` and a zero-based monotonic `turn_index`.
+
+```json
+{
+  "type": "turn_complete",
+  "stop_reason": "end_turn",
+  "turn_index": 0,
+  "usage": {
+    "input_tokens": 500,
+    "output_tokens": 200
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `stop_reason` | string? | Why the turn stopped. For Claude: `end_turn`, `tool_use`, `max_tokens`, `stop_sequence`. `null` when the provider didn't surface one. |
+| `turn_index` | u32 | Zero-based monotonic turn index within the streaming session. |
+| `usage` | Usage? | Usage reported for the final assistant message of this turn. |
+
+**Ordering guarantees** (in bidirectional streaming mode):
+
+1. `turn_complete` fires after the last `assistant_message` / `tool_execution`
+   of the turn.
+2. `turn_complete` fires immediately before the per-turn `result`.
+3. `turn_complete` is emitted exactly once per turn; `turn_index` is a
+   zero-based monotonic counter.
+
+**Per-provider coverage**: only Claude currently exposes bidirectional
+streaming, so `turn_complete` is only emitted by Claude today. Other
+providers will gain it when they grow a bidirectional streaming path.
+
+**Error / interrupt handling**: if a turn ends with a provider error
+(`result.success == false`), `turn_complete` still fires before `result`;
+its `stop_reason` is whatever the last assistant message reported (often
+`null`). On hard subprocess kills or EOF-without-result, `turn_complete`
+may not fire — this is best-effort.
+
 ### Result
 
-Final session result.
+Session-final or per-turn result summary.
 
 ```json
 {
@@ -108,11 +152,13 @@ at the end of the session.
 
 In bidirectional streaming via `AgentBuilder::exec_streaming()` (Claude only),
 a `result` event is emitted at the **end of every agent turn** — not only at
-final session end. After each `result`, the session remains open and will
-accept another `send_user_message()` for the next turn. Consumers should use
-`result` as the authoritative turn-boundary signal; do **not** rely on
-replayed `user_message` events for this purpose, as they only appear when
-`--replay-user-messages` is set.
+final session end, and always immediately after a `turn_complete`. After
+each `result`, the session remains open and will accept another
+`send_user_message()` for the next turn. `result` continues to fire per-turn
+for backward compatibility, but new consumers should key turn-boundary logic
+off `turn_complete` — it is the authoritative signal and carries richer
+metadata. Do **not** rely on replayed `user_message` events for turn
+detection, as they only appear when `--replay-user-messages` is set.
 
 ### Error
 

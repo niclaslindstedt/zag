@@ -181,6 +181,7 @@ Concrete event types:
 | `"user_message"` | `UserMessageEvent` | `Content` (List\<ContentBlock\>) |
 | `"assistant_message"` | `AssistantMessageEvent` | `Content` (List\<ContentBlock\>), `Usage` |
 | `"tool_execution"` | `ToolExecutionEvent` | `ToolName`, `ToolId`, `Input` (JsonElement?), `Result` (ToolResult) |
+| `"turn_complete"` | `TurnCompleteEvent` | `StopReason`, `TurnIndex`, `Usage` — end-of-turn signal in streaming sessions, fires before `ResultEvent` |
 | `"result"` | `ResultEvent` | `Success`, `Message`, `DurationMs`, `NumTurns` |
 | `"error"` | `ErrorEvent` | `Message`, `Details` (JsonElement?) |
 | `"permission_request"` | `PermissionRequestEvent` | `ToolName`, `Description`, `Granted` |

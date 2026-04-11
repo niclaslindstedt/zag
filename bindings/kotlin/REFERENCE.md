@@ -191,6 +191,15 @@ data class ToolExecutionEvent(
 }
 
 @Serializable
+data class TurnCompleteEvent(
+    val stopReason: String?,                 // "end_turn"|"tool_use"|"max_tokens"|"stop_sequence"|null
+    val turnIndex: Long,                     // Zero-based monotonic turn index
+    val usage: Usage?                        // Usage for this turn only
+) : Event() {
+    override val type = "turn_complete"
+}
+
+@Serializable
 data class ResultEvent(
     val success: Boolean,                    // Whether session succeeded
     val message: String?,                    // Final result message

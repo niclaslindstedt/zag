@@ -330,6 +330,12 @@ public class ModelsTests
                 "result": {"success": true, "output": "hello", "error": null, "data": null}
             },
             {
+                "type": "turn_complete",
+                "stop_reason": "end_turn",
+                "turn_index": 0,
+                "usage": {"input_tokens": 80, "output_tokens": 40}
+            },
+            {
                 "type": "result",
                 "success": true,
                 "message": "Done",
@@ -362,7 +368,7 @@ public class ModelsTests
         Assert.NotNull(output);
         Assert.Equal("claude", output.Agent);
         Assert.Equal("sess-123", output.SessionId);
-        Assert.Equal(6, output.Events.Count);
+        Assert.Equal(7, output.Events.Count);
         Assert.Equal("Hello!", output.Result);
         Assert.False(output.IsError);
         Assert.Null(output.ExitCode);
@@ -380,9 +386,33 @@ public class ModelsTests
         Assert.IsType<InitEvent>(output.Events[0]);
         Assert.IsType<AssistantMessageEvent>(output.Events[1]);
         Assert.IsType<ToolExecutionEvent>(output.Events[2]);
-        Assert.IsType<ResultEvent>(output.Events[3]);
-        Assert.IsType<ErrorEvent>(output.Events[4]);
-        Assert.IsType<PermissionRequestEvent>(output.Events[5]);
+        Assert.IsType<TurnCompleteEvent>(output.Events[3]);
+        Assert.IsType<ResultEvent>(output.Events[4]);
+        Assert.IsType<ErrorEvent>(output.Events[5]);
+        Assert.IsType<PermissionRequestEvent>(output.Events[6]);
+    }
+
+    [Fact]
+    public void TurnComplete_Fields()
+    {
+        var output = JsonSerializer.Deserialize<AgentOutput>(SampleJson)!;
+        var turn = (TurnCompleteEvent)output.Events[3];
+        Assert.Equal("end_turn", turn.StopReason);
+        Assert.Equal(0u, turn.TurnIndex);
+        Assert.NotNull(turn.Usage);
+        Assert.Equal(80, turn.Usage.InputTokens);
+        Assert.Equal(40, turn.Usage.OutputTokens);
+    }
+
+    [Fact]
+    public void TurnComplete_NullStopReason_RoundTrips()
+    {
+        var line = """{"type":"turn_complete","stop_reason":null,"turn_index":2,"usage":null}""";
+        var evt = JsonSerializer.Deserialize<Event>(line);
+        var turn = Assert.IsType<TurnCompleteEvent>(evt);
+        Assert.Null(turn.StopReason);
+        Assert.Equal(2u, turn.TurnIndex);
+        Assert.Null(turn.Usage);
     }
 
     [Fact]
@@ -422,7 +452,7 @@ public class ModelsTests
     public void ErrorEvent_Fields()
     {
         var output = JsonSerializer.Deserialize<AgentOutput>(SampleJson)!;
-        var err = (ErrorEvent)output.Events[4];
+        var err = (ErrorEvent)output.Events[5];
         Assert.Equal("oops", err.Message);
     }
 
@@ -430,7 +460,7 @@ public class ModelsTests
     public void PermissionRequest_Fields()
     {
         var output = JsonSerializer.Deserialize<AgentOutput>(SampleJson)!;
-        var perm = (PermissionRequestEvent)output.Events[5];
+        var perm = (PermissionRequestEvent)output.Events[6];
         Assert.Equal("Bash", perm.ToolName);
         Assert.True(perm.Granted);
     }

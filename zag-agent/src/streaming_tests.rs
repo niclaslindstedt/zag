@@ -186,9 +186,19 @@ fn spawn_with_jsonl(lines: &[&str]) -> tokio::process::Child {
 
 /// Build a minimal Claude `assistant` event with a single text block.
 fn claude_assistant_text_line(text: &str) -> String {
+    claude_assistant_text_line_with_stop(text, None)
+}
+
+/// Build a minimal Claude `assistant` event with a text block and an
+/// explicit `stop_reason`.
+fn claude_assistant_text_line_with_stop(text: &str, stop_reason: Option<&str>) -> String {
+    let reason = match stop_reason {
+        Some(r) => format!(r#""{}""#, r),
+        None => "null".to_string(),
+    };
     format!(
-        r#"{{"type":"assistant","message":{{"model":"claude-sonnet-4-5","id":"msg_1","type":"message","role":"assistant","content":[{{"type":"text","text":"{}"}}],"stop_reason":null,"stop_sequence":null,"usage":{{"input_tokens":10,"output_tokens":5}},"context_management":null}},"parent_tool_use_id":null,"session_id":"s1","uuid":"u1"}}"#,
-        text
+        r#"{{"type":"assistant","message":{{"model":"claude-sonnet-4-5","id":"msg_1","type":"message","role":"assistant","content":[{{"type":"text","text":"{}"}}],"stop_reason":{},"stop_sequence":null,"usage":{{"input_tokens":10,"output_tokens":5}},"context_management":null}},"parent_tool_use_id":null,"session_id":"s1","uuid":"u1"}}"#,
+        text, reason
     )
 }
 
@@ -225,6 +235,8 @@ async fn test_next_event_parses_claude_assistant_message() {
 #[tokio::test]
 async fn test_next_event_parses_claude_result_per_turn() {
     // Two agent turns, each an assistant message followed by a result event.
+    // Each turn produces three unified events: AssistantMessage,
+    // TurnComplete (synthesized), and Result.
     let turn1_assistant = claude_assistant_text_line("first answer");
     let turn1_result = claude_result_line(1);
     let turn2_assistant = claude_assistant_text_line("second answer");
@@ -245,14 +257,19 @@ async fn test_next_event_parses_claude_result_per_turn() {
 
     assert_eq!(
         events.len(),
-        4,
-        "expected 4 unified events, got {:?}",
+        6,
+        "expected 6 unified events (2 * [AssistantMessage, TurnComplete, Result]), got {:?}",
         events
     );
     assert!(matches!(events[0], Event::AssistantMessage { .. }));
     assert!(
+        matches!(events[1], Event::TurnComplete { turn_index: 0, .. }),
+        "expected turn-1 TurnComplete, got {:?}",
+        events[1]
+    );
+    assert!(
         matches!(
-            events[1],
+            events[2],
             Event::Result {
                 success: true,
                 num_turns: Some(1),
@@ -260,12 +277,17 @@ async fn test_next_event_parses_claude_result_per_turn() {
             }
         ),
         "expected turn-1 Result, got {:?}",
-        events[1]
+        events[2]
     );
-    assert!(matches!(events[2], Event::AssistantMessage { .. }));
+    assert!(matches!(events[3], Event::AssistantMessage { .. }));
+    assert!(
+        matches!(events[4], Event::TurnComplete { turn_index: 1, .. }),
+        "expected turn-2 TurnComplete, got {:?}",
+        events[4]
+    );
     assert!(
         matches!(
-            events[3],
+            events[5],
             Event::Result {
                 success: true,
                 num_turns: Some(2),
@@ -273,8 +295,120 @@ async fn test_next_event_parses_claude_result_per_turn() {
             }
         ),
         "expected turn-2 Result, got {:?}",
-        events[3]
+        events[5]
     );
+}
+
+#[tokio::test]
+async fn test_next_event_turn_complete_carries_stop_reason_and_index() {
+    // Three turns, each with a distinct stop_reason, verifying that
+    // TurnComplete carries the correct stop_reason per turn and that
+    // turn_index is monotonic starting at 0.
+    let turn1_assistant = claude_assistant_text_line_with_stop("one", Some("end_turn"));
+    let turn1_result = claude_result_line(1);
+    let turn2_assistant = claude_assistant_text_line_with_stop("two", Some("tool_use"));
+    let turn2_result = claude_result_line(2);
+    let turn3_assistant = claude_assistant_text_line_with_stop("three", Some("max_tokens"));
+    let turn3_result = claude_result_line(3);
+
+    let child = spawn_with_jsonl(&[
+        &turn1_assistant,
+        &turn1_result,
+        &turn2_assistant,
+        &turn2_result,
+        &turn3_assistant,
+        &turn3_result,
+    ]);
+    let mut session = StreamingSession::new(child).unwrap();
+
+    let mut events = Vec::new();
+    while let Some(event) = session.next_event().await.unwrap() {
+        events.push(event);
+    }
+
+    // 3 turns * 3 events (AssistantMessage, TurnComplete, Result) = 9.
+    assert_eq!(
+        events.len(),
+        9,
+        "expected 9 unified events, got {:?}",
+        events
+    );
+
+    // Turn 0.
+    assert!(matches!(events[0], Event::AssistantMessage { .. }));
+    match &events[1] {
+        Event::TurnComplete {
+            stop_reason,
+            turn_index,
+            usage,
+        } => {
+            assert_eq!(stop_reason.as_deref(), Some("end_turn"));
+            assert_eq!(*turn_index, 0);
+            assert!(usage.is_some());
+        }
+        other => panic!("expected TurnComplete for turn 0, got {:?}", other),
+    }
+    assert!(matches!(events[2], Event::Result { .. }));
+
+    // Turn 1.
+    assert!(matches!(events[3], Event::AssistantMessage { .. }));
+    match &events[4] {
+        Event::TurnComplete {
+            stop_reason,
+            turn_index,
+            ..
+        } => {
+            assert_eq!(stop_reason.as_deref(), Some("tool_use"));
+            assert_eq!(*turn_index, 1);
+        }
+        other => panic!("expected TurnComplete for turn 1, got {:?}", other),
+    }
+    assert!(matches!(events[5], Event::Result { .. }));
+
+    // Turn 2.
+    assert!(matches!(events[6], Event::AssistantMessage { .. }));
+    match &events[7] {
+        Event::TurnComplete {
+            stop_reason,
+            turn_index,
+            ..
+        } => {
+            assert_eq!(stop_reason.as_deref(), Some("max_tokens"));
+            assert_eq!(*turn_index, 2);
+        }
+        other => panic!("expected TurnComplete for turn 2, got {:?}", other),
+    }
+    assert!(matches!(events[8], Event::Result { .. }));
+}
+
+#[tokio::test]
+async fn test_next_event_turn_complete_fires_before_result() {
+    // Regression: the TurnComplete event must always precede the Result
+    // event for the same turn, even though both are produced from a
+    // single Claude `result` event.
+    let assistant = claude_assistant_text_line_with_stop("hi", Some("end_turn"));
+    let result = claude_result_line(1);
+    let child = spawn_with_jsonl(&[&assistant, &result]);
+    let mut session = StreamingSession::new(child).unwrap();
+
+    let e0 = session.next_event().await.unwrap().unwrap();
+    assert!(matches!(e0, Event::AssistantMessage { .. }));
+
+    let e1 = session.next_event().await.unwrap().unwrap();
+    assert!(
+        matches!(e1, Event::TurnComplete { .. }),
+        "expected TurnComplete before Result, got {:?}",
+        e1
+    );
+
+    let e2 = session.next_event().await.unwrap().unwrap();
+    assert!(
+        matches!(e2, Event::Result { .. }),
+        "expected Result after TurnComplete, got {:?}",
+        e2
+    );
+
+    assert!(session.next_event().await.unwrap().is_none());
 }
 
 #[tokio::test]

@@ -212,8 +212,44 @@ class ToolExecutionEvent:
 
 
 @dataclass
+class TurnCompleteEvent:
+    """End of a single assistant turn in a streaming session.
+
+    Fires exactly once per turn, after the final ``AssistantMessageEvent`` /
+    ``ToolExecutionEvent`` of the turn and immediately before the per-turn
+    ``ResultEvent``. Prefer this event over ``ResultEvent`` as the
+    turn-boundary signal in new code: it carries the provider's
+    ``stop_reason`` and a zero-based monotonic ``turn_index``.
+
+    ``stop_reason`` well-known values (Claude): ``end_turn``, ``tool_use``,
+    ``max_tokens``, ``stop_sequence``. ``None`` when the provider didn't
+    surface a stop reason.
+    """
+
+    type: str = "turn_complete"
+    stop_reason: str | None = None
+    turn_index: int = 0
+    usage: Usage | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> TurnCompleteEvent:
+        usage_data = data.get("usage")
+        usage = Usage.from_dict(usage_data) if usage_data else None
+        return cls(
+            stop_reason=data.get("stop_reason"),
+            turn_index=data.get("turn_index", 0),
+            usage=usage,
+        )
+
+
+@dataclass
 class ResultEvent:
-    """Final session result event."""
+    """Session-final or per-turn result summary from the provider.
+
+    In bidirectional streaming mode this fires after ``TurnCompleteEvent``
+    at the end of every turn. In batch mode it fires once when the
+    provider reports the session-final result.
+    """
 
     type: str = "result"
     success: bool = False
@@ -270,6 +306,7 @@ Event = (
     | UserMessageEvent
     | AssistantMessageEvent
     | ToolExecutionEvent
+    | TurnCompleteEvent
     | ResultEvent
     | ErrorEvent
     | PermissionRequestEvent
@@ -280,6 +317,7 @@ _EVENT_PARSERS: dict[str, type] = {
     "user_message": UserMessageEvent,
     "assistant_message": AssistantMessageEvent,
     "tool_execution": ToolExecutionEvent,
+    "turn_complete": TurnCompleteEvent,
     "result": ResultEvent,
     "error": ErrorEvent,
     "permission_request": PermissionRequestEvent,

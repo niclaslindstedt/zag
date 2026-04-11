@@ -159,6 +159,7 @@ import type {
   UserMessageEvent,
   AssistantMessageEvent,
   ToolExecutionEvent,
+  TurnCompleteEvent,
   ResultEvent,
   ErrorEvent,
   PermissionRequestEvent,
@@ -248,6 +249,7 @@ type Event =
   | UserMessageEvent
   | AssistantMessageEvent
   | ToolExecutionEvent
+  | TurnCompleteEvent
   | ResultEvent
   | ErrorEvent
   | PermissionRequestEvent;
@@ -326,9 +328,40 @@ interface ToolExecutionEvent {
 }
 ```
 
+#### TurnCompleteEvent
+
+End of a single assistant turn in a streaming session. Fires exactly once
+per turn, after the final `AssistantMessageEvent` / `ToolExecutionEvent`
+and immediately before the per-turn `ResultEvent`. Prefer this event over
+`ResultEvent` as the turn-boundary signal in new code: it carries the
+provider's `stop_reason` and a zero-based `turn_index`.
+
+```typescript
+interface TurnCompleteEvent {
+  type: "turn_complete";
+
+  /**
+   * Reason the turn stopped, as reported by the provider. For Claude,
+   * well-known values are `end_turn`, `tool_use`, `max_tokens`, and
+   * `stop_sequence`. `null` when the provider didn't surface a stop
+   * reason.
+   */
+  stop_reason: string | null;
+
+  /** Zero-based monotonic turn index within the streaming session. */
+  turn_index: number;
+
+  /** Usage reported for the final assistant message of this turn. */
+  usage: Usage | null;
+}
+```
+
 #### ResultEvent
 
-Final summary of the session.
+Session-final or per-turn result summary from the provider. In
+bidirectional streaming mode this fires after `TurnCompleteEvent` at the
+end of every turn. In batch mode it fires once when the provider reports
+the session-final result.
 
 ```typescript
 interface ResultEvent {

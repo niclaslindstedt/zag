@@ -134,7 +134,36 @@ data class ToolExecutionEvent(
     override val type: String = "tool_execution"
 }
 
-/** Final session result event. */
+/**
+ * End of a single assistant turn in a streaming session.
+ *
+ * Fires exactly once per turn, after the final [AssistantMessageEvent]
+ * / [ToolExecutionEvent] of the turn and immediately before the per-turn
+ * [ResultEvent]. Prefer this event over [ResultEvent] as the
+ * turn-boundary signal in new code: it carries the provider's
+ * [stopReason] and a zero-based monotonic [turnIndex].
+ *
+ * [stopReason] well-known values (Claude): `end_turn`, `tool_use`,
+ * `max_tokens`, `stop_sequence`. `null` when the provider didn't surface
+ * a stop reason.
+ */
+@Serializable
+data class TurnCompleteEvent(
+    @SerialName("stop_reason") val stopReason: String? = null,
+    @SerialName("turn_index") val turnIndex: Long = 0,
+    val usage: Usage? = null,
+) : Event() {
+    @SerialName("type")
+    override val type: String = "turn_complete"
+}
+
+/**
+ * Session-final or per-turn result summary from the provider.
+ *
+ * In bidirectional streaming mode this fires after [TurnCompleteEvent]
+ * at the end of every turn. In batch mode it fires once when the
+ * provider reports the session-final result.
+ */
 @Serializable
 data class ResultEvent(
     val success: Boolean = false,
@@ -178,6 +207,7 @@ internal object EventSerializer : JsonContentPolymorphicSerializer<Event>(Event:
             "user_message" -> UserMessageEvent.serializer()
             "assistant_message" -> AssistantMessageEvent.serializer()
             "tool_execution" -> ToolExecutionEvent.serializer()
+            "turn_complete" -> TurnCompleteEvent.serializer()
             "result" -> ResultEvent.serializer()
             "error" -> ErrorEvent.serializer()
             "permission_request" -> PermissionRequestEvent.serializer()

@@ -8,16 +8,22 @@
 //!
 //! In bidirectional streaming mode (Claude only), [`StreamingSession::next_event`]
 //! yields unified [`Event`](crate::output::Event) values converted from Claude's
-//! native `stream-json` output. A [`Event::Result`](crate::output::Event::Result)
-//! is emitted at the **end of every agent turn** — not only at final session
-//! end. After a `Result`, the session remains open and accepts another
+//! native `stream-json` output. At the end of every agent turn the session
+//! emits a [`Event::TurnComplete`](crate::output::Event::TurnComplete) with
+//! the provider's `stop_reason`, a zero-based `turn_index`, and the turn's
+//! `usage`, followed immediately by a per-turn
+//! [`Event::Result`](crate::output::Event::Result). After that pair the
+//! session remains open and accepts another
 //! [`StreamingSession::send_user_message`] for the next turn. `next_event`
 //! returns `Ok(None)` only when the subprocess exits (e.g. after
 //! [`StreamingSession::close_input`] and EOF).
 //!
-//! Consumers should use the `Result` event as the authoritative turn-boundary
-//! signal. Do **not** rely on replayed `user_message` events for this purpose;
-//! those only appear when `--replay-user-messages` is set.
+//! New consumers should use `TurnComplete` as the authoritative
+//! turn-boundary signal. `Result` continues to fire per-turn for backward
+//! compatibility, but `TurnComplete` is what carries `stop_reason` and
+//! `turn_index`. Do **not** rely on replayed `user_message` events as a
+//! turn delimiter; those only appear when `--replay-user-messages` is set
+//! and only fire *after* the next user message is sent.
 //!
 //! # Mid-turn input semantics
 //!
@@ -51,11 +57,11 @@
 //!     .exec_streaming("initial prompt")
 //!     .await?;
 //!
-//! // First turn: drain events until the per-turn Result.
+//! // First turn: drain events until TurnComplete.
 //! while let Some(event) = session.next_event().await? {
 //!     println!("{:?}", event);
-//!     if matches!(event, Event::Result { .. }) {
-//!         break; // turn complete
+//!     if matches!(event, Event::TurnComplete { .. }) {
+//!         break; // turn complete — the per-turn Result follows next
 //!     }
 //! }
 //!
@@ -64,7 +70,7 @@
 //!
 //! // Drain the second turn, then close the session.
 //! while let Some(event) = session.next_event().await? {
-//!     if matches!(event, Event::Result { .. }) {
+//!     if matches!(event, Event::TurnComplete { .. }) {
 //!         break;
 //!     }
 //! }
@@ -89,6 +95,14 @@ pub struct StreamingSession {
     child: Child,
     stdin: Option<ChildStdin>,
     lines: Lines<BufReader<ChildStdout>>,
+    /// Stateful per-event translator. Required because some unified
+    /// events (e.g. `TurnComplete`) are synthesized from data carried on
+    /// earlier events in the same turn.
+    translator: crate::providers::claude::ClaudeEventTranslator,
+    /// FIFO buffer of unified events produced by the translator but not
+    /// yet returned to the caller. A single Claude `Result` expands into
+    /// `[TurnComplete, Result]`, so we need room for at least two.
+    pending: std::collections::VecDeque<Event>,
 }
 
 impl StreamingSession {
@@ -108,6 +122,8 @@ impl StreamingSession {
             child,
             stdin,
             lines,
+            translator: crate::providers::claude::ClaudeEventTranslator::new(),
+            pending: std::collections::VecDeque::new(),
         })
     }
 
@@ -160,13 +176,19 @@ impl StreamingSession {
     /// user-visible unified event (e.g. `thinking` blocks) are skipped
     /// transparently, as are blank and unparseable lines.
     ///
-    /// A unified `Result` event is returned at the end of each agent turn;
-    /// callers can use it as a turn boundary. `Ok(None)` is returned only
-    /// when the subprocess closes its stdout (EOF).
+    /// At the end of each agent turn the session emits a
+    /// [`Event::TurnComplete`](crate::output::Event::TurnComplete) followed
+    /// immediately by a per-turn [`Event::Result`](crate::output::Event::Result);
+    /// prefer `TurnComplete` as the turn boundary in new code. `Ok(None)`
+    /// is returned only when the subprocess closes its stdout (EOF).
     pub async fn next_event(&mut self) -> Result<Option<Event>> {
-        use crate::providers::claude::{convert_claude_event_to_unified, models::ClaudeEvent};
+        use crate::providers::claude::models::ClaudeEvent;
 
         loop {
+            if let Some(event) = self.pending.pop_front() {
+                return Ok(Some(event));
+            }
+
             match self.lines.next_line().await? {
                 None => return Ok(None),
                 Some(line) => {
@@ -176,11 +198,12 @@ impl StreamingSession {
                     }
                     match serde_json::from_str::<ClaudeEvent>(trimmed) {
                         Ok(claude_event) => {
-                            if let Some(event) = convert_claude_event_to_unified(&claude_event) {
-                                return Ok(Some(event));
+                            for event in self.translator.translate(&claude_event) {
+                                self.pending.push_back(event);
                             }
-                            // Converter filtered this event (e.g. thinking block
-                            // or ClaudeEvent::Other); read the next line.
+                            // Next loop iteration will drain `pending` (or
+                            // read another line if the translator emitted
+                            // nothing for this event).
                             continue;
                         }
                         Err(e) => {

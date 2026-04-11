@@ -229,6 +229,15 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
     let mut usage = None;
     let mut events = Vec::new();
 
+    // Turn-boundary state for synthesizing Event::TurnComplete before each
+    // Event::Result. Mirrors `ClaudeEventTranslator` in the streaming path
+    // but is inlined here because the full-parse path also does its own
+    // metadata extraction (session_id, total_cost_usd, ...) that doesn't
+    // fit the translator's per-event shape.
+    let mut pending_stop_reason: Option<String> = None;
+    let mut pending_turn_usage: Option<UnifiedUsage> = None;
+    let mut next_turn_index: u32 = 0;
+
     for event in claude_output {
         match event {
             ClaudeEvent::System {
@@ -264,6 +273,13 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
             } => {
                 session_id = sid;
 
+                // Track the latest stop_reason for the current turn; the
+                // final assistant message before a Result is the one whose
+                // stop_reason explains why the turn ended.
+                if let Some(reason) = &message.stop_reason {
+                    pending_stop_reason = Some(reason.clone());
+                }
+
                 // Convert content blocks (skip thinking blocks)
                 let content: Vec<UnifiedContentBlock> = message
                     .content
@@ -294,6 +310,7 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
                         .as_ref()
                         .map(|s| s.web_fetch_requests),
                 });
+                pending_turn_usage = msg_usage.clone();
 
                 events.push(UnifiedEvent::AssistantMessage {
                     content,
@@ -390,6 +407,14 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
                         granted: false,
                     });
                 }
+
+                // Emit TurnComplete immediately before the per-turn Result.
+                events.push(UnifiedEvent::TurnComplete {
+                    stop_reason: pending_stop_reason.take(),
+                    turn_index: next_turn_index,
+                    usage: pending_turn_usage.take(),
+                });
+                next_turn_index = next_turn_index.saturating_add(1);
 
                 // Add final result event
                 events.push(UnifiedEvent::Result {
