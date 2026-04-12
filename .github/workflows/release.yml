@@ -249,6 +249,9 @@ jobs:
     needs: [update-repo, build]
     runs-on: ubuntu-latest
     environment: npm-registry
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -256,7 +259,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
@@ -265,15 +268,16 @@ jobs:
 
       - name: Publish zag-agent
         working-directory: bindings/typescript
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
 
   publish-nuget:
     name: Publish to NuGet
     needs: [update-repo, build]
     runs-on: ubuntu-latest
     environment: nuget-registry
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -287,11 +291,15 @@ jobs:
         working-directory: bindings/csharp/src/Zag
         run: dotnet pack -c Release
 
+      - name: NuGet login (trusted publishing)
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
       - name: Publish Zag
         working-directory: bindings/csharp/src/Zag
-        run: dotnet nuget push bin/Release/*.nupkg --api-key "$NUGET_TOKEN" --source https://api.nuget.org/v3/index.json
-        env:
-          NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
+        run: dotnet nuget push bin/Release/*.nupkg --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json
 
   publish-pypi:
     name: Publish to PyPI
