@@ -199,7 +199,10 @@ jobs:
     name: Publish to crates.io
     needs: [update-repo, build]
     runs-on: ubuntu-latest
-    environment: crates-io
+    environment: crates-registry
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -207,42 +210,46 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: Authenticate to crates.io (trusted publishing)
+        id: crates-auth
+        uses: rust-lang/crates-io-auth-action@v1
+
       - name: Publish zag-agent
-        run: cargo publish -p zag-agent --token "$CARGO_REGISTRY_TOKEN"
+        run: cargo publish -p zag-agent
         env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates-auth.outputs.token }}
 
       - name: Wait for crates.io index update
         run: sleep 30
 
       - name: Publish zag-orch
-        run: cargo publish -p zag-orch --token "$CARGO_REGISTRY_TOKEN"
+        run: cargo publish -p zag-orch
         env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates-auth.outputs.token }}
 
       - name: Wait for crates.io index update
         run: sleep 30
 
       - name: Publish zag-serve
-        run: cargo publish -p zag-serve --token "$CARGO_REGISTRY_TOKEN"
+        run: cargo publish -p zag-serve
         env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates-auth.outputs.token }}
 
       - name: Wait for crates.io index update
         run: sleep 30
 
       - name: Publish zag (facade)
-        run: cargo publish -p zag --token "$CARGO_REGISTRY_TOKEN"
+        run: cargo publish -p zag
         env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates-auth.outputs.token }}
 
       - name: Wait for crates.io index update
         run: sleep 30
 
       - name: Publish zag-cli
-        run: cargo publish -p zag-cli --token "$CARGO_REGISTRY_TOKEN"
+        run: cargo publish -p zag-cli
         env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates-auth.outputs.token }}
 
   publish-npm:
     name: Publish to npm
