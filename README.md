@@ -2,7 +2,7 @@
 
 [![ci](https://github.com/niclaslindstedt/zag/actions/workflows/ci.yml/badge.svg)](https://github.com/niclaslindstedt/zag/actions/workflows/ci.yml)
 [![release](https://github.com/niclaslindstedt/zag/actions/workflows/release.yml/badge.svg)](https://github.com/niclaslindstedt/zag/actions/workflows/release.yml)
-[![pages](https://github.com/niclaslindstedt/zag/actions/workflows/static.yml/badge.svg)](https://github.com/niclaslindstedt/zag/actions/workflows/static.yml)
+[![pages](https://github.com/niclaslindstedt/zag/actions/workflows/pages.yml/badge.svg)](https://github.com/niclaslindstedt/zag/actions/workflows/pages.yml)
 [![crates](https://img.shields.io/crates/v/zag-cli.svg)](https://crates.io/crates/zag-cli)
 [![npm](https://img.shields.io/npm/v/@nlindstedt/zag-agent.svg)](https://www.npmjs.com/package/@nlindstedt/zag-agent)
 [![pypi](https://img.shields.io/pypi/v/zag-agent.svg)](https://pypi.org/project/zag-agent/)
