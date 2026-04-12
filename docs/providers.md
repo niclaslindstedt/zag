@@ -71,7 +71,7 @@ At the end of every agent turn the session emits a **`turn_complete`** event car
 
 ### Claude
 
-default, sonnet, sonnet-4.6, opus, opus-4.6, haiku, haiku-4.5
+default, sonnet, opus, haiku
 
 ### Codex
 

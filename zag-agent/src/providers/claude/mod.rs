@@ -27,11 +27,8 @@ pub const DEFAULT_MODEL: &str = "default";
 pub const AVAILABLE_MODELS: &[&str] = &[
     "default",
     "sonnet",
-    "sonnet-4.6",
     "opus",
-    "opus-4.6",
     "haiku",
-    "haiku-4.5",
 ];
 
 /// Callback for streaming events. Set via `set_event_handler` to receive

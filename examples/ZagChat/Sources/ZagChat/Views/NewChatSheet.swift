@@ -15,9 +15,9 @@ struct NewChatSheet: View {
 
     private static let modelsByProvider: [String: [String]] = [
         "claude": [
-            "haiku", "haiku-4.5",
-            "sonnet", "sonnet-4.6",
-            "opus", "opus-4.6",
+            "haiku",
+            "sonnet",
+            "opus",
         ],
         "codex": [
             "gpt-5.4-mini", "gpt-5.4",

@@ -77,11 +77,8 @@ export const providers: ProviderData[] = [
     "availableModels": [
       "default",
       "sonnet",
-      "sonnet-4.6",
       "opus",
-      "opus-4.6",
-      "haiku",
-      "haiku-4.5"
+      "haiku"
     ],
     "sizeMap": {
       "small": "haiku",
