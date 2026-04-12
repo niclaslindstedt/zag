@@ -24,12 +24,7 @@ use tokio::process::Command;
 
 pub const DEFAULT_MODEL: &str = "default";
 
-pub const AVAILABLE_MODELS: &[&str] = &[
-    "default",
-    "sonnet",
-    "opus",
-    "haiku",
-];
+pub const AVAILABLE_MODELS: &[&str] = &["default", "sonnet", "opus", "haiku"];
 
 /// Callback for streaming events. Set via `set_event_handler` to receive
 /// unified events as they arrive during non-interactive execution.
