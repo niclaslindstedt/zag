@@ -1,3 +1,1 @@
-# Copilot Instructions
-
-See `CLAUDE.md` for repository guidance and project context.
+../../AGENTS.md
