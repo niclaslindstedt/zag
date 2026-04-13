@@ -496,6 +496,25 @@ impl Claude {
                     })?;
                 log::debug!("Parsed {} Claude events successfully", claude_output.len());
 
+                // Log any unknown event types for diagnostics.
+                if let Ok(raw_events) = serde_json::from_str::<Vec<serde_json::Value>>(&json_str) {
+                    let known = ["system", "assistant", "user", "result"];
+                    for raw in &raw_events {
+                        if let Some(t) = raw.get("type").and_then(|v| v.as_str()) {
+                            if !known.contains(&t) {
+                                log::debug!(
+                                    "Unknown Claude event type: {:?} (first 300 chars: {})",
+                                    t,
+                                    crate::truncate_str(
+                                        &serde_json::to_string(raw).unwrap_or_default(),
+                                        300
+                                    )
+                                );
+                            }
+                        }
+                    }
+                }
+
                 // Convert to unified AgentOutput
                 let agent_output: AgentOutput =
                     models::claude_output_to_agent_output(claude_output);
@@ -533,6 +552,9 @@ pub(crate) struct ClaudeEventTranslator {
     /// Zero-based turn index within the session. Incremented after each
     /// emitted `TurnComplete`.
     next_turn_index: u32,
+    /// Text from the most recent assistant message, used as fallback when
+    /// `Result.result` is empty.
+    last_assistant_text: Option<String>,
 }
 
 impl ClaudeEventTranslator {
@@ -573,11 +595,51 @@ impl ClaudeEventTranslator {
                     .as_ref()
                     .map(|s| s.web_fetch_requests),
             });
+
+            // Track text for fallback when Result.result is empty.
+            let text_parts: Vec<&str> = message
+                .content
+                .iter()
+                .filter_map(|b| match b {
+                    models::ContentBlock::Text { text } => Some(text.as_str()),
+                    _ => None,
+                })
+                .collect();
+            if !text_parts.is_empty() {
+                self.last_assistant_text = Some(text_parts.join("\n"));
+            }
         }
 
         let unified = convert_claude_event_to_unified(event);
 
         match unified {
+            Some(UnifiedEvent::Result {
+                success,
+                message,
+                duration_ms,
+                num_turns,
+            }) if message.as_deref() == Some("") => {
+                // Empty result — substitute last assistant text if available.
+                let fallback = self.last_assistant_text.take();
+                if fallback.is_some() {
+                    log::debug!(
+                        "Streaming Result.message is empty; using last assistant text as fallback"
+                    );
+                }
+                let result_event = UnifiedEvent::Result {
+                    success,
+                    message: fallback.or(message),
+                    duration_ms,
+                    num_turns,
+                };
+                let turn_complete = UnifiedEvent::TurnComplete {
+                    stop_reason: self.pending_stop_reason.take(),
+                    turn_index: self.next_turn_index,
+                    usage: self.pending_usage.take(),
+                };
+                self.next_turn_index = self.next_turn_index.saturating_add(1);
+                vec![turn_complete, result_event]
+            }
             Some(UnifiedEvent::Result { .. }) => {
                 let turn_complete = UnifiedEvent::TurnComplete {
                     stop_reason: self.pending_stop_reason.take(),
