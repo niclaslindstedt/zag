@@ -497,8 +497,7 @@ impl Claude {
                 log::debug!("Parsed {} Claude events successfully", claude_output.len());
 
                 // Log any unknown event types for diagnostics.
-                if let Ok(raw_events) = serde_json::from_str::<Vec<serde_json::Value>>(&json_str)
-                {
+                if let Ok(raw_events) = serde_json::from_str::<Vec<serde_json::Value>>(&json_str) {
                     let known = ["system", "assistant", "user", "result"];
                     for raw in &raw_events {
                         if let Some(t) = raw.get("type").and_then(|v| v.as_str()) {

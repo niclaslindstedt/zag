@@ -611,8 +611,5 @@ fn test_nonempty_result_not_overridden_by_assistant() {
     let agent_output: AgentOutput = claude_output_to_agent_output(claude_output);
 
     // Non-empty result should NOT be overridden by assistant text.
-    assert_eq!(
-        agent_output.result,
-        Some("the real result".to_string())
-    );
+    assert_eq!(agent_output.result, Some("the real result".to_string()));
 }
