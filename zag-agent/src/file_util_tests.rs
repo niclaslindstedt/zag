@@ -57,12 +57,16 @@ fn test_atomic_write_bytes() {
 
 #[test]
 fn test_unique_tmp_paths_are_distinct() {
-    let path = Path::new("/tmp/logs/index.json");
-    let a = unique_tmp_path(path);
-    let b = unique_tmp_path(path);
+    let dir = temp_dir();
+    let path = dir.join("index.json");
+    let a = unique_tmp_path(&path);
+    let b = unique_tmp_path(&path);
     assert_ne!(a, b, "each call should produce a unique temp path");
-    assert!(a.to_string_lossy().ends_with(".tmp"));
-    assert!(a.to_string_lossy().starts_with("/tmp/logs/.index.json."));
+    let a_name = a.file_name().unwrap().to_string_lossy();
+    assert!(a_name.starts_with(".index.json."), "got: {a_name}");
+    assert!(a_name.ends_with(".tmp"), "got: {a_name}");
+    assert_eq!(a.parent(), path.parent());
+    std::fs::remove_dir_all(&dir).ok();
 }
 
 #[test]
@@ -85,10 +89,10 @@ fn test_atomic_write_concurrent_writers_all_succeed() {
                 for i in 0..writes_per_thread {
                     let content = format!(r#"{{"thread":{},"iter":{}}}"#, t, i);
                     if let Err(e) = atomic_write_str(&target, &content) {
-                        errors.lock().unwrap().push(format!(
-                            "thread {} iter {}: {}",
-                            t, i, e
-                        ));
+                        errors
+                            .lock()
+                            .unwrap()
+                            .push(format!("thread {} iter {}: {}", t, i, e));
                     }
                 }
             })
