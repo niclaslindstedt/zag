@@ -238,6 +238,12 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
     let mut pending_turn_usage: Option<UnifiedUsage> = None;
     let mut next_turn_index: u32 = 0;
 
+    // Track text from the last assistant message for fallback when
+    // Result.result is empty (e.g. when --json-schema is used, Claude Code
+    // may put the content in the assistant message but leave the result
+    // field blank).
+    let mut last_assistant_text: Option<String> = None;
+
     for event in claude_output {
         match event {
             ClaudeEvent::System {
@@ -292,6 +298,18 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
                         ContentBlock::Thinking { .. } => None,
                     })
                     .collect();
+
+                // Collect text blocks for fallback result extraction.
+                let text_parts: Vec<&str> = content
+                    .iter()
+                    .filter_map(|b| match b {
+                        UnifiedContentBlock::Text { text } => Some(text.as_str()),
+                        _ => None,
+                    })
+                    .collect();
+                if !text_parts.is_empty() {
+                    last_assistant_text = Some(text_parts.join("\n"));
+                }
 
                 // Convert usage
                 let msg_usage = Some(UnifiedUsage {
@@ -383,7 +401,26 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
             } => {
                 session_id = sid;
                 is_error = err;
-                result = Some(res.clone());
+
+                // When Result.result is empty, fall back to the last assistant
+                // message text.  Claude Code sometimes puts the actual content
+                // (especially --json-schema output) in the assistant message
+                // while leaving the result field blank.
+                let effective_result = if res.is_empty() {
+                    if let Some(ref fallback) = last_assistant_text {
+                        log::debug!(
+                            "Result.result is empty; using last assistant text ({} bytes)",
+                            fallback.len()
+                        );
+                        fallback.clone()
+                    } else {
+                        res.clone()
+                    }
+                } else {
+                    res.clone()
+                };
+
+                result = Some(effective_result.clone());
                 total_cost_usd = Some(cost);
 
                 // Convert usage
@@ -419,7 +456,7 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
                 // Add final result event
                 events.push(UnifiedEvent::Result {
                     success: !err,
-                    message: Some(res),
+                    message: Some(effective_result),
                     duration_ms: Some(duration_ms),
                     num_turns: Some(num_turns),
                 });
