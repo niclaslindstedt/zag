@@ -43,13 +43,18 @@ $ zag run --name "auth-refactor" --tag sprint-12
 # List recent sessions
 $ zag session list
 
-# Resume a previous session
-$ zag run --session <session-id>
+# Resume an interactive session
+$ zag run --resume <session-id>
+$ zag run --continue   # last session in this project
+
+# Send a follow-up non-interactively
+$ zag exec --resume <session-id> "Now add tests"
+$ zag exec --continue "What did you change?"
 
 # Search through all session logs
 $ zag search "error handling"
 
-# Export session environment
+# Export session environment for nested agents
 $ eval $(zag env <session-id>)`,
   },
   {
