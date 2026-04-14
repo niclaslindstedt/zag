@@ -144,6 +144,24 @@ All bindings support the same set of builder methods (naming follows each langua
 | `name` | Set the session name |
 | `description` | Set the session description |
 | `tag` | Add a session tag |
+| `timeout` | Abort the agent after a duration (e.g. `30s`, `5m`) |
+| `show_usage` | Include token-usage statistics in JSON output |
+| `verbose` / `quiet` | Control binding-side logging |
+| `input_format` | Claude-only: set stdin format (`stream-json`) |
+| `replay_user_messages` | Claude-only: replay stdin user messages on stdout |
+| `include_partial_messages` | Claude-only: emit per-chunk assistant messages |
+| `bin` / `ZAG_BIN` | Override the `zag` CLI binary used by the binding |
+
+> **Capability-aware errors**: feature-gated builder options
+> (`exec_streaming` / `streaming_input`, `worktree`, `sandbox`,
+> `system_prompt`, `add_dir`, `max_turns`) validate their active requirements
+> against the provider's capability descriptor from `zag discover` before
+> spawning. Unsupported combinations raise a `ZagFeatureUnsupportedError`
+> (TypeScript) / `ZagFeatureUnsupportedException` (Java/Kotlin) /
+> equivalent in each language, with a message that names the provider and
+> the unsupported feature. This catches mistakes *before* the agent process
+> is launched instead of silently forwarding flags to a provider that
+> doesn't honor them.
 
 ### Terminal methods
 
@@ -151,8 +169,31 @@ All bindings support the same set of builder methods (naming follows each langua
 |--------|-------------|
 | `exec` | Non-interactive execution with a prompt |
 | `run` | Start an interactive session |
-| `resume` | Resume a previous session |
-| `stream` | Stream NDJSON events |
+| `resume` | Resume a previous session by ID |
+| `continue_last` | Resume the most recent tracked session |
+| `stream` | Stream NDJSON events from a one-shot turn |
+| `exec_streaming` | Open a bidirectional `StreamingSession` (Claude only) |
+
+## Discover and capability helpers
+
+Every binding exposes helpers for querying the same capability data that
+`zag discover` / `zag capability` return on the CLI. Use these to branch on
+provider features instead of hard-coding lists:
+
+```typescript
+import { discoverProviders, getCapability, resolveModel } from "@nlindstedt/zag-agent";
+
+const providers = await discoverProviders();              // summary across providers
+const claude = await getCapability("claude");             // single provider
+const concrete = await resolveModel("copilot", "large");  // size alias → concrete model
+```
+
+The equivalents in the other bindings follow the usual naming conventions:
+`discover_providers()` / `get_capability()` / `resolve_model()` in Python and
+Rust, `DiscoverProviders()` / `GetCapability()` / `ResolveModel()` in C#,
+`discoverProviders()` / `getCapability()` / `resolveModel()` in Swift, and
+`ZagDiscover.discoverProviders()` / `.getCapability()` / `.resolveModel()` in
+Java and Kotlin.
 
 ## Streaming
 
@@ -174,6 +215,26 @@ async for event in ZagBuilder() \
     .stream("analyze this codebase"):
     print(event.type)
 ```
+
+### Bidirectional streaming (Claude)
+
+Claude supports a long-lived `StreamingSession` with `send_user_message()` /
+`sendUserMessage()` so callers can push follow-up turns without restarting
+the agent. The TypeScript binding adds two convenience features on top of
+the raw session:
+
+- **`autoCleanup(true)`** on the builder tracks the spawned `StreamingSession`
+  and reliably closes it (`SIGTERM` → `SIGKILL` fallback) on process exit, so
+  orphaned `claude` children don't leak when your script crashes.
+- **`StreamingSession.close({ timeout })`** gracefully ends a session: closes
+  stdin, waits for the process to exit within the timeout, and escalates to
+  `SIGTERM`/`SIGKILL` if the provider is stuck. `close()` never rejects for a
+  signal-based exit — it is a best-effort cleanup helper.
+
+See `docs/sessions.md#streaming-input-mid-turn-injection-semantics` for the
+per-provider `streaming_input.semantics` matrix (Claude today is the only
+provider with `semantics = "queue"`, meaning mid-turn `send_user_message`
+calls are buffered until the next turn boundary).
 
 ## Remote mode (Swift)
 

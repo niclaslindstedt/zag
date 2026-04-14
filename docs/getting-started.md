@@ -88,6 +88,44 @@ zag -m large run                     # most capable
 
 Size aliases map to the right model for each provider automatically. See [Providers](providers.md) for the full mapping table.
 
+## Attach files to a prompt
+
+Use `--file` (repeatable) to embed files into the agent's prompt. zag reads
+each path and prepends its contents as a labeled attachment block before your
+prompt — useful when you want the model to ground on an existing document
+without the agent having to tool-call to read it:
+
+```bash
+zag exec --file src/main.rs --file README.md "explain the entry point"
+```
+
+`zag input --file path/to/diff.patch "review this"` works too, so you can
+attach files when sending follow-up messages to a running session.
+
+## Discover providers and models
+
+`zag discover` prints a summary table of available providers, their default
+model, capabilities, and log completeness:
+
+```bash
+# Summary table for every detected provider
+zag discover
+
+# Detail for a single provider
+zag discover -p claude
+
+# Only the model list (text or JSON)
+zag discover -p codex --models
+zag discover -p codex --models --json
+
+# Resolve a size alias to a concrete model
+zag discover -p copilot --resolve large
+```
+
+`zag discover` is the user-facing entry point; `zag capability -p <provider>
+--pretty` returns the raw capability JSON that powers the bindings' feature
+gating.
+
 ## Auto-select the best provider
 
 Let an LLM choose the optimal provider and model for your task:
@@ -142,9 +180,13 @@ zag exec --name my-task --tag backend "implement the API"
 zag session list
 zag session list --tag backend
 
-# Resume a session
+# Resume a session (interactive)
 zag run --resume <session-id>
 zag run --continue  # resume the most recent
+
+# Resume a session in one-shot mode too
+zag exec --resume <session-id> "also add tests"
+zag exec --continue "summarize what we just did"
 ```
 
 ## JSON output

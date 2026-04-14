@@ -75,12 +75,22 @@ zag session update <session-id> --description "updated description"
 Resume a previous session to continue where you left off:
 
 ```bash
-# Resume a specific session
+# Resume a specific interactive session
 zag run --resume <session-id>
 
-# Continue the most recent session
+# Continue the most recent interactive session
 zag run --continue
+
+# One-shot resume: pick up an existing session, send one more prompt, and exit
+zag exec --resume <session-id> "also add tests"
+zag exec --continue "summarize what we just did"
 ```
+
+Both `run` and `exec` accept `--resume <SESSION_ID>` and `--continue`. For
+`exec`, zag replays the prior session into the provider, sends the new
+prompt, prints the result, and exits. This is the preferred way to thread
+state across CI jobs, scripts, or multi-step agent workflows without
+opening an interactive shell.
 
 Resume support varies by provider:
 

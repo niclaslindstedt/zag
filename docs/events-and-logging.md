@@ -13,15 +13,35 @@ Every agent session produces an `AgentOutput` structure:
   "events": [ ... ],
   "result": "final text output",
   "is_error": false,
+  "exit_code": 0,
+  "error_message": null,
   "total_cost_usd": 0.05,
   "usage": {
     "input_tokens": 1500,
     "output_tokens": 800
-  }
+  },
+  "model": "claude-sonnet-4-5-20250929",
+  "provider": "claude"
 }
 ```
 
 Access this with `zag exec -o json` or `zag exec -o json-pretty`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `agent` | string | The agent name (same as `provider`, retained for backward compatibility). |
+| `session_id` | string | Unique session identifier (UUID). |
+| `events` | array | The full unified event stream (see below). |
+| `result` | string? | Final assistant text. Empty strings fall back to `structured_output` (Claude `--json-schema`) or the last assistant message. |
+| `is_error` | bool | `true` if the session ended in a provider or subprocess error. |
+| `exit_code` | i32? | Exit code from the underlying provider process, when available. Omitted from JSON when `null`. |
+| `error_message` | string? | Human-readable error message from the provider. Omitted from JSON when `null`. |
+| `total_cost_usd` | f64? | Session cost in USD (provider-specific, Claude surfaces this natively). |
+| `usage` | Usage? | Aggregated token usage for the session. |
+| `model` | string? | Concrete model reported by the provider (e.g. `claude-sonnet-4-5-20250929`). |
+| `provider` | string? | Effective provider after any tier-list downgrade (see `providers.md#provider-downgrade`). |
+
+`exec` exits with a non-zero status when `is_error == true`; pass `--exit-on-failure` to force the CLI to propagate provider failure as an exit code 1 even when the session technically completed.
 
 ## Event types
 
@@ -212,6 +232,10 @@ Use `zag exec -o <format>` to control the output format:
 | `json-pretty` | Pretty-printed unified JSON |
 | `stream-json` | NDJSON event stream (unified format) |
 | `native-json` | Provider's raw JSON format (Claude only) |
+
+> **Removed in v0.10.0**: The standalone `--json-stream` flag was removed because
+> it duplicated `-o stream-json`. Use `zag exec -o stream-json` to get NDJSON
+> events — the behavior is identical.
 
 ## NDJSON streaming
 

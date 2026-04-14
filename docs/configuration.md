@@ -158,9 +158,32 @@ zag sets these environment variables during agent sessions:
 | `ZAG_MODEL` | Current model | `sonnet` |
 | `ZAG_PROCESS_ID` | Process identifier (orchestration) | UUID string |
 | `ZAG_ROOT` | Worktree path (if using `-w`) | `/path/to/worktree` |
+| `ZAG_BIN` | Override the `zag` binary that language bindings spawn | `/usr/local/bin/zag` |
+| `ZAG_SERVE_TOKEN` | Legacy/super token used by `zag serve` | (secret) |
+| `ZAG_CONNECT_TOKEN` | Auth token used by `zag connect` | (secret) |
 | `NO_COLOR` | Disable colored output (respected by zag) | (any value) |
 
 Provider-specific API keys (e.g., `ANTHROPIC_API_KEY`) are read by the upstream CLI tools, not by zag directly.
+
+## Remote server config
+
+When running `zag serve`, a secondary config file at `~/.zag/serve.toml`
+controls host, port, TLS, and authentication settings. See
+[Remote Access](remote-access.md#server-config) for the full schema. The
+most interesting keys are:
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `server.host` | string | `0.0.0.0` | Bind address |
+| `server.port` | u16 | `2100` | Bind port |
+| `server.token` | string | (none) | Legacy/super token |
+| `server.tls_cert` | path | (auto) | Custom TLS certificate (PEM) |
+| `server.tls_key` | path | (auto) | Custom TLS private key (PEM) |
+| `server.force_sandbox` | bool | `false` | Force all agent sessions into a Docker sandbox |
+
+Clients store their own connection state in `~/.zag/connect.json` (written
+by `zag connect`, deleted by `zag disconnect`). The global `--no-health-check`
+flag skips the per-command reachability probe against a connected server.
 
 ## Related
 
