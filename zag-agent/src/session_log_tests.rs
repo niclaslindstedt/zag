@@ -151,6 +151,8 @@ fn test_record_agent_output_maps_core_events() {
         error_message: None,
         total_cost_usd: None,
         usage: None,
+        model: None,
+        provider: Some("codex".to_string()),
     };
 
     record_agent_output(&writer, &output).unwrap();
@@ -414,6 +416,8 @@ fn test_record_agent_output_emits_usage() {
             web_search_requests: None,
             web_fetch_requests: None,
         }),
+        model: Some("sonnet".to_string()),
+        provider: Some("claude".to_string()),
     };
 
     record_agent_output(&writer, &output).unwrap();
