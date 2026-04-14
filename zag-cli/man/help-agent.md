@@ -11,12 +11,16 @@ zag exec "<prompt>"            Non-interactive: send prompt, get output, exit
 zag run ["<prompt>"]           Interactive: start a full terminal session
 zag run --continue             Resume the latest tracked session
 zag run --resume <id>          Resume a specific session
-zag review --uncommitted       Code review (uses Codex)
+zag exec --continue "..."      Resume the latest session with a new prompt
+zag exec --resume <id> "..."   Resume a specific session with a new prompt
+zag review --uncommitted       Code review (uses Codex natively)
+zag plan "<goal>"              Generate a Markdown implementation plan
 zag config [key] [value]       View or set configuration
 zag session list               List all tracked sessions
 zag search "<query>"           Search through session logs
 zag listen <id>                Tail a session's log events in real-time
 zag capability [-p provider]   Show provider capability declarations
+zag discover [-p provider]     Discover providers, models, and capabilities
 zag skills list                List provider-agnostic skills
 zag man [command]              Show detailed docs for a command
 zag spawn "<prompt>"           Launch background agent, return session ID

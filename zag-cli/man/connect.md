@@ -14,13 +14,23 @@ If the URL does not include a scheme, `https://` is automatically prepended.
 
 The connection state is stored in `~/.zag/connect.json`. While connected, commands like `zag spawn`, `zag status`, `zag listen`, `zag session list`, and others are forwarded to the remote server's REST/WebSocket API.
 
+zag supports two authentication modes against a remote server:
+
+- **Bearer token** — a shared token configured with `zag serve --generate-token` (or the `ZAG_SERVE_TOKEN` env var). The client passes it with `--token` or the `ZAG_CONNECT_TOKEN` env var. All commands run with the server's default filesystem root.
+- **User account** — per-user credentials managed by `zag user add` on the server. The client passes `--username` / `--password`, and the server jails all commands to the user's configured home directory.
+
+`--token` and `--username` are mutually exclusive.
+
 ## Arguments
 
     url    Server URL (e.g., home.local:2100 or https://home.local:2100)
 
 ## Flags
 
-    --token <TOKEN>    Authentication token (or set ZAG_CONNECT_TOKEN env var)
+        --token <TOKEN>        Authentication token (or set ZAG_CONNECT_TOKEN env var)
+    -u, --username <NAME>      Username for user-account authentication
+        --password <PASSWORD>  Password for user-account authentication
+                               (prompted interactively if omitted)
 
 ## Health Check
 
@@ -57,11 +67,17 @@ To disable this behavior, use the `--no-health-check` global flag or set the `ZA
 
 ## Examples
 
-    # Connect to a remote server (https:// auto-prepended)
+    # Connect with a bearer token (https:// auto-prepended)
     zag connect home.local:2100 --token mysecrettoken
 
     # Connect with explicit scheme
     zag connect https://home.local:2100 --token mysecrettoken
+
+    # Connect as a user account (password prompted)
+    zag connect home.local:2100 -u alice
+
+    # Connect as a user account with inline password
+    zag connect home.local:2100 -u alice --password hunter2
 
     # Now all commands proxy through the remote server
     zag spawn "write tests for auth module"
@@ -78,4 +94,5 @@ To disable this behavior, use the `--no-health-check` global flag or set the `ZA
 
 ## See Also
 
-`zag serve`, `zag disconnect`
+    zag man serve       Start the zag HTTPS/WebSocket server
+    zag man user        Manage user accounts on the server

@@ -28,6 +28,7 @@ Results are wrapped in `<session-result>` XML tags with session ID prefixes so t
     -a, --auto-approve       Skip permission prompts
     -s, --system-prompt      Custom system prompt
     --add-dir <PATH>         Additional directories (repeatable)
+    --file <PATH>            Attach a file to the prompt (repeatable)
     --env <KEY=VALUE>        Environment variable for subprocess (repeatable)
     --mcp-config <CONFIG>    MCP server config: JSON string or path to a JSON file (Claude only)
     --size <SIZE>            Ollama model size
