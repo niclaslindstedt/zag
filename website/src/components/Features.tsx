@@ -75,6 +75,24 @@ const features = [
         },
       ]
     : []),
+  {
+    title: "File Attachments",
+    description:
+      "Attach files to any prompt with --file path. Small text files are inlined; larger files and binaries are referenced by path so the agent can read them on demand.",
+    icon: "\u{1F4CE}",
+  },
+  {
+    title: "Provider Fallback",
+    description:
+      "Configure a tier list of providers and models. If the primary fails (quota, outage, auth), zag automatically downgrades through the chain and keeps going.",
+    icon: "\u{1F504}",
+  },
+  {
+    title: "Bidirectional Streaming",
+    description:
+      "Stream prompts into a running session mid-turn, receive turn_complete events with stop reasons, and close sessions cleanly from SDK code.",
+    icon: "\u{27A1}\u{FE0F}",
+  },
 ];
 
 export default function Features() {
