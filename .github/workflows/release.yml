@@ -269,7 +269,11 @@ jobs:
           node-version: '22'
 
       - name: Upgrade npm to a trusted-publishing-capable version
-        run: npm install -g npm@latest
+        # Work around an npm self-upgrade race where the old npm removes
+        # @npmcli/arborist's deps (e.g. promise-retry) before the new npm is
+        # fully written, causing "Cannot find module 'promise-retry'". Retrying
+        # the install completes the upgrade cleanly.
+        run: npm install -g npm@latest || npm install -g npm@latest
 
       - name: Install dependencies
         working-directory: bindings/typescript
