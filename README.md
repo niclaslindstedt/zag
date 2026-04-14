@@ -117,8 +117,9 @@ The default tier order is `claude → codex → gemini → copilot → ollama`. 
 
 ```
 zag run [prompt]              Interactive session (optional initial prompt)
-zag exec <prompt>             Non-interactive — print output and exit
+zag exec <prompt>             Non-interactive — print output and exit (supports --resume, --continue)
 zag review                    Code review (--uncommitted, --base, --commit)
+zag plan <goal>               Generate an implementation plan (writes to file or stdout)
 zag config [key] [value]      View or set configuration
 zag session list|show|import|delete|update  List/inspect/manage sessions
 zag listen <id>               Tail a session's log events in real-time
@@ -144,9 +145,10 @@ zag output [<id>] [--latest]  Extract final result text from a session
 zag retry <id>... [--failed]  Re-run failed sessions with same config
 zag gc [--force] [--older-than]  Clean up old session data and logs
 
-zag serve [--port] [--token]   Start HTTP/WS server for remote access
+zag serve [--port] [--token]   Start HTTPS/WS server for remote access
 zag connect <url> --token     Connect to a remote zag server
 zag disconnect                Disconnect from remote server
+zag user add|remove|list|passwd  Manage user accounts on the server
 
 zag discover                  Discover providers, models, and capabilities
 zag capability                Show provider capability declarations
@@ -181,6 +183,7 @@ zag man [command]             Built-in manual pages
 | `--mcp-config <config>` | | MCP server config: JSON string or file path (Claude only) |
 | `--size <size>` | | Ollama parameter size (e.g., 2b, 9b, 35b) |
 | `--show-usage` | | Show token usage statistics (JSON output mode) |
+| `--exit-on-failure` | | `exec` only — exit with non-zero code if the agent reports failure |
 | `--debug` | `-d` | Debug logging |
 | `--quiet` | `-q` | Suppress all output except the agent's response |
 | `--verbose` | `-v` | Styled output with icons in exec mode |
@@ -194,11 +197,13 @@ Every interactive session gets a session ID. You can name and tag sessions for d
 zag exec --name "backend-agent" --tag backend "implement API"
 zag run --name "frontend-agent" --tag frontend --description "CSS work"
 
-# Resume a specific session
+# Resume a specific session (interactive or non-interactive)
 zag run --resume <session-id>
+zag exec --resume <session-id> "add tests for the new handler"
 
 # Resume the most recent session
 zag run --continue
+zag exec --continue "keep going"
 
 # List and filter sessions
 zag session list
@@ -576,8 +581,9 @@ ZagBuilder().provider("claude").stream("analyze code").collect { event ->
 The `examples/` directory contains complete projects demonstrating `zag` usage:
 
 - **[cv-review](examples/cv-review/)** — A Rust program that uses the `zag` library crate to review CVs against job descriptions using parallel agent invocations
-- **[orchestration](examples/orchestration/)** — Shell scripts demonstrating multi-agent patterns: sequential pipelines, fan-out/gather, generator-critic loops, coordinator dispatch, and more
+- **[orchestration](examples/orchestration/)** — Shell scripts demonstrating 8 multi-agent patterns: sequential pipelines, parallel fan-out, generator-critic loops, coordinator dispatch, hierarchical decomposition, event-driven composites, decision arenas, and meta-bootstrap (agents that generate their own orchestration scripts)
 - **[react-claude-interface](examples/react-claude-interface/)** — A React web app that provides a Claude Code-like chat interface powered by `zag exec` and `zag input` with streaming NDJSON events over Server-Sent Events
+- **[ZagChat](examples/ZagChat/)** — A native macOS SwiftUI chat app built on the Swift bindings, demonstrating `StreamingSession`, expandable tool-call details, and sub-agent nesting
 
 See the [examples directory](examples/) for details on each.
 
