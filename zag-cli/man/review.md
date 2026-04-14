@@ -23,7 +23,7 @@ An optional positional `prompt` argument lets you append additional instructions
     --commit <SHA>         Review changes from a specific commit
     --title <TEXT>         Optional title for the review summary
 
-Global flags that apply: `-p`, `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir`, `--env`, `--mcp-config`, `--debug`, `--quiet`.
+Global flags that apply: `-p`, `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir`, `--file`, `--env`, `--mcp-config`, `--max-turns`, `--debug`, `--quiet`.
 
 Flags that cannot be used with review: `--worktree`, `--sandbox`, `--json`, `--json-schema`, `-p auto`, `-m auto`.
 

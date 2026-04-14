@@ -19,7 +19,7 @@ When running in server mode (user logged in), the output path must be within the
     -o, --output <PATH>         Write plan to a file or directory (generates plan-{timestamp}.md in directories)
     --instructions <TEXT>       Additional planning instructions
 
-Global flags that apply: `-p`, `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir`, `--env`, `--mcp-config`, `--debug`, `--quiet`.
+Global flags that apply: `-p`, `--model`, `--system-prompt`, `--root`, `--auto-approve`, `--add-dir`, `--file`, `--env`, `--mcp-config`, `--max-turns`, `--debug`, `--quiet`.
 
 ## Using Plans
 
