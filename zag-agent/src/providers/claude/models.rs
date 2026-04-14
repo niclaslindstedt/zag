@@ -228,6 +228,7 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
     let mut total_cost_usd = None;
     let mut usage = None;
     let mut events = Vec::new();
+    let mut model_name: Option<String> = None;
 
     // Turn-boundary state for synthesizing Event::TurnComplete before each
     // Event::Result. Mirrors `ClaudeEventTranslator` in the streaming path
@@ -255,6 +256,7 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
                 ..
             } => {
                 session_id = sid;
+                model_name = Some(model.clone());
 
                 // Include all extra fields as metadata
                 if let Some(cwd) = cwd {
@@ -474,6 +476,8 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
         error_message: None,
         total_cost_usd,
         usage,
+        model: model_name,
+        provider: Some("claude".to_string()),
     }
 }
 

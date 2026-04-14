@@ -12,6 +12,8 @@ fn make_agent_output(events: Vec<Event>, result: Option<String>, is_error: bool)
         error_message: None,
         total_cost_usd: None,
         usage: None,
+        model: None,
+        provider: None,
     }
 }
 
@@ -595,6 +597,8 @@ fn test_agent_output_roundtrip() {
             web_search_requests: None,
             web_fetch_requests: None,
         }),
+        model: Some("opus".to_string()),
+        provider: Some("claude".to_string()),
     };
     let json = serde_json::to_string(&output).unwrap();
     let parsed: AgentOutput = serde_json::from_str(&json).unwrap();

@@ -128,6 +128,8 @@ impl MockResponse {
             error_message: None,
             total_cost_usd: self.total_cost_usd,
             usage: self.usage,
+            model: Some("mock".to_string()),
+            provider: Some("mock".to_string()),
         }
     }
 }

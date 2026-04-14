@@ -42,6 +42,14 @@ pub struct AgentOutput {
 
     /// Aggregated usage statistics
     pub usage: Option<Usage>,
+
+    /// The model used for this session (e.g. "claude-sonnet-4-20250514")
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+
+    /// The provider that ran this session (e.g. "claude", "codex", "gemini")
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
 }
 
 /// A single event in an agent session.
@@ -241,6 +249,8 @@ impl AgentOutput {
             error_message: None,
             total_cost_usd: None,
             usage: None,
+            model: None,
+            provider: Some(agent.to_string()),
         }
     }
 

@@ -12,6 +12,8 @@ fn make_agent_output(events: Vec<Event>, result: Option<String>, is_error: bool)
         error_message: None,
         total_cost_usd: None,
         usage: None,
+        model: None,
+        provider: None,
     }
 }
 
@@ -711,6 +713,8 @@ fn test_agent_output_roundtrip() {
             web_search_requests: None,
             web_fetch_requests: None,
         }),
+        model: Some("opus".to_string()),
+        provider: Some("claude".to_string()),
     };
     let json = serde_json::to_string(&output).unwrap();
     let parsed: AgentOutput = serde_json::from_str(&json).unwrap();
@@ -718,6 +722,8 @@ fn test_agent_output_roundtrip() {
     assert_eq!(parsed.result, Some("done".to_string()));
     assert_eq!(parsed.exit_code, None);
     assert_eq!(parsed.error_message, None);
+    assert_eq!(parsed.model, Some("opus".to_string()));
+    assert_eq!(parsed.provider, Some("claude".to_string()));
 }
 
 #[test]
@@ -732,6 +738,8 @@ fn test_agent_output_with_exit_info_roundtrip() {
         error_message: Some("provider crashed".to_string()),
         total_cost_usd: None,
         usage: None,
+        model: None,
+        provider: Some("codex".to_string()),
     };
     let json = serde_json::to_string(&output).unwrap();
     let parsed: AgentOutput = serde_json::from_str(&json).unwrap();
@@ -752,10 +760,14 @@ fn test_agent_output_skip_serializing_none_exit_fields() {
         error_message: None,
         total_cost_usd: None,
         usage: None,
+        model: None,
+        provider: None,
     };
     let json = serde_json::to_string(&output).unwrap();
     assert!(!json.contains("exit_code"));
     assert!(!json.contains("error_message"));
+    assert!(!json.contains("\"model\""));
+    assert!(!json.contains("\"provider\""));
 }
 
 #[test]
