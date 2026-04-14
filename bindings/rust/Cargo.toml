@@ -1,6 +1,6 @@
 [package]
 name = "zag"
-version = "0.12.4"
+version = "0.12.5"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
@@ -12,6 +12,6 @@ keywords = ["ai", "agent", "cli", "llm", "coding"]
 categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
-zag-agent = { version = "0.12.4", path = "../../zag-agent" }
-zag-orch = { version = "0.12.4", path = "../../zag-orch" }
-zag-serve = { version = "0.12.4", path = "../../zag-serve" }
+zag-agent = { version = "0.12.5", path = "../../zag-agent" }
+zag-orch = { version = "0.12.5", path = "../../zag-orch" }
+zag-serve = { version = "0.12.5", path = "../../zag-serve" }
