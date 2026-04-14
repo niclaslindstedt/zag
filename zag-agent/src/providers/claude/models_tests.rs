@@ -613,3 +613,117 @@ fn test_nonempty_result_not_overridden_by_assistant() {
     // Non-empty result should NOT be overridden by assistant text.
     assert_eq!(agent_output.result, Some("the real result".to_string()));
 }
+
+#[test]
+fn test_structured_output_fallback_when_result_empty() {
+    // Reproduces the bug where Claude CLI with --json-schema puts the data
+    // in structured_output while leaving result empty, and the assistant
+    // message only has ToolUse blocks (StructuredOutput tool), no Text.
+    let json = r#"[
+        {
+            "type": "system",
+            "subtype": "init",
+            "session_id": "sess1",
+            "model": "sonnet",
+            "tools": [],
+            "uuid": "u1"
+        },
+        {
+            "type": "assistant",
+            "message": {
+                "model": "sonnet",
+                "id": "msg1",
+                "type": "message",
+                "role": "assistant",
+                "content": [
+                    {"type": "tool_use", "id": "tool1", "name": "StructuredOutput", "input": {"name": "my-project"}}
+                ],
+                "stop_reason": null,
+                "stop_sequence": null,
+                "usage": {"input_tokens": 100, "output_tokens": 40}
+            },
+            "parent_tool_use_id": null,
+            "session_id": "sess1",
+            "uuid": "u2"
+        },
+        {
+            "type": "result",
+            "subtype": "success",
+            "is_error": false,
+            "duration_ms": 1000,
+            "duration_api_ms": 900,
+            "num_turns": 1,
+            "result": "",
+            "session_id": "sess1",
+            "total_cost_usd": 0.001,
+            "usage": {"input_tokens": 100, "output_tokens": 40},
+            "permission_denials": [],
+            "structured_output": {"name": "my-project"},
+            "uuid": "u3"
+        }
+    ]"#;
+
+    let claude_output: ClaudeOutput = serde_json::from_str(json).expect("Failed to parse");
+    let agent_output: AgentOutput = claude_output_to_agent_output(claude_output);
+
+    // Result.result was empty and no assistant text, so structured_output should be used.
+    assert_eq!(
+        agent_output.result,
+        Some(r#"{"name":"my-project"}"#.to_string())
+    );
+    assert!(!agent_output.is_error);
+}
+
+#[test]
+fn test_unknown_content_block_type_ignored() {
+    // Ensures that unknown content block types don't break deserialization.
+    let json = r#"[
+        {
+            "type": "system",
+            "subtype": "init",
+            "session_id": "sess1",
+            "model": "sonnet",
+            "tools": [],
+            "uuid": "u1"
+        },
+        {
+            "type": "assistant",
+            "message": {
+                "model": "sonnet",
+                "id": "msg1",
+                "type": "message",
+                "role": "assistant",
+                "content": [
+                    {"type": "text", "text": "hello"},
+                    {"type": "some_future_block_type", "data": 42}
+                ],
+                "stop_reason": "end_turn",
+                "stop_sequence": null,
+                "usage": {"input_tokens": 50, "output_tokens": 10}
+            },
+            "parent_tool_use_id": null,
+            "session_id": "sess1",
+            "uuid": "u2"
+        },
+        {
+            "type": "result",
+            "subtype": "success",
+            "is_error": false,
+            "duration_ms": 500,
+            "duration_api_ms": 400,
+            "num_turns": 1,
+            "result": "hello",
+            "session_id": "sess1",
+            "total_cost_usd": 0.001,
+            "usage": {"input_tokens": 50, "output_tokens": 10},
+            "permission_denials": [],
+            "uuid": "u3"
+        }
+    ]"#;
+
+    let claude_output: ClaudeOutput = serde_json::from_str(json).expect("Failed to parse");
+    let agent_output: AgentOutput = claude_output_to_agent_output(claude_output);
+
+    // Unknown block type should be silently ignored, text block still works.
+    assert_eq!(agent_output.result, Some("hello".to_string()));
+}

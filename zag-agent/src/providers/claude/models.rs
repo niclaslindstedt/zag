@@ -76,6 +76,11 @@ pub enum ClaudeEvent {
         model_usage: HashMap<String, ModelUsage>,
         #[serde(default)]
         permission_denials: Vec<PermissionDenial>,
+        /// Structured JSON output when `--json-schema` is used.
+        /// Claude CLI may place the actual data here while leaving
+        /// `result` empty (or containing a markdown-wrapped copy).
+        #[serde(default)]
+        structured_output: Option<serde_json::Value>,
         uuid: String,
     },
 
@@ -127,6 +132,10 @@ pub enum ContentBlock {
         #[serde(flatten)]
         extra: HashMap<String, serde_json::Value>,
     },
+
+    /// Unknown/unhandled content block type — silently ignored
+    #[serde(other)]
+    Other,
 }
 
 /// A content block in a user message (tool results, text, or other types).
@@ -297,7 +306,7 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
                         ContentBlock::ToolUse { id, name, input } => {
                             Some(UnifiedContentBlock::ToolUse { id, name, input })
                         }
-                        ContentBlock::Thinking { .. } => None,
+                        ContentBlock::Thinking { .. } | ContentBlock::Other => None,
                     })
                     .collect();
 
@@ -398,18 +407,25 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
                 num_turns,
                 permission_denials,
                 session_id: sid,
+                structured_output,
                 subtype: _,
                 ..
             } => {
                 session_id = sid;
                 is_error = err;
 
-                // When Result.result is empty, fall back to the last assistant
-                // message text.  Claude Code sometimes puts the actual content
-                // (especially --json-schema output) in the assistant message
-                // while leaving the result field blank.
+                // When Result.result is empty, fall back to structured_output
+                // (set by Claude CLI when --json-schema is used) or the last
+                // assistant message text.
                 let effective_result = if res.is_empty() {
-                    if let Some(ref fallback) = last_assistant_text {
+                    if let Some(ref so) = structured_output {
+                        let json = serde_json::to_string(so).unwrap_or_default();
+                        log::debug!(
+                            "Result.result is empty; using structured_output ({} bytes)",
+                            json.len()
+                        );
+                        json
+                    } else if let Some(ref fallback) = last_assistant_text {
                         log::debug!(
                             "Result.result is empty; using last assistant text ({} bytes)",
                             fallback.len()

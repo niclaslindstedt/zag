@@ -707,7 +707,7 @@ pub(crate) fn convert_claude_event_to_unified(
                             input: input.clone(),
                         })
                     }
-                    models::ContentBlock::Thinking { .. } => None,
+                    models::ContentBlock::Thinking { .. } | models::ContentBlock::Other => None,
                 })
                 .collect();
 
@@ -815,13 +815,28 @@ pub(crate) fn convert_claude_event_to_unified(
             result,
             duration_ms,
             num_turns,
+            structured_output,
             ..
-        } => Some(UnifiedEvent::Result {
-            success: !is_error,
-            message: Some(result.clone()),
-            duration_ms: Some(*duration_ms),
-            num_turns: Some(*num_turns),
-        }),
+        } => {
+            // When result is empty but structured_output is present
+            // (Claude CLI with --json-schema), use the structured output.
+            let effective_result = if result.is_empty() {
+                if let Some(so) = structured_output {
+                    log::debug!("Streaming Result.result is empty; using structured_output");
+                    serde_json::to_string(so).unwrap_or_default()
+                } else {
+                    result.clone()
+                }
+            } else {
+                result.clone()
+            };
+            Some(UnifiedEvent::Result {
+                success: !is_error,
+                message: Some(effective_result),
+                duration_ms: Some(*duration_ms),
+                num_turns: Some(*num_turns),
+            })
+        }
     }
 }
 
