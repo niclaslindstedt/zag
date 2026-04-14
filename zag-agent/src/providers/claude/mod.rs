@@ -1,4 +1,4 @@
-// provider-updated: 2026-04-05
+// provider-updated: 2026-04-14
 pub mod logs;
 /// Claude agent implementation.
 ///
