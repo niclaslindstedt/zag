@@ -1,6 +1,89 @@
 use super::*;
 
 #[test]
+fn test_parse_tool_result_with_array_content() {
+    // When a session includes image file attachments, Claude stores
+    // multi-modal content as an array of content blocks instead of a
+    // plain string. The parser must handle both forms.
+    let json = r#"[
+        {
+            "type": "system",
+            "subtype": "init",
+            "session_id": "sess1",
+            "model": "sonnet",
+            "tools": ["Read"],
+            "uuid": "u1"
+        },
+        {
+            "type": "assistant",
+            "message": {
+                "model": "sonnet",
+                "id": "msg1",
+                "type": "message",
+                "role": "assistant",
+                "content": [
+                    {"type": "tool_use", "id": "tool1", "name": "Read", "input": {"path": "/tmp/img.jpg"}}
+                ],
+                "stop_reason": "tool_use",
+                "stop_sequence": null,
+                "usage": {"input_tokens": 50, "output_tokens": 20}
+            },
+            "parent_tool_use_id": null,
+            "session_id": "sess1",
+            "uuid": "u2"
+        },
+        {
+            "type": "user",
+            "message": {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": "tool1",
+                        "content": [
+                            {"type": "text", "text": "Image description follows"},
+                            {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": "abc123"}}
+                        ],
+                        "is_error": false
+                    }
+                ]
+            },
+            "parent_tool_use_id": null,
+            "session_id": "sess1",
+            "uuid": "u3",
+            "tool_use_result": null
+        },
+        {
+            "type": "result",
+            "subtype": "success",
+            "is_error": false,
+            "duration_ms": 1000,
+            "duration_api_ms": 900,
+            "num_turns": 1,
+            "result": "Described the image.",
+            "session_id": "sess1",
+            "total_cost_usd": 0.002,
+            "usage": {"input_tokens": 200, "output_tokens": 50},
+            "permission_denials": [],
+            "uuid": "u4"
+        }
+    ]"#;
+
+    let claude_output: ClaudeOutput = serde_json::from_str(json).expect("Failed to parse");
+    let agent_output: AgentOutput = claude_output_to_agent_output(claude_output);
+
+    let tool_execs = agent_output.tool_executions();
+    assert_eq!(tool_execs.len(), 1);
+    if let crate::output::Event::ToolExecution { result, .. } = tool_execs[0] {
+        assert!(result.success);
+        // Only text blocks are extracted; image blocks are skipped.
+        assert_eq!(result.output.as_deref(), Some("Image description follows"));
+    } else {
+        panic!("Expected ToolExecution event");
+    }
+}
+
+#[test]
 fn test_parse_simple_response() {
     let json = r#"[
         {
