@@ -18,11 +18,8 @@ pub fn prompt_sandbox_cleanup(
 ) -> Result<()> {
     use std::io::{self, BufRead, Write};
 
-    debug!(
-        "Prompting sandbox cleanup: session={}, sandbox={}",
-        session_id, sandbox_name
-    );
-    println!("\n\x1b[33m>\x1b[0m Sandbox: {}", sandbox_name);
+    debug!("Prompting sandbox cleanup: session={session_id}, sandbox={sandbox_name}");
+    println!("\n\x1b[33m>\x1b[0m Sandbox: {sandbox_name}");
     print!("\x1b[33m>\x1b[0m Keep sandbox? [Y/n] ");
     io::stdout().flush()?;
 
@@ -37,8 +34,8 @@ pub fn prompt_sandbox_cleanup(
                 println!("\x1b[32m✓\x1b[0m Sandbox removed");
             }
             Err(e) => {
-                log::warn!("Failed to remove sandbox: {}", e);
-                println!("\x1b[31m✗\x1b[0m Failed to remove sandbox: {}", e);
+                log::warn!("Failed to remove sandbox: {e}");
+                println!("\x1b[31m✗\x1b[0m Failed to remove sandbox: {e}");
             }
         }
         // Remove session mapping
@@ -64,11 +61,8 @@ pub fn prompt_worktree_cleanup(
 ) -> Result<()> {
     use std::io::{self, BufRead, Write};
 
-    debug!(
-        "Prompting worktree cleanup: session={}, path={}",
-        session_id, worktree_path
-    );
-    println!("\n\x1b[33m>\x1b[0m Worktree at {}", worktree_path);
+    debug!("Prompting worktree cleanup: session={session_id}, path={worktree_path}");
+    println!("\n\x1b[33m>\x1b[0m Worktree at {worktree_path}");
     print!("\x1b[33m>\x1b[0m Keep workspace? [Y/n] ");
     io::stdout().flush()?;
 
@@ -85,8 +79,8 @@ pub fn prompt_worktree_cleanup(
                     println!("\x1b[32m✓\x1b[0m Worktree removed");
                 }
                 Err(e) => {
-                    log::warn!("Failed to remove worktree: {}", e);
-                    println!("\x1b[31m✗\x1b[0m Failed to remove worktree: {}", e);
+                    log::warn!("Failed to remove worktree: {e}");
+                    println!("\x1b[31m✗\x1b[0m Failed to remove worktree: {e}");
                 }
             }
         }
@@ -106,30 +100,21 @@ pub fn prompt_worktree_cleanup(
 }
 
 pub fn print_resume_hint(wrapper_session_id: &str, provider_session_id: Option<&str>, label: &str) {
-    println!(
-        "\x1b[32m✓\x1b[0m {} kept. Resume with: agent run --resume {}",
-        label, wrapper_session_id
-    );
+    println!("\x1b[32m✓\x1b[0m {label} kept. Resume with: agent run --resume {wrapper_session_id}");
     if let Some(provider_session_id) = provider_session_id
         && provider_session_id != wrapper_session_id
     {
-        println!(
-            "\x1b[32m✓\x1b[0m Native provider ID: {}",
-            provider_session_id
-        );
+        println!("\x1b[32m✓\x1b[0m Native provider ID: {provider_session_id}");
     }
 }
 
 /// Prints a session resume hint after exiting an interactive session.
 pub fn print_session_resume_hint(wrapper_session_id: &str, provider_session_id: Option<&str>) {
     println!();
-    println!(
-        "Resume this session: \x1b[36magent run --resume {}\x1b[0m",
-        wrapper_session_id
-    );
+    println!("Resume this session: \x1b[36magent run --resume {wrapper_session_id}\x1b[0m");
     if let Some(provider_session_id) = provider_session_id
         && provider_session_id != wrapper_session_id
     {
-        println!("   (native provider ID: {})", provider_session_id);
+        println!("   (native provider ID: {provider_session_id})");
     }
 }

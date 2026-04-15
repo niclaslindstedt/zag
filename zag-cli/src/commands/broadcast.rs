@@ -33,7 +33,7 @@ fn resolve_broadcast_session_ids(
     if let Some(t) = tag {
         let matches = store.find_by_tag(t);
         if matches.is_empty() {
-            bail!("No sessions found with tag '{}'", t);
+            bail!("No sessions found with tag '{t}'");
         }
         Ok(matches.iter().map(|e| e.session_id.clone()).collect())
     } else {
@@ -43,7 +43,7 @@ fn resolve_broadcast_session_ids(
             } else {
                 "in current project"
             };
-            bail!("No sessions found {}", scope);
+            bail!("No sessions found {scope}");
         }
         Ok(store
             .sessions
@@ -70,7 +70,7 @@ pub(crate) async fn run_broadcast(params: BroadcastParams) -> Result<()> {
         "Broadcast: resolved {} session(s){}",
         session_ids.len(),
         tag.as_ref()
-            .map(|t| format!(" for tag '{}'", t))
+            .map(|t| format!(" for tag '{t}'"))
             .unwrap_or_default()
     );
 
@@ -96,7 +96,7 @@ pub(crate) async fn run_broadcast(params: BroadcastParams) -> Result<()> {
         let target = match resume::resolve_resume_target(resolved_id, root.as_deref()) {
             Some(t) => t,
             None => {
-                log::warn!("No session found for '{}', skipping", resolved_id);
+                log::warn!("No session found for '{resolved_id}', skipping");
                 failed += 1;
                 if output_json {
                     results.push(serde_json::json!({
@@ -144,7 +144,7 @@ pub(crate) async fn run_broadcast(params: BroadcastParams) -> Result<()> {
                 }
             }
             Err(e) => {
-                log::warn!("Failed to send to session {}: {}", resolved_id, e);
+                log::warn!("Failed to send to session {resolved_id}: {e}");
                 failed += 1;
                 if output_json {
                     results.push(serde_json::json!({

@@ -52,7 +52,7 @@ fn send_signal(pid: u32, signal: nix::sys::signal::Signal) -> Result<()> {
     use nix::sys::signal::kill;
     use nix::unistd::Pid;
     let pid = Pid::from_raw(pid as i32);
-    kill(pid, signal).map_err(|e| anyhow::anyhow!("Failed to signal process: {}", e))
+    kill(pid, signal).map_err(|e| anyhow::anyhow!("Failed to signal process: {e}"))
 }
 
 #[cfg(not(unix))]
@@ -123,7 +123,7 @@ pub fn get_process(id: &str) -> Result<ProcessInfo> {
                 live_status: live,
             })
         }
-        None => bail!("Process not found: {}", id),
+        None => bail!("Process not found: {id}"),
     }
 }
 
@@ -132,11 +132,11 @@ pub fn request_stop(id: &str) -> Result<()> {
     let id = resolve_process_id(id)?;
     let entry = ProcessStore::load()?
         .find(&id)
-        .ok_or_else(|| anyhow::anyhow!("Process not found: {}", id))?
+        .ok_or_else(|| anyhow::anyhow!("Process not found: {id}"))?
         .clone();
     let live = resolve_live_status(&entry);
     if live != "running" {
-        bail!("Process {} is not running (status: {})", id, live);
+        bail!("Process {id} is not running (status: {live})");
     }
     stop_process(entry.pid)
 }
@@ -147,11 +147,11 @@ pub fn request_kill(id: &str) -> Result<()> {
     let mut store = ProcessStore::load()?;
     let entry = store
         .find(&id)
-        .ok_or_else(|| anyhow::anyhow!("Process not found: {}", id))?
+        .ok_or_else(|| anyhow::anyhow!("Process not found: {id}"))?
         .clone();
     let live = resolve_live_status(&entry);
     if live != "running" {
-        bail!("Process {} is not running (status: {})", id, live);
+        bail!("Process {id} is not running (status: {live})");
     }
     store.update_status(&id, "killed", None);
     store.save()?;
@@ -247,29 +247,29 @@ pub fn run_ps(command: PsCommand, json: bool) -> Result<()> {
                     }
                     println!("Process ID:  {}", e.id);
                     println!("PID:         {}", e.pid);
-                    println!("Status:      {}", live);
+                    println!("Status:      {live}");
                     println!("Provider:    {}", e.provider);
                     println!("Model:       {}", e.model);
                     println!("Command:     {}", e.command);
                     println!("Started:     {}", e.started_at);
                     if let Some(ref exited) = e.exited_at {
-                        println!("Exited:      {}", exited);
+                        println!("Exited:      {exited}");
                     }
                     if let Some(code) = e.exit_code {
-                        println!("Exit code:   {}", code);
+                        println!("Exit code:   {code}");
                     }
                     if let Some(ref sid) = e.session_id {
-                        println!("Session ID:  {}", sid);
+                        println!("Session ID:  {sid}");
                     }
                     if let Some(ref root) = e.root {
-                        println!("Root:        {}", root);
+                        println!("Root:        {root}");
                     }
                     if let Some(ref prompt) = e.prompt {
-                        println!("Prompt:      {}", prompt);
+                        println!("Prompt:      {prompt}");
                     }
                 }
                 None => {
-                    bail!("Process not found: {}", id);
+                    bail!("Process not found: {id}");
                 }
             }
         }
@@ -277,11 +277,11 @@ pub fn run_ps(command: PsCommand, json: bool) -> Result<()> {
             let id = resolve_process_id(&id)?;
             let entry = ProcessStore::load()?
                 .find(&id)
-                .ok_or_else(|| anyhow::anyhow!("Process not found: {}", id))?
+                .ok_or_else(|| anyhow::anyhow!("Process not found: {id}"))?
                 .clone();
             let live = resolve_live_status(&entry);
             if live != "running" {
-                bail!("Process {} is not running (status: {})", id, live);
+                bail!("Process {id} is not running (status: {live})");
             }
             println!(
                 "\x1b[33m>\x1b[0m Sending stop signal to process {} ({})",
@@ -295,11 +295,11 @@ pub fn run_ps(command: PsCommand, json: bool) -> Result<()> {
             let mut store = ProcessStore::load()?;
             let entry = store
                 .find(&id)
-                .ok_or_else(|| anyhow::anyhow!("Process not found: {}", id))?
+                .ok_or_else(|| anyhow::anyhow!("Process not found: {id}"))?
                 .clone();
             let live = resolve_live_status(&entry);
             if live != "running" {
-                bail!("Process {} is not running (status: {})", id, live);
+                bail!("Process {id} is not running (status: {live})");
             }
             // Update store before sending the signal — if this is a self-kill,
             // the SIGTERM will terminate this process and post-signal code may

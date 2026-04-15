@@ -5,10 +5,7 @@ use tempfile::TempDir;
 fn make_skill_dir(parent: &Path, name: &str, description: &str, body: &str) -> PathBuf {
     let dir = parent.join(name);
     fs::create_dir_all(&dir).unwrap();
-    let content = format!(
-        "---\nname: {}\ndescription: {}\n---\n\n{}\n",
-        name, description, body
-    );
+    let content = format!("---\nname: {name}\ndescription: {description}\n---\n\n{body}\n");
     fs::write(dir.join("SKILL.md"), content).unwrap();
     dir
 }
@@ -287,12 +284,11 @@ pub(crate) fn sync_skills_for_provider_to(provider_dir: &Path, skills: &[Skill])
 pub(crate) fn add_skill_to(base: &Path, name: &str, description: &str) -> Result<PathBuf> {
     let dir = base.join(name);
     if dir.exists() {
-        bail!("Skill '{}' already exists", name);
+        bail!("Skill '{name}' already exists");
     }
     fs::create_dir_all(&dir)?;
     let content = format!(
-        "---\nname: {}\ndescription: {}\n---\n\n# {}\n\nDescribe what this skill does here.\n",
-        name, description, name
+        "---\nname: {name}\ndescription: {description}\n---\n\n# {name}\n\nDescribe what this skill does here.\n"
     );
     fs::write(dir.join("SKILL.md"), &content)?;
     Ok(dir)
@@ -301,10 +297,10 @@ pub(crate) fn add_skill_to(base: &Path, name: &str, description: &str) -> Result
 pub(crate) fn remove_skill_from(base: &Path, name: &str, provider_dirs: &[&Path]) -> Result<()> {
     let dir = base.join(name);
     if !dir.exists() {
-        bail!("Skill '{}' not found", name);
+        bail!("Skill '{name}' not found");
     }
     for provider_dir in provider_dirs {
-        let link = provider_dir.join(format!("{}{}", SKILL_PREFIX, name));
+        let link = provider_dir.join(format!("{SKILL_PREFIX}{name}"));
         if link.symlink_metadata().is_ok() {
             let _ = fs::remove_file(&link).or_else(|_| fs::remove_dir(&link));
         }

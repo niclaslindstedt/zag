@@ -69,7 +69,7 @@ fn is_executable(path: &Path) -> bool {
 /// install instructions on failure.
 pub fn check_binary(agent_name: &str) -> Result<PathBuf> {
     let binary = binary_for_agent(agent_name);
-    debug!("Preflight check: looking for '{}' in PATH", binary);
+    debug!("Preflight check: looking for '{binary}' in PATH");
 
     match find_in_path(binary) {
         Some(path) => {

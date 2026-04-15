@@ -8,7 +8,7 @@ pub(crate) fn normalize_url(url: &str) -> String {
     if url.starts_with("https://") || url.starts_with("http://") {
         url.to_string()
     } else {
-        format!("https://{}", url)
+        format!("https://{url}")
     }
 }
 
@@ -25,10 +25,10 @@ pub(crate) async fn run_connect(
         .danger_accept_invalid_certs(true) // allow self-signed certs for local networks
         .build()?;
 
-    let health_url = format!("{}/api/v1/health", url);
+    let health_url = format!("{url}/api/v1/health");
     match client.get(&health_url).send().await {
         Ok(resp) if resp.status().is_success() => {
-            log::info!("Connected to {}", url);
+            log::info!("Connected to {url}");
         }
         Ok(resp) => {
             bail!(
@@ -38,7 +38,7 @@ pub(crate) async fn run_connect(
             );
         }
         Err(e) => {
-            bail!("Cannot reach server at {}: {}", url, e);
+            bail!("Cannot reach server at {url}: {e}");
         }
     }
 
@@ -53,7 +53,7 @@ pub(crate) async fn run_connect(
             }
         };
 
-        let login_url = format!("{}/api/v1/login", url);
+        let login_url = format!("{url}/api/v1/login");
         let resp = client
             .post(&login_url)
             .json(&serde_json::json!({
@@ -66,7 +66,7 @@ pub(crate) async fn run_connect(
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            bail!("Login failed ({}): {}", status, body);
+            bail!("Login failed ({status}): {body}");
         }
 
         let login_resp: serde_json::Value = resp.json().await?;
@@ -82,8 +82,8 @@ pub(crate) async fn run_connect(
         };
         config.save()?;
 
-        eprintln!("Logged in as '{}' to {}", user, url);
-        eprintln!("Home directory: {}", home_dir);
+        eprintln!("Logged in as '{user}' to {url}");
+        eprintln!("Home directory: {home_dir}");
         eprintln!("All zag commands will now proxy through the remote server.");
         eprintln!("Use `zag disconnect` to return to local mode.");
     } else {
@@ -103,7 +103,7 @@ pub(crate) async fn run_connect(
         };
         config.save()?;
 
-        eprintln!("Connected to {}", url);
+        eprintln!("Connected to {url}");
         eprintln!("All zag commands will now proxy through the remote server.");
         eprintln!("Use `zag disconnect` to return to local mode.");
     }

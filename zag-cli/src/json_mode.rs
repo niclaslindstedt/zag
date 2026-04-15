@@ -53,14 +53,14 @@ pub async fn handle_json_output(
         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&result_text) {
             println!("{}", serde_json::to_string(&parsed)?);
         } else {
-            println!("{}", result_text);
+            println!("{result_text}");
         }
         return Ok(());
     }
 
     // Validation failed — collect errors for retry/reporting
     let initial_errors = validate_json_output(&result_text, schema).unwrap_err();
-    debug!("JSON validation failed: {:?}", initial_errors);
+    debug!("JSON validation failed: {initial_errors:?}");
 
     let Some(sid) = session_id else {
         bail!("JSON validation failed:\n- {}", initial_errors.join("\n- "));
@@ -69,10 +69,10 @@ pub async fn handle_json_output(
     // Try to retry via session resume
     let mut last_errors = initial_errors;
     for attempt in 1..=MAX_JSON_RETRIES {
-        debug!("JSON retry attempt {}/{}", attempt, MAX_JSON_RETRIES);
+        debug!("JSON retry attempt {attempt}/{MAX_JSON_RETRIES}");
 
         let correction_prompt = build_correction_prompt(&last_errors);
-        debug!("JSON retry correction prompt: {}", correction_prompt);
+        debug!("JSON retry correction prompt: {correction_prompt}");
 
         match agent.run_resume_with_prompt(&sid, &correction_prompt).await {
             Ok(Some(retry_output)) => {
@@ -83,7 +83,7 @@ pub async fn handle_json_output(
                         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(retry_text) {
                             println!("{}", serde_json::to_string(&parsed)?);
                         } else {
-                            println!("{}", retry_text);
+                            println!("{retry_text}");
                         }
                         return Ok(());
                     }
@@ -96,7 +96,7 @@ pub async fn handle_json_output(
                 last_errors = vec!["Agent produced no output on retry".to_string()];
             }
             Err(e) => {
-                debug!("Resume with prompt failed: {}", e);
+                debug!("Resume with prompt failed: {e}");
                 break;
             }
         }
@@ -126,12 +126,11 @@ pub fn validate_json_output(
 pub fn build_correction_prompt(errors: &[String]) -> String {
     let error_list: String = errors
         .iter()
-        .map(|e| format!("- {}", e))
+        .map(|e| format!("- {e}"))
         .collect::<Vec<_>>()
         .join("\n");
     format!(
-        "Your previous response was not valid JSON. Errors:\n{}\n\nPlease respond with ONLY valid JSON. No markdown fences, no explanations.",
-        error_list
+        "Your previous response was not valid JSON. Errors:\n{error_list}\n\nPlease respond with ONLY valid JSON. No markdown fences, no explanations."
     )
 }
 
@@ -151,8 +150,7 @@ pub fn augment_system_prompt_for_json(
         let schema_str = serde_json::to_string_pretty(schema).unwrap_or_default();
         prompt.push_str(&format!(
             "\n\nYou MUST respond with valid JSON only. No markdown fences, no explanations. \
-             Your response must conform to this JSON schema:\n{}",
-            schema_str
+             Your response must conform to this JSON schema:\n{schema_str}"
         ));
     } else {
         prompt.push_str(

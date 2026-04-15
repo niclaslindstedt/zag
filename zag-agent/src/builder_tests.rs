@@ -309,8 +309,7 @@ async fn test_create_agent_mock() {
     let model = agent.get_model();
     assert!(
         model.starts_with("mock-"),
-        "Expected mock model, got: {}",
-        model
+        "Expected mock model, got: {model}"
     );
 }
 

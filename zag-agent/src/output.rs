@@ -312,7 +312,7 @@ fn event_to_log_entry(event: &Event) -> Option<LogEntry> {
     match event {
         Event::Init { model, .. } => Some(LogEntry {
             level: LogLevel::Info,
-            message: format!("Initialized with model {}", model),
+            message: format!("Initialized with model {model}"),
             data: None,
             timestamp: None,
         }),
@@ -349,7 +349,7 @@ fn event_to_log_entry(event: &Event) -> Option<LogEntry> {
             };
 
             let message = if result.success {
-                format!("Tool '{}' executed successfully", tool_name)
+                format!("Tool '{tool_name}' executed successfully")
             } else {
                 format!(
                     "Tool '{}' failed: {}",
@@ -406,9 +406,9 @@ fn event_to_log_entry(event: &Event) -> Option<LogEntry> {
             };
 
             let message = if *granted {
-                format!("Permission granted for tool '{}'", tool_name)
+                format!("Permission granted for tool '{tool_name}'")
             } else {
-                format!("Permission denied for tool '{}'", tool_name)
+                format!("Permission denied for tool '{tool_name}'")
             };
 
             Some(LogEntry {
@@ -510,7 +510,7 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
 
     match event {
         Event::Init { model, .. } => {
-            Some(format!("\x1b[32m✓\x1b[0m Initialized with model {}", model))
+            Some(format!("\x1b[32m✓\x1b[0m Initialized with model {model}"))
         }
 
         Event::UserMessage { content } => {
@@ -518,7 +518,7 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
                 .iter()
                 .filter_map(|block| {
                     if let ContentBlock::Text { text } = block {
-                        Some(format!("{}> {}{}", DIM, text, RESET))
+                        Some(format!("{DIM}> {text}{RESET}"))
                     } else {
                         None
                     }
@@ -547,14 +547,12 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
                                 if i == 0 {
                                     // First line with record icon
                                     formatted_lines.push(format!(
-                                        "{}{}{} {}{}",
-                                        INDENT, ORANGE, RECORD_ICON, line, RESET
+                                        "{INDENT}{ORANGE}{RECORD_ICON} {line}{RESET}"
                                     ));
                                 } else {
                                     // Subsequent lines, indented 6 spaces (still orange)
                                     formatted_lines.push(format!(
-                                        "{}{}{}{}",
-                                        INDENT_RESULT, ORANGE, line, RESET
+                                        "{INDENT_RESULT}{ORANGE}{line}{RESET}"
                                     ));
                                 }
                             }
@@ -578,19 +576,7 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
                             let command = obj.get("command").and_then(|v| v.as_str()).unwrap_or("");
 
                             return Some(format!(
-                                "{}{}{} {}{} {}[{}]{}\n{}{}└── {}{}",
-                                INDENT,
-                                BLUE,
-                                RECORD_ICON,
-                                description,
-                                RESET,
-                                id_color,
-                                id_suffix,
-                                RESET,
-                                INDENT_RESULT,
-                                DIM,
-                                command,
-                                RESET
+                                "{INDENT}{BLUE}{RECORD_ICON} {description}{RESET} {id_color}[{id_suffix}]{RESET}\n{INDENT_RESULT}{DIM}└── {command}{RESET}"
                             ));
                         }
 
@@ -609,7 +595,7 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
                                                 if s.len() > 60 {
                                                     format!("\"{}...\"", &s[..57])
                                                 } else {
-                                                    format!("\"{}\"", s)
+                                                    format!("\"{s}\"")
                                                 }
                                             }
                                             serde_json::Value::Number(n) => n.to_string(),
@@ -617,7 +603,7 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
                                             serde_json::Value::Null => "null".to_string(),
                                             _ => "...".to_string(),
                                         };
-                                        format!("{}={}", key, value_str)
+                                        format!("{key}={value_str}")
                                     })
                                     .collect();
                                 params.join(", ")
@@ -627,8 +613,7 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
                         };
 
                         Some(format!(
-                            "{}{}{} {}({}) {}[{}]{}",
-                            INDENT, BLUE, RECORD_ICON, name, input_str, id_color, id_suffix, RESET
+                            "{INDENT}{BLUE}{RECORD_ICON} {name}({input_str}) {id_color}[{id_suffix}]{RESET}"
                         ))
                     }
                 })
@@ -670,13 +655,12 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
 
             // First line: arrow icon with tool ID
             formatted_lines.push(format!(
-                "{}{}{}{} {}[{}]{}",
-                INDENT, icon_color, ARROW_ICON, RESET, id_color, id_suffix, RESET
+                "{INDENT}{icon_color}{ARROW_ICON}{RESET} {id_color}[{id_suffix}]{RESET}"
             ));
 
             // All result lines indented at 6 spaces
             for line in lines.iter() {
-                formatted_lines.push(format!("{}{}{}{}", INDENT_RESULT, DIM, line, RESET));
+                formatted_lines.push(format!("{INDENT_RESULT}{DIM}{line}{RESET}"));
             }
 
             // Add blank line after
@@ -693,20 +677,18 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
             None
         }
 
-        Event::Error { message, .. } => Some(format!("\x1b[31mError:\x1b[0m {}", message)),
+        Event::Error { message, .. } => Some(format!("\x1b[31mError:\x1b[0m {message}")),
 
         Event::PermissionRequest {
             tool_name, granted, ..
         } => {
             if *granted {
                 Some(format!(
-                    "\x1b[32m✓\x1b[0m Permission granted for tool '{}'",
-                    tool_name
+                    "\x1b[32m✓\x1b[0m Permission granted for tool '{tool_name}'"
                 ))
             } else {
                 Some(format!(
-                    "\x1b[33m!\x1b[0m Permission denied for tool '{}'",
-                    tool_name
+                    "\x1b[33m!\x1b[0m Permission denied for tool '{tool_name}'"
                 ))
             }
         }

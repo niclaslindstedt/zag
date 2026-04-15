@@ -58,9 +58,7 @@ fn parse_env_vars(env_vars: &[String]) -> Result<Vec<(String, String)>> {
         .map(|pair| {
             pair.split_once('=')
                 .map(|(k, v)| (k.to_string(), v.to_string()))
-                .ok_or_else(|| {
-                    anyhow::anyhow!("invalid --env format '{}': expected KEY=VALUE", pair)
-                })
+                .ok_or_else(|| anyhow::anyhow!("invalid --env format '{pair}': expected KEY=VALUE"))
         })
         .collect()
 }
@@ -82,7 +80,7 @@ async fn main() -> Result<()> {
 
     // Handle --help-agent before clap parsing so it works without a subcommand.
     if std::env::args().any(|a| a == "--help-agent") {
-        print!("{}", HELP_AGENT);
+        print!("{HELP_AGENT}");
         return Ok(());
     }
 
@@ -165,7 +163,7 @@ async fn main() -> Result<()> {
         // Validate --session is a valid UUID
         if let Some(ref session_id) = sa.session {
             uuid::Uuid::parse_str(session_id).map_err(|_| {
-                anyhow::anyhow!("--session must be a valid UUID, got '{}'", session_id)
+                anyhow::anyhow!("--session must be a valid UUID, got '{session_id}'")
             })?;
         }
     }
@@ -245,11 +243,11 @@ async fn main() -> Result<()> {
             run_disconnect()?;
         }
         Commands::Man { command } => {
-            debug!("Showing manpage for: {:?}", command);
+            debug!("Showing manpage for: {command:?}");
             print_manpage(command.as_deref())?;
         }
         Commands::Config { args, root } => {
-            debug!("Running config subcommand with args: {:?}", args);
+            debug!("Running config subcommand with args: {args:?}");
             run_config(args, root.as_deref())?;
         }
         Commands::Session {
@@ -337,10 +335,10 @@ async fn main() -> Result<()> {
             root,
         } => {
             let provider = resolve_provider(provider.as_deref(), root.as_deref())?;
-            debug!("Showing capabilities for provider: {}", provider);
+            debug!("Showing capabilities for provider: {provider}");
             let cap = commands::capability::get_capability(&provider)?;
             let output = commands::capability::format_capability(&cap, &format, pretty)?;
-            println!("{}", output);
+            println!("{output}");
         }
         Commands::Discover {
             provider,
@@ -641,13 +639,12 @@ async fn main() -> Result<()> {
             // Prepend plan file content to prompt if --plan is specified
             if let Some(ref plan_file) = spawn_plan {
                 let plan_content = std::fs::read_to_string(plan_file)
-                    .with_context(|| format!("Failed to read plan file: {}", plan_file))?;
+                    .with_context(|| format!("Failed to read plan file: {plan_file}"))?;
                 let prefix = format!(
-                    "Implementation plan:\n\n{}\n\n---\n\nFollow the plan above.\n\n",
-                    plan_content
+                    "Implementation plan:\n\n{plan_content}\n\n---\n\nFollow the plan above.\n\n"
                 );
                 prompt = Some(match prompt {
-                    Some(p) => format!("{}{}", prefix, p),
+                    Some(p) => format!("{prefix}{p}"),
                     None => prefix,
                 });
             }
@@ -838,7 +835,7 @@ async fn main() -> Result<()> {
             });
             let provider =
                 resolve_provider(agent_args.provider.as_deref(), agent_args.root.as_deref())?;
-            debug!("Resolved provider: {}", provider);
+            debug!("Resolved provider: {provider}");
             let display_name = capitalize(&provider);
             run_agent_action(AgentActionParams {
                 agent_name: display_name,

@@ -60,7 +60,7 @@ fn summarize_session(session_id: &str, root: Option<&str>) -> Result<SessionSumm
 
     let log_path = listen::resolve_session_log(Some(session_id), false, false, root)?;
     let file = std::fs::File::open(&log_path)
-        .map_err(|e| anyhow::anyhow!("Failed to open session log: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to open session log: {e}"))?;
     let reader = BufReader::new(file);
 
     let mut tool_calls: HashMap<String, u32> = HashMap::new();
@@ -196,16 +196,16 @@ fn summarize_session(session_id: &str, root: Option<&str>) -> Result<SessionSumm
 /// Format duration in human-readable form.
 fn format_duration(secs: f64) -> String {
     if secs < 60.0 {
-        format!("{:.0}s", secs)
+        format!("{secs:.0}s")
     } else if secs < 3600.0 {
         let mins = (secs / 60.0).floor();
         let remaining = secs - (mins * 60.0);
-        format!("{:.0}m {:.0}s", mins, remaining)
+        format!("{mins:.0}m {remaining:.0}s")
     } else {
         let hours = (secs / 3600.0).floor();
         let remaining = secs - (hours * 3600.0);
         let mins = (remaining / 60.0).floor();
-        format!("{:.0}h {:.0}m", hours, mins)
+        format!("{hours:.0}h {mins:.0}m")
     }
 }
 
@@ -217,7 +217,7 @@ pub fn summarize_sessions(params: &SummaryParams) -> Result<Vec<SessionSummary>>
         let store = SessionStore::load(params.root.as_deref()).unwrap_or_default();
         let tagged = store.find_by_tag(tag);
         if tagged.is_empty() && session_ids.is_empty() {
-            bail!("No sessions found with tag '{}'", tag);
+            bail!("No sessions found with tag '{tag}'");
         }
         for entry in tagged {
             if !session_ids.contains(&entry.session_id) {
@@ -279,7 +279,7 @@ pub fn run_summary(params: SummaryParams) -> Result<()> {
                 let tools: Vec<String> = s
                     .tool_calls
                     .iter()
-                    .map(|(name, count)| format!("{} ({})", name, count))
+                    .map(|(name, count)| format!("{name} ({count})"))
                     .collect();
                 println!("Tools used: {}", tools.join(", "));
             }
@@ -292,9 +292,9 @@ pub fn run_summary(params: SummaryParams) -> Result<()> {
                 if let (Some(input), Some(output)) = (s.input_tokens, s.output_tokens) {
                     let cost_str = s
                         .total_cost_usd
-                        .map(|c| format!(", Cost: ${:.4}", c))
+                        .map(|c| format!(", Cost: ${c:.4}"))
                         .unwrap_or_default();
-                    println!("Tokens: {} in / {} out{}", input, output, cost_str);
+                    println!("Tokens: {input} in / {output} out{cost_str}");
                 }
             } else {
                 println!("Turns: {}", s.turns);
@@ -302,11 +302,11 @@ pub fn run_summary(params: SummaryParams) -> Result<()> {
 
             if let Some(ref result) = s.result {
                 let preview: String = result.chars().take(200).collect();
-                println!("Result: {}", preview);
+                println!("Result: {preview}");
             }
 
             if let Some(ref err) = s.error {
-                println!("\x1b[31mError: {}\x1b[0m", err);
+                println!("\x1b[31mError: {err}\x1b[0m");
             }
 
             println!();

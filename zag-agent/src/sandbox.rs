@@ -60,7 +60,7 @@ pub fn build_sandbox_command(config: &SandboxConfig, agent_args: Vec<String>) ->
 
 /// Remove a Docker sandbox by name.
 pub fn remove_sandbox(name: &str) -> Result<()> {
-    debug!("Removing sandbox: {}", name);
+    debug!("Removing sandbox: {name}");
     let output = Command::new("docker")
         .args(["sandbox", "rm", name])
         .output()
@@ -69,7 +69,7 @@ pub fn remove_sandbox(name: &str) -> Result<()> {
         let stderr = String::from_utf8_lossy(&output.stderr);
         anyhow::bail!("Failed to remove sandbox: {}", stderr.trim());
     }
-    debug!("Sandbox removed: {}", name);
+    debug!("Sandbox removed: {name}");
     Ok(())
 }
 

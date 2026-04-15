@@ -334,8 +334,7 @@ pub fn get_capability(provider: &str) -> Result<ProviderCapability> {
             })
         }
         _ => bail!(
-            "No capabilities defined for provider '{}'. Available: claude, codex, gemini, copilot, ollama",
-            provider
+            "No capabilities defined for provider '{provider}'. Available: claude, codex, gemini, copilot, ollama"
         ),
     }
 }
@@ -352,10 +351,7 @@ pub fn format_capability(cap: &ProviderCapability, format: &str, pretty: bool) -
         }
         "yaml" => Ok(serde_yaml::to_string(cap)?),
         "toml" => Ok(toml::to_string_pretty(cap)?),
-        _ => bail!(
-            "Unsupported format '{}'. Available: json, yaml, toml",
-            format
-        ),
+        _ => bail!("Unsupported format '{format}'. Available: json, yaml, toml"),
     }
 }
 
@@ -427,10 +423,7 @@ pub fn format_resolved_model(rm: &ResolvedModel, format: &str, pretty: bool) -> 
         }
         "yaml" => Ok(serde_yaml::to_string(rm)?),
         "toml" => Ok(toml::to_string_pretty(rm)?),
-        _ => bail!(
-            "Unsupported format '{}'. Available: json, yaml, toml",
-            format
-        ),
+        _ => bail!("Unsupported format '{format}'. Available: json, yaml, toml"),
     }
 }
 
@@ -456,10 +449,7 @@ pub fn format_capabilities(
             }
             Ok(toml::to_string_pretty(&Wrapper { providers: caps })?)
         }
-        _ => bail!(
-            "Unsupported format '{}'. Available: json, yaml, toml",
-            format
-        ),
+        _ => bail!("Unsupported format '{format}'. Available: json, yaml, toml"),
     }
 }
 
@@ -491,10 +481,7 @@ pub fn format_models(caps: &[ProviderCapability], format: &str, pretty: bool) ->
         }
         "yaml" => Ok(serde_yaml::to_string(&entries)?),
         "toml" => bail!("TOML does not support top-level arrays. Use json or yaml"),
-        _ => bail!(
-            "Unsupported format '{}'. Available: json, yaml, toml",
-            format
-        ),
+        _ => bail!("Unsupported format '{format}'. Available: json, yaml, toml"),
     }
 }
 

@@ -170,10 +170,10 @@ fn spawn_with_jsonl(lines: &[&str]) -> tokio::process::Child {
     // the trailing newline per entry.
     let joined = lines
         .iter()
-        .map(|l| format!("'{}'", l))
+        .map(|l| format!("'{l}'"))
         .collect::<Vec<_>>()
         .join(" ");
-    let script = format!("printf '%s\\n' {}", joined);
+    let script = format!("printf '%s\\n' {joined}");
     Command::new("sh")
         .arg("-c")
         .arg(script)
@@ -193,20 +193,18 @@ fn claude_assistant_text_line(text: &str) -> String {
 /// explicit `stop_reason`.
 fn claude_assistant_text_line_with_stop(text: &str, stop_reason: Option<&str>) -> String {
     let reason = match stop_reason {
-        Some(r) => format!(r#""{}""#, r),
+        Some(r) => format!(r#""{r}""#),
         None => "null".to_string(),
     };
     format!(
-        r#"{{"type":"assistant","message":{{"model":"claude-sonnet-4-5","id":"msg_1","type":"message","role":"assistant","content":[{{"type":"text","text":"{}"}}],"stop_reason":{},"stop_sequence":null,"usage":{{"input_tokens":10,"output_tokens":5}},"context_management":null}},"parent_tool_use_id":null,"session_id":"s1","uuid":"u1"}}"#,
-        text, reason
+        r#"{{"type":"assistant","message":{{"model":"claude-sonnet-4-5","id":"msg_1","type":"message","role":"assistant","content":[{{"type":"text","text":"{text}"}}],"stop_reason":{reason},"stop_sequence":null,"usage":{{"input_tokens":10,"output_tokens":5}},"context_management":null}},"parent_tool_use_id":null,"session_id":"s1","uuid":"u1"}}"#
     )
 }
 
 /// Build a minimal Claude `result` event for an agent turn.
 fn claude_result_line(turns: u32) -> String {
     format!(
-        r#"{{"type":"result","subtype":"success","is_error":false,"duration_ms":1234,"duration_api_ms":1000,"num_turns":{},"result":"done","session_id":"s1","total_cost_usd":0.01,"usage":{{"input_tokens":10,"output_tokens":5}},"uuid":"u2"}}"#,
-        turns
+        r#"{{"type":"result","subtype":"success","is_error":false,"duration_ms":1234,"duration_api_ms":1000,"num_turns":{turns},"result":"done","session_id":"s1","total_cost_usd":0.01,"usage":{{"input_tokens":10,"output_tokens":5}},"uuid":"u2"}}"#
     )
 }
 
@@ -222,10 +220,10 @@ async fn test_next_event_parses_claude_assistant_message() {
             assert_eq!(content.len(), 1);
             match &content[0] {
                 ContentBlock::Text { text } => assert_eq!(text, "hello"),
-                other => panic!("expected text block, got {:?}", other),
+                other => panic!("expected text block, got {other:?}"),
             }
         }
-        other => panic!("expected AssistantMessage, got {:?}", other),
+        other => panic!("expected AssistantMessage, got {other:?}"),
     }
 
     // EOF after the one line.
@@ -258,8 +256,7 @@ async fn test_next_event_parses_claude_result_per_turn() {
     assert_eq!(
         events.len(),
         6,
-        "expected 6 unified events (2 * [AssistantMessage, TurnComplete, Result]), got {:?}",
-        events
+        "expected 6 unified events (2 * [AssistantMessage, TurnComplete, Result]), got {events:?}"
     );
     assert!(matches!(events[0], Event::AssistantMessage { .. }));
     assert!(
@@ -327,12 +324,7 @@ async fn test_next_event_turn_complete_carries_stop_reason_and_index() {
     }
 
     // 3 turns * 3 events (AssistantMessage, TurnComplete, Result) = 9.
-    assert_eq!(
-        events.len(),
-        9,
-        "expected 9 unified events, got {:?}",
-        events
-    );
+    assert_eq!(events.len(), 9, "expected 9 unified events, got {events:?}");
 
     // Turn 0.
     assert!(matches!(events[0], Event::AssistantMessage { .. }));
@@ -346,7 +338,7 @@ async fn test_next_event_turn_complete_carries_stop_reason_and_index() {
             assert_eq!(*turn_index, 0);
             assert!(usage.is_some());
         }
-        other => panic!("expected TurnComplete for turn 0, got {:?}", other),
+        other => panic!("expected TurnComplete for turn 0, got {other:?}"),
     }
     assert!(matches!(events[2], Event::Result { .. }));
 
@@ -361,7 +353,7 @@ async fn test_next_event_turn_complete_carries_stop_reason_and_index() {
             assert_eq!(stop_reason.as_deref(), Some("tool_use"));
             assert_eq!(*turn_index, 1);
         }
-        other => panic!("expected TurnComplete for turn 1, got {:?}", other),
+        other => panic!("expected TurnComplete for turn 1, got {other:?}"),
     }
     assert!(matches!(events[5], Event::Result { .. }));
 
@@ -376,7 +368,7 @@ async fn test_next_event_turn_complete_carries_stop_reason_and_index() {
             assert_eq!(stop_reason.as_deref(), Some("max_tokens"));
             assert_eq!(*turn_index, 2);
         }
-        other => panic!("expected TurnComplete for turn 2, got {:?}", other),
+        other => panic!("expected TurnComplete for turn 2, got {other:?}"),
     }
     assert!(matches!(events[8], Event::Result { .. }));
 }
@@ -397,15 +389,13 @@ async fn test_next_event_turn_complete_fires_before_result() {
     let e1 = session.next_event().await.unwrap().unwrap();
     assert!(
         matches!(e1, Event::TurnComplete { .. }),
-        "expected TurnComplete before Result, got {:?}",
-        e1
+        "expected TurnComplete before Result, got {e1:?}"
     );
 
     let e2 = session.next_event().await.unwrap().unwrap();
     assert!(
         matches!(e2, Event::Result { .. }),
-        "expected Result after TurnComplete, got {:?}",
-        e2
+        "expected Result after TurnComplete, got {e2:?}"
     );
 
     assert!(session.next_event().await.unwrap().is_none());
@@ -425,11 +415,10 @@ async fn test_next_event_skips_thinking_blocks() {
         Some(Event::AssistantMessage { content, .. }) => {
             assert!(
                 content.is_empty(),
-                "thinking block should be stripped, got {:?}",
-                content
+                "thinking block should be stripped, got {content:?}"
             );
         }
-        other => panic!("expected AssistantMessage, got {:?}", other),
+        other => panic!("expected AssistantMessage, got {other:?}"),
     }
 }
 
@@ -446,7 +435,6 @@ async fn test_next_event_skips_unknown_claude_events() {
     let event = session.next_event().await.unwrap();
     assert!(
         matches!(event, Some(Event::AssistantMessage { .. })),
-        "expected AssistantMessage after skipping unknown event, got {:?}",
-        event
+        "expected AssistantMessage after skipping unknown event, got {event:?}"
     );
 }

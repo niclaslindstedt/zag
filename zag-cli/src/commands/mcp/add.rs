@@ -19,7 +19,7 @@ pub(crate) fn run(
         if let Some((k, v)) = pair.split_once('=') {
             env_map.insert(k.to_string(), v.to_string());
         } else {
-            bail!("Invalid --env format '{}'. Expected KEY=VALUE", pair);
+            bail!("Invalid --env format '{pair}'. Expected KEY=VALUE");
         }
     }
     let server = mcp::McpServer {

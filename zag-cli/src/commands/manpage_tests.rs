@@ -30,8 +30,7 @@ fn test_print_manpage_all_commands() {
     ] {
         assert!(
             print_manpage(Some(cmd)).is_ok(),
-            "manpage for '{}' failed",
-            cmd
+            "manpage for '{cmd}' failed"
         );
     }
 }

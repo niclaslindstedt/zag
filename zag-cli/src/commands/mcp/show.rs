@@ -13,27 +13,27 @@ pub(crate) fn run(name: &str, json: bool, root: Option<&str>) -> Result<()> {
         println!("Description: {}", server.description);
     }
     if let Some(ref cmd) = server.command {
-        println!("Command:     {}", cmd);
+        println!("Command:     {cmd}");
     }
     if !server.args.is_empty() {
         println!("Args:        {}", server.args.join(" "));
     }
     if let Some(ref url) = server.url {
-        println!("URL:         {}", url);
+        println!("URL:         {url}");
     }
     if let Some(ref var) = server.bearer_token_env_var {
-        println!("Bearer Env:  {}", var);
+        println!("Bearer Env:  {var}");
     }
     if !server.env.is_empty() {
         println!("Env:");
         for (k, v) in &server.env {
-            println!("  {} = {}", k, v);
+            println!("  {k} = {v}");
         }
     }
     if !server.headers.is_empty() {
         println!("Headers:");
         for (k, v) in &server.headers {
-            println!("  {}: {}", k, v);
+            println!("  {k}: {v}");
         }
     }
     Ok(())

@@ -14,7 +14,7 @@ pub(crate) fn run(
     let entry = store.sessions.iter_mut().find(|e| e.session_id == id);
     let entry = match entry {
         Some(e) => e,
-        None => bail!("Session not found: {}", id),
+        None => bail!("Session not found: {id}"),
     };
     if name.is_some() {
         entry.name = name;
@@ -33,7 +33,7 @@ pub(crate) fn run(
     if json {
         println!("{}", serde_json::to_string(&updated)?);
     } else {
-        println!("Updated session: {}", id);
+        println!("Updated session: {id}");
     }
     Ok(())
 }

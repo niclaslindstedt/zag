@@ -781,7 +781,7 @@ fn write_jsonl_events(path: &Path, events: &[AgentLogEvent]) {
     let mut file = fs::File::create(path).unwrap();
     for event in events {
         let json = serde_json::to_string(event).unwrap();
-        writeln!(file, "{}", json).unwrap();
+        writeln!(file, "{json}").unwrap();
     }
 }
 
@@ -1112,7 +1112,7 @@ fn test_make_snippet_long_text_with_match() {
     // Create a long string with "needle" buried in the middle
     let prefix = "x".repeat(200);
     let suffix = "y".repeat(200);
-    let text = format!("{}needle{}", prefix, suffix);
+    let text = format!("{prefix}needle{suffix}");
     let snippet = make_snippet(&text, &matcher, 50);
     assert!(snippet.contains("needle"));
     assert!(snippet.contains("[...]"));

@@ -172,8 +172,7 @@ fn test_create_default_uses_config_or_agent_default() {
     // Should be a valid claude model (either from config or default)
     assert!(
         ["sonnet", "opus", "haiku"].contains(&model),
-        "unexpected model: {}",
-        model
+        "unexpected model: {model}"
     );
 }
 
@@ -264,7 +263,7 @@ fn test_fallback_sequence_starts_with_requested_provider() {
 fn test_fallback_sequence_contains_every_tier_provider_once() {
     let seq = fallback_sequence("gemini");
     for p in PROVIDER_TIER_LIST {
-        assert!(seq.contains(&p.to_string()), "missing: {}", p);
+        assert!(seq.contains(&p.to_string()), "missing: {p}");
     }
     // No duplicates.
     let mut sorted = seq.clone();
@@ -313,7 +312,7 @@ async fn test_create_with_fallback_explicit_missing_binary_errors() {
     .await;
     assert!(result.is_err());
     let err = result.err().unwrap().to_string();
-    assert!(err.contains("not found in PATH"), "got: {}", err);
+    assert!(err.contains("not found in PATH"), "got: {err}");
     assert!(calls.is_empty(), "explicit pinning must not downgrade");
 }
 

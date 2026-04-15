@@ -71,29 +71,29 @@ pub fn run_whoami(json: bool) -> Result<()> {
     }
 
     if let Some(ref v) = info.session_id {
-        println!("Session ID:        {}", v);
+        println!("Session ID:        {v}");
     }
     if let Some(ref v) = info.session_name {
-        println!("Session Name:      {}", v);
+        println!("Session Name:      {v}");
     }
     if let Some(ref v) = info.process_id {
-        println!("Process ID:        {}", v);
+        println!("Process ID:        {v}");
     }
     println!("PID:               {}", info.pid);
     if let Some(ref v) = info.provider {
-        println!("Provider:          {}", v);
+        println!("Provider:          {v}");
     }
     if let Some(ref v) = info.model {
-        println!("Model:             {}", v);
+        println!("Model:             {v}");
     }
     if let Some(ref v) = info.root {
-        println!("Root:              {}", v);
+        println!("Root:              {v}");
     }
     if let Some(ref v) = info.parent_session_id {
-        println!("Parent Session ID: {}", v);
+        println!("Parent Session ID: {v}");
     }
     if let Some(ref v) = info.parent_process_id {
-        println!("Parent Process ID: {}", v);
+        println!("Parent Process ID: {v}");
     }
 
     Ok(())

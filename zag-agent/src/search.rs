@@ -108,8 +108,7 @@ pub fn parse_date_arg(s: &str) -> Result<DateTime<Utc>> {
                 'w' => Duration::weeks(n),
                 'm' => Duration::days(n * 30),
                 _ => bail!(
-                    "Unknown time unit '{}'. Use h (hours), d (days), w (weeks), or m (months).",
-                    unit
+                    "Unknown time unit '{unit}'. Use h (hours), d (days), w (weeks), or m (months)."
                 ),
             };
             return Ok(Utc::now() - delta);
@@ -117,8 +116,7 @@ pub fn parse_date_arg(s: &str) -> Result<DateTime<Utc>> {
     }
 
     bail!(
-        "Cannot parse date '{}'. Use RFC 3339 (2024-01-15T10:30:00Z), date only (2024-01-15), or relative (1h, 2d, 3w, 1m).",
-        s
+        "Cannot parse date '{s}'. Use RFC 3339 (2024-01-15T10:30:00Z), date only (2024-01-15), or relative (1h, 2d, 3w, 1m)."
     )
 }
 
@@ -142,12 +140,12 @@ impl TextMatcher {
         };
         if query.use_regex {
             let pattern = if query.case_insensitive {
-                format!("(?i){}", text)
+                format!("(?i){text}")
             } else {
                 text.clone()
             };
-            let re = Regex::new(&pattern)
-                .with_context(|| format!("Invalid regex pattern: '{}'", text))?;
+            let re =
+                Regex::new(&pattern).with_context(|| format!("Invalid regex pattern: '{text}'"))?;
             Ok(Self::Pattern(re))
         } else if query.case_insensitive {
             Ok(Self::Literal(text.to_lowercase()))
@@ -574,8 +572,8 @@ fn collect_candidate_sessions(
                     Some(wp) => {
                         // Match if workspace is the cwd or a subdirectory of cwd
                         wp == &cwd_str
-                            || wp.starts_with(&format!("{}/", cwd_str))
-                            || wp.starts_with(&format!("{}\\", cwd_str))
+                            || wp.starts_with(&format!("{cwd_str}/"))
+                            || wp.starts_with(&format!("{cwd_str}\\"))
                     }
                     None => false,
                 };

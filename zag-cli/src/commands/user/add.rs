@@ -29,14 +29,14 @@ pub(crate) fn run(username: String, home_dir: String, password: Option<String>) 
     let home_path = std::path::Path::new(&home_dir);
     if !home_path.exists() {
         std::fs::create_dir_all(home_path)?;
-        eprintln!("Created home directory: {}", home_dir);
+        eprintln!("Created home directory: {home_dir}");
     }
 
     let logs_dir = UserStore::user_logs_dir(&username);
     std::fs::create_dir_all(&logs_dir)?;
 
-    eprintln!("User '{}' created successfully.", username);
-    eprintln!("Home directory: {}", home_dir);
+    eprintln!("User '{username}' created successfully.");
+    eprintln!("Home directory: {home_dir}");
     eprintln!("Logs directory: {}", logs_dir.display());
     Ok(())
 }

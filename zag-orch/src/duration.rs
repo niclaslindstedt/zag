@@ -15,14 +15,14 @@ pub fn parse_duration(s: &str) -> Result<Duration> {
         } else {
             let n: u64 = current_num
                 .parse()
-                .map_err(|_| anyhow::anyhow!("Invalid duration: '{}'", s))?;
+                .map_err(|_| anyhow::anyhow!("Invalid duration: '{s}'"))?;
             current_num.clear();
             match ch {
                 's' => total_secs += n,
                 'm' => total_secs += n * 60,
                 'h' => total_secs += n * 3600,
                 'd' => total_secs += n * 86400,
-                _ => bail!("Invalid duration unit '{}' in '{}'", ch, s),
+                _ => bail!("Invalid duration unit '{ch}' in '{s}'"),
             }
         }
     }
@@ -31,12 +31,12 @@ pub fn parse_duration(s: &str) -> Result<Duration> {
     if !current_num.is_empty() {
         let n: u64 = current_num
             .parse()
-            .map_err(|_| anyhow::anyhow!("Invalid duration: '{}'", s))?;
+            .map_err(|_| anyhow::anyhow!("Invalid duration: '{s}'"))?;
         total_secs += n;
     }
 
     if total_secs == 0 {
-        bail!("Duration must be greater than zero: '{}'", s);
+        bail!("Duration must be greater than zero: '{s}'");
     }
 
     Ok(Duration::from_secs(total_secs))

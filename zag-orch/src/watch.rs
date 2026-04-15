@@ -105,7 +105,7 @@ fn resolve_watch_sessions(params: &WatchParams) -> Result<Vec<String>> {
         let store = zag_agent::session::SessionStore::load(params.root.as_deref())?;
         let tagged = store.find_by_tag(tag);
         if tagged.is_empty() {
-            bail!("No sessions found with tag '{}'", tag);
+            bail!("No sessions found with tag '{tag}'");
         }
         return Ok(tagged.iter().map(|e| e.session_id.clone()).collect());
     }
@@ -175,7 +175,7 @@ pub fn run_watch(params: WatchParams) -> Result<()> {
                         .map(|arg| expand_template(arg, &event))
                         .collect();
 
-                    debug!("Watch triggered: {:?}", expanded);
+                    debug!("Watch triggered: {expanded:?}");
 
                     if params.json {
                         println!("{}", serde_json::to_string(&event)?);
@@ -186,8 +186,8 @@ pub fn run_watch(params: WatchParams) -> Result<()> {
                         .status();
 
                     match status {
-                        Ok(s) => debug!("Command exited: {}", s),
-                        Err(e) => eprintln!("Failed to execute command: {}", e),
+                        Ok(s) => debug!("Command exited: {s}"),
+                        Err(e) => eprintln!("Failed to execute command: {e}"),
                     }
 
                     if params.once {
@@ -195,7 +195,7 @@ pub fn run_watch(params: WatchParams) -> Result<()> {
                     }
                 }
                 Err(e) => {
-                    bail!("Error reading log: {}", e);
+                    bail!("Error reading log: {e}");
                 }
             }
         }

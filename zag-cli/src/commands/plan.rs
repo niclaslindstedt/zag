@@ -35,7 +35,7 @@ pub(crate) async fn run_plan(params: PlanParams) -> Result<()> {
         quiet,
     } = params;
 
-    debug!("Starting plan via {} for goal: {}", provider, goal);
+    debug!("Starting plan via {provider} for goal: {goal}");
 
     // Resolve and validate output path early
     let output_path = match output {
@@ -68,10 +68,7 @@ pub(crate) async fn run_plan(params: PlanParams) -> Result<()> {
     }
 
     if !quiet {
-        eprintln!(
-            "\x1b[32m✓\x1b[0m Plan initialized with model {}",
-            model_name
-        );
+        eprintln!("\x1b[32m✓\x1b[0m Plan initialized with model {model_name}");
     }
 
     // Session logging
@@ -110,7 +107,7 @@ pub(crate) async fn run_plan(params: PlanParams) -> Result<()> {
     let _ = log_coordinator
         .writer()
         .set_global_index_dir(Config::global_base_dir());
-    let log_prompt_summary = format!("plan goal={:?}", goal);
+    let log_prompt_summary = format!("plan goal={goal:?}");
     crate::session_log::record_prompt(log_coordinator.writer(), Some(&log_prompt_summary))?;
 
     // Register process entry
@@ -175,7 +172,7 @@ pub(crate) async fn run_plan(params: PlanParams) -> Result<()> {
 fn build_plan_prompt(goal: &str, instructions: Option<&str>) -> String {
     let context_section = String::new();
     let prompt_section = match instructions {
-        Some(inst) => format!("## Additional Instructions\n\n{}", inst),
+        Some(inst) => format!("## Additional Instructions\n\n{inst}"),
         None => String::new(),
     };
 
@@ -192,7 +189,7 @@ fn resolve_output_path(output: &str) -> PathBuf {
         path
     } else {
         let timestamp = chrono::Utc::now().format("%Y%m%d-%H%M%S");
-        path.join(format!("plan-{}.md", timestamp))
+        path.join(format!("plan-{timestamp}.md"))
     }
 }
 

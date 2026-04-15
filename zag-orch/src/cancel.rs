@@ -102,10 +102,7 @@ fn write_cancel_event(session_id: &str, reason: &str, root: Option<&str>) -> Res
     }
 
     if already_ended {
-        debug!(
-            "Session {} already has a SessionEnded event, skipping",
-            session_id
-        );
+        debug!("Session {session_id} already has a SessionEnded event, skipping");
         return Ok(());
     }
 
@@ -119,7 +116,7 @@ fn write_cancel_event(session_id: &str, reason: &str, root: Option<&str>) -> Res
         completeness: LogCompleteness::Full,
         kind: LogEventKind::SessionEnded {
             success: false,
-            error: Some(format!("cancelled: {}", reason)),
+            error: Some(format!("cancelled: {reason}")),
         },
     };
 
@@ -128,7 +125,7 @@ fn write_cancel_event(session_id: &str, reason: &str, root: Option<&str>) -> Res
         .append(true)
         .open(&log_path)?;
     let json = serde_json::to_string(&event)?;
-    writeln!(file, "{}", json)?;
+    writeln!(file, "{json}")?;
 
     Ok(())
 }
@@ -142,7 +139,7 @@ pub fn run_cancel(params: CancelParams) -> Result<()> {
         let store = SessionStore::load(params.root.as_deref()).unwrap_or_default();
         let tagged = store.find_by_tag(tag);
         if tagged.is_empty() && session_ids.is_empty() {
-            bail!("No sessions found with tag '{}'", tag);
+            bail!("No sessions found with tag '{tag}'");
         }
         for entry in tagged {
             if !session_ids.contains(&entry.session_id) {

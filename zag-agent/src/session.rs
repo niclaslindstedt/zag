@@ -181,9 +181,9 @@ impl SessionStore {
     pub fn find_by_session_id(&self, id: &str) -> Option<&SessionEntry> {
         let result = self.sessions.iter().find(|e| e.session_id == id);
         if result.is_some() {
-            debug!("Found session: {}", id);
+            debug!("Found session: {id}");
         } else {
-            debug!("Session not found: {}", id);
+            debug!("Session not found: {id}");
         }
         result
     }
@@ -195,9 +195,9 @@ impl SessionStore {
             .iter()
             .find(|e| e.provider_session_id.as_deref() == Some(id));
         if result.is_some() {
-            debug!("Found provider session: {}", id);
+            debug!("Found provider session: {id}");
         } else {
-            debug!("Provider session not found: {}", id);
+            debug!("Provider session not found: {id}");
         }
         result
     }
@@ -230,7 +230,7 @@ impl SessionStore {
 
     /// Remove a session by ID.
     pub fn remove(&mut self, session_id: &str) {
-        debug!("Removing session: {}", session_id);
+        debug!("Removing session: {session_id}");
         self.sessions.retain(|e| e.session_id != session_id);
     }
 

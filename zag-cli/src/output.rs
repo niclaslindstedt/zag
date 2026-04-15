@@ -13,16 +13,16 @@ pub(crate) fn print_agent_output(
     match output_fmt {
         Some("json") => {
             let json = serde_json::to_string(agent_out)?;
-            println!("{}", json);
+            println!("{json}");
         }
         Some("json-pretty") => {
             let json = serde_json::to_string_pretty(agent_out)?;
-            println!("{}", json);
+            println!("{json}");
         }
         Some("stream-json") => {
             for event in &agent_out.events {
                 let json = serde_json::to_string(event)?;
-                println!("{}", json);
+                println!("{json}");
             }
         }
         _ => {
@@ -60,7 +60,7 @@ pub(crate) fn process_agent_output(
             } = event
             {
                 if result.success {
-                    info!("✓ Tool '{}' executed successfully", tool_name);
+                    info!("✓ Tool '{tool_name}' executed successfully");
                 } else {
                     log::warn!(
                         "✗ Tool '{}' failed: {}",
@@ -75,15 +75,15 @@ pub(crate) fn process_agent_output(
     // Display final result if available (always shown)
     if let Some(result) = output.final_result() {
         if show_decorations {
-            println!("\n{}", result);
+            println!("\n{result}");
         } else {
-            println!("{}", result);
+            println!("{result}");
         }
     }
 
     if show_decorations {
         if let Some(cost) = output.total_cost_usd {
-            info!("Total cost: ${:.4}", cost);
+            info!("Total cost: ${cost:.4}");
         }
 
         if show_usage && let Some(usage) = &output.usage {
@@ -95,25 +95,25 @@ pub(crate) fn process_agent_output(
             if let Some(cache_read) = usage.cache_read_tokens
                 && cache_read > 0
             {
-                info!("Cache read: {} tokens", cache_read);
+                info!("Cache read: {cache_read} tokens");
             }
 
             if let Some(cache_creation) = usage.cache_creation_tokens
                 && cache_creation > 0
             {
-                info!("Cache created: {} tokens", cache_creation);
+                info!("Cache created: {cache_creation} tokens");
             }
 
             if let Some(web_search) = usage.web_search_requests
                 && web_search > 0
             {
-                info!("Web search requests: {}", web_search);
+                info!("Web search requests: {web_search}");
             }
 
             if let Some(web_fetch) = usage.web_fetch_requests
                 && web_fetch > 0
             {
-                info!("Web fetch requests: {}", web_fetch);
+                info!("Web fetch requests: {web_fetch}");
             }
         }
     }

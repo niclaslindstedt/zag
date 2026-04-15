@@ -840,7 +840,7 @@ fn test_valid_keys_all_settable() {
         let value = test_value_for_key(key);
         config
             .set_value(key, value)
-            .unwrap_or_else(|e| panic!("set_value('{}', '{}') failed: {}", key, value, e));
+            .unwrap_or_else(|e| panic!("set_value('{key}', '{value}') failed: {e}"));
     }
 }
 
@@ -856,12 +856,11 @@ fn test_valid_keys_all_unsettable() {
     for key in Config::VALID_KEYS {
         config
             .unset_value(key)
-            .unwrap_or_else(|e| panic!("unset_value('{}') failed: {}", key, e));
+            .unwrap_or_else(|e| panic!("unset_value('{key}') failed: {e}"));
         assert_eq!(
             config.get_value(key),
             None,
-            "get_value('{}') should be None after unset",
-            key
+            "get_value('{key}') should be None after unset"
         );
     }
 }

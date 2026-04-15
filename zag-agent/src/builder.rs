@@ -328,7 +328,7 @@ impl AgentBuilder {
             .map(|f| Attachment::from_path(std::path::Path::new(f)))
             .collect::<Result<Vec<_>>>()?;
         let prefix = attachment::format_attachments_prefix(&attachments);
-        Ok(format!("{}{}", prefix, prompt))
+        Ok(format!("{prefix}{prompt}"))
     }
 
     /// Resolve the effective provider name.
@@ -373,8 +373,7 @@ impl AgentBuilder {
                 let schema_str = serde_json::to_string_pretty(schema).unwrap_or_default();
                 prompt.push_str(&format!(
                     "\n\nYou MUST respond with valid JSON only. No markdown fences, no explanations. \
-                     Your response must conform to this JSON schema:\n{}",
-                    schema_str
+                     Your response must conform to this JSON schema:\n{schema_str}"
                 ));
             } else {
                 prompt.push_str(
@@ -387,14 +386,11 @@ impl AgentBuilder {
         };
 
         self.progress
-            .on_spinner_start(&format!("Initializing {} agent", provider));
+            .on_spinner_start(&format!("Initializing {provider} agent"));
 
         let progress = &*self.progress;
         let mut on_downgrade = |from: &str, to: &str, reason: &str| {
-            progress.on_warning(&format!(
-                "Downgrading provider: {} → {} ({})",
-                from, to, reason
-            ));
+            progress.on_warning(&format!("Downgrading provider: {from} → {to} ({reason})"));
         };
         let (mut agent, effective_provider) = AgentFactory::create_with_fallback(
             provider,
@@ -502,7 +498,7 @@ impl AgentBuilder {
     /// This is the primary entry point for programmatic use.
     pub async fn exec(self, prompt: &str) -> Result<AgentOutput> {
         let provider = self.resolve_provider()?;
-        debug!("exec: provider={}", provider);
+        debug!("exec: provider={provider}");
 
         // Set up worktree if requested
         let effective_root = if let Some(ref wt_opt) = self.worktree {
@@ -532,8 +528,7 @@ impl AgentBuilder {
         // Handle JSON mode with prompt wrapping for non-Claude agents
         let effective_prompt = if builder.json_mode && provider != "claude" {
             format!(
-                "IMPORTANT: You MUST respond with valid JSON only. No markdown, no explanation.\n\n{}",
-                prompt_with_files
+                "IMPORTANT: You MUST respond with valid JSON only. No markdown, no explanation.\n\n{prompt_with_files}"
             )
         } else {
             prompt_with_files
@@ -662,7 +657,7 @@ impl AgentBuilder {
     /// ```
     pub async fn exec_streaming(self, prompt: &str) -> Result<StreamingSession> {
         let provider = self.resolve_provider()?;
-        debug!("exec_streaming: provider={}", provider);
+        debug!("exec_streaming: provider={provider}");
 
         if provider != "claude" {
             bail!("Streaming input is only supported by the Claude provider");
@@ -691,7 +686,7 @@ impl AgentBuilder {
     /// This takes over stdin/stdout for the duration of the session.
     pub async fn run(self, prompt: Option<&str>) -> Result<()> {
         let provider = self.resolve_provider()?;
-        debug!("run: provider={}", provider);
+        debug!("run: provider={provider}");
 
         // Prepend file attachments
         let prompt_with_files = match prompt {
@@ -716,7 +711,7 @@ impl AgentBuilder {
     /// Resume a previous session by ID.
     pub async fn resume(self, session_id: &str) -> Result<()> {
         let provider = self.resolve_provider()?;
-        debug!("resume: provider={}, session={}", provider, session_id);
+        debug!("resume: provider={provider}, session={session_id}");
 
         // Resuming must stick with the recorded provider — no downgrade.
         let mut builder = self;
@@ -730,7 +725,7 @@ impl AgentBuilder {
     /// Resume the most recent session.
     pub async fn continue_last(self) -> Result<()> {
         let provider = self.resolve_provider()?;
-        debug!("continue_last: provider={}", provider);
+        debug!("continue_last: provider={provider}");
 
         // Resuming must stick with the recorded provider — no downgrade.
         let mut builder = self;

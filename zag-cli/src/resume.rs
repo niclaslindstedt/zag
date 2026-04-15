@@ -61,7 +61,7 @@ pub fn detect_provider_session(session_id: &str) -> Option<DiscoveredSession> {
         && let Ok(projects) = std::fs::read_dir(&claude_projects)
     {
         for project in projects.flatten() {
-            let candidate = project.path().join(format!("{}.jsonl", session_id));
+            let candidate = project.path().join(format!("{session_id}.jsonl"));
             if candidate.exists() {
                 let workspace_path = std::fs::read_to_string(&candidate)
                     .ok()
@@ -88,7 +88,7 @@ pub fn detect_provider_session(session_id: &str) -> Option<DiscoveredSession> {
 
     let codex_history = codex::history_path();
     if let Ok(content) = std::fs::read_to_string(&codex_history) {
-        let needle = format!("\"session_id\":\"{}\"", session_id);
+        let needle = format!("\"session_id\":\"{session_id}\"");
         if content.contains(&needle) {
             return Some(DiscoveredSession {
                 provider: "codex".to_string(),
@@ -107,7 +107,7 @@ pub fn detect_provider_session(session_id: &str) -> Option<DiscoveredSession> {
             if let Ok(files) = std::fs::read_dir(&chats) {
                 for file in files.flatten() {
                     if let Ok(content) = std::fs::read_to_string(file.path()) {
-                        let needle = format!("\"sessionId\": \"{}\"", session_id);
+                        let needle = format!("\"sessionId\": \"{session_id}\"");
                         if content.contains(&needle) {
                             return Some(DiscoveredSession {
                                 provider: "gemini".to_string(),
@@ -180,7 +180,7 @@ pub fn cache_discovered_session(
     let mut store = session::SessionStore::load(root).unwrap_or_default();
     store.add(entry.clone());
     if let Err(e) = store.save(root) {
-        log::warn!("Failed to cache discovered session: {}", e);
+        log::warn!("Failed to cache discovered session: {e}");
     }
 
     entry
@@ -200,10 +200,7 @@ pub fn resolve_resume_target(requested_id: &str, root: Option<&str>) -> Option<R
         });
     }
 
-    debug!(
-        "Session {} not in store, trying provider discovery",
-        requested_id
-    );
+    debug!("Session {requested_id} not in store, trying provider discovery");
     let discovered = detect_provider_session(requested_id)?;
     let entry = cache_discovered_session(&discovered, root);
     debug!(

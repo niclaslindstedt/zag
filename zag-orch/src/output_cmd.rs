@@ -29,13 +29,13 @@ fn resolve_session_ids(params: &OutputParams) -> Result<Vec<String>> {
         if let Some(entry) = store.find_by_name(name) {
             return Ok(vec![entry.session_id.clone()]);
         }
-        bail!("No session found with name '{}'", name);
+        bail!("No session found with name '{name}'");
     }
 
     if let Some(ref tag) = params.tag {
         let tagged = store.find_by_tag(tag);
         if tagged.is_empty() {
-            bail!("No sessions found with tag '{}'", tag);
+            bail!("No sessions found with tag '{tag}'");
         }
         return Ok(tagged.iter().map(|e| e.session_id.clone()).collect());
     }
@@ -79,7 +79,7 @@ pub fn run_output(params: OutputParams) -> Result<()> {
                 if session_ids.len() > 1 && i > 0 {
                     println!();
                 }
-                print!("{}", text);
+                print!("{text}");
             }
         }
         // Ensure trailing newline for single results

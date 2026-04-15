@@ -724,7 +724,7 @@ pub fn record_agent_output(writer: &SessionLogWriter, output: &AgentOutput) -> R
                 writer.emit(
                     LogSourceKind::Wrapper,
                     LogEventKind::ProviderStatus {
-                        message: format!("Initialized {}", model),
+                        message: format!("Initialized {model}"),
                         data: Some(serde_json::json!({
                             "working_directory": working_directory,
                             "metadata": metadata,
@@ -774,7 +774,7 @@ pub fn record_agent_output(writer: &SessionLogWriter, output: &AgentOutput) -> R
                 writer.emit(
                     LogSourceKind::Wrapper,
                     LogEventKind::ProviderStatus {
-                        message: format!("Turn {} complete", turn_index),
+                        message: format!("Turn {turn_index} complete"),
                         data: Some(serde_json::json!({
                             "stop_reason": stop_reason,
                             "turn_index": turn_index,
@@ -827,10 +827,7 @@ pub fn run_backfill(
     let mut state = load_backfill_state(&state_path)?;
     let current_version = 1;
     if state.version == current_version {
-        info!(
-            "Historical log import already completed for version {}",
-            current_version
-        );
+        info!("Historical log import already completed for version {current_version}");
         return Ok(0);
     }
 
@@ -865,7 +862,7 @@ pub fn run_backfill(
             let writer = SessionLogWriter::create(logs_dir, session.metadata.clone())?;
             writer.set_completeness(session.completeness)?;
             for source_path in session.source_paths {
-                info!("  source: {}", source_path);
+                info!("  source: {source_path}");
                 let _ = writer.add_source_path(source_path);
             }
             for (source_kind, event) in session.events {
@@ -879,10 +876,7 @@ pub fn run_backfill(
 
     state.version = current_version;
     save_backfill_state(&state_path, &state)?;
-    info!(
-        "Historical log import finished: {} session(s) imported",
-        imported
-    );
+    info!("Historical log import finished: {imported} session(s) imported");
     Ok(imported)
 }
 

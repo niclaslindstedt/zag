@@ -359,13 +359,10 @@ pub fn setup_skills(provider: &str, system_prompt: &mut Option<String>) -> Resul
         let synced = skills.len() - skipped;
         if skipped > 0 {
             log::info!(
-                "Synced {} skill(s) for {} (skipped {} native duplicate(s))",
-                synced,
-                provider,
-                skipped
+                "Synced {synced} skill(s) for {provider} (skipped {skipped} native duplicate(s))"
             );
         } else {
-            log::info!("Synced {} skill(s) for {}", synced, provider);
+            log::info!("Synced {synced} skill(s) for {provider}");
         }
     } else {
         // No native skills — inject into system prompt
@@ -410,8 +407,7 @@ pub fn add_skill(name: &str, description: &str) -> Result<PathBuf> {
 
     let skill_md = dir.join("SKILL.md");
     let content = format!(
-        "---\nname: {}\ndescription: {}\n---\n\n# {}\n\nDescribe what this skill does here.\n",
-        name, description, name
+        "---\nname: {name}\ndescription: {description}\n---\n\n# {name}\n\nDescribe what this skill does here.\n"
     );
     fs::write(&skill_md, &content)
         .with_context(|| format!("Failed to write {}", skill_md.display()))?;
@@ -429,7 +425,7 @@ pub fn remove_skill(name: &str) -> Result<()> {
     // Remove provider symlinks first
     for provider in &["claude", "gemini", "copilot", "codex"] {
         if let Some(provider_dir) = provider_skills_dir(provider) {
-            let link = provider_dir.join(format!("{}{}", SKILL_PREFIX, name));
+            let link = provider_dir.join(format!("{SKILL_PREFIX}{name}"));
             if link.symlink_metadata().is_ok() {
                 let _ = fs::remove_file(&link).or_else(|_| remove_symlink_dir(&link));
                 log::debug!("Removed {} symlink: {}", provider, link.display());
@@ -449,10 +445,7 @@ pub fn remove_skill(name: &str) -> Result<()> {
 /// Returns names of imported skills.
 pub fn import_skills(from_provider: &str) -> Result<Vec<String>> {
     let Some(source_dir) = provider_skills_dir(from_provider) else {
-        bail!(
-            "Provider '{}' does not have a native skill directory",
-            from_provider
-        );
+        bail!("Provider '{from_provider}' does not have a native skill directory");
     };
 
     if !source_dir.exists() {
@@ -498,13 +491,13 @@ pub fn import_skills(from_provider: &str) -> Result<Vec<String>> {
                 && let Ok(source_hash) = hash_skill_md(&path)
             {
                 let _ = write_import_metadata(&dest, from_provider, &source_hash);
-                log::info!("Backfilled import metadata for skill '{}'", name);
+                log::info!("Backfilled import metadata for skill '{name}'");
             }
-            log::debug!("Skipping '{}': already exists in ~/.zag/skills/", name);
+            log::debug!("Skipping '{name}': already exists in ~/.zag/skills/");
             continue;
         }
 
-        copy_dir_all(&path, &dest).with_context(|| format!("Failed to copy skill '{}'", name))?;
+        copy_dir_all(&path, &dest).with_context(|| format!("Failed to copy skill '{name}'"))?;
 
         // Write import metadata with hash of the source SKILL.md
         if let Ok(source_hash) = hash_skill_md(&path) {

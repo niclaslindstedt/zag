@@ -210,7 +210,7 @@ pub fn determine_status(session_id: &str, root: Option<&str>) -> Result<StatusIn
         });
     }
 
-    bail!("Session not found: {}", session_id);
+    bail!("Session not found: {session_id}");
 }
 
 /// Check if an RFC3339 timestamp is within `max_age_secs` of now.
@@ -239,7 +239,7 @@ pub fn run_status(session_id: &str, json: bool, root: Option<&str>) -> Result<()
             }
             SessionStatus::Unknown => format!("\x1b[2m{}\x1b[0m", info.status),
         };
-        println!("{}", status_colored);
+        println!("{status_colored}");
     }
 
     Ok(())

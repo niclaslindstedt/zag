@@ -1184,16 +1184,15 @@ pub(crate) fn command_metadata_args(cmd: &Commands) -> Option<&SessionMetadataAr
 /// Parse and validate a JSON schema string, returning the parsed value.
 pub(crate) fn parse_json_schema(schema_str: &str) -> Result<serde_json::Value> {
     let schema_json = if std::path::Path::new(schema_str).exists() {
-        let content = std::fs::read_to_string(schema_str).map_err(|e| {
-            anyhow::anyhow!("Failed to read JSON schema file '{}': {}", schema_str, e)
-        })?;
+        let content = std::fs::read_to_string(schema_str)
+            .map_err(|e| anyhow::anyhow!("Failed to read JSON schema file '{schema_str}': {e}"))?;
         serde_json::from_str::<serde_json::Value>(&content)
-            .map_err(|e| anyhow::anyhow!("Invalid JSON in schema file '{}': {}", schema_str, e))?
+            .map_err(|e| anyhow::anyhow!("Invalid JSON in schema file '{schema_str}': {e}"))?
     } else {
         serde_json::from_str::<serde_json::Value>(schema_str)
-            .map_err(|e| anyhow::anyhow!("Invalid JSON schema: {}", e))?
+            .map_err(|e| anyhow::anyhow!("Invalid JSON schema: {e}"))?
     };
-    json_validation::validate_schema(&schema_json).map_err(|e| anyhow::anyhow!("{}", e))?;
+    json_validation::validate_schema(&schema_json).map_err(|e| anyhow::anyhow!("{e}"))?;
     debug!(
         "JSON schema loaded: {} bytes",
         serde_json::to_string(&schema_json)

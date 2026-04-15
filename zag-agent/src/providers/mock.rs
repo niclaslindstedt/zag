@@ -632,7 +632,7 @@ pub mod events {
     pub fn permission_granted(tool_name: &str) -> Event {
         Event::PermissionRequest {
             tool_name: tool_name.to_string(),
-            description: format!("Allow {} to execute", tool_name),
+            description: format!("Allow {tool_name} to execute"),
             granted: true,
         }
     }

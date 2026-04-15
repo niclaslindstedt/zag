@@ -20,8 +20,7 @@ fn test_factory_create_mock() {
     let model = agent.get_model();
     assert!(
         model.starts_with("mock-"),
-        "Expected mock model, got: {}",
-        model
+        "Expected mock model, got: {model}"
     );
 }
 

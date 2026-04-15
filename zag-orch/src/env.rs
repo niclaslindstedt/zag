@@ -12,7 +12,7 @@ pub fn get_env_vars(session_id: Option<&str>, root: Option<&str>) -> Result<Vec<
     let session = if let Some(id) = session_id {
         session_store
             .find_by_any_id(id)
-            .ok_or_else(|| anyhow::anyhow!("Session not found: {}", id))?
+            .ok_or_else(|| anyhow::anyhow!("Session not found: {id}"))?
     } else {
         session_store
             .latest()
@@ -58,7 +58,7 @@ pub fn run_env(session_id: Option<&str>, shell: bool, root: Option<&str>) -> Res
         if shell {
             println!("export {}={};", key, shell_escape(value));
         } else {
-            println!("{}={}", key, value);
+            println!("{key}={value}");
         }
     }
 
@@ -70,7 +70,7 @@ fn shell_escape(s: &str) -> String {
     if s.contains('\'') {
         format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
     } else {
-        format!("'{}'", s)
+        format!("'{s}'")
     }
 }
 

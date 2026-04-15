@@ -123,7 +123,7 @@ fn print_human_readable(results: &SearchResults, quiet: bool) {
             } else {
                 cmd.clone()
             };
-            println!("Command: \"{}\"", truncated);
+            println!("Command: \"{truncated}\"");
         }
         println!();
 
@@ -138,7 +138,7 @@ fn print_human_readable(results: &SearchResults, quiet: bool) {
             if matches.len() == 1 { "" } else { "es" },
             "\u{2500}".repeat(60),
         );
-        println!("{}", sep);
+        println!("{sep}");
         println!();
     }
 
@@ -191,7 +191,7 @@ fn print_event_match(m: &SearchMatch, use_color: bool) {
     if !m.snippet.is_empty() {
         // Indent each line of the snippet
         for line in m.snippet.lines() {
-            println!("    {}", line);
+            println!("    {line}");
         }
     }
     println!();
@@ -205,18 +205,18 @@ fn event_kind_label(event: &AgentLogEvent) -> String {
         LogEventKind::UserMessage { .. } => "UserMessage".to_string(),
         LogEventKind::AssistantMessage { .. } => "AssistantMessage".to_string(),
         LogEventKind::Reasoning { .. } => "Reasoning".to_string(),
-        LogEventKind::ToolCall { tool_name, .. } => format!("ToolCall ({})", tool_name),
+        LogEventKind::ToolCall { tool_name, .. } => format!("ToolCall ({tool_name})"),
         LogEventKind::ToolResult { tool_name, .. } => {
             let name = tool_name.as_deref().unwrap_or("?");
-            format!("ToolResult ({})", name)
+            format!("ToolResult ({name})")
         }
-        LogEventKind::Permission { tool_name, .. } => format!("Permission ({})", tool_name),
+        LogEventKind::Permission { tool_name, .. } => format!("Permission ({tool_name})"),
         LogEventKind::ProviderStatus { .. } => "ProviderStatus".to_string(),
         LogEventKind::Stderr { .. } => "Stderr".to_string(),
         LogEventKind::ParseWarning { .. } => "ParseWarning".to_string(),
         LogEventKind::Heartbeat { .. } => "Heartbeat".to_string(),
         LogEventKind::Usage { .. } => "Usage".to_string(),
-        LogEventKind::UserEvent { level, .. } => format!("UserEvent ({})", level),
+        LogEventKind::UserEvent { level, .. } => format!("UserEvent ({level})"),
     }
 }
 

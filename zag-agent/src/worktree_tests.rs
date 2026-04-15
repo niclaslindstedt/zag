@@ -22,8 +22,7 @@ fn test_generate_name_has_prefix() {
     let name = generate_name();
     assert!(
         name.starts_with("zag-"),
-        "name should start with 'agent-': {}",
-        name
+        "name should start with 'agent-': {name}"
     );
 }
 
@@ -31,11 +30,10 @@ fn test_generate_name_has_prefix() {
 fn test_generate_name_has_hex_suffix() {
     let name = generate_name();
     let suffix = &name["zag-".len()..];
-    assert_eq!(suffix.len(), 8, "hex suffix should be 8 chars: {}", suffix);
+    assert_eq!(suffix.len(), 8, "hex suffix should be 8 chars: {suffix}");
     assert!(
         suffix.chars().all(|c| c.is_ascii_hexdigit()),
-        "suffix should be hex: {}",
-        suffix
+        "suffix should be hex: {suffix}"
     );
 }
 
@@ -83,20 +81,14 @@ fn test_git_repo_root_outside_repo() {
 fn test_worktree_base_dir_contains_expected_components() {
     let base = worktree_base_dir(Path::new("/home/user/my-project"));
     let path_str = base.to_string_lossy();
-    assert!(
-        path_str.contains(".zag"),
-        "should contain .zag: {}",
-        path_str
-    );
+    assert!(path_str.contains(".zag"), "should contain .zag: {path_str}");
     assert!(
         path_str.contains("worktrees"),
-        "should contain worktrees: {}",
-        path_str
+        "should contain worktrees: {path_str}"
     );
     assert!(
         path_str.contains("home-user-my-project"),
-        "should contain sanitized path: {}",
-        path_str
+        "should contain sanitized path: {path_str}"
     );
 }
 

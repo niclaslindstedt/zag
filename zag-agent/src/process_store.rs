@@ -100,10 +100,7 @@ impl ProcessStore {
             entry.status = status.to_string();
             entry.exit_code = exit_code;
             entry.exited_at = Some(chrono::Utc::now().to_rfc3339());
-            debug!(
-                "Updated process {}: status={}, exit_code={:?}",
-                id, status, exit_code
-            );
+            debug!("Updated process {id}: status={status}, exit_code={exit_code:?}");
         }
     }
 

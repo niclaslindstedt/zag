@@ -21,7 +21,7 @@ fn unique_tmp_path(path: &Path) -> PathBuf {
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("zag-atomic");
-    let tmp_name = format!(".{}.{}.{}.tmp", file_name, pid, counter);
+    let tmp_name = format!(".{file_name}.{pid}.{counter}.tmp");
     match path.parent() {
         Some(parent) => parent.join(tmp_name),
         None => PathBuf::from(tmp_name),

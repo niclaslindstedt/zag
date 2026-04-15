@@ -20,7 +20,7 @@ pub fn strip_markdown_fences(text: &str) -> &str {
 pub fn validate_json(text: &str) -> Result<serde_json::Value, String> {
     let cleaned = strip_markdown_fences(text);
     debug!("Validating JSON ({} bytes)", cleaned.len());
-    let result = serde_json::from_str(cleaned).map_err(|e| format!("Invalid JSON: {}", e));
+    let result = serde_json::from_str(cleaned).map_err(|e| format!("Invalid JSON: {e}"));
     if result.is_ok() {
         debug!("JSON validation passed");
     } else {
@@ -38,7 +38,7 @@ pub fn validate_schema(schema: &serde_json::Value) -> Result<(), String> {
         .map(|_| {
             debug!("JSON schema is valid");
         })
-        .map_err(|e| format!("Invalid JSON schema: {}", e))
+        .map_err(|e| format!("Invalid JSON schema: {e}"))
 }
 
 /// Parse text as JSON and validate it against a JSON schema.
@@ -69,7 +69,7 @@ pub fn validate_json_schema(
             if path.is_empty() {
                 e.to_string()
             } else {
-                format!("{} at {}", e, path)
+                format!("{e} at {path}")
             }
         })
         .collect();

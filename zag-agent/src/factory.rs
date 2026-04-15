@@ -49,7 +49,7 @@ impl AgentFactory {
         auto_approve: bool,
         add_dirs: Vec<String>,
     ) -> Result<Box<dyn Agent + Send + Sync>> {
-        debug!("Creating agent: {}", agent_name);
+        debug!("Creating agent: {agent_name}");
 
         // Skip pre-flight binary check for mock agent (test only)
         #[cfg(test)]
@@ -82,15 +82,12 @@ impl AgentFactory {
         // Configure model (CLI > config > agent default)
         if let Some(model_input) = model {
             let resolved = Self::resolve_model(agent_name, &model_input);
-            debug!("Model resolved from CLI: {} -> {}", model_input, resolved);
+            debug!("Model resolved from CLI: {model_input} -> {resolved}");
             Self::validate_model(agent_name, &resolved)?;
             agent.set_model(resolved);
         } else if let Some(config_model) = config.get_model(agent_name) {
             let resolved = Self::resolve_model(agent_name, config_model);
-            debug!(
-                "Model resolved from config: {} -> {}",
-                config_model, resolved
-            );
+            debug!("Model resolved from config: {config_model} -> {resolved}");
             Self::validate_model(agent_name, &resolved)?;
             agent.set_model(resolved);
         } else {
@@ -99,7 +96,7 @@ impl AgentFactory {
 
         // Configure root directory
         if let Some(root_dir) = root {
-            debug!("Setting root directory: {}", root_dir);
+            debug!("Setting root directory: {root_dir}");
             agent.set_root(root_dir);
         }
 
@@ -171,7 +168,7 @@ impl AgentFactory {
                 Ok(agent) => agent,
                 Err(e) => {
                     let reason = e.to_string();
-                    debug!("Provider '{}' unavailable: {}", candidate, reason);
+                    debug!("Provider '{candidate}' unavailable: {reason}");
                     last_err = Some(e);
                     if let Some(next) = sequence.get(i + 1) {
                         on_downgrade(&prev, next, &reason);
@@ -185,7 +182,7 @@ impl AgentFactory {
                 Ok(()) => return Ok((agent, candidate.clone())),
                 Err(e) => {
                     let reason = e.to_string();
-                    debug!("Provider '{}' probe failed: {}", candidate, reason);
+                    debug!("Provider '{candidate}' probe failed: {reason}");
                     last_err = Some(e);
                     if let Some(next) = sequence.get(i + 1) {
                         on_downgrade(candidate, next, &reason);
@@ -198,13 +195,9 @@ impl AgentFactory {
 
         match last_err {
             Some(e) => Err(e.context(format!(
-                "No working provider found in tier list: {:?}",
-                PROVIDER_TIER_LIST
+                "No working provider found in tier list: {PROVIDER_TIER_LIST:?}"
             ))),
-            None => bail!(
-                "No working provider found in tier list: {:?}",
-                PROVIDER_TIER_LIST
-            ),
+            None => bail!("No working provider found in tier list: {PROVIDER_TIER_LIST:?}"),
         }
     }
 
@@ -218,7 +211,7 @@ impl AgentFactory {
             "ollama" => Ok(Box::new(Ollama::new())),
             #[cfg(test)]
             "mock" => Ok(Box::new(MockAgent::new())),
-            _ => bail!("Unknown agent: {}", agent_name),
+            _ => bail!("Unknown agent: {agent_name}"),
         }
     }
 

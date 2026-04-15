@@ -135,8 +135,7 @@ async fn run_generic_review(params: ReviewParams) -> Result<()> {
     } = params;
 
     debug!(
-        "Starting code review via {} (uncommitted={}, base={:?}, commit={:?})",
-        provider, uncommitted, base, commit
+        "Starting code review via {provider} (uncommitted={uncommitted}, base={base:?}, commit={commit:?})"
     );
 
     let diff = gather_diff(
@@ -160,10 +159,7 @@ async fn run_generic_review(params: ReviewParams) -> Result<()> {
 
     let model_name = agent.get_model().to_string();
     if !quiet {
-        println!(
-            "\x1b[32m✓\x1b[0m Review initialized with model {}",
-            model_name
-        );
+        println!("\x1b[32m✓\x1b[0m Review initialized with model {model_name}");
     }
 
     // Session logging
@@ -202,10 +198,8 @@ async fn run_generic_review(params: ReviewParams) -> Result<()> {
     let _ = log_coordinator
         .writer()
         .set_global_index_dir(Config::global_base_dir());
-    let log_prompt_summary = format!(
-        "review uncommitted={} base={:?} commit={:?} title={:?}",
-        uncommitted, base, commit, title
-    );
+    let log_prompt_summary =
+        format!("review uncommitted={uncommitted} base={base:?} commit={commit:?} title={title:?}");
     crate::session_log::record_prompt(log_coordinator.writer(), Some(&log_prompt_summary))?;
 
     // Register process entry
@@ -270,8 +264,7 @@ async fn run_codex_review(params: ReviewParams) -> Result<()> {
     } = params;
 
     debug!(
-        "Starting code review via Codex (uncommitted={}, base={:?}, commit={:?})",
-        uncommitted, base, commit
+        "Starting code review via Codex (uncommitted={uncommitted}, base={base:?}, commit={commit:?})"
     );
 
     let spinner = logging::spinner("Initializing Codex for review".to_string());
@@ -287,10 +280,7 @@ async fn run_codex_review(params: ReviewParams) -> Result<()> {
 
     let model_name = agent.get_model().to_string();
     if !quiet {
-        println!(
-            "\x1b[32m✓\x1b[0m Review initialized with model {}",
-            model_name
-        );
+        println!("\x1b[32m✓\x1b[0m Review initialized with model {model_name}");
     }
 
     // Downcast to Codex to call review
@@ -334,10 +324,8 @@ async fn run_codex_review(params: ReviewParams) -> Result<()> {
     let _ = log_coordinator
         .writer()
         .set_global_index_dir(Config::global_base_dir());
-    let review_prompt = format!(
-        "review uncommitted={} base={:?} commit={:?} title={:?}",
-        uncommitted, base, commit, title
-    );
+    let review_prompt =
+        format!("review uncommitted={uncommitted} base={base:?} commit={commit:?} title={title:?}");
     crate::session_log::record_prompt(log_coordinator.writer(), Some(&review_prompt))?;
 
     // Register process entry before execution.

@@ -209,7 +209,7 @@ impl Codex {
             let text = agent_text.unwrap_or_else(|| raw.to_string());
             let mut output = AgentOutput::from_text("codex", &text);
             if let Some(tid) = thread_id {
-                debug!("Codex thread_id for retries: {}", tid);
+                debug!("Codex thread_id for retries: {tid}");
                 output.session_id = tid;
             }
             output
@@ -299,7 +299,7 @@ impl Codex {
         let agent_args = self.build_run_args(interactive, prompt);
         log::debug!("Codex command: codex {}", agent_args.join(" "));
         if let Some(p) = prompt {
-            log::debug!("Codex user prompt: {}", p);
+            log::debug!("Codex user prompt: {p}");
         }
         let mut cmd = self.make_command(agent_args);
 
@@ -614,11 +614,7 @@ impl Agent for Codex {
         session_id: &str,
         prompt: &str,
     ) -> Result<Option<AgentOutput>> {
-        log::debug!(
-            "Codex resume with prompt: session={}, prompt={}",
-            session_id,
-            prompt
-        );
+        log::debug!("Codex resume with prompt: session={session_id}, prompt={prompt}");
         if !self.common.system_prompt.is_empty() {
             self.write_agents_file().await?;
         }

@@ -149,7 +149,7 @@ impl Copilot {
         let agent_args = self.build_run_args(interactive, prompt);
         log::debug!("Copilot command: copilot {}", agent_args.join(" "));
         if let Some(p) = prompt {
-            log::debug!("Copilot user prompt: {}", p);
+            log::debug!("Copilot user prompt: {p}");
         }
         let mut cmd = self.make_command(agent_args);
 

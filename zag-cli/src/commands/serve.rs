@@ -81,12 +81,12 @@ pub(crate) async fn run_serve(params: ServeParams) -> Result<()> {
         );
     }
     if let Some(ref t) = token {
-        eprintln!("Token: {}", t);
+        eprintln!("Token: {t}");
     }
     if force_sandbox {
         eprintln!("Force sandbox: enabled (all connected users run in Docker sandboxes)");
     }
-    eprintln!("Starting zag server on https://{}:{}", host, port);
+    eprintln!("Starting zag server on https://{host}:{port}");
 
     zag_serve::start_server(zag_serve::ServerParams {
         host,
