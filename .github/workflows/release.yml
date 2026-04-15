@@ -55,7 +55,7 @@ jobs:
           awk '/^## \[/{if(found) exit; found=1; next} found' CHANGELOG.md > release-notes.md
           cat release-notes.md
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-notes
           path: release-notes.md
@@ -140,7 +140,7 @@ jobs:
           $Hash = (Get-FileHash "dist/${Stem}.zip" -Algorithm SHA256).Hash.ToLower()
           "${Hash}  ${Stem}.zip" | Out-File -Encoding ascii "dist/${Stem}.zip.sha256"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-${{ matrix.target }}
           path: dist/
