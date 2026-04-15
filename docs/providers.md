@@ -89,7 +89,7 @@ claude-sonnet-4.6, claude-haiku-4.5, claude-opus-4.6, claude-sonnet-4.5, claude-
 
 Any model from [ollama.com](https://ollama.com) with a size suffix. Available sizes: 0.8b, 2b, 4b, 9b, 27b, 35b, 122b. The default model is `qwen3.5`.
 
-Use `zag capability -p <provider> --pretty` to see the current model list for any provider.
+Use `zag discover -p <provider>` for a summary of any provider, `zag discover -p <provider> --models` for just the model list, or `zag discover -p <provider> --resolve large` to see which concrete model a size alias maps to. `zag discover` without a provider prints a summary table across all available providers. `zag capability -p <provider> --pretty` returns the raw capability JSON used by the bindings.
 
 ## Choosing a provider
 
