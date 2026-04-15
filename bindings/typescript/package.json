@@ -1,6 +1,6 @@
 {
   "name": "@nlindstedt/zag-agent",
-  "version": "0.12.6",
+  "version": "0.12.7",
   "description": "TypeScript SDK for zag — a unified CLI for AI coding agents",
   "license": "MIT",
   "type": "module",

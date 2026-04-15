@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.7] - 2026-04-15
+
+### Documentation
+
+- Sync README with recent feature additions (#150)
+- Refresh docs for v0.10–v0.12 feature set (#149)
+- Sync with current CLI (#147)
+- Refresh for v0.12.5 features (#146)
+
 ## [0.12.6] - 2026-04-14
 
 - No notable changes
