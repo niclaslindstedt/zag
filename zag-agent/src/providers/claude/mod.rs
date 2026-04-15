@@ -555,6 +555,10 @@ pub(crate) struct ClaudeEventTranslator {
     /// Text from the most recent assistant message, used as fallback when
     /// `Result.result` is empty.
     last_assistant_text: Option<String>,
+    /// Maps `tool_use_id` → `tool_name` from assistant messages so that
+    /// subsequent `ToolExecution` events (which only carry the id) can be
+    /// enriched with the correct tool name.
+    tool_name_by_id: std::collections::HashMap<String, String>,
 }
 
 impl ClaudeEventTranslator {
@@ -608,6 +612,14 @@ impl ClaudeEventTranslator {
             if !text_parts.is_empty() {
                 self.last_assistant_text = Some(text_parts.join("\n"));
             }
+
+            // Track tool_use_id → tool_name so ToolExecution events get the
+            // correct name instead of "unknown".
+            for block in &message.content {
+                if let models::ContentBlock::ToolUse { id, name, .. } = block {
+                    self.tool_name_by_id.insert(id.clone(), name.clone());
+                }
+            }
         }
 
         let unified = convert_claude_event_to_unified(event);
@@ -648,6 +660,28 @@ impl ClaudeEventTranslator {
                 };
                 self.next_turn_index = self.next_turn_index.saturating_add(1);
                 vec![turn_complete, unified.unwrap()]
+            }
+            Some(UnifiedEvent::ToolExecution {
+                tool_name,
+                tool_id,
+                input,
+                result,
+                parent_tool_use_id,
+            }) => {
+                // Enrich with the real tool name if we tracked it from a
+                // prior assistant message.
+                let resolved_name = self
+                    .tool_name_by_id
+                    .get(&tool_id)
+                    .cloned()
+                    .unwrap_or(tool_name);
+                vec![UnifiedEvent::ToolExecution {
+                    tool_name: resolved_name,
+                    tool_id,
+                    input,
+                    result,
+                    parent_tool_use_id,
+                }]
             }
             Some(ev) => vec![ev],
             None => Vec::new(),
