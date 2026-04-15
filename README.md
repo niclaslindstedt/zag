@@ -609,6 +609,10 @@ See the [examples directory](examples/) for details on each.
 - [Contributing](CONTRIBUTING.md) — Development workflow and guidelines
 - `zag man <command>` — Built-in manual pages for every command
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow, branch naming conventions, commit style, and pull request process.
+
 ## Architecture
 
 ```

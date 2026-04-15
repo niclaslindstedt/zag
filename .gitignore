@@ -1,7 +1,8 @@
 /target
 
-# Agent CLI state directory
-.agent/
+# Agent CLI state directory (ignore state, but track skills)
+.agent/*
+!.agent/skills/
 
 .DS_Store
 

@@ -32,9 +32,29 @@ make test
 make build && make test && make clippy && make fmt
 ```
 
+## Branch naming
+
+Use a short, lowercase slug after the type prefix:
+
+| Branch prefix | Use for |
+|---------------|---------|
+| `feat/<slug>` | New features |
+| `fix/<slug>` | Bug fixes |
+| `docs/<slug>` | Documentation-only changes |
+| `refactor/<slug>` | Refactors with no behavior change |
+| `chore/<slug>` | Maintenance (deps, CI, tooling) |
+
+Example: `feat/timeout-option`, `fix/gemini-empty-response`.
+
+## Pull request process
+
+PRs are **squash-merged**. The PR title becomes the single commit message on `main` and drives the changelog, so it must follow `type(scope): summary` (conventional commit format). Individual commits within the branch do not affect the changelog.
+
+At least one approving review is required before merge.
+
 ## Development workflow
 
-1. Fork the repository and create a feature branch
+1. Fork the repository and create a branch using the naming convention above
 2. Make your changes
 3. Add or update tests in the corresponding `*_tests.rs` file
 4. Run `make build && make test && make clippy && make fmt`
