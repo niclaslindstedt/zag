@@ -173,7 +173,7 @@ jobs:
             echo 'RELEASE_BODY=' >> "$GITHUB_ENV"
           fi
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           body: ${{ env.RELEASE_BODY }}
           generate_release_notes: ${{ env.RELEASE_BODY == '' }}
