@@ -5,6 +5,7 @@
 /// deserialized from JSON and then converted to the unified `AgentOutput` format.
 ///
 /// See README.md in this directory for detailed documentation on the output format.
+use serde::de::{self, Deserializer};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -138,6 +139,40 @@ pub enum ContentBlock {
     Other,
 }
 
+/// Deserialize the `content` field of a tool result, which may be either a
+/// plain string or an array of content blocks (e.g. when the conversation
+/// includes image attachments, Claude stores multi-modal content as
+/// `[{"type":"text","text":"..."}, {"type":"image",...}]`).
+///
+/// When the content is an array, text blocks are extracted and joined with
+/// newlines; non-text blocks are skipped.
+fn deserialize_content_string_or_array<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value: serde_json::Value = Deserialize::deserialize(deserializer)?;
+    match value {
+        serde_json::Value::String(s) => Ok(s),
+        serde_json::Value::Array(arr) => {
+            let texts: Vec<String> = arr
+                .into_iter()
+                .filter_map(|block| {
+                    block
+                        .get("text")
+                        .and_then(|t| t.as_str())
+                        .map(|s| s.to_string())
+                })
+                .collect();
+            Ok(texts.join("\n"))
+        }
+        serde_json::Value::Null => Ok(String::new()),
+        other => Err(de::Error::custom(format!(
+            "expected string or array for content, got {}",
+            other
+        ))),
+    }
+}
+
 /// A content block in a user message (tool results, text, or other types).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -145,6 +180,7 @@ pub enum UserContentBlock {
     /// Tool result
     ToolResult {
         tool_use_id: String,
+        #[serde(deserialize_with = "deserialize_content_string_or_array")]
         content: String,
         #[serde(default)]
         is_error: bool,
