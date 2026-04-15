@@ -266,26 +266,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
-
-      - name: Upgrade npm to a trusted-publishing-capable version
-        # Work around an npm self-upgrade race where the running npm removes
-        # @npmcli/arborist's deps (e.g. promise-retry) before the new npm is
-        # fully written, causing "Cannot find module 'promise-retry'". Simply
-        # retrying `npm install -g npm@latest` does not help because the global
-        # npm is already corrupted, so the retry fails the same way.
-        #
-        # Instead, install npm@latest into a throwaway prefix (which does not
-        # touch the global npm and therefore cannot race against itself), then
-        # use that complete, freshly-installed copy to replace the global npm.
-        run: |
-          set -euo pipefail
-          rm -rf /tmp/npm-upgrade
-          mkdir -p /tmp/npm-upgrade
-          npm install --prefix /tmp/npm-upgrade npm@latest
-          /tmp/npm-upgrade/node_modules/.bin/npm install -g npm@latest
-          rm -rf /tmp/npm-upgrade
-          npm --version
+          # Node 24 ships with npm >= 11.5.1, which has native trusted-publishing
+          # support. This avoids the `npm install -g npm@latest` self-upgrade
+          # step entirely (along with its self-overwrite race).
+          node-version: '24'
 
       - name: Install dependencies
         working-directory: bindings/typescript
