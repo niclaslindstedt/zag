@@ -30,15 +30,15 @@ fn parse_duration_secs(s: &str) -> Result<i64> {
     if let Some(days) = s.strip_suffix('d') {
         let n: i64 = days
             .parse()
-            .map_err(|_| anyhow::anyhow!("Invalid duration: {}", s))?;
+            .map_err(|_| anyhow::anyhow!("Invalid duration: {s}"))?;
         Ok(n * 86400)
     } else if let Some(hours) = s.strip_suffix('h') {
         let n: i64 = hours
             .parse()
-            .map_err(|_| anyhow::anyhow!("Invalid duration: {}", s))?;
+            .map_err(|_| anyhow::anyhow!("Invalid duration: {s}"))?;
         Ok(n * 3600)
     } else {
-        bail!("Invalid duration '{}'. Use e.g. 7d or 24h.", s);
+        bail!("Invalid duration '{s}'. Use e.g. 7d or 24h.");
     }
 }
 

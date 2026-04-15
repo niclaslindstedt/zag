@@ -243,7 +243,7 @@ pub fn spawn_session(params: &SpawnParams) -> Result<SpawnResult> {
         interactive: params.interactive,
     });
     if let Err(e) = session_store.save(params.root.as_deref()) {
-        log::warn!("Failed to save session store: {}", e);
+        log::warn!("Failed to save session store: {e}");
     }
 
     // Create FIFO for interactive sessions
@@ -263,7 +263,7 @@ pub fn spawn_session(params: &SpawnParams) -> Result<SpawnResult> {
     // Set up log file for stdout/stderr capture
     let logs_dir = spawn_logs_dir();
     fs::create_dir_all(&logs_dir)?;
-    let log_path = logs_dir.join(format!("{}.log", session_id));
+    let log_path = logs_dir.join(format!("{session_id}.log"));
     let stdout_file = File::create(&log_path)?;
     let stderr_file = stdout_file.try_clone()?;
 
@@ -285,7 +285,7 @@ pub fn spawn_session(params: &SpawnParams) -> Result<SpawnResult> {
         let wait_args: Vec<String> = params
             .depends_on
             .iter()
-            .map(|id| format!("\"{}\"", id))
+            .map(|id| format!("\"{id}\""))
             .collect();
         let wait_cmd = format!(
             "{} wait {} && {} {}",
@@ -297,7 +297,7 @@ pub fn spawn_session(params: &SpawnParams) -> Result<SpawnResult> {
                 .collect::<Vec<_>>()
                 .join(" ")
         );
-        debug!("Spawn with deps: sh -c '{}'", wait_cmd);
+        debug!("Spawn with deps: sh -c '{wait_cmd}'");
         let mut cmd = std::process::Command::new("sh");
         cmd.arg("-c")
             .arg(&wait_cmd)
@@ -349,7 +349,7 @@ pub fn spawn_session(params: &SpawnParams) -> Result<SpawnResult> {
         parent_session_id: std::env::var("ZAG_SESSION_ID").ok(),
     });
     if let Err(e) = proc_store.save() {
-        log::warn!("Failed to save process store: {}", e);
+        log::warn!("Failed to save process store: {e}");
     }
 
     Ok(SpawnResult {

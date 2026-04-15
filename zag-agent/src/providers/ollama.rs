@@ -134,7 +134,7 @@ impl Ollama {
             log::debug!("Ollama system prompt: {}", self.common.system_prompt);
         }
         if let Some(p) = prompt {
-            log::debug!("Ollama user prompt: {}", p);
+            log::debug!("Ollama user prompt: {p}");
         }
         let mut cmd = self.make_command(agent_args);
 

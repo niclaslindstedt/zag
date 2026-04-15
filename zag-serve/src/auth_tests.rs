@@ -147,7 +147,7 @@ async fn session_token_still_works_in_user_account_mode() {
 
     let req = Request::builder()
         .uri("/api/v1/sessions")
-        .header("Authorization", format!("Bearer {}", session_token))
+        .header("Authorization", format!("Bearer {session_token}"))
         .body(Body::empty())
         .unwrap();
     let resp = app.oneshot(req).await.unwrap();

@@ -51,7 +51,7 @@ pub fn read_events(params: &EventsParams) -> Result<Vec<AgentLogEvent>> {
     )?;
 
     let file = std::fs::File::open(&log_path)
-        .map_err(|e| anyhow::anyhow!("Failed to open session log: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to open session log: {e}"))?;
     let reader = BufReader::new(file);
 
     let mut events = Vec::new();
@@ -128,19 +128,19 @@ pub fn run_events(params: EventsParams) -> Result<()> {
             let preview = match &event.kind {
                 LogEventKind::AssistantMessage { content, .. } => {
                     let preview: String = content.chars().take(120).collect();
-                    format!(": {}", preview)
+                    format!(": {preview}")
                 }
                 LogEventKind::UserMessage { content, .. } => {
                     let preview: String = content.chars().take(120).collect();
-                    format!(": {}", preview)
+                    format!(": {preview}")
                 }
-                LogEventKind::ToolCall { tool_name, .. } => format!(": {}", tool_name),
+                LogEventKind::ToolCall { tool_name, .. } => format!(": {tool_name}"),
                 LogEventKind::ToolResult {
                     tool_name, success, ..
                 } => {
                     let name = tool_name.as_deref().unwrap_or("?");
                     let ok = success.map(|s| if s { "ok" } else { "err" }).unwrap_or("?");
-                    format!(": {} ({})", name, ok)
+                    format!(": {name} ({ok})")
                 }
                 LogEventKind::SessionEnded { success, error } => {
                     if *success {
@@ -150,7 +150,7 @@ pub fn run_events(params: EventsParams) -> Result<()> {
                             ": failed{}",
                             error
                                 .as_deref()
-                                .map(|e| format!(" - {}", e))
+                                .map(|e| format!(" - {e}"))
                                 .unwrap_or_default()
                         )
                     }

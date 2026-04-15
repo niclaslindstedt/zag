@@ -88,7 +88,7 @@ impl Claude {
                 let path =
                     std::env::temp_dir().join(format!("zag-mcp-{}.json", uuid::Uuid::new_v4()));
                 if let Err(e) = std::fs::write(&path, &c) {
-                    log::warn!("Failed to write MCP config temp file: {}", e);
+                    log::warn!("Failed to write MCP config temp file: {e}");
                     return c;
                 }
                 path.to_string_lossy().into_owned()
@@ -369,13 +369,10 @@ impl Claude {
             log::debug!("Claude system prompt: {}", self.common.system_prompt);
         }
         if let Some(p) = prompt {
-            log::debug!("Claude user prompt: {}", p);
+            log::debug!("Claude user prompt: {p}");
         }
         log::debug!(
-            "Claude mode: interactive={}, capture_json={}, output_format={:?}",
-            interactive,
-            capture_json,
-            effective_output_format
+            "Claude mode: interactive={interactive}, capture_json={capture_json}, output_format={effective_output_format:?}"
         );
         let mut cmd = self.make_command(agent_args);
 
@@ -492,7 +489,7 @@ impl Claude {
                             e,
                             crate::truncate_str(&json_str, 500)
                         );
-                        anyhow::anyhow!("Failed to parse Claude JSON output: {}", e)
+                        anyhow::anyhow!("Failed to parse Claude JSON output: {e}")
                     })?;
                 log::debug!("Parsed {} Claude events successfully", claude_output.len());
 
@@ -951,11 +948,7 @@ impl Agent for Claude {
         session_id: &str,
         prompt: &str,
     ) -> Result<Option<AgentOutput>> {
-        log::debug!(
-            "Claude resume with prompt: session={}, prompt={}",
-            session_id,
-            prompt
-        );
+        log::debug!("Claude resume with prompt: session={session_id}, prompt={prompt}");
         let in_sandbox = self.common.sandbox.is_some();
         let mut args = vec!["--print".to_string()];
         args.extend(["--resume".to_string(), session_id.to_string()]);
@@ -993,7 +986,7 @@ impl Agent for Claude {
             json_str.len()
         );
         let claude_output: models::ClaudeOutput = serde_json::from_str(&json_str)
-            .map_err(|e| anyhow::anyhow!("Failed to parse Claude resume JSON output: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to parse Claude resume JSON output: {e}"))?;
 
         let agent_output: AgentOutput = models::claude_output_to_agent_output(claude_output);
         Ok(Some(agent_output))

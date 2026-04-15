@@ -2,6 +2,8 @@
 
 Brief description of the changes and motivation.
 
+Related issue: <!-- Closes #<number> or N/A -->
+
 ## Test plan
 
 - [ ] `make build` passes

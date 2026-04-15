@@ -21,7 +21,7 @@ pub(crate) fn run(provider: Option<String>) -> Result<()> {
                 p
             );
         } else {
-            println!("  {} does not support native skills (skipped)", p);
+            println!("  {p} does not support native skills (skipped)");
         }
     }
     Ok(())

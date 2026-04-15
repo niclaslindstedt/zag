@@ -210,17 +210,17 @@ pub fn list_servers(root: Option<&str>) -> Result<Vec<McpServer>> {
 pub fn get_server(name: &str, root: Option<&str>) -> Result<McpServer> {
     // Check project-scoped first
     if let Some(dir) = project_mcp_dir(root) {
-        let path = dir.join(format!("{}.toml", name));
+        let path = dir.join(format!("{name}.toml"));
         if path.exists() {
             return parse_server(&path);
         }
     }
     // Check global
-    let path = mcp_dir().join(format!("{}.toml", name));
+    let path = mcp_dir().join(format!("{name}.toml"));
     if path.exists() {
         return parse_server(&path);
     }
-    bail!("MCP server '{}' not found", name);
+    bail!("MCP server '{name}' not found");
 }
 
 /// Create a new MCP server config file. Returns the path to the new file.
@@ -255,7 +255,7 @@ pub fn remove_server(name: &str, root: Option<&str>) -> Result<()> {
 
     // Try project-scoped first
     if let Some(dir) = project_mcp_dir(root) {
-        let path = dir.join(format!("{}.toml", name));
+        let path = dir.join(format!("{name}.toml"));
         if path.exists() {
             fs::remove_file(&path)
                 .with_context(|| format!("Failed to remove {}", path.display()))?;
@@ -264,25 +264,20 @@ pub fn remove_server(name: &str, root: Option<&str>) -> Result<()> {
     }
 
     // Try global
-    let path = mcp_dir().join(format!("{}.toml", name));
+    let path = mcp_dir().join(format!("{name}.toml"));
     if path.exists() {
         fs::remove_file(&path).with_context(|| format!("Failed to remove {}", path.display()))?;
         found = true;
     }
 
     if !found {
-        bail!("MCP server '{}' not found", name);
+        bail!("MCP server '{name}' not found");
     }
 
     // Remove from all provider configs
     for provider in MCP_PROVIDERS {
         if let Err(e) = remove_server_from_provider(provider, name) {
-            log::warn!(
-                "Failed to clean up {} config for '{}': {}",
-                provider,
-                name,
-                e
-            );
+            log::warn!("Failed to clean up {provider} config for '{name}': {e}");
         }
     }
 
@@ -396,7 +391,7 @@ fn sync_json_provider(provider: &str, servers: &[McpServer]) -> Result<usize> {
 
     // Write back with pretty printing
     let content = serde_json::to_string_pretty(&config)?;
-    fs::write(&config_path, format!("{}\n", content))
+    fs::write(&config_path, format!("{content}\n"))
         .with_context(|| format!("Failed to write {}", config_path.display()))?;
 
     log::debug!(
@@ -510,7 +505,7 @@ pub fn sync_servers_for_provider(provider: &str, servers: &[McpServer]) -> Resul
         "claude" | "gemini" | "copilot" => sync_json_provider(provider, servers),
         "codex" => sync_codex_provider(servers),
         _ => {
-            log::debug!("Provider '{}' does not support MCP servers", provider);
+            log::debug!("Provider '{provider}' does not support MCP servers");
             Ok(0)
         }
     }
@@ -525,7 +520,7 @@ fn remove_server_from_provider(provider: &str, name: &str) -> Result<()> {
         return Ok(());
     }
 
-    let key = format!("{}{}", MCP_PREFIX, name);
+    let key = format!("{MCP_PREFIX}{name}");
 
     if provider == "codex" {
         let content = fs::read_to_string(&config_path)?;
@@ -546,7 +541,7 @@ fn remove_server_from_provider(provider: &str, name: &str) -> Result<()> {
             mcp.remove(&key);
         }
         let content = serde_json::to_string_pretty(&config)?;
-        fs::write(&config_path, format!("{}\n", content))?;
+        fs::write(&config_path, format!("{content}\n"))?;
     }
 
     Ok(())
@@ -561,7 +556,7 @@ fn remove_server_from_provider(provider: &str, name: &str) -> Result<()> {
 /// Returns names of imported servers.
 pub fn import_servers(from_provider: &str) -> Result<Vec<String>> {
     let Some(config_path) = provider_mcp_config_path(from_provider) else {
-        bail!("Provider '{}' does not support MCP servers", from_provider);
+        bail!("Provider '{from_provider}' does not support MCP servers");
     };
 
     if !config_path.exists() {
@@ -601,9 +596,9 @@ fn import_from_json(config_path: &Path, provider: &str) -> Result<Vec<String>> {
             continue;
         }
 
-        let dest = dest_dir.join(format!("{}.toml", name));
+        let dest = dest_dir.join(format!("{name}.toml"));
         if dest.exists() {
-            log::debug!("Skipping '{}': already exists in ~/.zag/mcp/", name);
+            log::debug!("Skipping '{name}': already exists in ~/.zag/mcp/");
             continue;
         }
 
@@ -707,9 +702,9 @@ fn import_from_codex_toml(config_path: &Path) -> Result<Vec<String>> {
             continue;
         }
 
-        let dest = dest_dir.join(format!("{}.toml", name));
+        let dest = dest_dir.join(format!("{name}.toml"));
         if dest.exists() {
-            log::debug!("Skipping '{}': already exists in ~/.zag/mcp/", name);
+            log::debug!("Skipping '{name}': already exists in ~/.zag/mcp/");
             continue;
         }
 
@@ -794,7 +789,7 @@ pub fn setup_mcp(provider: &str, root: Option<&str>) -> Result<()> {
 
     let synced = sync_servers_for_provider(provider, &servers)?;
     if synced > 0 {
-        log::info!("Synced {} MCP server(s) for {}", synced, provider);
+        log::info!("Synced {synced} MCP server(s) for {provider}");
     }
 
     Ok(())
@@ -851,7 +846,7 @@ pub fn sync_json_provider_to(
     }
 
     let content = serde_json::to_string_pretty(&config)?;
-    fs::write(config_path, format!("{}\n", content))?;
+    fs::write(config_path, format!("{content}\n"))?;
     Ok(synced)
 }
 
@@ -946,7 +941,7 @@ pub fn import_from_json_to(
         if name.starts_with(MCP_PREFIX) {
             continue;
         }
-        let dest = dest_dir.join(format!("{}.toml", name));
+        let dest = dest_dir.join(format!("{name}.toml"));
         if dest.exists() {
             continue;
         }
@@ -976,7 +971,7 @@ pub fn import_from_codex_to(config_path: &Path, dest_dir: &Path) -> Result<Vec<S
         if name.starts_with(MCP_PREFIX) {
             continue;
         }
-        let dest = dest_dir.join(format!("{}.toml", name));
+        let dest = dest_dir.join(format!("{name}.toml"));
         if dest.exists() {
             continue;
         }

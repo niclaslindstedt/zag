@@ -249,9 +249,9 @@ impl StreamingSession {
 
         if !status.success() {
             if stderr_text.is_empty() {
-                bail!("Agent process failed with status: {}", status);
+                bail!("Agent process failed with status: {status}");
             } else {
-                bail!("{}", stderr_text);
+                bail!("{stderr_text}");
             }
         }
 

@@ -167,8 +167,7 @@ where
         }
         serde_json::Value::Null => Ok(String::new()),
         other => Err(de::Error::custom(format!(
-            "expected string or array for content, got {}",
-            other
+            "expected string or array for content, got {other}"
         ))),
     }
 }

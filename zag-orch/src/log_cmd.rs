@@ -35,10 +35,7 @@ fn resolve_session_id(session: Option<&str>) -> Result<String> {
 fn validate_level(level: &str) -> Result<()> {
     match level {
         "info" | "warn" | "error" | "debug" => Ok(()),
-        _ => bail!(
-            "Invalid log level '{}'. Use: info, warn, error, debug",
-            level
-        ),
+        _ => bail!("Invalid log level '{level}'. Use: info, warn, error, debug"),
     }
 }
 
@@ -50,7 +47,7 @@ pub fn run_log(params: LogParams) -> Result<()> {
     let data: Option<serde_json::Value> = if let Some(ref data_str) = params.data {
         Some(
             serde_json::from_str(data_str)
-                .map_err(|e| anyhow::anyhow!("Invalid JSON data: {}", e))?,
+                .map_err(|e| anyhow::anyhow!("Invalid JSON data: {e}"))?,
         )
     } else {
         None
@@ -95,7 +92,7 @@ pub fn run_log(params: LogParams) -> Result<()> {
         .append(true)
         .open(&log_path)?;
     let json = serde_json::to_string(&event)?;
-    writeln!(file, "{}", json)?;
+    writeln!(file, "{json}")?;
 
     Ok(())
 }

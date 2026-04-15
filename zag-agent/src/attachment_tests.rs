@@ -52,7 +52,7 @@ fn test_attachment_from_large_text_file() {
     let mut f = NamedTempFile::with_suffix(".txt").unwrap();
     // Write >50 KB of text
     let big = "x".repeat(51 * 1024);
-    write!(f, "{}", big).unwrap();
+    write!(f, "{big}").unwrap();
     f.flush().unwrap();
 
     let att = Attachment::from_path(f.path()).unwrap();

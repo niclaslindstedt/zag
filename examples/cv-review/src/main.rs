@@ -156,16 +156,16 @@ struct ConsoleProgress;
 
 impl ProgressHandler for ConsoleProgress {
     fn on_status(&self, msg: &str) {
-        eprintln!("  > {}", msg);
+        eprintln!("  > {msg}");
     }
     fn on_success(&self, msg: &str) {
-        eprintln!("  \x1b[32m✓\x1b[0m {}", msg);
+        eprintln!("  \x1b[32m✓\x1b[0m {msg}");
     }
     fn on_error(&self, msg: &str) {
-        eprintln!("  \x1b[31m✗\x1b[0m {}", msg);
+        eprintln!("  \x1b[31m✗\x1b[0m {msg}");
     }
     fn on_spinner_start(&self, msg: &str) {
-        eprintln!("  ⏳ {}", msg);
+        eprintln!("  ⏳ {msg}");
     }
     fn on_spinner_finish(&self) {}
 }
@@ -327,7 +327,7 @@ Score each category from 1-10 and provide your assessment."#,
         required = rules
             .required_skills
             .iter()
-            .map(|s| format!("- {}", s))
+            .map(|s| format!("- {s}"))
             .collect::<Vec<_>>()
             .join("\n"),
         job = job,
@@ -403,12 +403,9 @@ score_adjustments should be an empty array.
 {job}
 
 ## Recruiter's Assessment
-{recruiter}
+{recruiter_json}
 
 Provide your committee review with any score adjustments and final recommendation."#,
-        cv = cv,
-        job = job,
-        recruiter = recruiter_json,
     );
 
     let output = AgentBuilder::new()
@@ -536,7 +533,7 @@ fn evaluate(
     // Check recommendation
     let rec = &committee.final_recommendation;
     if !rules.recommendation_pass.contains(rec) {
-        flags.push(format!("Recommendation '{}' not in pass list", rec));
+        flags.push(format!("Recommendation '{rec}' not in pass list"));
         if rec == "no" || rec == "strong_no" {
             fail_reasons += 1;
         }
@@ -544,7 +541,7 @@ fn evaluate(
 
     // Add committee risk flags
     for flag in &committee.risk_flags {
-        flags.push(format!("Risk: {}", flag));
+        flags.push(format!("Risk: {flag}"));
     }
 
     let verdict = if fail_reasons >= 2 {
@@ -590,9 +587,9 @@ fn score_bar(score: u8) -> String {
 
 fn verdict_colored(verdict: Verdict) -> String {
     match verdict {
-        Verdict::Pass => format!("\x1b[1;32m{}\x1b[0m", verdict),
-        Verdict::Fail => format!("\x1b[1;31m{}\x1b[0m", verdict),
-        Verdict::NeedsReview => format!("\x1b[1;33m{}\x1b[0m", verdict),
+        Verdict::Pass => format!("\x1b[1;32m{verdict}\x1b[0m"),
+        Verdict::Fail => format!("\x1b[1;31m{verdict}\x1b[0m"),
+        Verdict::NeedsReview => format!("\x1b[1;33m{verdict}\x1b[0m"),
     }
 }
 
@@ -659,13 +656,13 @@ fn print_report(result: &CandidateResult) {
     for (name, orig, adj) in &categories {
         let delta = *adj as i16 - *orig as i16;
         let delta_str = if delta > 0 {
-            format!("\x1b[32m+{}\x1b[0m", delta)
+            format!("\x1b[32m+{delta}\x1b[0m")
         } else if delta < 0 {
-            format!("\x1b[31m{}\x1b[0m", delta)
+            format!("\x1b[31m{delta}\x1b[0m")
         } else {
             "  ".to_string()
         };
-        println!("  {:<16} {:>10} {:>10} {:>6}", name, orig, adj, delta_str);
+        println!("  {name:<16} {orig:>10} {adj:>10} {delta_str:>6}");
     }
 
     // Score adjustments from committee
@@ -688,13 +685,13 @@ fn print_report(result: &CandidateResult) {
     // Strengths
     println!("\n\x1b[1m  Strengths\x1b[0m");
     for s in &r.strengths {
-        println!("  \x1b[32m+\x1b[0m {}", s);
+        println!("  \x1b[32m+\x1b[0m {s}");
     }
 
     // Weaknesses
     println!("\n\x1b[1m  Weaknesses\x1b[0m");
     for w in &r.weaknesses {
-        println!("  \x1b[31m-\x1b[0m {}", w);
+        println!("  \x1b[31m-\x1b[0m {w}");
     }
 
     // Experience
@@ -731,7 +728,7 @@ fn print_report(result: &CandidateResult) {
     if !c.risk_flags.is_empty() {
         println!("\n\x1b[1m  Risk Flags\x1b[0m");
         for flag in &c.risk_flags {
-            println!("  \x1b[33m⚠\x1b[0m {}", flag);
+            println!("  \x1b[33m⚠\x1b[0m {flag}");
         }
     }
 
@@ -760,7 +757,7 @@ fn print_report(result: &CandidateResult) {
             } else {
                 "\x1b[31m✗\x1b[0m"
             };
-            println!("  {} {}", icon, flag);
+            println!("  {icon} {flag}");
         }
     }
 
@@ -887,7 +884,7 @@ fn parse_args() -> Result<Args> {
                 );
                 std::process::exit(0);
             }
-            other => bail!("Unknown argument: {}. Use --help for usage.", other),
+            other => bail!("Unknown argument: {other}. Use --help for usage."),
         }
     }
 

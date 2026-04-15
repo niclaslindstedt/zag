@@ -87,7 +87,7 @@ pub fn subscribe_events(
                 });
             }
             Err(e) => {
-                debug!("Failed to open log for session {}: {}", session_id, e);
+                debug!("Failed to open log for session {session_id}: {e}");
             }
         }
     }
@@ -183,7 +183,7 @@ pub fn run_subscribe(params: SubscribeParams) -> Result<()> {
                 });
             }
             Err(e) => {
-                debug!("Failed to open log for session {}: {}", session_id, e);
+                debug!("Failed to open log for session {session_id}: {e}");
             }
         }
     }

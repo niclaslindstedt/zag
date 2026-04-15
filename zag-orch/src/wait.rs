@@ -54,7 +54,7 @@ fn resolve_session_ids(params: &WaitParams) -> Result<Vec<String>> {
         let store = SessionStore::load(params.root.as_deref())?;
         let tagged = store.find_by_tag(tag);
         if tagged.is_empty() {
-            bail!("No sessions found with tag '{}'", tag);
+            bail!("No sessions found with tag '{tag}'");
         }
         for entry in tagged {
             if !ids.contains(&entry.session_id) {
@@ -239,7 +239,7 @@ fn print_result(result: &WaitResult) {
     let error_info = result
         .error
         .as_deref()
-        .map(|e| format!(": {}", e))
+        .map(|e| format!(": {e}"))
         .unwrap_or_default();
     println!("{} {}{}", result.session_id, status, error_info);
 }

@@ -250,7 +250,7 @@ mod translator {
 
     fn assistant_line(stop_reason: Option<&str>) -> ClaudeEvent {
         let reason_field = match stop_reason {
-            Some(r) => format!(r#""{}""#, r),
+            Some(r) => format!(r#""{r}""#),
             None => "null".to_string(),
         };
         let line = format!(
@@ -262,7 +262,7 @@ mod translator {
                     "type":"message",
                     "role":"assistant",
                     "content":[{{"type":"text","text":"hi"}}],
-                    "stop_reason":{},
+                    "stop_reason":{reason_field},
                     "stop_sequence":null,
                     "usage":{{"input_tokens":10,"output_tokens":5}},
                     "context_management":null
@@ -270,8 +270,7 @@ mod translator {
                 "parent_tool_use_id":null,
                 "session_id":"s1",
                 "uuid":"u1"
-            }}"#,
-            reason_field
+            }}"#
         );
         serde_json::from_str(&line).unwrap()
     }
@@ -312,8 +311,7 @@ mod translator {
         assert_eq!(
             events.len(),
             2,
-            "expected [TurnComplete, Result], got {:?}",
-            events
+            "expected [TurnComplete, Result], got {events:?}"
         );
         match &events[0] {
             Event::TurnComplete {
@@ -325,7 +323,7 @@ mod translator {
                 assert_eq!(*turn_index, 0);
                 assert!(usage.is_some(), "usage should be carried from assistant");
             }
-            other => panic!("expected TurnComplete first, got {:?}", other),
+            other => panic!("expected TurnComplete first, got {other:?}"),
         }
         assert!(matches!(events[1], Event::Result { .. }));
     }
@@ -339,7 +337,7 @@ mod translator {
         let turn0 = translator.translate(&result_line());
         match &turn0[0] {
             Event::TurnComplete { turn_index, .. } => assert_eq!(*turn_index, 0),
-            other => panic!("expected TurnComplete, got {:?}", other),
+            other => panic!("expected TurnComplete, got {other:?}"),
         }
 
         // Turn 1
@@ -354,7 +352,7 @@ mod translator {
                 assert_eq!(*turn_index, 1);
                 assert_eq!(stop_reason.as_deref(), Some("tool_use"));
             }
-            other => panic!("expected TurnComplete, got {:?}", other),
+            other => panic!("expected TurnComplete, got {other:?}"),
         }
     }
 
@@ -365,7 +363,7 @@ mod translator {
         let events = translator.translate(&result_line());
         match &events[0] {
             Event::TurnComplete { stop_reason, .. } => assert!(stop_reason.is_none()),
-            other => panic!("expected TurnComplete, got {:?}", other),
+            other => panic!("expected TurnComplete, got {other:?}"),
         }
     }
 
@@ -385,11 +383,10 @@ mod translator {
             Event::TurnComplete { stop_reason, .. } => {
                 assert!(
                     stop_reason.is_none(),
-                    "stop_reason should not leak across turns, got {:?}",
-                    stop_reason
+                    "stop_reason should not leak across turns, got {stop_reason:?}"
                 );
             }
-            other => panic!("expected TurnComplete, got {:?}", other),
+            other => panic!("expected TurnComplete, got {other:?}"),
         }
     }
 
@@ -405,7 +402,7 @@ mod translator {
             Event::TurnComplete { stop_reason, .. } => {
                 assert_eq!(stop_reason.as_deref(), Some("end_turn"));
             }
-            other => panic!("expected TurnComplete, got {:?}", other),
+            other => panic!("expected TurnComplete, got {other:?}"),
         }
     }
 }

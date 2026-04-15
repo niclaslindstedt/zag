@@ -8,7 +8,7 @@ pub(crate) fn run_config(args: Vec<String>, root: Option<&str>) -> Result<()> {
         let path = Config::config_path(root);
         if path.exists() {
             let content = std::fs::read_to_string(&path)?;
-            print!("{}", content);
+            print!("{content}");
         } else {
             println!("No config file found at {}", path.display());
             println!("Run any agent command to create a default config.");
@@ -60,7 +60,7 @@ pub(crate) fn run_config(args: Vec<String>, root: Option<&str>) -> Result<()> {
             let value = config
                 .get_value(key)
                 .unwrap_or_else(|| "(not set)".to_string());
-            println!("{:<25} {}", key, value);
+            println!("{key:<25} {value}");
         }
         return Ok(());
     }
@@ -69,7 +69,7 @@ pub(crate) fn run_config(args: Vec<String>, root: Option<&str>) -> Result<()> {
     if args.len() == 2 && args[0] == "get" {
         let config = Config::load(root).unwrap_or_default();
         match config.get_value(&args[1]) {
-            Some(val) => println!("{}", val),
+            Some(val) => println!("{val}"),
             None => println!("(not set)"),
         }
         return Ok(());
@@ -84,7 +84,7 @@ pub(crate) fn run_config(args: Vec<String>, root: Option<&str>) -> Result<()> {
             // Implicit get: `config <key>` reads the value
             let config = Config::load(root).unwrap_or_default();
             match config.get_value(&args[0]) {
-                Some(val) => println!("{}", val),
+                Some(val) => println!("{val}"),
                 None => println!("(not set)"),
             }
             return Ok(());
@@ -97,6 +97,6 @@ pub(crate) fn run_config(args: Vec<String>, root: Option<&str>) -> Result<()> {
     let mut config = Config::load(root).unwrap_or_default();
     config.set_value(&key, &value)?;
     config.save(root)?;
-    println!("{} = {}", key, value);
+    println!("{key} = {value}");
     Ok(())
 }

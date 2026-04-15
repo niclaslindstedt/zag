@@ -65,7 +65,7 @@ pub fn retry_sessions(params: &RetryParams) -> Result<Vec<RetryResult>> {
     if let Some(ref tag) = params.tag {
         let tagged = store.find_by_tag(tag);
         if tagged.is_empty() && session_ids.is_empty() {
-            bail!("No sessions found with tag '{}'", tag);
+            bail!("No sessions found with tag '{tag}'");
         }
         for entry in tagged {
             if !session_ids.contains(&entry.session_id) {

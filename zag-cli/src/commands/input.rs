@@ -51,10 +51,10 @@ fn wrap_agent_message(message: &str, sender: &SenderInfo) -> String {
     let name_attr = sender
         .name
         .as_ref()
-        .map(|n| format!(" name=\"{}\"", n))
+        .map(|n| format!(" name=\"{n}\""))
         .unwrap_or_default();
     let reply_target = if let Some(ref name) = sender.name {
-        format!("zag input --name {} \"your reply here\"", name)
+        format!("zag input --name {name} \"your reply here\"")
     } else {
         format!(
             "zag input --session {} \"your reply here\"",
@@ -104,7 +104,7 @@ fn resolve_input_session_id(
         if let Some(entry) = store.find_by_name(name) {
             return Ok(entry.session_id.clone());
         }
-        bail!("No session found with name '{}'", name);
+        bail!("No session found with name '{name}'");
     }
 
     // --ps resolves via process store
@@ -184,7 +184,7 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
         global,
         root.as_deref(),
     )?;
-    debug!("Input command: resolved session ID = {}", resolved_id);
+    debug!("Input command: resolved session ID = {resolved_id}");
 
     // Check if this is an interactive session with a FIFO
     let fifo = zag_orch::spawn::fifo_path(&resolved_id);
@@ -194,7 +194,7 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
 
     // Resolve the resume target to get provider, provider_session_id, model
     let target = resume::resolve_resume_target(&resolved_id, root.as_deref())
-        .ok_or_else(|| anyhow::anyhow!("No session found for '{}'", resolved_id))?;
+        .ok_or_else(|| anyhow::anyhow!("No session found for '{resolved_id}'"))?;
 
     let provider = &target.entry.provider;
     let provider_session_id = target
@@ -209,8 +209,7 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
     };
 
     debug!(
-        "Input command: provider={}, provider_session_id={}, model={:?}",
-        provider, provider_session_id, model
+        "Input command: provider={provider}, provider_session_id={provider_session_id}, model={model:?}"
     );
 
     if !quiet {
@@ -272,7 +271,7 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
                     if let zag_agent::output::Event::AssistantMessage { ref content, .. } = event {
                         for block in content {
                             if let zag_agent::output::ContentBlock::Text { text } = block {
-                                print!("{}", text);
+                                print!("{text}");
                             }
                         }
                     }
@@ -303,7 +302,7 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
                 .map(|f| zag_agent::attachment::Attachment::from_path(std::path::Path::new(f)))
                 .collect::<Result<Vec<_>>>()?;
             let prefix = zag_agent::attachment::format_attachments_prefix(&attachments);
-            format!("{}{}", prefix, msg)
+            format!("{prefix}{msg}")
         } else {
             msg
         };
@@ -350,7 +349,7 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
                         _ => {
                             // Text output: print the final result
                             if let Some(text) = agent_output.final_result() {
-                                println!("{}", text);
+                                println!("{text}");
                             }
                         }
                     }

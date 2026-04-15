@@ -84,11 +84,10 @@ pub(crate) fn print_manpage(command: Option<&str>) -> Result<()> {
         Some("plan") => MAN_PLAN,
         Some("orchestration") => MAN_ORCHESTRATION,
         Some(other) => bail!(
-            "No manual entry for '{}'. Available: run, exec, review, plan, config, session, capability, discover, listen, man, skills, mcp, ps, search, input, broadcast, whoami, wait, spawn, status, collect, env, pipe, events, cancel, summary, watch, subscribe, log, output, retry, gc, serve, connect, disconnect, user, orchestration",
-            other
+            "No manual entry for '{other}'. Available: run, exec, review, plan, config, session, capability, discover, listen, man, skills, mcp, ps, search, input, broadcast, whoami, wait, spawn, status, collect, env, pipe, events, cancel, summary, watch, subscribe, log, output, retry, gc, serve, connect, disconnect, user, orchestration"
         ),
     };
-    print!("{}", content);
+    print!("{content}");
     Ok(())
 }
 

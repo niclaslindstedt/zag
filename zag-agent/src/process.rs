@@ -54,7 +54,7 @@ async fn read_stderr(handle: Option<tokio::process::ChildStderr>) -> String {
 pub fn log_stderr_text(stderr: &str) {
     if !stderr.is_empty() {
         for line in stderr.lines() {
-            debug!("[STDERR] {}", line);
+            debug!("[STDERR] {line}");
         }
     }
 }
@@ -68,7 +68,7 @@ pub fn check_exit_status(
     stderr: &str,
     agent_name: &str,
 ) -> Result<()> {
-    debug!("{} process exited with status: {}", agent_name, status);
+    debug!("{agent_name} process exited with status: {status}");
     if status.success() {
         return Ok(());
     }
@@ -94,7 +94,7 @@ pub fn handle_output(output: &std::process::Output, agent_name: &str) -> Result<
 ///
 /// Stdin is inherited. On failure, stderr is included in the error message.
 pub async fn run_captured(cmd: &mut Command, agent_name: &str) -> Result<String> {
-    debug!("{}: running with captured stdout/stderr", agent_name);
+    debug!("{agent_name}: running with captured stdout/stderr");
     cmd.stdin(Stdio::inherit())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

@@ -38,7 +38,7 @@ fn resolve_pipe_sessions(
         let store = SessionStore::load(root)?;
         let tagged = store.find_by_tag(t);
         if tagged.is_empty() && ids.is_empty() {
-            bail!("No sessions found with tag '{}'", t);
+            bail!("No sessions found with tag '{t}'");
         }
         for entry in tagged {
             if !ids.contains(&entry.session_id) {
@@ -78,7 +78,7 @@ fn build_context(session_ids: &[String], root: Option<&str>) -> Result<String> {
                 }
             }
             None => {
-                log::warn!("No result found for session {}", id);
+                log::warn!("No result found for session {id}");
             }
         }
     }
@@ -161,7 +161,7 @@ pub async fn run_pipe(params: PipeParams) -> Result<()> {
         "json-pretty" => println!("{}", serde_json::to_string_pretty(&output)?),
         _ => {
             if let Some(text) = output.final_result() {
-                println!("{}", text);
+                println!("{text}");
             }
         }
     }

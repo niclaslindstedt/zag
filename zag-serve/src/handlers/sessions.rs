@@ -111,7 +111,7 @@ pub async fn spawn(
         // Prepend restriction prompt to system prompt
         let restriction = user_restriction_prompt(&ctx.username, &ctx.home_dir);
         let system_prompt = match req.system_prompt {
-            Some(sp) => Some(format!("{}\n\n{}", restriction, sp)),
+            Some(sp) => Some(format!("{restriction}\n\n{sp}")),
             None => Some(restriction),
         };
 
@@ -252,7 +252,7 @@ pub async fn show(Path(id): Path<String>) -> impl IntoResponse {
         None => (
             StatusCode::NOT_FOUND,
             Json(ErrorResponse {
-                error: format!("Session not found: {}", id),
+                error: format!("Session not found: {id}"),
             }),
         )
             .into_response(),
@@ -309,7 +309,7 @@ pub async fn output(Path(id): Path<String>) -> impl IntoResponse {
         None => (
             StatusCode::NOT_FOUND,
             Json(ErrorResponse {
-                error: format!("No output found for session {}", id),
+                error: format!("No output found for session {id}"),
             }),
         )
             .into_response(),
@@ -410,7 +410,7 @@ pub async fn delete(Path(id): Path<String>) -> impl IntoResponse {
         return (
             StatusCode::NOT_FOUND,
             Json(ErrorResponse {
-                error: format!("Session not found: {}", id),
+                error: format!("Session not found: {id}"),
             }),
         )
             .into_response();
@@ -454,7 +454,7 @@ pub async fn update(
             return (
                 StatusCode::NOT_FOUND,
                 Json(ErrorResponse {
-                    error: format!("Session not found: {}", id),
+                    error: format!("Session not found: {id}"),
                 }),
             )
                 .into_response();
@@ -527,7 +527,7 @@ pub async fn input(Path(id): Path<String>, Json(req): Json<InputRequest>) -> imp
             return (
                 StatusCode::NOT_FOUND,
                 Json(ErrorResponse {
-                    error: format!("Session not found: {}", id),
+                    error: format!("Session not found: {id}"),
                 }),
             )
                 .into_response();

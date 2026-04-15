@@ -66,7 +66,7 @@ fn list_recent_sorted() {
 fn list_recent_limit() {
     let mut store = ProcessStore::default();
     for i in 0..5 {
-        store.add(make_entry(&format!("id-{}", i), i as u32, "exited"));
+        store.add(make_entry(&format!("id-{i}"), i as u32, "exited"));
     }
     let list = store.list_recent(Some(2));
     assert_eq!(list.len(), 2);

@@ -118,7 +118,7 @@ async fn resolve_effective_provider(
     }
 
     let mut on_downgrade = |from: &str, to: &str, reason: &str| {
-        log::warn!("Downgrading provider: {} → {} ({})", from, to, reason);
+        log::warn!("Downgrading provider: {from} → {to} ({reason})");
     };
     let (_agent, effective) = AgentFactory::create_with_fallback(
         provider,
@@ -182,7 +182,7 @@ async fn resolve_auto_selection(params: &mut AgentActionParams) -> Result<()> {
         let model_info = params
             .model
             .as_deref()
-            .map(|m| format!(" with model {}", m))
+            .map(|m| format!(" with model {m}"))
             .unwrap_or_default();
         println!(
             "\x1b[32m✓\x1b[0m Auto-selected: {}{}",
@@ -282,7 +282,7 @@ fn create_and_configure_agent(
             if is_stream_json {
                 // Output as unified NDJSON
                 if let Ok(json) = serde_json::to_string(event) {
-                    println!("{}", json);
+                    println!("{json}");
                 }
             } else {
                 match event {
@@ -297,12 +297,12 @@ fn create_and_configure_agent(
                     _ => {
                         if verbose {
                             if let Some(formatted) = crate::output::format_event_as_text(event) {
-                                println!("{}", formatted);
+                                println!("{formatted}");
                             }
                         } else if let Event::AssistantMessage { content, .. } = event {
                             for block in content {
                                 if let ContentBlock::Text { text } = block {
-                                    print!("{}", text);
+                                    print!("{text}");
                                 }
                             }
                         }
@@ -354,7 +354,7 @@ async fn execute_action(
         } => {
             if resume.is_some() || continue_session {
                 if let Some(ref session_id) = resume {
-                    info!("Resuming session {}", session_id);
+                    info!("Resuming session {session_id}");
                 } else {
                     info!("Resuming latest session");
                 }
@@ -367,11 +367,11 @@ async fn execute_action(
                 let wrapped = if ctx.provider != "claude" {
                     let w = prompt.as_deref().map(wrap_prompt_for_json);
                     if let Some(ref wp) = w {
-                        debug!("JSON-wrapped run prompt: {}", wp);
+                        debug!("JSON-wrapped run prompt: {wp}");
                     }
                     w
                 } else {
-                    debug!("Run prompt (JSON mode, Claude): {:?}", prompt);
+                    debug!("Run prompt (JSON mode, Claude): {prompt:?}");
                     None
                 };
                 let run_prompt = wrapped.as_deref().or(prompt.as_deref());
@@ -395,15 +395,15 @@ async fn execute_action(
         Commands::Exec { prompt, resume, .. } => {
             let run_prompt = if ctx.json_mode && ctx.provider != "claude" {
                 let wrapped = wrap_prompt_for_json(&prompt);
-                debug!("JSON-wrapped prompt: {}", wrapped);
+                debug!("JSON-wrapped prompt: {wrapped}");
                 wrapped
             } else {
-                debug!("Exec prompt: {}", prompt);
+                debug!("Exec prompt: {prompt}");
                 prompt.clone()
             };
 
             let agent_output = if let Some(ref session_id) = resume {
-                info!("Resuming session {} with prompt", session_id);
+                info!("Resuming session {session_id} with prompt");
                 agent
                     .run_resume_with_prompt(session_id, &run_prompt)
                     .await?
@@ -442,16 +442,16 @@ async fn execute_action(
 /// Log configuration details at debug level.
 fn log_config_details(params: &AgentActionParams) {
     if let Some(ref m) = params.model {
-        debug!("Model specified: {}", m);
+        debug!("Model specified: {m}");
     }
     if let Some(ref r) = params.root {
-        debug!("Root directory: {}", r);
+        debug!("Root directory: {r}");
     }
     if params.auto_approve {
         debug!("Auto-approve enabled");
     }
     if let Some(ref sp) = params.system_prompt {
-        debug!("System prompt: {}", sp);
+        debug!("System prompt: {sp}");
     }
     if !params.add_dirs.is_empty() {
         debug!("Additional directories: {:?}", params.add_dirs);
@@ -587,15 +587,15 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         augment_system_prompt_for_json(system_prompt, json_mode, &provider, &json_schema);
 
     if let Err(e) = skills::setup_skills(&provider, &mut system_prompt) {
-        log::warn!("Failed to set up skills: {}", e);
+        log::warn!("Failed to set up skills: {e}");
     }
 
     if let Err(e) = mcp::setup_mcp(&provider, root.as_deref()) {
-        log::warn!("Failed to set up MCP servers: {}", e);
+        log::warn!("Failed to set up MCP servers: {e}");
     }
 
     if let Some(ref sp) = system_prompt {
-        debug!("Effective system prompt: {}", sp);
+        debug!("Effective system prompt: {sp}");
     }
 
     let resume_target = if let Some(session_id) = run_resume_id(&action) {
@@ -718,10 +718,10 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         };
 
     if let Some(ref o) = output_format {
-        debug!("Output format: {}", o);
+        debug!("Output format: {o}");
     }
     if let Some(ref i) = input_format {
-        debug!("Input format: {}", i);
+        debug!("Input format: {i}");
     }
 
     let (mut agent, output_fmt_clone) = create_and_configure_agent(
@@ -759,7 +759,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         };
         agent.set_sandbox(config);
         if show_wrapper {
-            println!("\x1b[32m✓\x1b[0m Sandbox configured: {}", name);
+            println!("\x1b[32m✓\x1b[0m Sandbox configured: {name}");
         }
     }
     if let Some(target) = &resume_target
@@ -772,7 +772,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         };
         agent.set_sandbox(config);
         if show_wrapper {
-            println!("\x1b[32m✓\x1b[0m Sandbox configured: {}", name);
+            println!("\x1b[32m✓\x1b[0m Sandbox configured: {name}");
         }
     }
 
@@ -909,11 +909,8 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             .or(sb.session_id.as_deref())
             .or(plain.session_id.as_deref())
             .unwrap_or(&log_session_id);
-        println!("\x1b[33m>\x1b[0m Session: {}", display_session_id);
-        println!(
-            "\x1b[33m>\x1b[0m Listen:  agent listen {}",
-            display_session_id
-        );
+        println!("\x1b[33m>\x1b[0m Session: {display_session_id}");
+        println!("\x1b[33m>\x1b[0m Listen:  agent listen {display_session_id}");
     }
 
     let initial_provider_session_id = if provider == "claude" {
@@ -976,17 +973,16 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             zag_orch::collect::extract_last_assistant_message(ctx_session_id, root.as_deref());
         if let Some(context_text) = context_text {
             let prefix = format!(
-                "Context from previous session ({}):\n\n{}\n\n---\n\n",
-                ctx_session_id, context_text
+                "Context from previous session ({ctx_session_id}):\n\n{context_text}\n\n---\n\n"
             );
             match &mut action {
                 Commands::Exec { prompt, .. } => {
-                    *prompt = format!("{}{}", prefix, prompt);
+                    *prompt = format!("{prefix}{prompt}");
                 }
                 Commands::Run {
                     prompt: Some(p), ..
                 } => {
-                    *p = format!("{}{}", prefix, p);
+                    *p = format!("{prefix}{p}");
                 }
                 _ => {}
             }
@@ -996,19 +992,17 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
     // Resolve --plan: prepend a plan file's content to the prompt
     if let Some(ref plan_file) = plan_path {
         let plan_content = std::fs::read_to_string(plan_file)
-            .with_context(|| format!("Failed to read plan file: {}", plan_file))?;
-        let prefix = format!(
-            "Implementation plan:\n\n{}\n\n---\n\nFollow the plan above.\n\n",
-            plan_content
-        );
+            .with_context(|| format!("Failed to read plan file: {plan_file}"))?;
+        let prefix =
+            format!("Implementation plan:\n\n{plan_content}\n\n---\n\nFollow the plan above.\n\n");
         match &mut action {
             Commands::Exec { prompt, .. } => {
-                *prompt = format!("{}{}", prefix, prompt);
+                *prompt = format!("{prefix}{prompt}");
             }
             Commands::Run {
                 prompt: Some(p), ..
             } => {
-                *p = format!("{}{}", prefix, p);
+                *p = format!("{prefix}{p}");
             }
             Commands::Run { prompt, .. } => {
                 *prompt = Some(prefix);
@@ -1026,12 +1020,12 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         let prefix = zag_agent::attachment::format_attachments_prefix(&attachments);
         match &mut action {
             Commands::Exec { prompt, .. } => {
-                *prompt = format!("{}{}", prefix, prompt);
+                *prompt = format!("{prefix}{prompt}");
             }
             Commands::Run {
                 prompt: Some(p), ..
             } => {
-                *p = format!("{}{}", prefix, p);
+                *p = format!("{prefix}{p}");
             }
             Commands::Run { prompt, .. } => {
                 *prompt = Some(prefix);
@@ -1063,7 +1057,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         let duration = zag_orch::duration::parse_duration(timeout_str)?;
         match tokio::time::timeout(duration, action_future).await {
             Ok(r) => r,
-            Err(_) => Err(anyhow::anyhow!("Agent timed out after {}", timeout_str)),
+            Err(_) => Err(anyhow::anyhow!("Agent timed out after {timeout_str}")),
         }
     } else {
         action_future.await
@@ -1072,7 +1066,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
     // Always run agent cleanup regardless of action result to prevent resource leaks.
     debug!("Cleaning up agent resources");
     if let Err(cleanup_err) = agent.cleanup().await {
-        log::warn!("Agent cleanup failed: {}", cleanup_err);
+        log::warn!("Agent cleanup failed: {cleanup_err}");
     }
 
     let agent_success = match &action_result {
@@ -1087,12 +1081,12 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             }
             // Use ok() to avoid masking the original error if log finishing also fails
             if let Err(log_err) = log_coordinator.finish(false, Some(err.to_string())).await {
-                log::warn!("Failed to finish session log: {}", log_err);
+                log::warn!("Failed to finish session log: {log_err}");
             }
             zag_orch::lifecycle::write_ended_marker(&lifecycle_session_id, false, Some(exit_code));
 
             // Show the error to the user on stderr
-            eprintln!("\x1b[31merror\x1b[0m: {}", err);
+            eprintln!("\x1b[31merror\x1b[0m: {err}");
             eprintln!("\x1b[2mRun with --debug for full details\x1b[0m");
 
             // Exit with structured code: 2 for provider process crash
@@ -1220,7 +1214,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
                         }
                     }
                     Err(e) => {
-                        log::warn!("Failed to remove worktree: {}", e);
+                        log::warn!("Failed to remove worktree: {e}");
                     }
                 }
             }

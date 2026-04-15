@@ -163,7 +163,7 @@ fn record_event(writer: &SessionLogWriter, event: &Event) -> Result<()> {
             writer.emit(
                 LogSourceKind::Wrapper,
                 LogEventKind::ProviderStatus {
-                    message: format!("Turn {} complete", turn_index),
+                    message: format!("Turn {turn_index} complete"),
                     data: Some(serde_json::json!({
                         "stop_reason": stop_reason,
                         "turn_index": turn_index,
@@ -274,7 +274,7 @@ pub(crate) async fn run_relay(params: RelayParams) -> Result<()> {
                         };
                         debug!("Relay: sending user message ({} bytes)", content.len());
                         if let Err(e) = session.send_user_message(&content).await {
-                            log::error!("Failed to send message to agent: {}", e);
+                            log::error!("Failed to send message to agent: {e}");
                             break;
                         }
                     }
@@ -290,7 +290,7 @@ pub(crate) async fn run_relay(params: RelayParams) -> Result<()> {
                             tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
                             continue;
                         }
-                        log::error!("Relay: FIFO read error: {}", e);
+                        log::error!("Relay: FIFO read error: {e}");
                         break;
                     }
                 }
@@ -300,7 +300,7 @@ pub(crate) async fn run_relay(params: RelayParams) -> Result<()> {
                 match event_result {
                     Ok(Some(event)) => {
                         if let Err(e) = record_event(&writer_for_output, &event) {
-                            log::warn!("Failed to record event: {}", e);
+                            log::warn!("Failed to record event: {e}");
                         }
                     }
                     Ok(None) => {
@@ -309,7 +309,7 @@ pub(crate) async fn run_relay(params: RelayParams) -> Result<()> {
                         break;
                     }
                     Err(e) => {
-                        log::error!("Relay: agent event error: {}", e);
+                        log::error!("Relay: agent event error: {e}");
                         break;
                     }
                 }
@@ -341,7 +341,7 @@ pub(crate) async fn run_relay(params: RelayParams) -> Result<()> {
         entry.exited_at = Some(chrono::Utc::now().to_rfc3339());
     }
     if let Err(e) = proc_store.save() {
-        log::warn!("Failed to update process store: {}", e);
+        log::warn!("Failed to update process store: {e}");
     }
 
     // Try to wait for the agent process to finish

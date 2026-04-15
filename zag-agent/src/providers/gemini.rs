@@ -111,7 +111,7 @@ impl Gemini {
         let agent_args = self.build_run_args(interactive, prompt);
         log::debug!("Gemini command: gemini {}", agent_args.join(" "));
         if let Some(p) = prompt {
-            log::debug!("Gemini user prompt: {}", p);
+            log::debug!("Gemini user prompt: {p}");
         }
         let mut cmd = self.make_command(agent_args);
 

@@ -24,6 +24,6 @@ pub(crate) fn run(username: String, password: Option<String>) -> Result<()> {
 
     let mut store = UserStore::load()?;
     store.change_password(&username, &password)?;
-    eprintln!("Password changed for user '{}'.", username);
+    eprintln!("Password changed for user '{username}'.");
     Ok(())
 }

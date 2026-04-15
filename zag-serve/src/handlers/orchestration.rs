@@ -211,7 +211,7 @@ pub async fn broadcast(Json(req): Json<BroadcastRequest>) -> impl IntoResponse {
             return (
                 StatusCode::NOT_FOUND,
                 Json(ErrorResponse {
-                    error: format!("No sessions found with tag '{}'", tag),
+                    error: format!("No sessions found with tag '{tag}'"),
                 }),
             )
                 .into_response();

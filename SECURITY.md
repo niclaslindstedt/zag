@@ -25,6 +25,10 @@ Instead, use [GitHub's private vulnerability reporting](https://github.com/nicla
 
 This policy covers the `zag` CLI binary and the `zag-agent` / `zag-orch` library crates. Vulnerabilities in upstream agent CLIs (Claude, Codex, Gemini, Copilot, Ollama) should be reported to their respective maintainers.
 
+### Disclosure policy
+
+We follow a **90-day coordinated disclosure** model. After a fix is released — or after 90 days from initial report if no fix is forthcoming — reporters are free to publish their findings. We will credit reporters in the release notes unless they request anonymity.
+
 ### Safe harbor
 
 We consider security research conducted in good faith to be authorized. We will not pursue legal action against researchers who:

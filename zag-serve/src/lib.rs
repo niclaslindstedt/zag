@@ -126,7 +126,7 @@ pub async fn start_server(params: ServerParams) -> Result<()> {
     let app = router::build_router(state);
     let addr: SocketAddr = format!("{}:{}", params.host, params.port).parse()?;
 
-    info!("Starting zag server with TLS on {}", addr);
+    info!("Starting zag server with TLS on {addr}");
 
     let tls_config =
         axum_server::tls_rustls::RustlsConfig::from_pem_file(&params.tls_cert, &params.tls_key)

@@ -381,7 +381,7 @@ fn test_turn_complete_deserializes_from_json() {
             assert_eq!(turn_index, 0);
             assert!(usage.is_none());
         }
-        other => panic!("expected TurnComplete, got {:?}", other),
+        other => panic!("expected TurnComplete, got {other:?}"),
     }
 }
 
@@ -403,7 +403,7 @@ fn test_turn_complete_round_trips_with_null_stop_reason() {
             assert!(stop_reason.is_none());
             assert_eq!(turn_index, 5);
         }
-        other => panic!("expected TurnComplete, got {:?}", other),
+        other => panic!("expected TurnComplete, got {other:?}"),
     }
 }
 
@@ -417,7 +417,7 @@ fn test_log_entry_display() {
         data: None,
         timestamp: None,
     };
-    assert_eq!(format!("{}", entry), "[INFO] test");
+    assert_eq!(format!("{entry}"), "[INFO] test");
 }
 
 #[test]
@@ -434,7 +434,7 @@ fn test_log_entry_display_all_levels() {
             data: None,
             timestamp: None,
         };
-        assert!(format!("{}", entry).starts_with(prefix));
+        assert!(format!("{entry}").starts_with(prefix));
     }
 }
 

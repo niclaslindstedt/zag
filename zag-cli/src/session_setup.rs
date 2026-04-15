@@ -181,7 +181,7 @@ pub(crate) fn save_session_mapping(
             interactive: false,
         });
         if let Err(e) = store.save(root) {
-            log::warn!("Failed to save session mapping: {}", e);
+            log::warn!("Failed to save session mapping: {e}");
         }
         debug!(
             "Saved plain session mapping: id={}, model='{}'",
@@ -217,9 +217,9 @@ pub(crate) fn save_session_mapping(
             interactive: false,
         });
         if let Err(e) = store.save(root) {
-            log::warn!("Failed to save session mapping: {}", e);
+            log::warn!("Failed to save session mapping: {e}");
         }
-        debug!("Saved session mapping: {} -> {}", sid, wt_path);
+        debug!("Saved session mapping: {sid} -> {wt_path}");
     }
 
     // Save sandbox session mapping
@@ -248,9 +248,9 @@ pub(crate) fn save_session_mapping(
             interactive: false,
         });
         if let Err(e) = store.save(root) {
-            log::warn!("Failed to save sandbox session mapping: {}", e);
+            log::warn!("Failed to save sandbox session mapping: {e}");
         }
-        debug!("Saved sandbox session mapping: {} -> {}", sid, sandbox_name);
+        debug!("Saved sandbox session mapping: {sid} -> {sandbox_name}");
     }
 }
 
@@ -268,7 +268,7 @@ pub(crate) fn update_provider_session_id(
     let mut store = session::SessionStore::load(root).unwrap_or_default();
     store.set_provider_session_id(wrapper_session_id, provider_session_id);
     if let Err(e) = store.save(root) {
-        log::warn!("Failed to update provider session id: {}", e);
+        log::warn!("Failed to update provider session id: {e}");
     }
 }
 

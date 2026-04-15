@@ -373,7 +373,7 @@ impl Config {
 
     /// Set a config value by dot-notation key. Validates inputs.
     pub fn set_value(&mut self, key: &str, value: &str) -> Result<()> {
-        debug!("Setting config: {} = {}", key, value);
+        debug!("Setting config: {key} = {value}");
         match key {
             "provider" => {
                 let v = value.to_lowercase();
@@ -392,8 +392,7 @@ impl Config {
             "max_turns" => {
                 let turns: u32 = value.parse().map_err(|_| {
                     anyhow::anyhow!(
-                        "Invalid value '{}' for max_turns. Must be a positive integer.",
-                        value
+                        "Invalid value '{value}' for max_turns. Must be a positive integer."
                     )
                 })?;
                 self.defaults.max_turns = Some(turns);
@@ -404,10 +403,7 @@ impl Config {
             "auto_approve" => match value.to_lowercase().as_str() {
                 "true" | "1" | "yes" => self.defaults.auto_approve = Some(true),
                 "false" | "0" | "no" => self.defaults.auto_approve = Some(false),
-                _ => anyhow::bail!(
-                    "Invalid value '{}' for auto_approve. Use true or false.",
-                    value
-                ),
+                _ => anyhow::bail!("Invalid value '{value}' for auto_approve. Use true or false."),
             },
             "model.claude" => self.models.claude = Some(value.to_string()),
             "model.codex" => self.models.codex = Some(value.to_string()),
@@ -425,8 +421,7 @@ impl Config {
                 let v = value.to_lowercase();
                 if !["text", "json", "rich-text"].contains(&v.as_str()) {
                     anyhow::bail!(
-                        "Invalid listen format '{}'. Available: text, json, rich-text",
-                        value
+                        "Invalid listen format '{value}'. Available: text, json, rich-text"
                     );
                 }
                 self.listen.format = Some(v);
@@ -435,8 +430,7 @@ impl Config {
                 self.listen.timestamp_format = Some(value.to_string());
             }
             _ => anyhow::bail!(
-                "Unknown config key '{}'. Available: provider, model, auto_approve, max_turns, system_prompt, model.claude, model.codex, model.gemini, model.copilot, model.ollama, auto.provider, auto.model, ollama.model, ollama.size, ollama.size_small, ollama.size_medium, ollama.size_large, listen.format, listen.timestamp_format",
-                key
+                "Unknown config key '{key}'. Available: provider, model, auto_approve, max_turns, system_prompt, model.claude, model.codex, model.gemini, model.copilot, model.ollama, auto.provider, auto.model, ollama.model, ollama.size, ollama.size_small, ollama.size_medium, ollama.size_large, listen.format, listen.timestamp_format"
             ),
         }
         Ok(())
@@ -444,7 +438,7 @@ impl Config {
 
     /// Unset a config value by dot-notation key (revert to default).
     pub fn unset_value(&mut self, key: &str) -> Result<()> {
-        debug!("Unsetting config: {}", key);
+        debug!("Unsetting config: {key}");
         match key {
             "provider" => self.defaults.provider = None,
             "model" => self.defaults.model = None,
@@ -466,8 +460,7 @@ impl Config {
             "listen.format" => self.listen.format = None,
             "listen.timestamp_format" => self.listen.timestamp_format = None,
             _ => anyhow::bail!(
-                "Unknown config key '{}'. Run 'zag config list' to see available keys.",
-                key
+                "Unknown config key '{key}'. Run 'zag config list' to see available keys."
             ),
         }
         Ok(())

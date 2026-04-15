@@ -68,7 +68,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
             proxy_get_json(
                 &client,
                 config,
-                &format!("/api/v1/sessions/{}/status", session_id),
+                &format!("/api/v1/sessions/{session_id}/status"),
                 *json,
             )
             .await
@@ -85,16 +85,16 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
         } => {
             let mut params = vec![];
             if let Some(t) = event_type {
-                params.push(format!("type={}", t));
+                params.push(format!("type={t}"));
             }
             if let Some(n) = last {
-                params.push(format!("last={}", n));
+                params.push(format!("last={n}"));
             }
             if let Some(s) = after_seq {
-                params.push(format!("after_seq={}", s));
+                params.push(format!("after_seq={s}"));
             }
             if let Some(s) = before_seq {
-                params.push(format!("before_seq={}", s));
+                params.push(format!("before_seq={s}"));
             }
             let qs = if params.is_empty() {
                 String::new()
@@ -104,7 +104,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
             proxy_get_json(
                 &client,
                 config,
-                &format!("/api/v1/sessions/{}/events{}", session_id, qs),
+                &format!("/api/v1/sessions/{session_id}/events{qs}"),
                 *json,
             )
             .await
@@ -152,7 +152,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
                 proxy_post_json(
                     &client,
                     config,
-                    &format!("/api/v1/sessions/{}/cancel", id),
+                    &format!("/api/v1/sessions/{id}/cancel"),
                     &body,
                     *json,
                 )
@@ -201,7 +201,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
                 proxy_get_json(
                     &client,
                     config,
-                    &format!("/api/v1/sessions/{}/output", id),
+                    &format!("/api/v1/sessions/{id}/output"),
                     *json,
                 )
                 .await
@@ -221,7 +221,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
                 proxy_ws_stream(
                     &config.url,
                     &config.token,
-                    &format!("/api/v1/sessions/{}/stream", id),
+                    &format!("/api/v1/sessions/{id}/stream"),
                     *json,
                 )
                 .await
@@ -238,10 +238,10 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
         } => {
             let mut params = vec![];
             if let Some(t) = tag {
-                params.push(format!("tag={}", t));
+                params.push(format!("tag={t}"));
             }
             if let Some(t) = event_type {
-                params.push(format!("type={}", t));
+                params.push(format!("type={t}"));
             }
             let qs = if params.is_empty() {
                 String::new()
@@ -251,7 +251,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
             proxy_ws_stream(
                 &config.url,
                 &config.token,
-                &format!("/api/v1/subscribe{}", qs),
+                &format!("/api/v1/subscribe{qs}"),
                 *json,
             )
             .await
@@ -264,7 +264,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
                 proxy_post_json(
                     &client,
                     config,
-                    &format!("/api/v1/sessions/{}/input", id),
+                    &format!("/api/v1/sessions/{id}/input"),
                     &body,
                     true,
                 )
@@ -346,7 +346,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
             proxy_post_json(
                 &client,
                 config,
-                &format!("/api/v1/sessions/{}/log", session_id),
+                &format!("/api/v1/sessions/{session_id}/log"),
                 &body,
                 true,
             )
@@ -358,13 +358,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
             ..
         } => {
             let id = session_id.as_deref().unwrap_or("latest");
-            proxy_get_json(
-                &client,
-                config,
-                &format!("/api/v1/sessions/{}/env", id),
-                true,
-            )
-            .await
+            proxy_get_json(&client, config, &format!("/api/v1/sessions/{id}/env"), true).await
         }
         Commands::Search {
             query,
@@ -384,9 +378,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
             limit,
             ..
         } => {
-            let tool_kind_str = tool_kind
-                .as_ref()
-                .map(|k| format!("{:?}", k).to_lowercase());
+            let tool_kind_str = tool_kind.as_ref().map(|k| format!("{k:?}").to_lowercase());
             let body = serde_json::json!({
                 "query": query,
                 "regex": regex,
@@ -443,9 +435,9 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
         } => {
             let mut params = vec![];
             if let Some(p) = provider {
-                params.push(format!("provider={}", p));
+                params.push(format!("provider={p}"));
             }
-            params.push(format!("format={}", format));
+            params.push(format!("format={format}"));
             if *pretty {
                 params.push("pretty=true".to_string());
             }
@@ -454,7 +446,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
             } else {
                 format!("?{}", params.join("&"))
             };
-            proxy_get_json(&client, config, &format!("/api/v1/capability{}", qs), true).await
+            proxy_get_json(&client, config, &format!("/api/v1/capability{qs}"), true).await
         }
         Commands::Discover {
             provider,
@@ -467,19 +459,19 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
         } => {
             let mut params = vec![];
             if let Some(p) = provider {
-                params.push(format!("provider={}", p));
+                params.push(format!("provider={p}"));
             }
             if *models {
                 params.push("models=true".to_string());
             }
             if let Some(r) = resolve {
-                params.push(format!("resolve={}", r));
+                params.push(format!("resolve={r}"));
             }
             if *json {
                 params.push("json=true".to_string());
             }
             if let Some(f) = format {
-                params.push(format!("format={}", f));
+                params.push(format!("format={f}"));
             }
             if *pretty {
                 params.push("pretty=true".to_string());
@@ -489,7 +481,7 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
             } else {
                 format!("?{}", params.join("&"))
             };
-            proxy_get_json(&client, config, &format!("/api/v1/discover{}", qs), true).await
+            proxy_get_json(&client, config, &format!("/api/v1/discover{qs}"), true).await
         }
         Commands::Skills { command: sub, json } => {
             let body = proxy_skills_body(sub);
@@ -615,7 +607,7 @@ async fn proxy_exec(
     let status = resp.status();
     let body = resp.text().await?;
     if !status.is_success() {
-        bail!("Spawn failed ({}): {}", status, body);
+        bail!("Spawn failed ({status}): {body}");
     }
 
     let spawn_resp: serde_json::Value = serde_json::from_str(&body)?;
@@ -638,7 +630,7 @@ async fn proxy_exec(
     let status = resp.status();
     let body = resp.text().await?;
     if !status.is_success() {
-        bail!("Wait failed ({}): {}", status, body);
+        bail!("Wait failed ({status}): {body}");
     }
 
     // 3. Get output
@@ -648,18 +640,18 @@ async fn proxy_exec(
     let status = resp.status();
     let body = resp.text().await?;
     if !status.is_success() {
-        bail!("Output failed ({}): {}", status, body);
+        bail!("Output failed ({status}): {body}");
     }
 
     // Print based on output format
     let is_json = matches!(output_format, Some("json" | "json-pretty"));
     if is_json {
-        println!("{}", body);
+        println!("{body}");
     } else {
         // Extract just the result text for plain-text output
         let output: serde_json::Value = serde_json::from_str(&body)?;
         if let Some(result) = output["result"].as_str() {
-            println!("{}", result);
+            println!("{result}");
         }
     }
 
@@ -679,10 +671,10 @@ async fn proxy_get_json(
     let body = resp.text().await?;
 
     if !status.is_success() {
-        bail!("Server error ({}): {}", status, body);
+        bail!("Server error ({status}): {body}");
     }
 
-    println!("{}", body);
+    println!("{body}");
     Ok(())
 }
 
@@ -705,10 +697,10 @@ async fn proxy_post_json(
     let body = resp.text().await?;
 
     if !status.is_success() {
-        bail!("Server error ({}): {}", status, body);
+        bail!("Server error ({status}): {body}");
     }
 
-    println!("{}", body);
+    println!("{body}");
     Ok(())
 }
 
@@ -719,12 +711,12 @@ async fn proxy_ws_stream(base_url: &str, token: &str, path: &str, _json: bool) -
     let ws_url = base_url
         .replace("https://", "wss://")
         .replace("http://", "ws://");
-    let url = format!("{}{}", ws_url, path);
+    let url = format!("{ws_url}{path}");
 
     // Build request with auth header
     let request = tokio_tungstenite::tungstenite::http::Request::builder()
         .uri(&url)
-        .header("Authorization", format!("Bearer {}", token))
+        .header("Authorization", format!("Bearer {token}"))
         .header("Sec-WebSocket-Version", "13")
         .header(
             "Sec-WebSocket-Key",
@@ -745,18 +737,18 @@ async fn proxy_ws_stream(base_url: &str, token: &str, path: &str, _json: bool) -
 
     let (ws_stream, _) = tokio_tungstenite::connect_async(request)
         .await
-        .map_err(|e| anyhow::anyhow!("WebSocket connection failed: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("WebSocket connection failed: {e}"))?;
 
     let (_, mut read) = ws_stream.split();
 
     while let Some(msg) = read.next().await {
         match msg {
             Ok(tokio_tungstenite::tungstenite::Message::Text(text)) => {
-                println!("{}", text);
+                println!("{text}");
             }
             Ok(tokio_tungstenite::tungstenite::Message::Close(_)) => break,
             Err(e) => {
-                bail!("WebSocket error: {}", e);
+                bail!("WebSocket error: {e}");
             }
             _ => {}
         }
@@ -777,10 +769,10 @@ async fn proxy_session(
             proxy_get_json(client, config, "/api/v1/sessions", json).await
         }
         SessionCommand::Show { id } => {
-            proxy_get_json(client, config, &format!("/api/v1/sessions/{}", id), json).await
+            proxy_get_json(client, config, &format!("/api/v1/sessions/{id}"), json).await
         }
         SessionCommand::Delete { id } => {
-            proxy_delete(client, config, &format!("/api/v1/sessions/{}", id)).await
+            proxy_delete(client, config, &format!("/api/v1/sessions/{id}")).await
         }
         SessionCommand::Update {
             id,
@@ -795,7 +787,7 @@ async fn proxy_session(
                 "tags": if tags.is_empty() { None } else { Some(tags) },
                 "clear_tags": clear_tags,
             });
-            proxy_patch(client, config, &format!("/api/v1/sessions/{}", id), &body).await
+            proxy_patch(client, config, &format!("/api/v1/sessions/{id}"), &body).await
         }
         SessionCommand::Import => {
             bail!(
@@ -817,14 +809,14 @@ async fn proxy_ps(
             proxy_get_json(client, config, "/api/v1/processes", json).await
         }
         Some(PsCommand::Show { id }) => {
-            proxy_get_json(client, config, &format!("/api/v1/processes/{}", id), json).await
+            proxy_get_json(client, config, &format!("/api/v1/processes/{id}"), json).await
         }
         Some(PsCommand::Stop { id }) => {
             let body = serde_json::json!({});
             proxy_post_json(
                 client,
                 config,
-                &format!("/api/v1/processes/{}/stop", id),
+                &format!("/api/v1/processes/{id}/stop"),
                 &body,
                 json,
             )
@@ -835,7 +827,7 @@ async fn proxy_ps(
             proxy_post_json(
                 client,
                 config,
-                &format!("/api/v1/processes/{}/kill", id),
+                &format!("/api/v1/processes/{id}/kill"),
                 &body,
                 json,
             )
@@ -923,10 +915,10 @@ async fn proxy_delete(client: &reqwest::Client, config: &ConnectConfig, path: &s
     let body = resp.text().await?;
 
     if !status.is_success() {
-        bail!("Server error ({}): {}", status, body);
+        bail!("Server error ({status}): {body}");
     }
 
-    println!("{}", body);
+    println!("{body}");
     Ok(())
 }
 
@@ -948,10 +940,10 @@ async fn proxy_patch(
     let body = resp.text().await?;
 
     if !status.is_success() {
-        bail!("Server error ({}): {}", status, body);
+        bail!("Server error ({status}): {body}");
     }
 
-    println!("{}", body);
+    println!("{body}");
     Ok(())
 }
 
@@ -1048,7 +1040,7 @@ async fn proxy_watch(
     // Build subscribe WebSocket path
     let mut params = vec![format!("type={}", on_event)];
     if let Some(t) = tag {
-        params.push(format!("tag={}", t));
+        params.push(format!("tag={t}"));
     }
 
     let path = if let Some(id) = session_id {
@@ -1061,7 +1053,7 @@ async fn proxy_watch(
         .url
         .replace("https://", "wss://")
         .replace("http://", "ws://");
-    let url = format!("{}{}", ws_url, path);
+    let url = format!("{ws_url}{path}");
 
     let request = tokio_tungstenite::tungstenite::http::Request::builder()
         .uri(&url)
@@ -1086,7 +1078,7 @@ async fn proxy_watch(
 
     let (ws_stream, _) = tokio_tungstenite::connect_async(request)
         .await
-        .map_err(|e| anyhow::anyhow!("WebSocket connection failed: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("WebSocket connection failed: {e}"))?;
 
     let (_, mut read) = ws_stream.split();
 
@@ -1103,7 +1095,7 @@ async fn proxy_watch(
                 }
 
                 if json {
-                    println!("{}", text);
+                    println!("{text}");
                 }
 
                 // Execute command if specified
@@ -1113,7 +1105,7 @@ async fn proxy_watch(
                         .env("ZAG_EVENT", text.as_ref() as &str)
                         .status();
                     if let Err(e) = status {
-                        eprintln!("Failed to execute command: {}", e);
+                        eprintln!("Failed to execute command: {e}");
                     }
                 }
 
@@ -1123,7 +1115,7 @@ async fn proxy_watch(
             }
             Ok(tokio_tungstenite::tungstenite::Message::Close(_)) => break,
             Err(e) => {
-                bail!("WebSocket error: {}", e);
+                bail!("WebSocket error: {e}");
             }
             _ => {}
         }

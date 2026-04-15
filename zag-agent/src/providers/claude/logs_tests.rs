@@ -113,7 +113,7 @@ fn test_parse_user_message_string_content() {
             assert_eq!(content, "hello world");
             assert_eq!(role, "user");
         }
-        other => panic!("Expected UserMessage, got {:?}", other),
+        other => panic!("Expected UserMessage, got {other:?}"),
     }
 }
 
@@ -147,7 +147,7 @@ fn test_parse_user_message_tool_result() {
             assert_eq!(*success, Some(true)); // is_error=false → success=true
             assert_eq!(output.as_deref(), Some("file contents here"));
         }
-        other => panic!("Expected ToolResult, got {:?}", other),
+        other => panic!("Expected ToolResult, got {other:?}"),
     }
 }
 
@@ -174,7 +174,7 @@ fn test_parse_assistant_text_block() {
             assert_eq!(content, "Here is the answer");
             assert_eq!(message_id.as_deref(), Some("msg-1"));
         }
-        other => panic!("Expected AssistantMessage, got {:?}", other),
+        other => panic!("Expected AssistantMessage, got {other:?}"),
     }
 }
 
@@ -197,7 +197,7 @@ fn test_parse_assistant_thinking_block() {
         LogEventKind::Reasoning { content, .. } => {
             assert_eq!(content, "Let me consider this...");
         }
-        other => panic!("Expected Reasoning, got {:?}", other),
+        other => panic!("Expected Reasoning, got {other:?}"),
     }
 }
 
@@ -232,7 +232,7 @@ fn test_parse_assistant_tool_use_block() {
             assert_eq!(tool_id.as_deref(), Some("tool-abc"));
             assert!(input.is_some());
         }
-        other => panic!("Expected ToolCall, got {:?}", other),
+        other => panic!("Expected ToolCall, got {other:?}"),
     }
 }
 
@@ -271,7 +271,7 @@ fn test_parse_result_with_permission_denials() {
             assert_eq!(tool_name, "Bash");
             assert!(!granted);
         }
-        other => panic!("Expected Permission, got {:?}", other),
+        other => panic!("Expected Permission, got {other:?}"),
     }
     assert!(matches!(&events[1], LogEventKind::ProviderStatus { .. }));
 }

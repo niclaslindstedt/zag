@@ -107,7 +107,7 @@ impl ClaudeLiveLogAdapter {
         if let Some(session_id) = &self.ctx.provider_session_id {
             if let Ok(projects) = std::fs::read_dir(&projects_dir) {
                 for project in projects.flatten() {
-                    let candidate = project.path().join(format!("{}.jsonl", session_id));
+                    let candidate = project.path().join(format!("{session_id}.jsonl"));
                     if candidate.exists() {
                         return Some(candidate);
                     }

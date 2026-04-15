@@ -100,7 +100,7 @@ pub fn collect_results(params: &CollectParams) -> Result<Vec<CollectedResult>> {
     if let Some(ref tag) = params.tag {
         let tagged = store.find_by_tag(tag);
         if tagged.is_empty() && session_ids.is_empty() {
-            bail!("No sessions found with tag '{}'", tag);
+            bail!("No sessions found with tag '{tag}'");
         }
         for entry in tagged {
             if !session_ids.contains(&entry.session_id) {
@@ -159,10 +159,10 @@ pub fn run_collect(params: CollectParams) -> Result<()> {
             );
             if let Some(ref text) = r.result_text {
                 let preview: String = text.chars().take(200).collect();
-                println!("  {}", preview);
+                println!("  {preview}");
             }
             if let Some(ref err) = r.error {
-                println!("  \x1b[31merror: {}\x1b[0m", err);
+                println!("  \x1b[31merror: {err}\x1b[0m");
             }
             println!();
         }

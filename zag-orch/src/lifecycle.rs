@@ -16,16 +16,16 @@ fn events_dir() -> PathBuf {
 pub fn write_started_marker(session_id: &str) {
     let dir = events_dir();
     if let Err(e) = std::fs::create_dir_all(&dir) {
-        debug!("Failed to create events directory: {}", e);
+        debug!("Failed to create events directory: {e}");
         return;
     }
-    let path = dir.join(format!("{}.started", session_id));
+    let path = dir.join(format!("{session_id}.started"));
     let content = serde_json::json!({
         "session_id": session_id,
         "started_at": chrono::Utc::now().to_rfc3339(),
     });
     if let Err(e) = std::fs::write(&path, content.to_string()) {
-        debug!("Failed to write started marker: {}", e);
+        debug!("Failed to write started marker: {e}");
     }
 }
 
@@ -33,10 +33,10 @@ pub fn write_started_marker(session_id: &str) {
 pub fn write_ended_marker(session_id: &str, success: bool, exit_code: Option<i32>) {
     let dir = events_dir();
     if let Err(e) = std::fs::create_dir_all(&dir) {
-        debug!("Failed to create events directory: {}", e);
+        debug!("Failed to create events directory: {e}");
         return;
     }
-    let path = dir.join(format!("{}.ended", session_id));
+    let path = dir.join(format!("{session_id}.ended"));
     let content = serde_json::json!({
         "session_id": session_id,
         "success": success,
@@ -44,7 +44,7 @@ pub fn write_ended_marker(session_id: &str, success: bool, exit_code: Option<i32
         "ended_at": chrono::Utc::now().to_rfc3339(),
     });
     if let Err(e) = std::fs::write(&path, content.to_string()) {
-        debug!("Failed to write ended marker: {}", e);
+        debug!("Failed to write ended marker: {e}");
     }
 }
 

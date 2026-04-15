@@ -62,14 +62,14 @@ pub fn resolve_session_from_ps(value: &str) -> Result<String> {
         // Try numeric OS PID
         let pid: u32 = value
             .parse()
-            .with_context(|| format!("'{}' is not a valid PID or process UUID", value))?;
+            .with_context(|| format!("'{value}' is not a valid PID or process UUID"))?;
         let by_pid: Vec<_> = store.processes.iter().filter(|e| e.pid == pid).collect();
         by_pid
             .into_iter()
             .max_by(|a, b| a.started_at.cmp(&b.started_at))
     };
 
-    let entry = entry.ok_or_else(|| anyhow::anyhow!("No process found for '{}'", value))?;
+    let entry = entry.ok_or_else(|| anyhow::anyhow!("No process found for '{value}'"))?;
 
     entry.session_id.clone().ok_or_else(|| {
         anyhow::anyhow!(
@@ -92,7 +92,7 @@ pub fn resolve_session_log(
 
     if let Some(id) = session_id {
         // Try direct file path first
-        let direct = sessions_dir.join(format!("{}.jsonl", id));
+        let direct = sessions_dir.join(format!("{id}.jsonl"));
         if direct.exists() {
             return Ok(direct);
         }
@@ -138,7 +138,7 @@ pub fn resolve_session_log(
             return Ok(path);
         }
 
-        bail!("No session log found for '{}'", id);
+        bail!("No session log found for '{id}'");
     }
 
     if latest {
@@ -258,9 +258,9 @@ fn format_ts(ts: &str, fmt: &str) -> String {
 /// Prepend a timestamp prefix to a formatted event string, preserving any leading newline.
 fn with_timestamp(ts_str: &str, text: &str) -> String {
     if let Some(rest) = text.strip_prefix('\n') {
-        format!("\n[{}] {}", ts_str, rest)
+        format!("\n[{ts_str}] {rest}")
     } else {
-        format!("[{}] {}", ts_str, text)
+        format!("[{ts_str}] {text}")
     }
 }
 
@@ -383,10 +383,10 @@ pub fn tail_session_log(
                     // For JSON, parse to check filter, then pass through
                     if let Ok(event) = serde_json::from_str::<AgentLogEvent>(trimmed) {
                         if matches_filter(&event.kind, filters) {
-                            println!("{}", trimmed);
+                            println!("{trimmed}");
                         }
                     } else {
-                        println!("{}", trimmed);
+                        println!("{trimmed}");
                     }
                 }
                 ListenFormat::Text | ListenFormat::RichText => {
@@ -413,7 +413,7 @@ pub fn tail_session_log(
                                     };
                                     println!("{}", with_timestamp(&ts_str, &text));
                                 } else {
-                                    println!("{}", text);
+                                    println!("{text}");
                                 }
                             }
                         }
@@ -446,9 +446,9 @@ pub fn format_event_text(event: &AgentLogEvent, show_thinking: bool) -> Option<S
         LogEventKind::SessionStarted { command, model, .. } => {
             let model_info = model
                 .as_deref()
-                .map(|m| format!(" (model: {})", m))
+                .map(|m| format!(" (model: {m})"))
                 .unwrap_or_default();
-            Some(format!("\n\u{25cf} Started: {}{}", command, model_info))
+            Some(format!("\n\u{25cf} Started: {command}{model_info}"))
         }
         LogEventKind::UserMessage { content, .. } => {
             Some(format!("\n\u{276f} {}", render_content(content)))
@@ -470,7 +470,7 @@ pub fn format_event_text(event: &AgentLogEvent, show_thinking: bool) -> Option<S
             tool_name, input, ..
         } => {
             let summary = summarize_tool_input(tool_name, input.as_ref());
-            Some(format!("\n  \u{26a1} {}{}", tool_name, summary))
+            Some(format!("\n  \u{26a1} {tool_name}{summary}"))
         }
         LogEventKind::ToolResult {
             success,
@@ -485,20 +485,20 @@ pub fn format_event_text(event: &AgentLogEvent, show_thinking: bool) -> Option<S
                     .as_deref()
                     .map(|s| format!(" {}", format_tool_output(s)))
                     .unwrap_or_default();
-                Some(format!("  \u{2713}{}", detail))
+                Some(format!("  \u{2713}{detail}"))
             } else {
                 let detail = output
                     .as_deref()
                     .map(|s| format!(" {}", format_tool_output(s)))
                     .unwrap_or_default();
-                Some(format!("  \u{2717}{}", detail))
+                Some(format!("  \u{2717}{detail}"))
             }
         }
         LogEventKind::Permission {
             tool_name, granted, ..
         } => {
             let icon = if *granted { "\u{1f513}" } else { "\u{1f512}" };
-            Some(format!("  {} {}", icon, tool_name))
+            Some(format!("  {icon} {tool_name}"))
         }
         LogEventKind::ProviderStatus { message, .. } => {
             Some(format!("  > {}", truncate(message, 200)))
@@ -523,9 +523,9 @@ pub fn format_event_text(event: &AgentLogEvent, show_thinking: bool) -> Option<S
             let status = if *success { "completed" } else { "failed" };
             let error_info = error
                 .as_deref()
-                .map(|e| format!(": {}", e))
+                .map(|e| format!(": {e}"))
                 .unwrap_or_default();
-            Some(format!("\n\u{25cf} Session {}{}", status, error_info))
+            Some(format!("\n\u{25cf} Session {status}{error_info}"))
         }
         LogEventKind::Heartbeat { .. } => None,
         LogEventKind::Usage {
@@ -535,11 +535,10 @@ pub fn format_event_text(event: &AgentLogEvent, show_thinking: bool) -> Option<S
             ..
         } => {
             let cost_str = total_cost_usd
-                .map(|c| format!(", cost=${:.4}", c))
+                .map(|c| format!(", cost=${c:.4}"))
                 .unwrap_or_default();
             Some(format!(
-                "  tokens: {} in / {} out{}",
-                input_tokens, output_tokens, cost_str
+                "  tokens: {input_tokens} in / {output_tokens} out{cost_str}"
             ))
         }
         LogEventKind::UserEvent { level, message, .. } => {
@@ -591,7 +590,7 @@ fn summarize_tool_input(_tool_name: &str, input: Option<&serde_json::Value>) -> 
             .and_then(|v| v.as_str())
             .map(|d| format!(" — {}", truncate(d, 60)))
             .unwrap_or_default();
-        return format!(": {}{}", p, desc);
+        return format!(": {p}{desc}");
     }
 
     // Fallback: compact JSON
@@ -619,11 +618,10 @@ pub fn format_event_rich(event: &AgentLogEvent, show_thinking: bool) -> Option<S
         LogEventKind::SessionStarted { command, model, .. } => {
             let model_info = model
                 .as_deref()
-                .map(|m| format!(" \x1b[2m(model: {})\x1b[0m", m))
+                .map(|m| format!(" \x1b[2m(model: {m})\x1b[0m"))
                 .unwrap_or_default();
             Some(format!(
-                "\n\x1b[32m\u{25cf}\x1b[0m Started: \x1b[1m{}\x1b[0m{}",
-                command, model_info
+                "\n\x1b[32m\u{25cf}\x1b[0m Started: \x1b[1m{command}\x1b[0m{model_info}"
             ))
         }
         LogEventKind::UserMessage { content, .. } => Some(format!(
@@ -633,7 +631,7 @@ pub fn format_event_rich(event: &AgentLogEvent, show_thinking: bool) -> Option<S
         LogEventKind::AssistantMessage { content, .. } => {
             let rendered = render_markdown(content.trim());
             let indented = indent_continuation(&rendered, "  ");
-            Some(format!("\n\x1b[1m\u{23fa}\x1b[0m {}", indented))
+            Some(format!("\n\x1b[1m\u{23fa}\x1b[0m {indented}"))
         }
         LogEventKind::Reasoning { content, .. } => {
             if !show_thinking {
@@ -648,10 +646,7 @@ pub fn format_event_rich(event: &AgentLogEvent, show_thinking: bool) -> Option<S
             tool_name, input, ..
         } => {
             let summary = summarize_tool_input(tool_name, input.as_ref());
-            Some(format!(
-                "\n  \x1b[33m\u{26a1} {}\x1b[0m{}",
-                tool_name, summary
-            ))
+            Some(format!("\n  \x1b[33m\u{26a1} {tool_name}\x1b[0m{summary}"))
         }
         LogEventKind::ToolResult {
             success,
@@ -669,13 +664,13 @@ pub fn format_event_rich(event: &AgentLogEvent, show_thinking: bool) -> Option<S
                     .as_deref()
                     .map(|s| format!(" \x1b[2m{}\x1b[0m", format_tool_output(s)))
                     .unwrap_or_default();
-                Some(format!("  \x1b[32m\u{2713}\x1b[0m{}", detail))
+                Some(format!("  \x1b[32m\u{2713}\x1b[0m{detail}"))
             } else {
                 let detail = output
                     .as_deref()
                     .map(|s| format!(" \x1b[2m{}\x1b[0m", format_tool_output(s)))
                     .unwrap_or_default();
-                Some(format!("  \x1b[31m\u{2717}\x1b[0m{}", detail))
+                Some(format!("  \x1b[31m\u{2717}\x1b[0m{detail}"))
             }
         }
         LogEventKind::Permission {
@@ -683,13 +678,11 @@ pub fn format_event_rich(event: &AgentLogEvent, show_thinking: bool) -> Option<S
         } => {
             if *granted {
                 Some(format!(
-                    "  \x1b[32m\u{1f513}\x1b[0m \x1b[2m{}\x1b[0m",
-                    tool_name
+                    "  \x1b[32m\u{1f513}\x1b[0m \x1b[2m{tool_name}\x1b[0m"
                 ))
             } else {
                 Some(format!(
-                    "  \x1b[31m\u{1f512}\x1b[0m \x1b[2m{}\x1b[0m",
-                    tool_name
+                    "  \x1b[31m\u{1f512}\x1b[0m \x1b[2m{tool_name}\x1b[0m"
                 ))
             }
         }
@@ -724,11 +717,10 @@ pub fn format_event_rich(event: &AgentLogEvent, show_thinking: bool) -> Option<S
             };
             let error_info = error
                 .as_deref()
-                .map(|e| format!(": {}", e))
+                .map(|e| format!(": {e}"))
                 .unwrap_or_default();
             Some(format!(
-                "\n\x1b[{}m\u{25cf}\x1b[0m Session {}{}",
-                color, status, error_info
+                "\n\x1b[{color}m\u{25cf}\x1b[0m Session {status}{error_info}"
             ))
         }
         LogEventKind::Heartbeat { .. } => None,
@@ -739,11 +731,10 @@ pub fn format_event_rich(event: &AgentLogEvent, show_thinking: bool) -> Option<S
             ..
         } => {
             let cost_str = total_cost_usd
-                .map(|c| format!(", cost=\x1b[33m${:.4}\x1b[0m", c))
+                .map(|c| format!(", cost=\x1b[33m${c:.4}\x1b[0m"))
                 .unwrap_or_default();
             Some(format!(
-                "  \x1b[2mtokens: {} in / {} out{}\x1b[0m",
-                input_tokens, output_tokens, cost_str
+                "  \x1b[2mtokens: {input_tokens} in / {output_tokens} out{cost_str}\x1b[0m"
             ))
         }
         LogEventKind::UserEvent { level, message, .. } => {
@@ -786,14 +777,14 @@ fn render_markdown(s: &str) -> String {
     let text = termimad::text(s);
     // termimad::text returns a FmtText whose Display impl produces ANSI output.
     // Trim trailing whitespace/newlines that termimad may add.
-    format!("{}", text).trim_end().to_string()
+    format!("{text}").trim_end().to_string()
 }
 
 /// Indent continuation lines (2nd line onwards) with the given prefix.
 fn indent_continuation(s: &str, prefix: &str) -> String {
     let mut lines = s.lines();
     let first = lines.next().unwrap_or("");
-    let rest: Vec<String> = lines.map(|l| format!("{}{}", prefix, l)).collect();
+    let rest: Vec<String> = lines.map(|l| format!("{prefix}{l}")).collect();
     if rest.is_empty() {
         first.to_string()
     } else {

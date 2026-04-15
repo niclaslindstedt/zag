@@ -59,7 +59,7 @@ impl UserStore {
     /// Add a new user. Hashes the password with bcrypt.
     pub fn add_user(&mut self, username: &str, password: &str, home_dir: &str) -> Result<()> {
         if self.find_user(username).is_some() {
-            bail!("User '{}' already exists", username);
+            bail!("User '{username}' already exists");
         }
         let password_hash = bcrypt::hash(password, bcrypt::DEFAULT_COST)?;
         let entry = UserEntry {
@@ -78,7 +78,7 @@ impl UserStore {
         let len_before = self.users.len();
         self.users.retain(|u| u.username != username);
         if self.users.len() == len_before {
-            bail!("User '{}' not found", username);
+            bail!("User '{username}' not found");
         }
         self.save()
     }
@@ -89,7 +89,7 @@ impl UserStore {
             .users
             .iter_mut()
             .find(|u| u.username == username)
-            .ok_or_else(|| anyhow::anyhow!("User '{}' not found", username))?;
+            .ok_or_else(|| anyhow::anyhow!("User '{username}' not found"))?;
         user.password_hash = bcrypt::hash(new_password, bcrypt::DEFAULT_COST)?;
         self.save()
     }

@@ -101,7 +101,7 @@ fn print_provider_detail(cap: &ProviderCapability) {
     );
     println!("Available models:");
     for m in &cap.available_models {
-        println!("  - {}", m);
+        println!("  - {m}");
     }
     println!();
     println!("Features:");
@@ -130,20 +130,20 @@ fn print_feature(label: &str, f: &capability::FeatureSupport) {
     } else {
         "no"
     };
-    println!("{:<24} {}", label, status);
+    println!("{label:<24} {status}");
 }
 
 fn print_streaming_input(label: &str, f: &capability::StreamingInputSupport) {
     let status = if f.supported {
         let base = if f.native { "native" } else { "wrapper" };
         match f.semantics.as_deref() {
-            Some(s) => format!("{} ({})", base, s),
+            Some(s) => format!("{base} ({s})"),
             None => base.to_string(),
         }
     } else {
         "no".to_string()
     };
-    println!("{:<24} {}", label, status);
+    println!("{label:<24} {status}");
 }
 
 fn print_session_log(label: &str, f: &capability::SessionLogSupport) {
@@ -153,7 +153,7 @@ fn print_session_log(label: &str, f: &capability::SessionLogSupport) {
                 if f.native {
                     c.to_string()
                 } else {
-                    format!("{} (wrapper)", c)
+                    format!("{c} (wrapper)")
                 }
             }
             None => "yes".to_string(),
@@ -161,7 +161,7 @@ fn print_session_log(label: &str, f: &capability::SessionLogSupport) {
     } else {
         "no".to_string()
     };
-    println!("{:<24} {}", label, status);
+    println!("{label:<24} {status}");
 }
 
 fn print_models(provider: Option<&str>, format: &str, pretty: bool) -> Result<()> {
@@ -169,7 +169,7 @@ fn print_models(provider: Option<&str>, format: &str, pretty: bool) -> Result<()
         let cap = get_capability(p)?;
         if format == "text" {
             for m in &cap.available_models {
-                println!("{}", m);
+                println!("{m}");
             }
         } else {
             println!("{}", capability::format_models(&[cap], format, pretty)?);
@@ -180,7 +180,7 @@ fn print_models(provider: Option<&str>, format: &str, pretty: bool) -> Result<()
             for cap in &caps {
                 println!("{}:", cap.provider);
                 for m in &cap.available_models {
-                    println!("  {}", m);
+                    println!("  {m}");
                 }
             }
         } else {

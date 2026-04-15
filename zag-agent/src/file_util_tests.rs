@@ -87,12 +87,12 @@ fn test_atomic_write_concurrent_writers_all_succeed() {
             std::thread::spawn(move || {
                 barrier.wait();
                 for i in 0..writes_per_thread {
-                    let content = format!(r#"{{"thread":{},"iter":{}}}"#, t, i);
+                    let content = format!(r#"{{"thread":{t},"iter":{i}}}"#);
                     if let Err(e) = atomic_write_str(&target, &content) {
                         errors
                             .lock()
                             .unwrap()
-                            .push(format!("thread {} iter {}: {}", t, i, e));
+                            .push(format!("thread {t} iter {i}: {e}"));
                     }
                 }
             })
@@ -116,7 +116,7 @@ fn test_atomic_write_concurrent_writers_all_succeed() {
         .filter_map(|e| e.ok())
         .filter(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
         .collect();
-    assert!(temps.is_empty(), "stale temp files: {:?}", temps);
+    assert!(temps.is_empty(), "stale temp files: {temps:?}");
 
     std::fs::remove_dir_all(&dir).ok();
 }

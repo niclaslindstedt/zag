@@ -58,7 +58,7 @@ pub async fn add(
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
-                    error: format!("Failed to load user store: {}", e),
+                    error: format!("Failed to load user store: {e}"),
                 }),
             )
                 .into_response();
@@ -106,7 +106,7 @@ pub async fn list(super_token: Option<Extension<LegacyTokenContext>>) -> impl In
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
-                    error: format!("Failed to load user store: {}", e),
+                    error: format!("Failed to load user store: {e}"),
                 }),
             )
                 .into_response();
@@ -144,7 +144,7 @@ pub async fn remove(
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
-                    error: format!("Failed to load user store: {}", e),
+                    error: format!("Failed to load user store: {e}"),
                 }),
             )
                 .into_response();
@@ -197,7 +197,7 @@ pub async fn passwd(
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
-                    error: format!("Failed to load user store: {}", e),
+                    error: format!("Failed to load user store: {e}"),
                 }),
             )
                 .into_response();

@@ -56,16 +56,13 @@ pub async fn resolve(
         .replace("{RESPONSE_FORMAT}", &response_format)
         .replace("{TASK}", prompt);
 
-    debug!("Auto-selector prompt:\n{}", selector_prompt);
+    debug!("Auto-selector prompt:\n{selector_prompt}");
 
     // Determine which provider/model to use for auto-selection
     let selector_provider = config.auto_provider().unwrap_or("claude").to_string();
     let selector_model = config.auto_model().unwrap_or("sonnet").to_string();
 
-    debug!(
-        "Auto-selector using {} with model {}",
-        selector_provider, selector_model
-    );
+    debug!("Auto-selector using {selector_provider} with model {selector_model}");
 
     // Create and run the selector agent
     debug!("Selecting provider/model for task...");
@@ -86,7 +83,7 @@ pub async fn resolve(
 
     // Parse the response
     let response = extract_response(output)?;
-    debug!("Auto-selector response: '{}'", response);
+    debug!("Auto-selector response: '{response}'");
 
     parse_response(&response, auto_provider, auto_model, current_provider)
 }
@@ -121,7 +118,7 @@ fn build_mode_and_format(
     } else {
         // auto_model only
         let provider = current_provider.unwrap_or("claude");
-        let mode = format!("model for {}", provider);
+        let mode = format!("model for {provider}");
         let response_format = format!(
             "Respond with ONLY a JSON object on a single line, nothing else:\n\
              {{\"model\": \"<model>\", \"reason\": \"...\"}}\n\n\
@@ -191,16 +188,15 @@ fn parse_response(
     if let Ok(parsed) = serde_json::from_str::<AutoSelectorResponse>(cleaned) {
         debug!("Auto-selector parsed JSON response successfully");
         if let Some(ref reason) = parsed.reason {
-            debug!("Auto-selector reason: {}", reason);
+            debug!("Auto-selector reason: {reason}");
         }
 
         // Check for structured decline
         if parsed.declined == Some(true) {
             let reason = parsed.reason.as_deref().unwrap_or("no reason given");
             bail!(
-                "Auto-selector declined the task: {}. \
-                 Try running with an explicit provider and model instead of auto.",
-                reason
+                "Auto-selector declined the task: {reason}. \
+                 Try running with an explicit provider and model instead of auto."
             );
         }
 
@@ -289,10 +285,7 @@ fn parse_response_text(
                 model: None,
             })
         } else {
-            bail!(
-                "Auto-selector returned unparseable response: '{}'",
-                response
-            );
+            bail!("Auto-selector returned unparseable response: '{response}'");
         }
     } else if auto_provider {
         // Expect "<provider>"
