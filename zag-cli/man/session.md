@@ -73,6 +73,10 @@ Import historical provider logs into the session store. Previously imported sess
 
 Supported providers: Claude, Codex, Gemini, Copilot, Ollama (no-op today).
 
+Works in both local and remote mode. In remote mode the backfill runs on the
+server and targets the connected user's per-user log directory (or the server's
+global log directory when authenticated with the legacy token).
+
 ## Examples
 
     # List all sessions

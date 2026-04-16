@@ -28,6 +28,7 @@ pub fn build_router(state: ServerState) -> Router {
         // Session management
         .route("/api/v1/sessions", routing::get(sessions::list))
         .route("/api/v1/sessions/spawn", routing::post(sessions::spawn))
+        .route("/api/v1/sessions/import", routing::post(sessions::import))
         .route("/api/v1/sessions/collect", routing::post(sessions::collect))
         .route("/api/v1/sessions/wait", routing::post(sessions::wait))
         .route(

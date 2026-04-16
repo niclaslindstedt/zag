@@ -125,6 +125,36 @@ async fn wrong_token_rejected_in_user_account_mode() {
 }
 
 #[tokio::test]
+async fn session_import_requires_auth() {
+    let app = test_app();
+    let req = Request::builder()
+        .method("POST")
+        .uri("/api/v1/sessions/import")
+        .header("content-type", "application/json")
+        .body(Body::from("{}"))
+        .unwrap();
+    let resp = app.oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn session_import_route_is_registered() {
+    let app = test_app();
+    let req = Request::builder()
+        .method("POST")
+        .uri("/api/v1/sessions/import")
+        .header("Authorization", "Bearer test-token-123")
+        .header("content-type", "application/json")
+        .body(Body::from("{}"))
+        .unwrap();
+    let resp = app.oneshot(req).await.unwrap();
+    // Route exists: not 404, and auth passed: not 401.
+    // May be 200 (success) or 500 (backfill error), both confirm wiring.
+    assert_ne!(resp.status(), StatusCode::UNAUTHORIZED);
+    assert_ne!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn session_token_still_works_in_user_account_mode() {
     let user_store = UserStore {
         users: vec![UserEntry {
