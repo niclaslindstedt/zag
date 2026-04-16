@@ -100,6 +100,7 @@ A tool call with its input and result.
 {
   "type": "tool_execution",
   "tool_name": "Bash",
+  "tool_id": "tool_abc123",
   "input": { "command": "cargo build" },
   "result": {
     "success": true,
@@ -108,6 +109,14 @@ A tool call with its input and result.
   }
 }
 ```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `tool_name` | string | Name of the tool that was called (e.g. `Bash`, `Read`, `Write`). In streaming mode, Claude resolves the name from the preceding `assistant_message`'s `tool_use` block. |
+| `tool_id` | string | Unique identifier linking this execution back to the `tool_use` content block that triggered it. |
+| `input` | object | The JSON input passed to the tool. |
+| `result` | ToolResult | Execution outcome (see below). |
+| `parent_tool_use_id` | string? | Present when this execution belongs to a sub-agent; carries the `tool_use_id` of the parent `Agent` tool call that spawned it. Omitted from JSON when `null`. |
 
 ### TurnComplete
 
