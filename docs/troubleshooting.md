@@ -25,7 +25,7 @@ Error: Invalid model 'X' for provider Y
 You specified a model name that the provider doesn't recognize. Check available models:
 
 ```bash
-zag capability -p <provider> --pretty
+zag discover -p <provider> --models
 ```
 
 Or use size aliases (`small`, `medium`, `large`) instead of provider-specific model names.
