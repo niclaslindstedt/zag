@@ -317,3 +317,9 @@ pub struct LoginResponse {
 pub struct LogoutResponse {
     pub message: String,
 }
+
+/// Response for POST /api/v1/sessions/import
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ImportResponse {
+    pub imported: usize,
+}

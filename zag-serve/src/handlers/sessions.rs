@@ -580,3 +580,52 @@ pub async fn input(Path(id): Path<String>, Json(req): Json<InputRequest>) -> imp
             .into_response(),
     }
 }
+
+/// POST /api/v1/sessions/import
+///
+/// Backfills historical session logs from each provider's native storage
+/// into zag's unified log directory. In user-account mode the backfill
+/// targets the authenticated user's per-user logs directory.
+pub async fn import(user_ctx: Option<Extension<UserContext>>) -> impl IntoResponse {
+    use zag_agent::providers::claude::logs::ClaudeHistoricalLogAdapter;
+    use zag_agent::providers::codex::CodexHistoricalLogAdapter;
+    use zag_agent::providers::copilot::CopilotHistoricalLogAdapter;
+    use zag_agent::providers::gemini::GeminiHistoricalLogAdapter;
+    use zag_agent::providers::ollama::OllamaHistoricalLogAdapter;
+    use zag_agent::session_log::{HistoricalLogAdapter, run_backfill};
+
+    let logs_dir = match user_ctx {
+        Some(Extension(ctx)) => UserStore::user_logs_dir(&ctx.username),
+        None => zag_agent::config::Config::agent_dir(None).join("logs"),
+    };
+
+    let result = tokio::task::spawn_blocking(move || {
+        let claude = ClaudeHistoricalLogAdapter;
+        let codex = CodexHistoricalLogAdapter;
+        let gemini = GeminiHistoricalLogAdapter;
+        let copilot = CopilotHistoricalLogAdapter;
+        let ollama = OllamaHistoricalLogAdapter;
+        let providers: [&dyn HistoricalLogAdapter; 5] =
+            [&claude, &codex, &gemini, &copilot, &ollama];
+        run_backfill(&logs_dir, None, &providers)
+    })
+    .await;
+
+    match result {
+        Ok(Ok(imported)) => Json(ImportResponse { imported }).into_response(),
+        Ok(Err(e)) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: e.to_string(),
+            }),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("import task failed: {e}"),
+            }),
+        )
+            .into_response(),
+    }
+}

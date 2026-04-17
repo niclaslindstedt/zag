@@ -790,9 +790,31 @@ async fn proxy_session(
             proxy_patch(client, config, &format!("/api/v1/sessions/{id}"), &body).await
         }
         SessionCommand::Import => {
-            bail!(
-                "Session import is not yet supported in remote mode. Use `zag disconnect` to run locally."
-            );
+            let url = format!("{}/api/v1/sessions/import", config.url);
+            let resp = client
+                .post(&url)
+                .bearer_auth(&config.token)
+                .json(&serde_json::json!({}))
+                .send()
+                .await?;
+
+            let status = resp.status();
+            let body = resp.text().await?;
+
+            if !status.is_success() {
+                bail!("Server error ({status}): {body}");
+            }
+
+            if json {
+                println!("{body}");
+            } else {
+                let imported = serde_json::from_str::<serde_json::Value>(&body)
+                    .ok()
+                    .and_then(|v| v.get("imported").and_then(|n| n.as_u64()))
+                    .unwrap_or(0);
+                println!("Imported {imported} historical session log(s)");
+            }
+            Ok(())
         }
     }
 }

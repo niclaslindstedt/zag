@@ -165,6 +165,7 @@ The server exposes these REST endpoints under `/api/v1/`:
 | `/logout` | POST | Invalidate the current session token |
 | `/sessions` | GET | List sessions |
 | `/sessions/spawn` | POST | Spawn a new session |
+| `/sessions/import` | POST | Backfill historical provider logs |
 | `/sessions/collect` | POST | Collect results from multiple sessions |
 | `/sessions/wait` | POST | Wait for a set of sessions to finish |
 | `/sessions/summary` | POST | Summarize multiple sessions |
