@@ -5,7 +5,7 @@ edition = "2024"
 publish = false
 
 [dependencies]
-zag-agent = { version = "0.14.2", path = "../../zag-agent" }
+zag-agent = { version = "0.14.3", path = "../../zag-agent" }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
