@@ -35,6 +35,12 @@ Results are wrapped in `<session-result>` XML tags with session ID prefixes so t
     --max-turns <N>          Maximum agentic turns
     -r, --root <PATH>        Root directory
     -q, --quiet              Suppress logging
+    --name <NAME>            Name for the new pipe session (for discovery)
+    --description <TEXT>     Short description of the new pipe session
+    --timeout <DURATION>     Timeout (e.g., 30s, 5m, 1h); kills the agent if exceeded
+    -w, --worktree [<NAME>]  Create a git worktree for the new pipe session
+    --sandbox [<NAME>]       Run the new pipe session inside a Docker sandbox
+    --context <SESSION_ID>   Prepend another session's last result as context
 
 ## Examples
 
@@ -51,6 +57,12 @@ Results are wrapped in `<session-result>` XML tags with session ID prefixes so t
 
     # With explicit provider/model
     zag pipe --tag batch -p claude -m opus -- "synthesize findings"
+
+    # Name the follow-up session and bound it with a timeout
+    zag pipe "$sid" --name followup --timeout 5m -- "summarize"
+
+    # Run the follow-up in a worktree, prepending context from another session
+    zag pipe "$sid" --worktree --context "$other_sid" -- "apply the plan"
 
 ## See Also
 

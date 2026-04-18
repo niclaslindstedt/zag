@@ -511,7 +511,14 @@ async fn main() -> Result<()> {
             agent,
             output: pipe_output,
             json: pipe_json,
+            name,
+            description,
+            timeout,
+            worktree,
+            sandbox,
+            context,
         } => {
+            let env_vars = parse_env_vars(&agent.env_vars)?;
             zag_orch::pipe::run_pipe(zag_orch::pipe::PipeParams {
                 session_ids,
                 tag,
@@ -527,6 +534,18 @@ async fn main() -> Result<()> {
                 output: pipe_output,
                 json: pipe_json,
                 quiet,
+                metadata: zag_orch::types::SessionMetadata {
+                    name,
+                    description,
+                    tags: Vec::new(),
+                },
+                timeout,
+                env_vars,
+                files: agent.files,
+                worktree,
+                sandbox,
+                context,
+                mcp_config: agent.mcp_config,
             })
             .await?;
         }

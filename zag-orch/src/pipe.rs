@@ -4,6 +4,8 @@
 //! as context into a new agent session with a user-provided prompt.
 
 use crate::collect::extract_last_assistant_message;
+use crate::duration::parse_duration;
+use crate::types::SessionMetadata;
 use anyhow::{Result, bail};
 use log::debug;
 use zag_agent::session::SessionStore;
@@ -11,6 +13,9 @@ use zag_agent::session::SessionStore;
 /// Parameters for the pipe command.
 pub struct PipeParams {
     pub session_ids: Vec<String>,
+    /// Input session filter — include all sessions whose `tags` contain this
+    /// value as additional pipe inputs. Distinct from `metadata.tags`, which
+    /// tags the *new* session launched by pipe.
     pub tag: Option<String>,
     pub prompt: String,
     pub provider: Option<String>,
@@ -24,6 +29,29 @@ pub struct PipeParams {
     pub output: Option<String>,
     pub json: bool,
     pub quiet: bool,
+    /// Session metadata (`name`, `description`, `tags`) applied to the new
+    /// session launched by pipe. Mirrors the `--name` / `--description` /
+    /// `--tag` flags that `run`, `exec`, and `spawn` already accept.
+    pub metadata: SessionMetadata,
+    /// Kill the agent if it hasn't completed within this duration. Parsed by
+    /// [`crate::duration::parse_duration`] (e.g. `"30s"`, `"5m"`, `"1h"`).
+    pub timeout: Option<String>,
+    /// Extra environment variables set on the agent subprocess.
+    pub env_vars: Vec<(String, String)>,
+    /// Files attached to the prompt (text files inlined, others referenced).
+    pub files: Vec<String>,
+    /// Create a git worktree for the new session. `Some(None)` for a
+    /// generated name, `Some(Some(name))` for an explicit one, `None` to
+    /// run in place.
+    pub worktree: Option<Option<String>>,
+    /// Run the new session inside a Docker sandbox. `Some(None)` for a
+    /// generated name, `Some(Some(name))` for an explicit one.
+    pub sandbox: Option<Option<String>>,
+    /// Prepend the last assistant message from this prior session to the
+    /// combined prompt. Equivalent to the `--context` flag on run/exec.
+    pub context: Option<String>,
+    /// MCP server config: JSON string or path to a JSON file (Claude only).
+    pub mcp_config: Option<String>,
 }
 
 /// Resolve session IDs from explicit IDs and/or tag.
@@ -104,10 +132,20 @@ pub async fn pipe_sessions(params: &PipeParams) -> Result<zag_agent::output::Age
     );
 
     let context = build_context(&session_ids, params.root.as_deref())?;
-    let full_prompt = format!(
+    let mut full_prompt = format!(
         "Here are results from previous agent sessions:\n\n{}\n\n{}",
         context, params.prompt
     );
+
+    if let Some(ref ctx_id) = params.context {
+        if let Some(ctx_text) = extract_last_assistant_message(ctx_id, params.root.as_deref()) {
+            full_prompt = format!(
+                "Context from previous session ({ctx_id}):\n\n{ctx_text}\n\n---\n\n{full_prompt}"
+            );
+        } else {
+            log::warn!("No context found for session {ctx_id}");
+        }
+    }
 
     debug!(
         "Pipe: running exec with combined prompt ({} bytes)",
@@ -142,6 +180,34 @@ pub async fn pipe_sessions(params: &PipeParams) -> Result<zag_agent::output::Age
     }
     if params.quiet {
         builder = builder.quiet(true);
+    }
+
+    if let Some(ref name) = params.metadata.name {
+        builder = builder.name(name);
+    }
+    if let Some(ref desc) = params.metadata.description {
+        builder = builder.description(desc);
+    }
+    for tag in &params.metadata.tags {
+        builder = builder.tag(tag);
+    }
+    if let Some(ref timeout_str) = params.timeout {
+        builder = builder.timeout(parse_duration(timeout_str)?);
+    }
+    for (key, value) in &params.env_vars {
+        builder = builder.env(key, value);
+    }
+    for file in &params.files {
+        builder = builder.file(file);
+    }
+    if let Some(ref worktree_opt) = params.worktree {
+        builder = builder.worktree(worktree_opt.as_deref());
+    }
+    if let Some(ref sandbox_opt) = params.sandbox {
+        builder = builder.sandbox(sandbox_opt.as_deref());
+    }
+    if let Some(ref mcp) = params.mcp_config {
+        builder = builder.mcp_config(mcp);
     }
 
     builder.exec(&full_prompt).await

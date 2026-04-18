@@ -651,6 +651,30 @@ pub enum Commands {
         /// Request JSON output from the agent
         #[arg(long)]
         json: bool,
+
+        /// Human-readable name for the new pipe session (for discovery)
+        #[arg(long)]
+        name: Option<String>,
+
+        /// Short description of the new pipe session's purpose
+        #[arg(long)]
+        description: Option<String>,
+
+        /// Timeout duration (e.g., 30s, 5m, 1h). Kills the agent if exceeded.
+        #[arg(long, value_name = "DURATION")]
+        timeout: Option<String>,
+
+        /// Create a git worktree for the new pipe session (optionally specify a name)
+        #[arg(short = 'w', long)]
+        worktree: Option<Option<String>>,
+
+        /// Run the new pipe session inside a Docker sandbox (optionally specify a name)
+        #[arg(long)]
+        sandbox: Option<Option<String>>,
+
+        /// Prepend the result of another session as context
+        #[arg(long, value_name = "SESSION_ID")]
+        context: Option<String>,
     },
     /// Query structured events from session logs
     Events {
