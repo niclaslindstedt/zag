@@ -64,7 +64,7 @@ export interface ConfigSection {
 
 // --- Data ---
 
-export const version = "0.14.1";
+export const version = "0.14.2";
 
 export const providerCount = 5;
 
@@ -951,12 +951,12 @@ export const bindings: BindingData[] = [
   {
     "language": "Swift",
     "directory": "swift",
-    "installCommand": ".package(url: \"https://github.com/niclaslindstedt/zag\", from: \"0.14.1\")"
+    "installCommand": ".package(url: \"https://github.com/niclaslindstedt/zag\", from: \"0.14.2\")"
   },
   {
     "language": "Java",
     "directory": "java",
-    "installCommand": "io.zag:zag:0.14.1"
+    "installCommand": "io.zag:zag:0.14.2"
   },
   {
     "language": "Kotlin",

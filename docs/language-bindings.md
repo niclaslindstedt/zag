@@ -151,6 +151,10 @@ All bindings support the same set of builder methods (naming follows each langua
 | `replay_user_messages` | Claude-only: replay stdin user messages on stdout |
 | `include_partial_messages` | Claude-only: emit per-chunk assistant messages |
 | `bin` / `ZAG_BIN` | Override the `zag` CLI binary used by the binding |
+| `enable_session_log` / `session_log` | Rust-only: start a `SessionLogCoordinator` for the terminal method. Populates `AgentOutput.log_path` with the JSONL path on disk. |
+| `on_log_event` | Rust-only: register a callback fired for every `AgentLogEvent` while the terminal method runs. Implicitly enables session logging. |
+| `stream_events_to_stderr` | Rust-only: tail the session log to stderr in the same formats as `zag listen` (`Text`, `Json`, `RichText`). Implicitly enables session logging. |
+| `stream_show_thinking` | Rust-only: include `Reasoning` events in the stderr stream when `stream_events_to_stderr` is active. |
 
 > **Capability-aware errors**: feature-gated builder options
 > (`exec_streaming` / `streaming_input`, `worktree`, `sandbox`,
