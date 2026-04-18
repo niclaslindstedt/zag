@@ -38,25 +38,69 @@ When adding commits to an existing PR, update the PR title and description to re
 Cargo workspace with four crates. Dependency graph: `zag-agent ← zag-orch ← zag (published crate) / zag-cli (binary)`.
 
 - **`zag-cli`** (binary) — Thin CLI wrapper: clap arg parsing (`zag-cli/src/cli.rs`), terminal logging (`zag-cli/src/logging.rs`), command handlers (`zag-cli/src/commands/`), dispatch to lib/orch. Commands with subcommands use folder layout (`commands/session/`, `commands/skills/`, `commands/mcp/`) with each subcommand in its own `.rs` file; standalone commands remain as flat files.
-- **`zag-agent`** (library) — Agent consolidation: `Agent` trait (`src/agent.rs`), provider implementations (`src/providers/`), `AgentFactory` (`src/factory.rs`), `AgentBuilder` (`src/builder.rs`), config, output types, session logs. Updated when upstream agent CLIs change.
-- **`zag-orch`** (library) — Orchestration: spawn, wait, collect, pipe, status, events, cancel, summary, watch, subscribe, retry, gc. Our own multi-session coordination code.
+- **`zag-agent`** (library) — Agent consolidation: `Agent` trait (`src/agent.rs`), provider implementations (`src/providers/`), `AgentFactory` (`src/factory.rs`), `AgentBuilder` (`src/builder.rs`), config, output types, session logs, manpages, review/plan primitives. Updated when upstream agent CLIs change.
+- **`zag-orch`** (library) — Orchestration: spawn, wait, collect, pipe, status, events, cancel, summary, watch, subscribe, retry, gc, messaging. Our own multi-session coordination code.
 - **`zag`** (published crate, `bindings/rust/`) — Facade that re-exports `zag-agent` (flat) and `zag-orch` (as `zag::orch`). This is the crate users depend on.
 
 Key design: trait-based `Agent` abstraction, factory pattern, builder API, subprocess delegation to upstream CLIs. `ProgressHandler` trait decouples library from terminal UI. Bindings in `bindings/` (Rust, TypeScript, Python, C#, Swift, Java, Kotlin) — Rust re-exports workspace crates directly; others mirror `AgentBuilder` via CLI subprocess.
 
+## Libraries are the source of truth
+
+> **Rule:** every user-facing feature lives in `zag-agent` or `zag-orch`.
+> `zag-cli` is a thin shim. If a feature is worth having, it must also be
+> reachable from a library consumer without the binary.
+
+Do **not** put any of the following inside `zag-cli`:
+
+- Prompt templates or `include_str!` of markdown / reference docs
+- Diff gathering, code analysis, business logic, or algorithms
+- Session resolution (by name / tag / latest / ps / global), envelope
+  wrapping, multi-session loops, FIFO read/write helpers
+- Any primitive another Rust program would want to call — e.g. "look
+  up the current session ID", "format a capability table", "resolve
+  the zag binary path", "build an agent prompt from a template"
+
+`zag-cli` is allowed to own only:
+
+- Clap definitions (`cli.rs`), arg parsing, flag validation, terminal
+  error formatting
+- Terminal UI: spinners, ANSI colours, `println!`/`eprintln!`,
+  `quiet`/`verbose`/`json` output selection, stdin reading for piped
+  input
+- Session-log / process-store bookkeeping that wraps a library call
+- Dispatch: unwrap clap structs, call a library function, print the
+  result
+
+**Self-check before writing code in `zag-cli/src/commands/`:**
+
+1. Would a downstream Rust program (or another binding) want to call
+   this directly? → put it in a library.
+2. Is there a `const FOO: &str = include_str!(...)` or template string?
+   → put the constant in a library.
+3. Is there a function whose body doesn't touch `println!`, clap, or
+   `crate::session_log`/`process_store`? → put it in a library.
+4. Is there a multi-step algorithm that produces a value (not a
+   printed message)? → put it in a library.
+
+When CLI-only scaffolding (logging, process-store writes) wraps a
+library call, keep the CLI handler to the bare minimum and delegate
+everything else to the library. `zag-cli/src/commands/review.rs` and
+`plan.rs` are the reference pattern.
+
 ## Where New Code Goes
 
 1. **Agent/provider logic** → `zag-agent` (trait changes, provider impls, builder options, config, session logs)
-2. **Orchestration** → `zag-orch` (multi-session coordination primitives)
-3. **CLI flags/dispatch** → `zag-cli/src/cli.rs` + `zag-cli/src/main.rs`
-4. **New builder option** → `zag-agent/src/builder.rs`, wire in `create_agent()` or terminal methods
-5. **New CLI flag** → `AgentArgs` in `zag-cli/src/cli.rs`, wire in `zag-cli/src/commands/agent_action.rs`
-6. **New CLI command handler** → `zag-cli/src/commands/`, declare in `zag-cli/src/commands/mod.rs`. If the command has subcommands, create a folder (`commands/<cmd>/`) with `mod.rs` for dispatch and one `.rs` file per subcommand.
-6a. **New subcommand** → `zag-cli/src/commands/<parent>/`, add a new `.rs` file with a `pub(crate) fn run(...)`, register in the parent's `mod.rs` dispatch match
-7. **Agent-specific feature** → `Agent` trait or downcast via `as_any_mut()`
-8. **New provider** → `zag-agent/src/providers/`, register in `zag-agent/src/factory.rs`
-9. **New orch command** → `zag-orch/src/`, declare in `zag-orch/src/lib.rs`, dispatch from `zag-cli/src/main.rs`
-10. **Website** → `website/src/` (React components, styles, content)
+2. **Orchestration** → `zag-orch` (multi-session coordination primitives, agent-to-agent messaging)
+3. **Templates / reference docs / prompt bodies** → `zag-agent/prompts/` or `zag-agent/man/`, loaded via `include_str!` from the library crate
+4. **CLI flags/dispatch** → `zag-cli/src/cli.rs` + `zag-cli/src/main.rs`
+5. **New builder option** → `zag-agent/src/builder.rs`, wire in `create_agent()` or terminal methods
+6. **New CLI flag** → `AgentArgs` in `zag-cli/src/cli.rs`, wire in `zag-cli/src/commands/agent_action.rs`
+7. **New CLI command handler** → `zag-cli/src/commands/`, declare in `zag-cli/src/commands/mod.rs`. Handler body must be a thin shim that calls a library function. If the command has subcommands, create a folder (`commands/<cmd>/`) with `mod.rs` for dispatch and one `.rs` file per subcommand.
+7a. **New subcommand** → `zag-cli/src/commands/<parent>/`, add a new `.rs` file with a `pub(crate) fn run(...)`, register in the parent's `mod.rs` dispatch match
+8. **Agent-specific feature** → `Agent` trait or downcast via `as_any_mut()`
+9. **New provider** → `zag-agent/src/providers/`, register in `zag-agent/src/factory.rs`
+10. **New orch command** → `zag-orch/src/`, declare in `zag-orch/src/lib.rs`, dispatch from `zag-cli/src/main.rs`
+11. **Website** → `website/src/` (React components, styles, content)
 
 ## Development Process
 
