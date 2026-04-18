@@ -130,6 +130,7 @@ impl MockResponse {
             usage: self.usage,
             model: Some("mock".to_string()),
             provider: Some("mock".to_string()),
+            log_path: None,
         }
     }
 }

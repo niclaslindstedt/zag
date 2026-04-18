@@ -339,3 +339,132 @@ fn test_mock_output_log_entries() {
     let entries = output.to_log_entries(crate::output::LogLevel::Debug);
     assert!(!entries.is_empty());
 }
+
+// ---------------------------------------------------------------------------
+// Session log / live event streaming (fix for missing live stderr tail)
+// ---------------------------------------------------------------------------
+
+/// A scoped override for `ZAG_USER_LOG_DIR` so each test gets a clean logs
+/// directory and doesn't race with other tests or the developer's real
+/// `~/.zag`. Restores the previous value on drop.
+struct ScopedLogsDir {
+    _tmp: tempfile::TempDir,
+    previous: Option<String>,
+}
+
+impl ScopedLogsDir {
+    fn new() -> Self {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let previous = std::env::var("ZAG_USER_LOG_DIR").ok();
+        // SAFETY: single-threaded test; we restore on drop.
+        // The env var is the documented override used by zag serve.
+        unsafe {
+            std::env::set_var("ZAG_USER_LOG_DIR", tmp.path());
+        }
+        Self {
+            _tmp: tmp,
+            previous,
+        }
+    }
+}
+
+impl Drop for ScopedLogsDir {
+    fn drop(&mut self) {
+        unsafe {
+            match &self.previous {
+                Some(v) => std::env::set_var("ZAG_USER_LOG_DIR", v),
+                None => std::env::remove_var("ZAG_USER_LOG_DIR"),
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_exec_without_session_log_leaves_log_path_none() {
+    let _guard = ScopedLogsDir::new();
+    let output = AgentBuilder::new()
+        .provider("mock")
+        .exec("hi")
+        .await
+        .unwrap();
+    assert!(
+        output.log_path.is_none(),
+        "session log should stay opt-in for library callers"
+    );
+}
+
+#[tokio::test]
+async fn test_exec_with_enable_session_log_populates_log_path() {
+    let _guard = ScopedLogsDir::new();
+    let output = AgentBuilder::new()
+        .provider("mock")
+        .enable_session_log(true)
+        .exec("hi")
+        .await
+        .unwrap();
+    let log_path = output.log_path.expect("log_path must be populated");
+    let p = std::path::Path::new(&log_path);
+    assert!(p.exists(), "expected JSONL log at {log_path}");
+    assert_eq!(p.extension().and_then(|e| e.to_str()), Some("jsonl"));
+}
+
+#[tokio::test]
+async fn test_on_log_event_receives_lifecycle_events() {
+    let _guard = ScopedLogsDir::new();
+    let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let counter_clone = counter.clone();
+
+    let output = AgentBuilder::new()
+        .provider("mock")
+        .on_log_event(move |_ev| {
+            counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        })
+        .exec("hi")
+        .await
+        .unwrap();
+
+    // Should have seen at least SessionStarted + SessionEnded.
+    assert!(
+        counter.load(std::sync::atomic::Ordering::SeqCst) >= 2,
+        "expected at least 2 log events, got {}",
+        counter.load(std::sync::atomic::Ordering::SeqCst)
+    );
+    assert!(output.log_path.is_some());
+}
+
+#[tokio::test]
+async fn test_on_log_event_implicitly_enables_session_log() {
+    let _guard = ScopedLogsDir::new();
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+    let seen_clone = seen.clone();
+
+    AgentBuilder::new()
+        .provider("mock")
+        // Deliberately do not call .enable_session_log(true) — the
+        // callback must flip it on implicitly.
+        .on_log_event(move |ev| {
+            let kind = crate::listen::event_type_name(&ev.kind).to_string();
+            seen_clone.lock().unwrap().push(kind);
+        })
+        .exec("hi")
+        .await
+        .unwrap();
+
+    let events = seen.lock().unwrap();
+    assert!(
+        events.iter().any(|k| k == "session_started"),
+        "expected session_started event, got: {events:?}"
+    );
+}
+
+#[tokio::test]
+async fn test_stream_events_to_stderr_implicitly_enables_session_log() {
+    let _guard = ScopedLogsDir::new();
+    let output = AgentBuilder::new()
+        .provider("mock")
+        .stream_events_to_stderr(crate::listen::ListenFormat::Text)
+        .exec("hi")
+        .await
+        .unwrap();
+    assert!(output.log_path.is_some(), "stream setter must enable log");
+}

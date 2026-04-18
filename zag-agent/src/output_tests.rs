@@ -14,6 +14,7 @@ fn make_agent_output(events: Vec<Event>, result: Option<String>, is_error: bool)
         usage: None,
         model: None,
         provider: None,
+        log_path: None,
     }
 }
 
@@ -715,6 +716,7 @@ fn test_agent_output_roundtrip() {
         }),
         model: Some("opus".to_string()),
         provider: Some("claude".to_string()),
+        log_path: None,
     };
     let json = serde_json::to_string(&output).unwrap();
     let parsed: AgentOutput = serde_json::from_str(&json).unwrap();
@@ -740,6 +742,7 @@ fn test_agent_output_with_exit_info_roundtrip() {
         usage: None,
         model: None,
         provider: Some("codex".to_string()),
+        log_path: None,
     };
     let json = serde_json::to_string(&output).unwrap();
     let parsed: AgentOutput = serde_json::from_str(&json).unwrap();
@@ -762,6 +765,7 @@ fn test_agent_output_skip_serializing_none_exit_fields() {
         usage: None,
         model: None,
         provider: None,
+        log_path: None,
     };
     let json = serde_json::to_string(&output).unwrap();
     assert!(!json.contains("exit_code"));
