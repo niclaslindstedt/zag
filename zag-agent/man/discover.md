@@ -53,9 +53,9 @@ Non-alias names pass through unchanged.
 The default table shows:
 
     PROVIDER   DEFAULT MODEL                MODELS  RESUME  JSON   LOGS
-    claude     default                           7  yes     yes    full
+    claude     default                           4  yes     yes    full
     codex      gpt-5.4                          10  yes     yes    partial
-    gemini     auto                              8  yes     no     full
+    gemini     auto                              8  yes     yes    full
     copilot    claude-sonnet-4.6                19  yes     no     full
     ollama     qwen3.5                           7  no      yes    -
 

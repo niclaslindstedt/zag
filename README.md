@@ -187,6 +187,8 @@ zag man [command]             Built-in manual pages
 | `--debug` | `-d` | Debug logging |
 | `--quiet` | `-q` | Suppress all output except the agent's response |
 | `--verbose` | `-v` | Styled output with icons in exec mode |
+| `--help-agent` | | Print an AI-oriented CLI reference and exit |
+| `--no-health-check` | | Skip health check before proxying to a remote server |
 
 ## Session management
 
@@ -261,8 +263,9 @@ zag session list --parent $PARENT_SESSION_ID
 # Filter listen to specific event types
 zag listen $sid1 --filter session_ended --filter tool_call
 
-# Chain session results into a new agent session
+# Chain session results into a new agent session (tag/name/worktree/sandbox/timeout supported)
 zag pipe --tag batch -- "synthesize all findings into a report"
+zag pipe $sid1 $sid2 --name synth --tag report -w -- "write a report"
 
 # Query structured events from a session log
 zag events $sid1 --type tool_call --json
@@ -450,13 +453,15 @@ let output = AgentBuilder::new()
     .provider("claude")
     .model("sonnet")
     .auto_approve(true)
+    .name("hello-agent")        // optional — registers with the session store
+    .tag("example")              // so `zag session list`, `zag input --name`, etc. find it
     .exec("write a hello world program")
     .await?;
 
 println!("{}", output.result.unwrap_or_default());
 ```
 
-See the [`zag-agent` crate](zag-agent/) for the full API including JSON schema validation, custom progress handlers, and interactive sessions.
+See the [`zag-agent` crate](zag-agent/) for the full API including JSON schema validation, custom progress handlers, and interactive sessions. Library-level primitives for `review`, `plan`, `discover`, manpages, and agent-to-agent messaging are re-exported from `zag_agent` and `zag_orch` so downstream programs can drive these flows without shelling out to the CLI.
 
 ### Language bindings
 
