@@ -173,6 +173,7 @@ pub async fn spawn(
         interactive,
         env_vars,
         sandbox,
+        zag_bin: None,
     };
 
     match zag_orch::spawn::spawn_session(&params) {

@@ -106,8 +106,8 @@ Claude's `AVAILABLE_MODELS` contains model **aliases** (e.g., `"sonnet"`, `"opus
 - [ ] Update `claude/mod.rs` — new flags in arg builders, output parsing changes
 - [ ] Update `claude/claude_tests.rs` — test new arg combinations, new output formats
 - [ ] Update `docs/providers.md` — feature matrix, available models, known limitations
-- [ ] Update `zag-cli/man/run.md` and `zag-cli/man/exec.md` — if command behavior changes
-- [ ] Update `zag-cli/man/zag.md` — if global provider capabilities change
+- [ ] Update `zag-agent/man/run.md` and `zag-agent/man/exec.md` — if command behavior changes
+- [ ] Update `zag-agent/man/zag.md` — if global provider capabilities change
 - [ ] Update `README.md` — provider table, model size aliases
 - [ ] Update `website/src/components/Providers.tsx` — feature tags, model lists
 - [ ] Update `website/src/components/GettingStarted.tsx` — if install command changes

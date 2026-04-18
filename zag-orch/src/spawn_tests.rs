@@ -1,4 +1,77 @@
 use super::*;
+use std::path::PathBuf;
+
+#[test]
+fn test_resolve_zag_bin_explicit_wins() {
+    // Explicit path always wins, even over a populated env var / PATH / exe.
+    let explicit = PathBuf::from("/opt/zag/bin/zag");
+    let resolved = resolve_zag_bin_inner(
+        Some(&explicit),
+        Some("/should/be/ignored".to_string()),
+        || Some(PathBuf::from("/also/ignored")),
+        Some(PathBuf::from("/also/ignored/zag")),
+    )
+    .unwrap();
+    assert_eq!(resolved, explicit);
+}
+
+#[test]
+fn test_resolve_zag_bin_reads_env_var() {
+    let resolved = resolve_zag_bin_inner(
+        None,
+        Some("/usr/local/bin/zag-custom".to_string()),
+        || None,
+        None,
+    )
+    .unwrap();
+    assert_eq!(resolved, PathBuf::from("/usr/local/bin/zag-custom"));
+}
+
+#[test]
+fn test_resolve_zag_bin_empty_env_var_skips_to_path() {
+    // Empty ZAG_BIN must not take priority; resolver should fall through to
+    // the PATH lookup and use that when available.
+    let resolved = resolve_zag_bin_inner(
+        None,
+        Some(String::new()),
+        || Some(PathBuf::from("/usr/bin/zag")),
+        None,
+    )
+    .unwrap();
+    assert_eq!(resolved, PathBuf::from("/usr/bin/zag"));
+}
+
+#[test]
+fn test_resolve_zag_bin_current_exe_only_when_named_zag() {
+    // current_exe is accepted only when its file stem is literally "zag".
+    let resolved =
+        resolve_zag_bin_inner(None, None, || None, Some(PathBuf::from("/bin/zag"))).unwrap();
+    assert_eq!(resolved, PathBuf::from("/bin/zag"));
+
+    // A non-zag current_exe (e.g. a library consumer's host binary) must not
+    // be silently used — that was the pre-fix silent-breakage we're guarding
+    // against.
+    let err = resolve_zag_bin_inner(
+        None,
+        None,
+        || None,
+        Some(PathBuf::from("/home/user/my-app")),
+    )
+    .unwrap_err();
+    assert!(
+        err.to_string().contains("No `zag` binary found"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn test_resolve_zag_bin_all_misses_errors() {
+    let err = resolve_zag_bin_inner(None, None, || None, None).unwrap_err();
+    assert!(
+        err.to_string().contains("No `zag` binary found"),
+        "unexpected error: {err}"
+    );
+}
 
 #[test]
 fn test_spawn_logs_dir() {
@@ -39,6 +112,7 @@ fn test_build_relay_args() {
         interactive: true,
         env_vars: vec![],
         sandbox: None,
+        zag_bin: None,
     };
     let args = build_relay_args(&params, "test-session-id");
     assert!(args.contains(&"relay".to_string()));
@@ -77,6 +151,7 @@ fn test_build_relay_args_no_prompt() {
         interactive: true,
         env_vars: vec![],
         sandbox: None,
+        zag_bin: None,
     };
     let args = build_relay_args(&params, "test-id");
     assert!(args.contains(&"relay".to_string()));
@@ -110,6 +185,7 @@ fn test_build_exec_args_has_prompt() {
         interactive: false,
         env_vars: vec![],
         sandbox: None,
+        zag_bin: None,
     };
     let args = build_exec_args(&params, "test-id");
     assert!(args.contains(&"exec".to_string()));
@@ -147,6 +223,7 @@ fn test_build_exec_args_with_sandbox() {
         interactive: false,
         env_vars: vec![],
         sandbox: Some("sandbox-abc123".to_string()),
+        zag_bin: None,
     };
     let args = build_exec_args(&params, "test-id");
     assert!(args.contains(&"exec".to_string()));
@@ -185,6 +262,7 @@ fn test_build_exec_args_without_sandbox() {
         interactive: false,
         env_vars: vec![],
         sandbox: None,
+        zag_bin: None,
     };
     let args = build_exec_args(&params, "test-id");
     assert!(!args.contains(&"--sandbox".to_string()));

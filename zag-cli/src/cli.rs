@@ -23,6 +23,10 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub no_health_check: bool,
 
+    /// Print an AI-oriented CLI reference and exit
+    #[arg(long, global = true)]
+    pub help_agent: bool,
+
     #[command(subcommand)]
     pub command: Commands,
 }

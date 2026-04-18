@@ -18,6 +18,7 @@ pub mod gc;
 pub mod lifecycle;
 pub mod listen;
 pub mod log_cmd;
+pub mod messaging;
 pub mod output_cmd;
 pub mod pipe;
 pub mod ps;

@@ -14,7 +14,7 @@ Run **all four** update skills in parallel using the Agent tool. Each skill is i
 |-------|---------------|
 | `update-readme` | `README.md` with current commands, flags, providers, bindings |
 | `update-docs` | `docs/*.md` with providers, config, events, orchestration |
-| `update-manpages` | `zag-cli/man/*.md` with CLI commands and flags |
+| `update-manpages` | `zag-agent/man/*.md` with CLI commands and flags |
 | `update-website` | `website/src/components/` with source-derived content |
 
 ## Execution

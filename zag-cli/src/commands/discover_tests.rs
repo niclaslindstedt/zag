@@ -4,13 +4,17 @@ use zag_agent::capability;
 #[test]
 fn summary_table_does_not_panic() {
     let caps = get_all_capabilities();
-    print_summary_table(&caps);
+    let out = capability::format_summary_table(&caps);
+    assert!(out.contains("PROVIDER"));
+    assert!(out.contains("claude"));
 }
 
 #[test]
 fn provider_detail_does_not_panic() {
     let cap = get_capability("claude").unwrap();
-    print_provider_detail(&cap);
+    let out = capability::format_provider_detail(&cap);
+    assert!(out.starts_with("Provider: claude"));
+    assert!(out.contains("Features:"));
 }
 
 #[test]

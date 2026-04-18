@@ -110,7 +110,7 @@ Gemini does not have a native session list command. The provider scans `~/.gemin
 - [ ] Update `gemini.rs` — new flags in arg builders, model list, session discovery, output parsing
 - [ ] Update `gemini_tests.rs` — test new arg combinations, session format changes
 - [ ] Update `docs/providers.md` — feature matrix, available models, known limitations
-- [ ] Update `zag-cli/man/run.md` and `zag-cli/man/exec.md` — if command behavior changes
+- [ ] Update `zag-agent/man/run.md` and `zag-agent/man/exec.md` — if command behavior changes
 - [ ] Update `README.md` — provider table, model size aliases
 - [ ] Update `website/src/components/Providers.tsx` — feature tags, model lists
 - [ ] Update `website/src/components/GettingStarted.tsx` — if install command changes

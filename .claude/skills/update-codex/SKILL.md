@@ -114,7 +114,7 @@ Codex supports `--output-schema <path>` to constrain the model's response to a J
 - [ ] Update `codex.rs` — new flags in arg builders, model list, NDJSON parsing
 - [ ] Update `codex_tests.rs` — test new arg combinations, new NDJSON event types
 - [ ] Update `docs/providers.md` — feature matrix, available models, known limitations
-- [ ] Update `zag-cli/man/run.md` and `zag-cli/man/exec.md` — if command behavior changes
+- [ ] Update `zag-agent/man/run.md` and `zag-agent/man/exec.md` — if command behavior changes
 - [ ] Update `README.md` — provider table, model size aliases
 - [ ] Update `website/src/components/Providers.tsx` — feature tags, model lists
 - [ ] Update `website/src/components/GettingStarted.tsx` — if install command changes

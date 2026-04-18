@@ -33,6 +33,14 @@ pub struct SpawnParams {
     pub env_vars: Vec<(String, String)>,
     /// Optional sandbox name. When set, the spawned session runs inside a Docker sandbox.
     pub sandbox: Option<String>,
+    /// Path to the `zag` executable to launch as the background child.
+    ///
+    /// When `None`, [`resolve_zag_bin`] is used to discover one in this order:
+    /// the `ZAG_BIN` environment variable, then a `zag` binary on `PATH`, then
+    /// `std::env::current_exe()` if the current executable *is* `zag`. Library
+    /// callers whose host process is not `zag` should set this (or `ZAG_BIN`)
+    /// explicitly — otherwise spawn will fail with a clear error.
+    pub zag_bin: Option<PathBuf>,
 }
 
 /// Directory for spawn log files.
@@ -52,6 +60,95 @@ fn fifos_dir() -> PathBuf {
 /// Get the FIFO path for a given session ID.
 pub fn fifo_path(session_id: &str) -> PathBuf {
     fifos_dir().join(session_id)
+}
+
+/// Walk `PATH` looking for an executable named `name`. Returns `None` when
+/// none of the entries contain an executable file with that name.
+///
+/// On Unix we check the `x` bit via `fs::metadata`; on other platforms we
+/// fall back to existence only, which is the same contract callers get from
+/// `std::process::Command` when a binary lookup fails.
+fn find_on_path(name: &str) -> Option<PathBuf> {
+    let path_var = std::env::var_os("PATH")?;
+    for dir in std::env::split_paths(&path_var) {
+        let candidate = dir.join(name);
+        if !candidate.is_file() {
+            continue;
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if let Ok(meta) = std::fs::metadata(&candidate)
+                && meta.permissions().mode() & 0o111 != 0
+            {
+                return Some(candidate);
+            }
+        }
+        #[cfg(not(unix))]
+        {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
+/// Resolve which `zag` binary to invoke as the background child.
+///
+/// Resolution order (first hit wins):
+/// 1. `explicit` — typically `SpawnParams::zag_bin`.
+/// 2. The `ZAG_BIN` environment variable (when non-empty).
+/// 3. A `zag` executable on `PATH`.
+/// 4. `std::env::current_exe()`, **only** when the current executable's
+///    file stem is `zag`. This is the path the `zag` CLI itself takes.
+///
+/// Library callers embedding `zag-orch` from a non-`zag` host process must
+/// set `zag_bin` or `ZAG_BIN`; otherwise this returns an error describing
+/// what to configure. This replaces the old behavior, which silently used
+/// `current_exe()` and produced a broken subprocess whose argv was the
+/// caller's own binary.
+pub fn resolve_zag_bin(explicit: Option<&std::path::Path>) -> Result<PathBuf> {
+    resolve_zag_bin_inner(
+        explicit,
+        std::env::var("ZAG_BIN").ok(),
+        || find_on_path("zag"),
+        std::env::current_exe().ok(),
+    )
+}
+
+/// Pure inner used by [`resolve_zag_bin`] and tested in isolation. Splitting
+/// the env-var and current-exe reads out of the resolver keeps the unit tests
+/// free of global-state mutation (which races across parallel tests in Rust
+/// 2024's `unsafe set_var` world).
+fn resolve_zag_bin_inner(
+    explicit: Option<&std::path::Path>,
+    env_val: Option<String>,
+    path_lookup: impl FnOnce() -> Option<PathBuf>,
+    current_exe: Option<PathBuf>,
+) -> Result<PathBuf> {
+    if let Some(p) = explicit {
+        return Ok(p.to_path_buf());
+    }
+    if let Some(env_val) = env_val
+        && !env_val.is_empty()
+    {
+        return Ok(PathBuf::from(env_val));
+    }
+    if let Some(p) = path_lookup() {
+        return Ok(p);
+    }
+    if let Some(current) = current_exe {
+        let is_zag = current
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .is_some_and(|s| s == "zag");
+        if is_zag {
+            return Ok(current);
+        }
+    }
+    anyhow::bail!(
+        "No `zag` binary found. Set `SpawnParams::zag_bin`, set `ZAG_BIN` in the environment, \
+         or install `zag` on PATH."
+    )
 }
 
 /// Result of spawning a session.
@@ -205,6 +302,85 @@ fn create_fifo(session_id: &str) -> Result<PathBuf> {
     }
 }
 
+/// Build the `Command` that spawns a background session, without running it.
+///
+/// Returns the fully-configured `Command` (binary, argv, env vars, stdout/stderr
+/// redirected to a new log file) plus the log file path. Useful for callers
+/// that want to wrap the spawn in a supervisor (systemd-run, nohup, a custom
+/// process group) or capture the exact argv before executing.
+///
+/// The caller is still responsible for setting `Stdio` on stdin and calling
+/// `.spawn()`; [`spawn_session`] is the standard wrapper that does both plus
+/// session-store / process-store registration.
+///
+/// **Note:** this does *not* create the FIFO for `params.interactive` — that
+/// side effect is intentional and lives in `spawn_session`, because it should
+/// only happen when the caller actually plans to execute the command.
+pub fn build_spawn_command(
+    params: &SpawnParams,
+    session_id: &str,
+) -> Result<(std::process::Command, PathBuf)> {
+    let zag_bin = resolve_zag_bin(params.zag_bin.as_deref())?;
+
+    let mut args = if params.interactive {
+        build_relay_args(params, session_id)
+    } else {
+        build_exec_args(params, session_id)
+    };
+
+    let logs_dir = spawn_logs_dir();
+    fs::create_dir_all(&logs_dir)?;
+    let log_path = logs_dir.join(format!("{session_id}.log"));
+    let stdout_file = File::create(&log_path)?;
+    let stderr_file = stdout_file.try_clone()?;
+
+    // If --inject-context is set, add --context for each dependency (exec mode only).
+    if params.inject_context && !params.interactive {
+        for dep in &params.depends_on {
+            let prompt = args.pop().unwrap();
+            args.push("--context".to_string());
+            args.push(dep.clone());
+            args.push(prompt);
+        }
+    }
+
+    debug!("Spawning: {} {}", zag_bin.display(), args.join(" "));
+
+    let mut cmd = if !params.depends_on.is_empty() && !params.interactive {
+        // Dependencies (exec mode): wrap in a shell that waits first.
+        let wait_args: Vec<String> = params
+            .depends_on
+            .iter()
+            .map(|id| format!("\"{id}\""))
+            .collect();
+        let wait_cmd = format!(
+            "{} wait {} && {} {}",
+            zag_bin.display(),
+            wait_args.join(" "),
+            zag_bin.display(),
+            args.iter()
+                .map(|a| format!("\"{}\"", a.replace('"', "\\\"")))
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
+        debug!("Spawn with deps: sh -c '{wait_cmd}'");
+        let mut cmd = std::process::Command::new("sh");
+        cmd.arg("-c").arg(&wait_cmd);
+        cmd
+    } else {
+        let mut cmd = std::process::Command::new(&zag_bin);
+        cmd.args(&args);
+        cmd
+    };
+
+    cmd.stdout(stdout_file).stderr(stderr_file);
+    for (key, val) in &params.env_vars {
+        cmd.env(key, val);
+    }
+
+    Ok((cmd, log_path))
+}
+
 /// Spawn a background session, returning structured result.
 pub fn spawn_session(params: &SpawnParams) -> Result<SpawnResult> {
     let session_id = uuid::Uuid::new_v4().to_string();
@@ -252,73 +428,9 @@ pub fn spawn_session(params: &SpawnParams) -> Result<SpawnResult> {
         debug!("Created FIFO at {}", fifo_path(&session_id).display());
     }
 
-    // Build the command
-    let zag_bin = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("zag"));
-    let mut args = if params.interactive {
-        build_relay_args(params, &session_id)
-    } else {
-        build_exec_args(params, &session_id)
-    };
-
-    // Set up log file for stdout/stderr capture
-    let logs_dir = spawn_logs_dir();
-    fs::create_dir_all(&logs_dir)?;
-    let log_path = logs_dir.join(format!("{session_id}.log"));
-    let stdout_file = File::create(&log_path)?;
-    let stderr_file = stdout_file.try_clone()?;
-
-    // If --inject-context is set, add --context for each dependency (exec mode only)
-    if params.inject_context && !params.interactive {
-        for dep in &params.depends_on {
-            // Insert --context before the prompt (which is the last arg)
-            let prompt = args.pop().unwrap();
-            args.push("--context".to_string());
-            args.push(dep.clone());
-            args.push(prompt);
-        }
-    }
-
-    debug!("Spawning: {} {}", zag_bin.display(), args.join(" "));
-
-    // If there are dependencies (exec mode), wrap in a shell command that waits first
-    let child = if !params.depends_on.is_empty() && !params.interactive {
-        let wait_args: Vec<String> = params
-            .depends_on
-            .iter()
-            .map(|id| format!("\"{id}\""))
-            .collect();
-        let wait_cmd = format!(
-            "{} wait {} && {} {}",
-            zag_bin.display(),
-            wait_args.join(" "),
-            zag_bin.display(),
-            args.iter()
-                .map(|a| format!("\"{}\"", a.replace('"', "\\\"")))
-                .collect::<Vec<_>>()
-                .join(" ")
-        );
-        debug!("Spawn with deps: sh -c '{wait_cmd}'");
-        let mut cmd = std::process::Command::new("sh");
-        cmd.arg("-c")
-            .arg(&wait_cmd)
-            .stdin(std::process::Stdio::null())
-            .stdout(stdout_file)
-            .stderr(stderr_file);
-        for (key, val) in &params.env_vars {
-            cmd.env(key, val);
-        }
-        cmd.spawn()?
-    } else {
-        let mut cmd = std::process::Command::new(&zag_bin);
-        cmd.args(&args)
-            .stdin(std::process::Stdio::null())
-            .stdout(stdout_file)
-            .stderr(stderr_file);
-        for (key, val) in &params.env_vars {
-            cmd.env(key, val);
-        }
-        cmd.spawn()?
-    };
+    let (mut cmd, log_path) = build_spawn_command(params, &session_id)?;
+    cmd.stdin(std::process::Stdio::null());
+    let child = cmd.spawn()?;
 
     let child_pid = child.id();
 
