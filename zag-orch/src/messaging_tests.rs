@@ -1,4 +1,12 @@
 use super::*;
+use std::sync::Mutex;
+
+/// Tests that mutate the global `ZAG_*` env vars must hold this mutex, so they
+/// don't race each other (or `spawn_tests`) when the test binary runs with the
+/// default parallel thread count. `std::env::set_var` is `unsafe` in Rust 2024
+/// precisely because concurrent mutation of the process environment is
+/// undefined behaviour.
+static ZAG_ENV_MUTEX: Mutex<()> = Mutex::new(());
 
 fn clear_sender_env() {
     unsafe {
@@ -11,12 +19,14 @@ fn clear_sender_env() {
 
 #[test]
 fn sender_info_none_outside_session() {
+    let _lock = ZAG_ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
     clear_sender_env();
     assert!(SenderInfo::from_env().is_none());
 }
 
 #[test]
 fn sender_info_populated_from_env() {
+    let _lock = ZAG_ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
     unsafe {
         std::env::set_var("ZAG_SESSION_ID", "sess-1");
         std::env::set_var("ZAG_SESSION_NAME", "alpha");
@@ -63,18 +73,22 @@ fn wrap_agent_message_uses_session_id_when_name_missing() {
 
 #[test]
 fn maybe_wrap_message_passthrough_when_raw() {
-    clear_sender_env();
+    let _lock = ZAG_ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+    // raw=true short-circuits before reading env, but we still serialize to
+    // avoid interleaving with writers.
     assert_eq!(maybe_wrap_message("payload", true), "payload");
 }
 
 #[test]
 fn maybe_wrap_message_passthrough_without_session() {
+    let _lock = ZAG_ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
     clear_sender_env();
     assert_eq!(maybe_wrap_message("payload", false), "payload");
 }
 
 #[test]
 fn maybe_wrap_message_wraps_when_inside_session() {
+    let _lock = ZAG_ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
     unsafe {
         std::env::set_var("ZAG_SESSION_ID", "sess-42");
         std::env::set_var("ZAG_PROVIDER", "claude");

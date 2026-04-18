@@ -107,18 +107,36 @@ fn find_on_path(name: &str) -> Option<PathBuf> {
 /// `current_exe()` and produced a broken subprocess whose argv was the
 /// caller's own binary.
 pub fn resolve_zag_bin(explicit: Option<&std::path::Path>) -> Result<PathBuf> {
+    resolve_zag_bin_inner(
+        explicit,
+        std::env::var("ZAG_BIN").ok(),
+        || find_on_path("zag"),
+        std::env::current_exe().ok(),
+    )
+}
+
+/// Pure inner used by [`resolve_zag_bin`] and tested in isolation. Splitting
+/// the env-var and current-exe reads out of the resolver keeps the unit tests
+/// free of global-state mutation (which races across parallel tests in Rust
+/// 2024's `unsafe set_var` world).
+fn resolve_zag_bin_inner(
+    explicit: Option<&std::path::Path>,
+    env_val: Option<String>,
+    path_lookup: impl FnOnce() -> Option<PathBuf>,
+    current_exe: Option<PathBuf>,
+) -> Result<PathBuf> {
     if let Some(p) = explicit {
         return Ok(p.to_path_buf());
     }
-    if let Ok(env_val) = std::env::var("ZAG_BIN")
+    if let Some(env_val) = env_val
         && !env_val.is_empty()
     {
         return Ok(PathBuf::from(env_val));
     }
-    if let Some(p) = find_on_path("zag") {
+    if let Some(p) = path_lookup() {
         return Ok(p);
     }
-    if let Ok(current) = std::env::current_exe() {
+    if let Some(current) = current_exe {
         let is_zag = current
             .file_stem()
             .and_then(|s| s.to_str())
