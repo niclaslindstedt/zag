@@ -16,6 +16,7 @@ fn test_extract_response_from_agent_output() {
         usage: None,
         model: None,
         provider: None,
+        log_path: None,
     };
     let response = extract_response(Some(output)).unwrap();
     assert_eq!(response, r#"{"provider": "claude"}"#);
@@ -54,6 +55,7 @@ fn test_extract_response_no_result() {
         usage: None,
         model: None,
         provider: None,
+        log_path: None,
     };
     let result = extract_response(Some(output));
     assert!(result.is_err());

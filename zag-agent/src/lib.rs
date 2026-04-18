@@ -7,6 +7,7 @@ pub mod config;
 pub mod factory;
 pub mod file_util;
 pub mod json_validation;
+pub mod listen;
 pub mod manpages;
 pub mod mcp;
 pub mod output;

@@ -22,26 +22,6 @@ pub fn run_default_backfill(root: Option<&str>) -> Result<usize> {
     run_backfill(&logs_dir(root), root, &providers)
 }
 
-pub fn live_adapter_for_provider(
-    provider: &str,
-    ctx: LiveLogContext,
-    enable_live: bool,
-) -> Option<Box<dyn LiveLogAdapter>> {
-    if !enable_live {
-        return None;
-    }
-
-    match provider {
-        "claude" => Some(Box::new(crate::claude::logs::ClaudeLiveLogAdapter::new(
-            ctx,
-        ))),
-        "codex" => Some(Box::new(crate::codex::CodexLiveLogAdapter::new(ctx))),
-        "gemini" => Some(Box::new(crate::gemini::GeminiLiveLogAdapter::new(ctx))),
-        "copilot" => Some(Box::new(crate::copilot::CopilotLiveLogAdapter::new(ctx))),
-        _ => None,
-    }
-}
-
 #[cfg(test)]
 #[path = "session_log_tests.rs"]
 mod tests;

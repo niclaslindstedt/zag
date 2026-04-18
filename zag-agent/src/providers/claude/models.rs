@@ -529,6 +529,7 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
         usage,
         model: model_name,
         provider: Some("claude".to_string()),
+        log_path: None,
     }
 }
 

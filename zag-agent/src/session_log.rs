@@ -321,6 +321,54 @@ pub trait HistoricalLogAdapter: Send + Sync {
     fn backfill(&self, root: Option<&str>) -> Result<Vec<BackfilledSession>>;
 }
 
+/// Canonical session log directory for a given project root.
+///
+/// Respects the `ZAG_USER_LOG_DIR` environment variable (set by `zag serve`
+/// in user-account mode) before falling back to `<agent_dir>/logs`.
+pub fn logs_dir(root: Option<&str>) -> PathBuf {
+    if let Ok(user_log_dir) = std::env::var("ZAG_USER_LOG_DIR") {
+        return PathBuf::from(user_log_dir);
+    }
+    crate::config::Config::agent_dir(root).join("logs")
+}
+
+/// Build a provider-specific live log adapter.
+///
+/// Returns `None` when either the provider has no live adapter or `enable_live`
+/// is false. Kept in `zag-agent` so library-side callers (`AgentBuilder`) can
+/// use it without depending on `zag-cli`.
+pub fn live_adapter_for_provider(
+    provider: &str,
+    ctx: LiveLogContext,
+    enable_live: bool,
+) -> Option<Box<dyn LiveLogAdapter>> {
+    if !enable_live {
+        return None;
+    }
+
+    match provider {
+        "claude" => Some(Box::new(
+            crate::providers::claude::logs::ClaudeLiveLogAdapter::new(ctx),
+        )),
+        "codex" => Some(Box::new(crate::providers::codex::CodexLiveLogAdapter::new(
+            ctx,
+        ))),
+        "gemini" => Some(Box::new(
+            crate::providers::gemini::GeminiLiveLogAdapter::new(ctx),
+        )),
+        "copilot" => Some(Box::new(
+            crate::providers::copilot::CopilotLiveLogAdapter::new(ctx),
+        )),
+        _ => None,
+    }
+}
+
+/// Callback invoked for each event after it has been written to the session
+/// log. Used by `AgentBuilder::on_log_event` /
+/// `AgentBuilder::stream_events_to_stderr` to give library callers live
+/// visibility without re-reading the JSONL file.
+pub type LogEventCallback = Arc<dyn Fn(&AgentLogEvent) + Send + Sync>;
+
 #[derive(Clone)]
 pub struct SessionLogWriter {
     state: Arc<Mutex<WriterState>>,
@@ -333,6 +381,7 @@ struct WriterState {
     next_seq: u64,
     completeness: LogCompleteness,
     global_index_dir: Option<PathBuf>,
+    event_callback: Option<LogEventCallback>,
 }
 
 pub struct SessionLogCoordinator {
@@ -375,6 +424,7 @@ impl SessionLogWriter {
                 next_seq,
                 completeness: LogCompleteness::Full,
                 global_index_dir: None,
+                event_callback: None,
             })),
         };
 
@@ -390,6 +440,31 @@ impl SessionLogWriter {
             .lock()
             .map_err(|_| anyhow::anyhow!("Log mutex poisoned"))?;
         state.global_index_dir = Some(dir);
+        Ok(())
+    }
+
+    /// Register a callback fired after each event is successfully written.
+    ///
+    /// The callback runs **outside** the internal mutex and receives a
+    /// reference to the freshly-serialised event. It is safe to call
+    /// `emit` from another task while the callback runs, but do not call
+    /// back into this writer from within the callback itself.
+    pub fn set_event_callback(&self, cb: LogEventCallback) -> Result<()> {
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Log mutex poisoned"))?;
+        state.event_callback = Some(cb);
+        Ok(())
+    }
+
+    /// Clear any previously registered event callback.
+    pub fn clear_event_callback(&self) -> Result<()> {
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Log mutex poisoned"))?;
+        state.event_callback = None;
         Ok(())
     }
 
@@ -451,28 +526,38 @@ impl SessionLogWriter {
     }
 
     pub fn emit(&self, source_kind: LogSourceKind, kind: LogEventKind) -> Result<()> {
-        let mut state = self
-            .state
-            .lock()
-            .map_err(|_| anyhow::anyhow!("Log mutex poisoned"))?;
-        let event = AgentLogEvent {
-            seq: state.next_seq,
-            ts: Utc::now().to_rfc3339(),
-            provider: state.metadata.provider.clone(),
-            wrapper_session_id: state.metadata.wrapper_session_id.clone(),
-            provider_session_id: state.metadata.provider_session_id.clone(),
-            source_kind,
-            completeness: state.completeness,
-            kind,
-        };
-        state.next_seq += 1;
+        let (event, callback) = {
+            let mut state = self
+                .state
+                .lock()
+                .map_err(|_| anyhow::anyhow!("Log mutex poisoned"))?;
+            let event = AgentLogEvent {
+                seq: state.next_seq,
+                ts: Utc::now().to_rfc3339(),
+                provider: state.metadata.provider.clone(),
+                wrapper_session_id: state.metadata.wrapper_session_id.clone(),
+                provider_session_id: state.metadata.provider_session_id.clone(),
+                source_kind,
+                completeness: state.completeness,
+                kind,
+            };
+            state.next_seq += 1;
 
-        let mut file = OpenOptions::new()
-            .append(true)
-            .open(&state.log_path)
-            .with_context(|| format!("Failed to open {}", state.log_path.display()))?;
-        writeln!(file, "{}", serde_json::to_string(&event)?)
-            .with_context(|| format!("Failed to write {}", state.log_path.display()))?;
+            let mut file = OpenOptions::new()
+                .append(true)
+                .open(&state.log_path)
+                .with_context(|| format!("Failed to open {}", state.log_path.display()))?;
+            writeln!(file, "{}", serde_json::to_string(&event)?)
+                .with_context(|| format!("Failed to write {}", state.log_path.display()))?;
+
+            (event, state.event_callback.clone())
+        };
+
+        // Invoke callback outside the lock so it can't deadlock by re-entering
+        // the writer and so a slow subscriber doesn't block other emitters.
+        if let Some(cb) = callback {
+            cb(&event);
+        }
         Ok(())
     }
 
@@ -571,7 +656,22 @@ impl SessionLogCoordinator {
         metadata: SessionLogMetadata,
         live_adapter: Option<Box<dyn LiveLogAdapter>>,
     ) -> Result<Self> {
+        Self::start_with_callback(logs_dir, metadata, live_adapter, None)
+    }
+
+    /// Like [`start`], but registers an event callback on the writer before
+    /// emitting the initial `SessionStarted` event, so subscribers see the
+    /// full lifecycle from the very first event.
+    pub fn start_with_callback(
+        logs_dir: &Path,
+        metadata: SessionLogMetadata,
+        live_adapter: Option<Box<dyn LiveLogAdapter>>,
+        event_callback: Option<LogEventCallback>,
+    ) -> Result<Self> {
         let writer = SessionLogWriter::create(logs_dir, metadata.clone())?;
+        if let Some(cb) = event_callback {
+            writer.set_event_callback(cb)?;
+        }
         writer.emit(
             if metadata.backfilled {
                 LogSourceKind::Backfill

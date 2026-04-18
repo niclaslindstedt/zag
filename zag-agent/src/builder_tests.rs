@@ -439,7 +439,8 @@ fn test_persist_session_metadata_noop_when_empty() {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().to_string_lossy().to_string();
     let builder = AgentBuilder::new().root(&root);
-    let persisted = builder.persist_session_metadata("claude", "default", Some(&root));
+    let persisted =
+        builder.persist_session_metadata_with_id("claude", "default", Some(&root), None);
     assert!(persisted.is_none(), "no metadata set => no session entry");
 }
 
@@ -461,7 +462,7 @@ fn test_persist_session_metadata_writes_entry_when_named() {
         .name("my-session")
         .tag("experiment");
     let persisted = builder
-        .persist_session_metadata("claude", "sonnet", Some(&root))
+        .persist_session_metadata_with_id("claude", "sonnet", Some(&root), None)
         .expect("session entry must be persisted when metadata is set");
 
     let store = crate::session::SessionStore::load(Some(&root)).unwrap();
@@ -485,7 +486,7 @@ fn test_persist_session_metadata_uses_caller_session_id() {
         .session_id(explicit_id)
         .name("pinned");
     let persisted = builder
-        .persist_session_metadata("codex", "gpt-5.4", Some(&root))
+        .persist_session_metadata_with_id("codex", "gpt-5.4", Some(&root), None)
         .unwrap();
     assert_eq!(persisted, explicit_id);
 

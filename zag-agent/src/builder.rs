@@ -33,16 +33,22 @@ use crate::attachment::{self, Attachment};
 use crate::config::Config;
 use crate::factory::AgentFactory;
 use crate::json_validation;
+use crate::listen::{self, ListenFormat};
 use crate::output::AgentOutput;
 use crate::progress::{ProgressHandler, SilentProgress};
 use crate::providers::claude::Claude;
 use crate::providers::ollama::Ollama;
 use crate::sandbox::SandboxConfig;
 use crate::session::{SessionEntry, SessionStore};
+use crate::session_log::{
+    AgentLogEvent, LiveLogContext, LogEventCallback, SessionLogCoordinator, SessionLogMetadata,
+    live_adapter_for_provider, logs_dir,
+};
 use crate::streaming::StreamingSession;
 use crate::worktree;
 use anyhow::{Result, bail};
 use log::{debug, warn};
+use std::sync::Arc;
 use std::time::Duration;
 
 /// Format a Duration as a human-readable string (e.g., "5m", "1h30m").
@@ -73,6 +79,91 @@ pub struct SessionMetadata {
     pub name: Option<String>,
     pub description: Option<String>,
     pub tags: Vec<String>,
+}
+
+/// Private guard returned by `AgentBuilder::start_session_log` — owns
+/// the coordinator (when `Auto`) or defers ownership to the caller (when
+/// `External`). Dropping the guard implicitly finalises the owned
+/// coordinator via its own `Drop` impl.
+struct SessionLogGuard {
+    /// Set when the builder started its own coordinator (`Auto`). Dropped
+    /// at the end of the terminal method, which finalises the log.
+    coordinator: Option<SessionLogCoordinator>,
+    wrapper_session_id: String,
+    log_path: Option<std::path::PathBuf>,
+    /// When the caller supplied an `External` coordinator, we keep a
+    /// writer clone so that `clear_event_callback` still works on exit.
+    external_writer: Option<crate::session_log::SessionLogWriter>,
+    /// Holds the externally-owned coordinator until the guard drops so
+    /// callers who pass `SessionLogMode::External` don't have to keep
+    /// their own handle alive. (They can; this is just a convenience.)
+    _owned_external: Option<SessionLogCoordinator>,
+}
+
+impl SessionLogGuard {
+    fn log_path_string(&self) -> Option<String> {
+        self.log_path
+            .as_ref()
+            .map(|p| p.to_string_lossy().to_string())
+    }
+
+    /// Flush the coordinator (emit `SessionEnded`, tear down the heartbeat /
+    /// live-adapter task). For `External` mode the caller retains ownership
+    /// — we merely detach our event callback so it stops firing after the
+    /// terminal method returns.
+    async fn finish(mut self, success: bool, error: Option<String>) {
+        // Run the finalization *before* detaching the callback so that the
+        // closing `SessionEnded` event still fires through the user's hook.
+        if let Some(coord) = self.coordinator.take() {
+            if let Err(e) = coord.finish(success, error).await {
+                warn!("Failed to finalize session log: {e}");
+            }
+        }
+        if let Some(w) = self.external_writer.take() {
+            let _ = w.clear_event_callback();
+        }
+    }
+}
+
+impl Drop for SessionLogGuard {
+    fn drop(&mut self) {
+        // Drop-path fallback: if a terminal method panicked or returned
+        // early without calling `finish`, still detach callbacks so user
+        // code stops receiving events. The owned coordinator's own `Drop`
+        // will kill the background task even without an explicit finish.
+        if let Some(ref w) = self.external_writer {
+            let _ = w.clear_event_callback();
+        }
+        if let Some(ref c) = self.coordinator {
+            let _ = c.writer().clear_event_callback();
+        }
+    }
+}
+
+/// Controls whether the builder manages a [`SessionLogCoordinator`] for the
+/// session it launches.
+///
+/// Default for [`AgentBuilder`] is [`SessionLogMode::Disabled`] so that
+/// existing Rust library callers see no side effects. The CLI and any
+/// caller that wants live event streaming should select
+/// [`SessionLogMode::Auto`].
+///
+/// [`SessionLogMode::External`] lets an advanced caller (e.g. the CLI's
+/// plan/review handlers, `zag-serve`) start and bookkeep its own
+/// coordinator — the builder will write through it without double-starting.
+#[derive(Default)]
+pub enum SessionLogMode {
+    /// No session log is started by the builder. No on-disk JSONL and no
+    /// live event callbacks.
+    #[default]
+    Disabled,
+    /// The builder starts its own [`SessionLogCoordinator`], tears it down
+    /// when the terminal method returns, and populates
+    /// [`AgentOutput::log_path`].
+    Auto,
+    /// The caller provides a pre-started [`SessionLogCoordinator`]; the
+    /// builder uses it verbatim and does not stop it at exit.
+    External(SessionLogCoordinator),
 }
 
 /// Builder for configuring and running agent sessions.
@@ -110,6 +201,17 @@ pub struct AgentBuilder {
     timeout: Option<std::time::Duration>,
     mcp_config: Option<String>,
     progress: Box<dyn ProgressHandler>,
+    session_log_mode: SessionLogMode,
+    /// Registered via [`AgentBuilder::on_log_event`] — fired for each
+    /// `AgentLogEvent` written to the session log while the terminal method
+    /// runs. Requires `session_log_mode != Disabled`.
+    log_event_callback: Option<LogEventCallback>,
+    /// Set via [`AgentBuilder::stream_events_to_stderr`] — overrides
+    /// `log_event_callback` to format and print each event to `stderr`.
+    stream_events_format: Option<ListenFormat>,
+    /// Whether the built-in stderr streamer should include reasoning events
+    /// (set via [`AgentBuilder::stream_show_thinking`]).
+    stream_show_thinking: bool,
 }
 
 impl Default for AgentBuilder {
@@ -149,6 +251,10 @@ impl AgentBuilder {
             timeout: None,
             mcp_config: None,
             progress: Box::new(SilentProgress),
+            session_log_mode: SessionLogMode::Disabled,
+            log_event_callback: None,
+            stream_events_format: None,
+            stream_show_thinking: false,
         }
     }
 
@@ -362,6 +468,59 @@ impl AgentBuilder {
         self
     }
 
+    /// Select how the builder manages the session log. See [`SessionLogMode`].
+    pub fn session_log(mut self, mode: SessionLogMode) -> Self {
+        self.session_log_mode = mode;
+        self
+    }
+
+    /// Shortcut for `.session_log(SessionLogMode::Auto)` when `true`, or
+    /// `.session_log(SessionLogMode::Disabled)` when `false`.
+    pub fn enable_session_log(mut self, enable: bool) -> Self {
+        self.session_log_mode = if enable {
+            SessionLogMode::Auto
+        } else {
+            SessionLogMode::Disabled
+        };
+        self
+    }
+
+    /// Register a callback fired for each `AgentLogEvent` written to the
+    /// session log during the terminal method. Implicitly switches
+    /// `session_log_mode` to [`SessionLogMode::Auto`] if it is currently
+    /// [`SessionLogMode::Disabled`].
+    pub fn on_log_event<F>(mut self, f: F) -> Self
+    where
+        F: Fn(&AgentLogEvent) + Send + Sync + 'static,
+    {
+        self.log_event_callback = Some(Arc::new(f));
+        if matches!(self.session_log_mode, SessionLogMode::Disabled) {
+            self.session_log_mode = SessionLogMode::Auto;
+        }
+        self
+    }
+
+    /// Convenience: tail the session log to stderr during the terminal
+    /// method, using the same formatters as the `zag listen` command.
+    ///
+    /// This is the drop-in replacement for the live stderr tail that a
+    /// previous shell-out-to-`zag` wrapper produced. Implicitly enables
+    /// session logging.
+    pub fn stream_events_to_stderr(mut self, format: ListenFormat) -> Self {
+        self.stream_events_format = Some(format);
+        if matches!(self.session_log_mode, SessionLogMode::Disabled) {
+            self.session_log_mode = SessionLogMode::Auto;
+        }
+        self
+    }
+
+    /// Include `Reasoning` events in the stderr stream when
+    /// [`stream_events_to_stderr`] is active. Off by default.
+    pub fn stream_show_thinking(mut self, show: bool) -> Self {
+        self.stream_show_thinking = show;
+        self
+    }
+
     /// Persist a `SessionEntry` to the session store so `zag session list`
     /// and `zag input --name <n>` can discover this builder-spawned session.
     ///
@@ -371,11 +530,12 @@ impl AgentBuilder {
     /// Returns the session ID that was persisted (either the caller-provided
     /// one or a freshly generated UUID), so downstream logging can reference
     /// the same ID.
-    fn persist_session_metadata(
+    fn persist_session_metadata_with_id(
         &self,
         provider: &str,
         model: &str,
         effective_root: Option<&str>,
+        explicit_session_id: Option<&str>,
     ) -> Option<String> {
         let has_metadata = self.metadata.name.is_some()
             || self.metadata.description.is_some()
@@ -384,9 +544,9 @@ impl AgentBuilder {
             return None;
         }
 
-        let session_id = self
-            .session_id
-            .clone()
+        let session_id = explicit_session_id
+            .map(String::from)
+            .or_else(|| self.session_id.clone())
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
         let workspace_path = effective_root
             .map(String::from)
@@ -604,6 +764,130 @@ impl AgentBuilder {
         Ok((agent, effective_provider))
     }
 
+    /// Start (or adopt) a [`SessionLogCoordinator`] for the session about
+    /// to run, honouring the builder's [`SessionLogMode`] and wiring up any
+    /// registered `on_log_event` / `stream_events_to_stderr` callback.
+    ///
+    /// Returns a guard that owns the coordinator (where applicable) and the
+    /// resolved `wrapper_session_id` + log path, or `None` when logging is
+    /// disabled.
+    fn start_session_log(
+        &mut self,
+        command: &str,
+        resumed: bool,
+        provider: &str,
+        model: &str,
+    ) -> Option<SessionLogGuard> {
+        let mode = std::mem::replace(&mut self.session_log_mode, SessionLogMode::Disabled);
+        match mode {
+            SessionLogMode::Disabled => None,
+            SessionLogMode::External(c) => {
+                let wrapper_session_id = c
+                    .writer()
+                    .log_path()
+                    .ok()
+                    .and_then(|p| p.file_stem().map(|s| s.to_string_lossy().to_string()))
+                    .unwrap_or_default();
+                let log_path = c.writer().log_path().ok();
+                self.apply_event_callback(c.writer());
+                Some(SessionLogGuard {
+                    coordinator: None, // externally owned
+                    wrapper_session_id,
+                    log_path,
+                    external_writer: Some(c.writer().clone()),
+                    _owned_external: Some(c),
+                })
+            }
+            SessionLogMode::Auto => {
+                let wrapper_session_id = self
+                    .session_id
+                    .clone()
+                    .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+                let metadata = SessionLogMetadata {
+                    provider: provider.to_string(),
+                    wrapper_session_id: wrapper_session_id.clone(),
+                    provider_session_id: None,
+                    workspace_path: self.root.clone().or_else(|| {
+                        std::env::current_dir()
+                            .ok()
+                            .map(|p| p.to_string_lossy().to_string())
+                    }),
+                    command: command.to_string(),
+                    model: Some(model.to_string()),
+                    resumed,
+                    backfilled: false,
+                };
+                let live_ctx = LiveLogContext {
+                    root: self.root.clone(),
+                    provider_session_id: metadata.provider_session_id.clone(),
+                    workspace_path: metadata.workspace_path.clone(),
+                    started_at: chrono::Utc::now(),
+                    is_worktree: self.worktree.is_some(),
+                };
+                let adapter = live_adapter_for_provider(provider, live_ctx, true);
+                let callback = self.build_event_callback();
+                match SessionLogCoordinator::start_with_callback(
+                    &logs_dir(self.root.as_deref()),
+                    metadata,
+                    adapter,
+                    callback,
+                ) {
+                    Ok(c) => {
+                        let _ = c.writer().set_global_index_dir(Config::global_base_dir());
+                        let log_path = c.writer().log_path().ok();
+                        Some(SessionLogGuard {
+                            coordinator: Some(c),
+                            wrapper_session_id,
+                            log_path,
+                            external_writer: None,
+                            _owned_external: None,
+                        })
+                    }
+                    Err(e) => {
+                        warn!("Failed to start session log coordinator: {e}");
+                        None
+                    }
+                }
+            }
+        }
+    }
+
+    /// Build a combined event callback from any registered `on_log_event`
+    /// and `stream_events_to_stderr` setters. Returns `None` when neither
+    /// is set so the writer doesn't pay any per-event cost.
+    fn build_event_callback(&self) -> Option<LogEventCallback> {
+        let user_cb = self.log_event_callback.clone();
+        let stream_fmt = self.stream_events_format;
+        let show_thinking = self.stream_show_thinking;
+
+        if user_cb.is_none() && stream_fmt.is_none() {
+            return None;
+        }
+
+        Some(Arc::new(move |event: &AgentLogEvent| {
+            if let Some(ref user) = user_cb {
+                user(event);
+            }
+            if let Some(fmt) = stream_fmt
+                && let Some(text) = listen::format_event(event, fmt, show_thinking)
+            {
+                eprintln!("{text}");
+            }
+        }))
+    }
+
+    /// Register the builder's callback on an externally-owned writer (used
+    /// by [`SessionLogMode::External`] — the coordinator is already running
+    /// so we can't register the callback before `SessionStarted`, but any
+    /// post-adoption event will still fire).
+    fn apply_event_callback(&self, writer: &crate::session_log::SessionLogWriter) {
+        if let Some(cb) = self.build_event_callback() {
+            if let Err(e) = writer.set_event_callback(cb) {
+                warn!("Failed to register session log event callback: {e}");
+            }
+        }
+    }
+
     /// Run the agent non-interactively and return structured output.
     ///
     /// This is the primary entry point for programmatic use.
@@ -633,11 +917,21 @@ impl AgentBuilder {
 
         let (agent, provider) = builder.create_agent(&provider).await?;
 
+        // Start (or adopt) the session log coordinator. Held for the whole
+        // terminal method; dropped after cleanup so the log file is
+        // finalised exactly once.
+        let log_guard = builder.start_session_log("exec", false, &provider, agent.get_model());
+
         // Persist the session entry so discovery (session list --name, input
         // --name) works for builder-spawned sessions. No-op when no metadata
-        // is set.
-        let _ =
-            builder.persist_session_metadata(&provider, agent.get_model(), builder.root.as_deref());
+        // is set. When session logging is active, share its wrapper_session_id
+        // so the store entry and the JSONL log agree.
+        let _ = builder.persist_session_metadata_with_id(
+            &provider,
+            agent.get_model(),
+            builder.root.as_deref(),
+            log_guard.as_ref().map(|g| g.wrapper_session_id.as_str()),
+        );
 
         // Prepend file attachments
         let prompt_with_files = builder.prepend_files(prompt)?;
@@ -666,7 +960,9 @@ impl AgentBuilder {
         // Clean up
         agent.cleanup().await?;
 
-        if let Some(output) = result {
+        let log_path_string = log_guard.as_ref().and_then(|g| g.log_path_string());
+
+        if let Some(mut output) = result {
             // Validate JSON output if schema is provided
             if let Some(ref schema) = builder.json_schema {
                 if !builder.json_mode {
@@ -697,10 +993,21 @@ impl AgentBuilder {
                     }
                 }
             }
+            output.log_path = log_path_string;
+            let success = !output.is_error;
+            let err_msg = output.error_message.clone();
+            if let Some(g) = log_guard {
+                g.finish(success, err_msg).await;
+            }
             Ok(output)
         } else {
             // Agent returned no structured output — create a minimal one
-            Ok(AgentOutput::from_text(&provider, ""))
+            let mut output = AgentOutput::from_text(&provider, "");
+            output.log_path = log_path_string;
+            if let Some(g) = log_guard {
+                g.finish(true, None).await;
+            }
+            Ok(output)
         }
     }
 
@@ -819,14 +1126,21 @@ impl AgentBuilder {
             None => None,
         };
 
-        let (agent, effective_provider) = self.create_agent(&provider).await?;
-        let _ = self.persist_session_metadata(
+        let mut builder = self;
+        let (agent, effective_provider) = builder.create_agent(&provider).await?;
+        let log_guard =
+            builder.start_session_log("run", false, &effective_provider, agent.get_model());
+        let _ = builder.persist_session_metadata_with_id(
             &effective_provider,
             agent.get_model(),
-            self.root.as_deref(),
+            builder.root.as_deref(),
+            log_guard.as_ref().map(|g| g.wrapper_session_id.as_str()),
         );
         agent.run_interactive(prompt_with_files.as_deref()).await?;
         agent.cleanup().await?;
+        if let Some(g) = log_guard {
+            g.finish(true, None).await;
+        }
         Ok(())
     }
 
@@ -838,9 +1152,14 @@ impl AgentBuilder {
         // Resuming must stick with the recorded provider — no downgrade.
         let mut builder = self;
         builder.provider_explicit = true;
-        let (agent, _provider) = builder.create_agent(&provider).await?;
+        let (agent, effective_provider) = builder.create_agent(&provider).await?;
+        let log_guard =
+            builder.start_session_log("resume", true, &effective_provider, agent.get_model());
         agent.run_resume(Some(session_id), false).await?;
         agent.cleanup().await?;
+        if let Some(g) = log_guard {
+            g.finish(true, None).await;
+        }
         Ok(())
     }
 
@@ -852,9 +1171,14 @@ impl AgentBuilder {
         // Resuming must stick with the recorded provider — no downgrade.
         let mut builder = self;
         builder.provider_explicit = true;
-        let (agent, _provider) = builder.create_agent(&provider).await?;
+        let (agent, effective_provider) = builder.create_agent(&provider).await?;
+        let log_guard =
+            builder.start_session_log("resume", true, &effective_provider, agent.get_model());
         agent.run_resume(None, true).await?;
         agent.cleanup().await?;
+        if let Some(g) = log_guard {
+            g.finish(true, None).await;
+        }
         Ok(())
     }
 }

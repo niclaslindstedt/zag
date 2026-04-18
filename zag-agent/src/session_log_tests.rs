@@ -153,6 +153,7 @@ fn test_record_agent_output_maps_core_events() {
         usage: None,
         model: None,
         provider: Some("codex".to_string()),
+        log_path: None,
     };
 
     record_agent_output(&writer, &output).unwrap();
@@ -418,6 +419,7 @@ fn test_record_agent_output_emits_usage() {
         }),
         model: Some("sonnet".to_string()),
         provider: Some("claude".to_string()),
+        log_path: None,
     };
 
     record_agent_output(&writer, &output).unwrap();

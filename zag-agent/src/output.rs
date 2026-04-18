@@ -50,6 +50,14 @@ pub struct AgentOutput {
     /// The provider that ran this session (e.g. "claude", "codex", "gemini")
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
+
+    /// Absolute path to the JSONL session log on disk, populated when the
+    /// builder ran with session logging enabled. Consumers can tail this
+    /// path (e.g. via [`zag_orch::listen::tail_session_log`]) to observe
+    /// per-step agent output. Held as a string to keep JSON output
+    /// OS-agnostic.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub log_path: Option<String>,
 }
 
 /// A single event in an agent session.
@@ -251,6 +259,7 @@ impl AgentOutput {
             usage: None,
             model: None,
             provider: Some(agent.to_string()),
+            log_path: None,
         }
     }
 
