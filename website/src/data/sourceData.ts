@@ -913,6 +913,22 @@ export const builderMethods: BuilderMethod[] = [
   {
     "name": "on_progress",
     "description": "Set a custom progress handler for status reporting."
+  },
+  {
+    "name": "session_log",
+    "description": "Select how the builder manages the session log. See [`SessionLogMode`]."
+  },
+  {
+    "name": "enable_session_log",
+    "description": "`.session_log(SessionLogMode::Disabled)` when `false`."
+  },
+  {
+    "name": "stream_events_to_stderr",
+    "description": "session logging."
+  },
+  {
+    "name": "stream_show_thinking",
+    "description": "[`stream_events_to_stderr`] is active. Off by default."
   }
 ];
 
