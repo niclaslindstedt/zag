@@ -16,6 +16,6 @@ Related issue: <!-- Closes #<number> or N/A -->
 - [ ] Tests added/updated in separate `*_tests.rs` files
 - [ ] Documentation updated (if user-facing behavior changed):
   - [ ] `README.md`
-  - [ ] `zag-cli/man/*.md`
+  - [ ] `zag-agent/man/*.md`
   - [ ] Binding READMEs (if builder API changed)
 - [ ] Commit messages follow conventional commit style

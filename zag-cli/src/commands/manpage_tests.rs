@@ -1,4 +1,5 @@
 use super::*;
+use zag_agent::manpages;
 
 #[test]
 fn test_print_manpage_default() {
@@ -46,16 +47,21 @@ fn test_print_manpage_unknown_command() {
 
 #[test]
 fn test_manpage_content_has_headers() {
-    assert!(MAN_ZAG.contains("# zag"));
-    assert!(MAN_RUN.contains("# zag run"));
-    assert!(MAN_EXEC.contains("# zag exec"));
-    assert!(MAN_REVIEW.contains("# zag review"));
-    assert!(MAN_CONFIG.contains("# zag config"));
-    assert!(MAN_MAN.contains("# zag man"));
-    assert!(MAN_SKILLS.contains("# zag skills"));
-    assert!(MAN_MCP.contains("# zag mcp"));
-    assert!(MAN_PS.contains("# zag ps"));
-    assert!(MAN_SEARCH.contains("# zag search"));
-    assert!(MAN_INPUT.contains("# zag input"));
-    assert!(MAN_BROADCAST.contains("# zag broadcast"));
+    assert!(manpages::ZAG.contains("# zag"));
+    assert!(manpages::RUN.contains("# zag run"));
+    assert!(manpages::EXEC.contains("# zag exec"));
+    assert!(manpages::REVIEW.contains("# zag review"));
+    assert!(manpages::CONFIG.contains("# zag config"));
+    assert!(manpages::MAN.contains("# zag man"));
+    assert!(manpages::SKILLS.contains("# zag skills"));
+    assert!(manpages::MCP.contains("# zag mcp"));
+    assert!(manpages::PS.contains("# zag ps"));
+    assert!(manpages::SEARCH.contains("# zag search"));
+    assert!(manpages::INPUT.contains("# zag input"));
+    assert!(manpages::BROADCAST.contains("# zag broadcast"));
+}
+
+#[test]
+fn test_help_agent_reexport_matches_library() {
+    assert_eq!(HELP_AGENT, manpages::HELP_AGENT);
 }

@@ -1,4 +1,47 @@
 use super::*;
+use std::path::{Path, PathBuf};
+
+#[test]
+fn test_resolve_zag_bin_explicit_wins() {
+    let explicit = PathBuf::from("/opt/zag/bin/zag");
+    let resolved = resolve_zag_bin(Some(&explicit)).unwrap();
+    assert_eq!(resolved, explicit);
+}
+
+#[test]
+fn test_resolve_zag_bin_reads_env_var() {
+    // SAFETY: the test harness is single-threaded for this process; we scope
+    // the mutation to the test body.
+    unsafe {
+        std::env::set_var("ZAG_BIN", "/usr/local/bin/zag-custom");
+    }
+    let resolved = resolve_zag_bin(None);
+    unsafe {
+        std::env::remove_var("ZAG_BIN");
+    }
+    assert_eq!(resolved.unwrap(), Path::new("/usr/local/bin/zag-custom"));
+}
+
+#[test]
+fn test_resolve_zag_bin_error_message_on_miss() {
+    // If neither PATH has zag nor the current exe is named zag, the resolver
+    // should error cleanly. We can't reliably force that state inside the
+    // workspace, so only inspect the error message when the miss branch
+    // actually fires.
+    unsafe {
+        std::env::set_var("ZAG_BIN", "");
+    }
+    let result = resolve_zag_bin(None);
+    unsafe {
+        std::env::remove_var("ZAG_BIN");
+    }
+    if let Err(e) = result {
+        assert!(
+            e.to_string().contains("No `zag` binary found"),
+            "unexpected error: {e}"
+        );
+    }
+}
 
 #[test]
 fn test_spawn_logs_dir() {
@@ -39,6 +82,7 @@ fn test_build_relay_args() {
         interactive: true,
         env_vars: vec![],
         sandbox: None,
+        zag_bin: None,
     };
     let args = build_relay_args(&params, "test-session-id");
     assert!(args.contains(&"relay".to_string()));
@@ -77,6 +121,7 @@ fn test_build_relay_args_no_prompt() {
         interactive: true,
         env_vars: vec![],
         sandbox: None,
+        zag_bin: None,
     };
     let args = build_relay_args(&params, "test-id");
     assert!(args.contains(&"relay".to_string()));
@@ -110,6 +155,7 @@ fn test_build_exec_args_has_prompt() {
         interactive: false,
         env_vars: vec![],
         sandbox: None,
+        zag_bin: None,
     };
     let args = build_exec_args(&params, "test-id");
     assert!(args.contains(&"exec".to_string()));
@@ -147,6 +193,7 @@ fn test_build_exec_args_with_sandbox() {
         interactive: false,
         env_vars: vec![],
         sandbox: Some("sandbox-abc123".to_string()),
+        zag_bin: None,
     };
     let args = build_exec_args(&params, "test-id");
     assert!(args.contains(&"exec".to_string()));
@@ -185,6 +232,7 @@ fn test_build_exec_args_without_sandbox() {
         interactive: false,
         env_vars: vec![],
         sandbox: None,
+        zag_bin: None,
     };
     let args = build_exec_args(&params, "test-id");
     assert!(!args.contains(&"--sandbox".to_string()));

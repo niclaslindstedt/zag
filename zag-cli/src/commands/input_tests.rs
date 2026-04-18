@@ -1,8 +1,12 @@
+//! CLI-side sanity checks. The bulk of the envelope-wrapping / session-resolution
+//! coverage lives in `zag-orch/src/messaging_tests.rs` now that the logic was
+//! lifted into the library; these tests just confirm the re-exported shim is
+//! still reachable from the CLI module path.
+
 use super::*;
 use std::sync::Mutex;
+use zag_orch::messaging::{SenderInfo, wrap_agent_message};
 
-/// Mutex to serialize tests that manipulate ZAG_* environment variables,
-/// preventing races when tests run in parallel.
 static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
 #[test]
@@ -25,39 +29,8 @@ fn test_wrap_agent_message_full_info() {
 }
 
 #[test]
-fn test_wrap_agent_message_missing_provider_and_model() {
-    let sender = SenderInfo {
-        session_id: "xyz-789".to_string(),
-        name: None,
-        provider: None,
-        model: None,
-    };
-    let result = wrap_agent_message("test msg", &sender);
-    assert!(result.contains(r#"provider="unknown""#));
-    assert!(result.contains(r#"model="unknown""#));
-    assert!(result.contains("test msg"));
-}
-
-#[test]
-fn test_wrap_agent_message_with_name() {
-    let sender = SenderInfo {
-        session_id: "abc-123".to_string(),
-        name: Some("frontend-agent".to_string()),
-        provider: Some("claude".to_string()),
-        model: Some("opus".to_string()),
-    };
-    let result = wrap_agent_message("hello", &sender);
-    assert!(result.contains(r#"name="frontend-agent""#));
-    assert!(
-        result.contains(
-            r#"<reply-with>zag input --name frontend-agent "your reply here"</reply-with>"#
-        )
-    );
-}
-
-#[test]
 fn test_maybe_wrap_message_raw_skips_wrapping() {
-    // Even if env vars were set, raw=true should return the message as-is
+    let _lock = ENV_MUTEX.lock().unwrap();
     let msg = "plain message";
     let result = maybe_wrap_message(msg, true);
     assert_eq!(result, msg);
@@ -67,7 +40,6 @@ fn test_maybe_wrap_message_raw_skips_wrapping() {
 fn test_maybe_wrap_message_no_session_returns_raw() {
     let _lock = ENV_MUTEX.lock().unwrap();
 
-    // Temporarily ensure ZAG_SESSION_ID is not set
     let original = std::env::var("ZAG_SESSION_ID").ok();
     unsafe { std::env::remove_var("ZAG_SESSION_ID") };
 
@@ -75,58 +47,7 @@ fn test_maybe_wrap_message_no_session_returns_raw() {
     let result = maybe_wrap_message(msg, false);
     assert_eq!(result, msg);
 
-    // Restore
     if let Some(val) = original {
         unsafe { std::env::set_var("ZAG_SESSION_ID", val) };
-    }
-}
-
-#[test]
-fn test_sender_info_from_env_returns_none_without_session() {
-    let _lock = ENV_MUTEX.lock().unwrap();
-
-    let original = std::env::var("ZAG_SESSION_ID").ok();
-    unsafe { std::env::remove_var("ZAG_SESSION_ID") };
-
-    assert!(SenderInfo::from_env().is_none());
-
-    if let Some(val) = original {
-        unsafe { std::env::set_var("ZAG_SESSION_ID", val) };
-    }
-}
-
-#[test]
-fn test_sender_info_from_env_reads_vars() {
-    let _lock = ENV_MUTEX.lock().unwrap();
-
-    let orig_sid = std::env::var("ZAG_SESSION_ID").ok();
-    let orig_prov = std::env::var("ZAG_PROVIDER").ok();
-    let orig_model = std::env::var("ZAG_MODEL").ok();
-
-    unsafe {
-        std::env::set_var("ZAG_SESSION_ID", "test-session-42");
-        std::env::set_var("ZAG_PROVIDER", "gemini");
-        std::env::set_var("ZAG_MODEL", "flash");
-    }
-
-    let info = SenderInfo::from_env().expect("should detect session");
-    assert_eq!(info.session_id, "test-session-42");
-    assert_eq!(info.provider.as_deref(), Some("gemini"));
-    assert_eq!(info.model.as_deref(), Some("flash"));
-
-    // Restore
-    unsafe {
-        match orig_sid {
-            Some(v) => std::env::set_var("ZAG_SESSION_ID", v),
-            None => std::env::remove_var("ZAG_SESSION_ID"),
-        }
-        match orig_prov {
-            Some(v) => std::env::set_var("ZAG_PROVIDER", v),
-            None => std::env::remove_var("ZAG_PROVIDER"),
-        }
-        match orig_model {
-            Some(v) => std::env::set_var("ZAG_MODEL", v),
-            None => std::env::remove_var("ZAG_MODEL"),
-        }
     }
 }

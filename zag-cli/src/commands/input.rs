@@ -8,6 +8,7 @@ use log::debug;
 use crate::factory::AgentFactory;
 use crate::resume;
 use zag_orch::listen;
+use zag_orch::messaging;
 
 pub(crate) struct InputParams {
     pub session: Option<String>,
@@ -25,63 +26,11 @@ pub(crate) struct InputParams {
     pub files: Vec<String>,
 }
 
-struct SenderInfo {
-    session_id: String,
-    name: Option<String>,
-    provider: Option<String>,
-    model: Option<String>,
-}
-
-impl SenderInfo {
-    /// Read sender identity from ZAG_* env vars. Returns None if not inside a session.
-    fn from_env() -> Option<Self> {
-        let session_id = std::env::var("ZAG_SESSION_ID").ok()?;
-        Some(Self {
-            session_id,
-            name: std::env::var("ZAG_SESSION_NAME").ok(),
-            provider: std::env::var("ZAG_PROVIDER").ok(),
-            model: std::env::var("ZAG_MODEL").ok(),
-        })
-    }
-}
-
-fn wrap_agent_message(message: &str, sender: &SenderInfo) -> String {
-    let provider = sender.provider.as_deref().unwrap_or("unknown");
-    let model = sender.model.as_deref().unwrap_or("unknown");
-    let name_attr = sender
-        .name
-        .as_ref()
-        .map(|n| format!(" name=\"{n}\""))
-        .unwrap_or_default();
-    let reply_target = if let Some(ref name) = sender.name {
-        format!("zag input --name {name} \"your reply here\"")
-    } else {
-        format!(
-            "zag input --session {} \"your reply here\"",
-            sender.session_id
-        )
-    };
-    format!(
-        "<agent-message>\n\
-         <from session=\"{}\"{} provider=\"{}\" model=\"{}\"/>\n\
-         <reply-with>{}</reply-with>\n\
-         <body>\n\
-         {}\n\
-         </body>\n\
-         </agent-message>",
-        sender.session_id, name_attr, provider, model, reply_target, message
-    )
-}
-
-/// If inside a zag session and raw mode is not set, wrap the message with sender metadata.
+/// Re-export of the library helper so CLI tests that exercise envelope
+/// wrapping can keep using `maybe_wrap_message` at its old import path.
+#[cfg(test)]
 pub(crate) fn maybe_wrap_message(message: &str, raw: bool) -> String {
-    if raw {
-        return message.to_string();
-    }
-    match SenderInfo::from_env() {
-        Some(sender) => wrap_agent_message(message, &sender),
-        None => message.to_string(),
-    }
+    messaging::maybe_wrap_message(message, raw)
 }
 
 /// Resolve the session ID for the input command from the various targeting flags.
@@ -189,7 +138,7 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
     // Check if this is an interactive session with a FIFO
     let fifo = zag_orch::spawn::fifo_path(&resolved_id);
     if fifo.exists() {
-        return send_via_fifo(&fifo, message.as_deref(), &resolved_id, raw, quiet).await;
+        return send_via_fifo(message.as_deref(), &resolved_id, raw, quiet).await;
     }
 
     // Resolve the resume target to get provider, provider_session_id, model
@@ -254,7 +203,7 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
         // Send messages and read events concurrently
         let messages = stdin_task.await?;
         for msg in messages {
-            let wrapped = maybe_wrap_message(&msg, raw);
+            let wrapped = messaging::maybe_wrap_message(&msg, raw);
             session.send_user_message(&wrapped).await?;
         }
         session.close_input();
@@ -307,7 +256,7 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
             msg
         };
 
-        let msg = maybe_wrap_message(&msg, raw);
+        let msg = messaging::maybe_wrap_message(&msg, raw);
 
         debug!("Input command: sending message ({} bytes)", msg.len());
 
@@ -368,7 +317,6 @@ pub(crate) async fn run_input(params: InputParams) -> Result<()> {
 
 /// Send a message to an interactive session via its FIFO.
 async fn send_via_fifo(
-    fifo: &std::path::Path,
     message: Option<&str>,
     session_id: &str,
     raw: bool,
@@ -386,7 +334,7 @@ async fn send_via_fifo(
         trimmed
     };
 
-    let msg = maybe_wrap_message(&msg, raw);
+    let msg = messaging::maybe_wrap_message(&msg, raw);
 
     debug!(
         "Sending to interactive session {} via FIFO ({} bytes)",
@@ -401,19 +349,5 @@ async fn send_via_fifo(
         );
     }
 
-    // Format as NDJSON and write to FIFO
-    let ndjson = serde_json::json!({
-        "type": "user_message",
-        "content": msg,
-    });
-    let line = format!("{}\n", serde_json::to_string(&ndjson)?);
-
-    // Open FIFO for writing (will block until a reader is available)
-    let mut fifo_file = tokio::fs::OpenOptions::new().write(true).open(fifo).await?;
-
-    use tokio::io::AsyncWriteExt;
-    fifo_file.write_all(line.as_bytes()).await?;
-    fifo_file.flush().await?;
-
-    Ok(())
+    messaging::send_via_fifo(session_id, &msg).await
 }

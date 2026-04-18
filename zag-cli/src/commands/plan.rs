@@ -1,12 +1,10 @@
 use anyhow::{Context, Result};
 use log::debug;
-use std::path::{Path, PathBuf};
 
 use crate::config::Config;
 use crate::factory::AgentFactory;
 use crate::logging;
-
-const PLAN_TEMPLATE: &str = include_str!("../../prompts/plan/1_0.md");
+use zag_agent::plan as lib_plan;
 
 pub(crate) struct PlanParams {
     pub provider: String,
@@ -37,17 +35,16 @@ pub(crate) async fn run_plan(params: PlanParams) -> Result<()> {
 
     debug!("Starting plan via {provider} for goal: {goal}");
 
-    // Resolve and validate output path early
     let output_path = match output {
         Some(ref out) => {
-            let resolved = resolve_output_path(out);
-            validate_output_path(&resolved)?;
+            let resolved = lib_plan::resolve_output_path(out);
+            lib_plan::validate_output_path(&resolved)?;
             Some(resolved)
         }
         None => None,
     };
 
-    let plan_prompt = build_plan_prompt(&goal, instructions.as_deref());
+    let plan_prompt = lib_plan::build_plan_prompt(&goal, instructions.as_deref());
 
     let spinner = logging::spinner(format!("Initializing {provider} for planning"));
     let mut agent = AgentFactory::create(
@@ -62,7 +59,6 @@ pub(crate) async fn run_plan(params: PlanParams) -> Result<()> {
 
     let model_name = agent.get_model().to_string();
 
-    // If writing to a file, capture output; otherwise stream to stdout
     if output_path.is_some() {
         agent.set_capture_output(true);
     }
@@ -71,7 +67,6 @@ pub(crate) async fn run_plan(params: PlanParams) -> Result<()> {
         eprintln!("\x1b[32m✓\x1b[0m Plan initialized with model {model_name}");
     }
 
-    // Session logging
     let plan_session_id = uuid::Uuid::new_v4().to_string();
     let workspace_path = root.clone().or_else(|| {
         std::env::current_dir()
@@ -110,7 +105,6 @@ pub(crate) async fn run_plan(params: PlanParams) -> Result<()> {
     let log_prompt_summary = format!("plan goal={goal:?}");
     crate::session_log::record_prompt(log_coordinator.writer(), Some(&log_prompt_summary))?;
 
-    // Register process entry
     let plan_proc_id = uuid::Uuid::new_v4().to_string();
     if let Ok(mut pstore) = zag_agent::process_store::ProcessStore::load() {
         pstore.add(zag_agent::process_store::ProcessEntry {
@@ -135,7 +129,6 @@ pub(crate) async fn run_plan(params: PlanParams) -> Result<()> {
     let plan_result = agent.run(Some(&plan_prompt)).await;
     match plan_result {
         Ok(agent_output) => {
-            // Write captured output to file if --output was specified
             if let Some(ref path) = output_path {
                 let plan_text = agent_output.and_then(|o| o.result).unwrap_or_default();
                 if let Some(parent) = path.parent() {
@@ -168,62 +161,3 @@ pub(crate) async fn run_plan(params: PlanParams) -> Result<()> {
 
     Ok(())
 }
-
-fn build_plan_prompt(goal: &str, instructions: Option<&str>) -> String {
-    let context_section = String::new();
-    let prompt_section = match instructions {
-        Some(inst) => format!("## Additional Instructions\n\n{inst}"),
-        None => String::new(),
-    };
-
-    PLAN_TEMPLATE
-        .replace("{GOAL}", goal)
-        .replace("{CONTEXT_SECTION}", &context_section)
-        .replace("{PROMPT}", &prompt_section)
-}
-
-/// Resolve an output path: if it looks like a directory (no extension), generate a filename.
-fn resolve_output_path(output: &str) -> PathBuf {
-    let path = PathBuf::from(output);
-    if path.extension().is_some() {
-        path
-    } else {
-        let timestamp = chrono::Utc::now().format("%Y%m%d-%H%M%S");
-        path.join(format!("plan-{timestamp}.md"))
-    }
-}
-
-/// Validate the output path is within the user's home directory (serve mode only).
-///
-/// When `ZAG_USER_HOME_DIR` is set (by `zag serve` in user-account mode),
-/// the output path must be within the user's home directory. In direct CLI
-/// mode this env var is unset and all paths are allowed.
-fn validate_output_path(path: &Path) -> Result<()> {
-    let home_dir = match std::env::var("ZAG_USER_HOME_DIR") {
-        Ok(dir) => dir,
-        Err(_) => return Ok(()), // no restriction in direct CLI mode
-    };
-    let home = PathBuf::from(&home_dir);
-    let canonical_home = std::fs::canonicalize(&home).unwrap_or_else(|_| home.clone());
-    // For new files, validate the parent directory exists and is within home
-    let check_path = if path.exists() {
-        path.to_path_buf()
-    } else {
-        path.parent()
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("."))
-    };
-    let canonical = std::fs::canonicalize(&check_path).unwrap_or_else(|_| check_path.clone());
-    if !canonical.starts_with(&canonical_home) {
-        anyhow::bail!(
-            "Output path '{}' is outside your home directory: {}",
-            path.display(),
-            canonical_home.display()
-        );
-    }
-    Ok(())
-}
-
-#[cfg(test)]
-#[path = "plan_tests.rs"]
-mod tests;

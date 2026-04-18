@@ -4,10 +4,7 @@ mod tests;
 
 use anyhow::{Result, bail};
 use log::debug;
-
-use super::input::maybe_wrap_message;
-use crate::factory::AgentFactory;
-use crate::resume;
+use zag_orch::messaging;
 
 pub(crate) struct BroadcastParams {
     pub message: Option<String>,
@@ -17,40 +14,6 @@ pub(crate) struct BroadcastParams {
     pub root: Option<String>,
     pub quiet: bool,
     pub raw: bool,
-}
-
-/// Resolve all session IDs, optionally filtered by tag.
-fn resolve_broadcast_session_ids(
-    tag: Option<&str>,
-    global: bool,
-    root: Option<&str>,
-) -> Result<Vec<String>> {
-    let store = if global {
-        zag_agent::session::SessionStore::load_all().unwrap_or_default()
-    } else {
-        zag_agent::session::SessionStore::load(root).unwrap_or_default()
-    };
-    if let Some(t) = tag {
-        let matches = store.find_by_tag(t);
-        if matches.is_empty() {
-            bail!("No sessions found with tag '{t}'");
-        }
-        Ok(matches.iter().map(|e| e.session_id.clone()).collect())
-    } else {
-        if store.sessions.is_empty() {
-            let scope = if global {
-                "across all projects"
-            } else {
-                "in current project"
-            };
-            bail!("No sessions found {scope}");
-        }
-        Ok(store
-            .sessions
-            .iter()
-            .map(|e| e.session_id.clone())
-            .collect())
-    }
 }
 
 pub(crate) async fn run_broadcast(params: BroadcastParams) -> Result<()> {
@@ -64,7 +27,8 @@ pub(crate) async fn run_broadcast(params: BroadcastParams) -> Result<()> {
         raw,
     } = params;
 
-    let session_ids = resolve_broadcast_session_ids(tag.as_deref(), global, root.as_deref())?;
+    let session_ids =
+        messaging::resolve_broadcast_session_ids(tag.as_deref(), global, root.as_deref())?;
 
     debug!(
         "Broadcast: resolved {} session(s){}",
@@ -86,84 +50,29 @@ pub(crate) async fn run_broadcast(params: BroadcastParams) -> Result<()> {
         trimmed
     };
 
-    let msg = maybe_wrap_message(&msg, raw);
-    let mut sent = 0usize;
-    let mut failed = 0usize;
-    let mut results: Vec<serde_json::Value> = Vec::new();
+    let msg = messaging::maybe_wrap_message(&msg, raw);
+    let broadcast_result = messaging::send_broadcast(&session_ids, &msg, root.as_deref()).await?;
+
     let output_json = matches!(output.as_deref(), Some("json") | Some("json-pretty"));
-
-    for resolved_id in &session_ids {
-        let target = match resume::resolve_resume_target(resolved_id, root.as_deref()) {
-            Some(t) => t,
-            None => {
-                log::warn!("No session found for '{resolved_id}', skipping");
-                failed += 1;
-                if output_json {
-                    results.push(serde_json::json!({
-                        "session_id": resolved_id,
-                        "status": "failed",
-                        "error": "session not found"
-                    }));
-                }
-                continue;
-            }
-        };
-
-        let provider = &target.entry.provider;
-        let provider_session_id = target
-            .entry
-            .provider_session_id
-            .as_deref()
-            .unwrap_or(resolved_id);
-
-        let model = if target.entry.model.is_empty() {
-            None
-        } else {
-            Some(target.entry.model.clone())
-        };
-
-        let agent = AgentFactory::create(
-            provider,
-            None,
-            model,
-            root.as_ref().map(|s| s.to_string()),
-            false,
-            vec![],
-        )?;
-        match agent
-            .run_resume_with_prompt(provider_session_id, &msg)
-            .await
-        {
-            Ok(_) => {
-                sent += 1;
-                if output_json {
-                    results.push(serde_json::json!({
-                        "session_id": resolved_id,
-                        "status": "sent"
-                    }));
-                }
-            }
-            Err(e) => {
-                log::warn!("Failed to send to session {resolved_id}: {e}");
-                failed += 1;
-                if output_json {
-                    results.push(serde_json::json!({
-                        "session_id": resolved_id,
-                        "status": "failed",
-                        "error": e.to_string()
-                    }));
-                }
-            }
-        }
-    }
-
     if output_json {
+        let results: Vec<serde_json::Value> = broadcast_result
+            .outcomes
+            .iter()
+            .map(|o| match &o.result {
+                Ok(()) => serde_json::json!({"session_id": o.session_id, "status": "sent"}),
+                Err(e) => serde_json::json!({
+                    "session_id": o.session_id,
+                    "status": "failed",
+                    "error": e,
+                }),
+            })
+            .collect();
         let result = serde_json::json!({
             "results": results,
             "summary": {
-                "sent": sent,
-                "failed": failed,
-                "total": session_ids.len()
+                "sent": broadcast_result.sent(),
+                "failed": broadcast_result.failed(),
+                "total": broadcast_result.total(),
             }
         });
         if output.as_deref() == Some("json-pretty") {
@@ -172,11 +81,11 @@ pub(crate) async fn run_broadcast(params: BroadcastParams) -> Result<()> {
             println!("{}", serde_json::to_string(&result)?);
         }
     } else if !quiet {
+        let sent = broadcast_result.sent();
         eprintln!(
-            "> Sent to {} session{} ({} failed)",
-            sent,
+            "> Sent to {sent} session{} ({} failed)",
             if sent == 1 { "" } else { "s" },
-            failed
+            broadcast_result.failed(),
         );
     }
 

@@ -166,6 +166,7 @@ pub fn retry_sessions(params: &RetryParams) -> Result<Vec<RetryResult>> {
             interactive: false,
             env_vars: vec![],
             sandbox: None,
+            zag_bin: None,
         });
 
         match spawn_result {

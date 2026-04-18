@@ -38,6 +38,7 @@ use crate::progress::{ProgressHandler, SilentProgress};
 use crate::providers::claude::Claude;
 use crate::providers::ollama::Ollama;
 use crate::sandbox::SandboxConfig;
+use crate::session::{SessionEntry, SessionStore};
 use crate::streaming::StreamingSession;
 use crate::worktree;
 use anyhow::{Result, bail};
@@ -63,6 +64,17 @@ fn format_duration(d: Duration) -> String {
     parts.join("")
 }
 
+/// Session discovery metadata — mirrors the `--name`, `--description`, and
+/// `--tag` flags on the `run`/`exec`/`spawn` CLI commands. Attached to a
+/// builder via [`AgentBuilder::name`], [`AgentBuilder::description`], and
+/// [`AgentBuilder::tag`].
+#[derive(Debug, Clone, Default)]
+pub struct SessionMetadata {
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub tags: Vec<String>,
+}
+
 /// Builder for configuring and running agent sessions.
 ///
 /// Use the builder pattern to set options, then call a terminal method
@@ -86,6 +98,7 @@ pub struct AgentBuilder {
     json_mode: bool,
     json_schema: Option<serde_json::Value>,
     session_id: Option<String>,
+    metadata: SessionMetadata,
     output_format: Option<String>,
     input_format: Option<String>,
     replay_user_messages: bool,
@@ -124,6 +137,7 @@ impl AgentBuilder {
             json_mode: false,
             json_schema: None,
             session_id: None,
+            metadata: SessionMetadata::default(),
             output_format: None,
             input_format: None,
             replay_user_messages: false,
@@ -230,6 +244,37 @@ impl AgentBuilder {
         self
     }
 
+    /// Set a human-readable session name (mirrors the CLI's `--name`).
+    ///
+    /// Names are used by `zag input --name <n>`, `zag session list --name
+    /// <n>`, and for session discovery across the store. When the session
+    /// has a generated wrapper ID, the builder will persist this name to
+    /// the session store so CLI tools can find it later.
+    pub fn name(mut self, name: &str) -> Self {
+        self.metadata.name = Some(name.to_string());
+        self
+    }
+
+    /// Set a short description for the session (mirrors the CLI's
+    /// `--description`).
+    pub fn description(mut self, description: &str) -> Self {
+        self.metadata.description = Some(description.to_string());
+        self
+    }
+
+    /// Add a discovery tag for the session (mirrors the CLI's `--tag`,
+    /// repeatable).
+    pub fn tag(mut self, tag: &str) -> Self {
+        self.metadata.tags.push(tag.to_string());
+        self
+    }
+
+    /// Replace the full session metadata in one call.
+    pub fn metadata(mut self, metadata: SessionMetadata) -> Self {
+        self.metadata = metadata;
+        self
+    }
+
     /// Set the output format (e.g., "text", "json", "json-pretty", "stream-json").
     pub fn output_format(mut self, format: &str) -> Self {
         self.output_format = Some(format.to_string());
@@ -315,6 +360,72 @@ impl AgentBuilder {
     pub fn on_progress(mut self, handler: Box<dyn ProgressHandler>) -> Self {
         self.progress = handler;
         self
+    }
+
+    /// Persist a `SessionEntry` to the session store so `zag session list`
+    /// and `zag input --name <n>` can discover this builder-spawned session.
+    ///
+    /// No-op when no metadata is set — callers who don't name their sessions
+    /// still get the old behavior of not leaving a trail in the session store.
+    ///
+    /// Returns the session ID that was persisted (either the caller-provided
+    /// one or a freshly generated UUID), so downstream logging can reference
+    /// the same ID.
+    fn persist_session_metadata(
+        &self,
+        provider: &str,
+        model: &str,
+        effective_root: Option<&str>,
+    ) -> Option<String> {
+        let has_metadata = self.metadata.name.is_some()
+            || self.metadata.description.is_some()
+            || !self.metadata.tags.is_empty();
+        if !has_metadata {
+            return None;
+        }
+
+        let session_id = self
+            .session_id
+            .clone()
+            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        let workspace_path = effective_root
+            .map(String::from)
+            .or_else(|| self.root.clone())
+            .unwrap_or_else(|| {
+                std::env::current_dir()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_default()
+            });
+
+        let entry = SessionEntry {
+            session_id: session_id.clone(),
+            provider: provider.to_string(),
+            model: model.to_string(),
+            worktree_path: workspace_path,
+            worktree_name: String::new(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+            provider_session_id: None,
+            sandbox_name: None,
+            is_worktree: self.worktree.is_some(),
+            discovered: false,
+            discovery_source: None,
+            log_path: None,
+            log_completeness: "partial".to_string(),
+            name: self.metadata.name.clone(),
+            description: self.metadata.description.clone(),
+            tags: self.metadata.tags.clone(),
+            dependencies: Vec::new(),
+            retried_from: None,
+            interactive: false,
+        };
+
+        let mut store = SessionStore::load(self.root.as_deref()).unwrap_or_default();
+        store.add(entry);
+        if let Err(e) = store.save(self.root.as_deref()) {
+            warn!("Failed to persist session metadata: {e}");
+        }
+
+        Some(session_id)
     }
 
     /// Resolve file attachments and prepend them to a prompt.
@@ -522,6 +633,12 @@ impl AgentBuilder {
 
         let (agent, provider) = builder.create_agent(&provider).await?;
 
+        // Persist the session entry so discovery (session list --name, input
+        // --name) works for builder-spawned sessions. No-op when no metadata
+        // is set.
+        let _ =
+            builder.persist_session_metadata(&provider, agent.get_model(), builder.root.as_deref());
+
         // Prepend file attachments
         let prompt_with_files = builder.prepend_files(prompt)?;
 
@@ -702,7 +819,12 @@ impl AgentBuilder {
             None => None,
         };
 
-        let (agent, _provider) = self.create_agent(&provider).await?;
+        let (agent, effective_provider) = self.create_agent(&provider).await?;
+        let _ = self.persist_session_metadata(
+            &effective_provider,
+            agent.get_model(),
+            self.root.as_deref(),
+        );
         agent.run_interactive(prompt_with_files.as_deref()).await?;
         agent.cleanup().await?;
         Ok(())

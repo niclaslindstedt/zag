@@ -672,6 +672,7 @@ async fn main() -> Result<()> {
                 interactive,
                 env_vars: vec![],
                 sandbox: None,
+                zag_bin: None,
             })?;
         }
         Commands::Relay {

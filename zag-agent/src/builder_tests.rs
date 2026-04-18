@@ -391,3 +391,95 @@ async fn test_create_agent_mock_json_schema_augments_system_prompt() {
     let (agent, _) = builder.create_agent(&provider).await.unwrap();
     assert!(agent.system_prompt().contains("JSON schema"));
 }
+
+// ---------------------------------------------------------------------------
+// Session metadata (§5) — name/description/tag setters + session store
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_metadata_defaults_empty() {
+    let builder = AgentBuilder::new();
+    assert!(builder.metadata.name.is_none());
+    assert!(builder.metadata.description.is_none());
+    assert!(builder.metadata.tags.is_empty());
+}
+
+#[test]
+fn test_metadata_setters_populate_fields() {
+    let builder = AgentBuilder::new()
+        .name("audit-run")
+        .description("Nightly security audit")
+        .tag("audit")
+        .tag("security");
+    assert_eq!(builder.metadata.name.as_deref(), Some("audit-run"));
+    assert_eq!(
+        builder.metadata.description.as_deref(),
+        Some("Nightly security audit")
+    );
+    assert_eq!(
+        builder.metadata.tags,
+        vec!["audit".to_string(), "security".to_string()]
+    );
+}
+
+#[test]
+fn test_metadata_bulk_setter_replaces() {
+    let builder = AgentBuilder::new().tag("first").metadata(SessionMetadata {
+        name: Some("replaced".to_string()),
+        description: None,
+        tags: vec!["second".to_string()],
+    });
+    // metadata() replaces, doesn't append
+    assert_eq!(builder.metadata.name.as_deref(), Some("replaced"));
+    assert_eq!(builder.metadata.tags, vec!["second".to_string()]);
+}
+
+#[test]
+fn test_persist_session_metadata_noop_when_empty() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().to_string_lossy().to_string();
+    let builder = AgentBuilder::new().root(&root);
+    let persisted = builder.persist_session_metadata("claude", "default", Some(&root));
+    assert!(persisted.is_none(), "no metadata set => no session entry");
+}
+
+#[test]
+fn test_persist_session_metadata_writes_entry_when_named() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().to_string_lossy().to_string();
+    let builder = AgentBuilder::new()
+        .root(&root)
+        .name("my-session")
+        .tag("experiment");
+    let persisted = builder
+        .persist_session_metadata("claude", "sonnet", Some(&root))
+        .expect("session entry must be persisted when metadata is set");
+
+    let store = crate::session::SessionStore::load(Some(&root)).unwrap();
+    let entry = store
+        .find_by_name("my-session")
+        .expect("session must be discoverable by name");
+    assert_eq!(entry.session_id, persisted);
+    assert_eq!(entry.provider, "claude");
+    assert_eq!(entry.model, "sonnet");
+    assert_eq!(entry.tags, vec!["experiment".to_string()]);
+}
+
+#[test]
+fn test_persist_session_metadata_uses_caller_session_id() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().to_string_lossy().to_string();
+    let explicit_id = "11111111-2222-3333-4444-555555555555";
+    let builder = AgentBuilder::new()
+        .root(&root)
+        .session_id(explicit_id)
+        .name("pinned");
+    let persisted = builder
+        .persist_session_metadata("codex", "gpt-5.4", Some(&root))
+        .unwrap();
+    assert_eq!(persisted, explicit_id);
+
+    let store = crate::session::SessionStore::load(Some(&root)).unwrap();
+    let entry = store.find_by_name("pinned").unwrap();
+    assert_eq!(entry.session_id, explicit_id);
+}

@@ -490,6 +490,147 @@ pub fn models_to_vec(models: &[&str]) -> Vec<String> {
     models.iter().map(|s| s.to_string()).collect()
 }
 
+/// Render a provider-summary text table identical to the one printed by
+/// `zag discover`. Columns: provider, default model, model count, resume,
+/// json output, session-log completeness.
+pub fn format_summary_table(caps: &[ProviderCapability]) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    let _ = writeln!(
+        out,
+        "{:<10} {:<28} {:>6}  {:<6} {:<6} {:<7}",
+        "PROVIDER", "DEFAULT MODEL", "MODELS", "RESUME", "JSON", "LOGS"
+    );
+    let _ = writeln!(out, "{}", "-".repeat(70));
+    for cap in caps {
+        let resume = if cap.features.resume.supported {
+            "yes"
+        } else {
+            "no"
+        };
+        let json_out = if cap.features.json_output.supported {
+            "yes"
+        } else {
+            "no"
+        };
+        let logs = cap
+            .features
+            .session_logs
+            .completeness
+            .as_deref()
+            .unwrap_or("-");
+        let _ = writeln!(
+            out,
+            "{:<10} {:<28} {:>6}  {:<6} {:<6} {:<7}",
+            cap.provider,
+            cap.default_model,
+            cap.available_models.len(),
+            resume,
+            json_out,
+            logs,
+        );
+    }
+    out
+}
+
+/// Render the per-provider detail block printed by `zag discover -p <name>`.
+pub fn format_provider_detail(cap: &ProviderCapability) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    let _ = writeln!(out, "Provider: {}", cap.provider);
+    let _ = writeln!(out, "Default model: {}", cap.default_model);
+    let _ = writeln!(
+        out,
+        "Size mappings: small={}, medium={}, large={}",
+        cap.size_mappings.small, cap.size_mappings.medium, cap.size_mappings.large
+    );
+    let _ = writeln!(out, "Available models:");
+    for m in &cap.available_models {
+        let _ = writeln!(out, "  - {m}");
+    }
+    let _ = writeln!(out);
+    let _ = writeln!(out, "Features:");
+    format_feature(&mut out, "  interactive", &cap.features.interactive);
+    format_feature(&mut out, "  non-interactive", &cap.features.non_interactive);
+    format_feature(&mut out, "  resume", &cap.features.resume);
+    format_feature(
+        &mut out,
+        "  resume-with-prompt",
+        &cap.features.resume_with_prompt,
+    );
+    format_session_log(&mut out, "  session-logs", &cap.features.session_logs);
+    format_feature(&mut out, "  json-output", &cap.features.json_output);
+    format_feature(&mut out, "  stream-json", &cap.features.stream_json);
+    format_feature(&mut out, "  json-schema", &cap.features.json_schema);
+    format_feature(&mut out, "  input-format", &cap.features.input_format);
+    format_streaming_input(&mut out, "  streaming-input", &cap.features.streaming_input);
+    format_feature(&mut out, "  worktree", &cap.features.worktree);
+    format_feature(&mut out, "  sandbox", &cap.features.sandbox);
+    format_feature(&mut out, "  system-prompt", &cap.features.system_prompt);
+    format_feature(&mut out, "  auto-approve", &cap.features.auto_approve);
+    format_feature(&mut out, "  review", &cap.features.review);
+    format_feature(&mut out, "  add-dirs", &cap.features.add_dirs);
+    format_feature(&mut out, "  max-turns", &cap.features.max_turns);
+    out
+}
+
+/// Render a plain text listing of models grouped by provider, as printed by
+/// `zag discover --models`.
+pub fn format_models_text(caps: &[ProviderCapability]) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    for cap in caps {
+        let _ = writeln!(out, "{}:", cap.provider);
+        for m in &cap.available_models {
+            let _ = writeln!(out, "  {m}");
+        }
+    }
+    out
+}
+
+fn format_feature(out: &mut String, label: &str, f: &FeatureSupport) {
+    use std::fmt::Write;
+    let status = if f.supported {
+        if f.native { "native" } else { "wrapper" }
+    } else {
+        "no"
+    };
+    let _ = writeln!(out, "{label:<24} {status}");
+}
+
+fn format_streaming_input(out: &mut String, label: &str, f: &StreamingInputSupport) {
+    use std::fmt::Write;
+    let status = if f.supported {
+        let base = if f.native { "native" } else { "wrapper" };
+        match f.semantics.as_deref() {
+            Some(s) => format!("{base} ({s})"),
+            None => base.to_string(),
+        }
+    } else {
+        "no".to_string()
+    };
+    let _ = writeln!(out, "{label:<24} {status}");
+}
+
+fn format_session_log(out: &mut String, label: &str, f: &SessionLogSupport) {
+    use std::fmt::Write;
+    let status = if f.supported {
+        match f.completeness.as_deref() {
+            Some(c) => {
+                if f.native {
+                    c.to_string()
+                } else {
+                    format!("{c} (wrapper)")
+                }
+            }
+            None => "yes".to_string(),
+        }
+    } else {
+        "no".to_string()
+    };
+    let _ = writeln!(out, "{label:<24} {status}");
+}
+
 #[cfg(test)]
 #[path = "capability_tests.rs"]
 mod tests;
