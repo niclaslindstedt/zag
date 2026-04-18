@@ -461,6 +461,42 @@ let output = AgentBuilder::new()
 println!("{}", output.result.unwrap_or_default());
 ```
 
+#### Live event streaming
+
+`AgentBuilder` can opt in to session logging and live event callbacks, so
+programmatic consumers see the same structured stream as `zag listen`
+without shelling out to the CLI:
+
+```rust
+use zag::builder::AgentBuilder;
+use zag::listen::ListenFormat;
+
+// Tail every event to stderr (same formatter as `zag listen`).
+let output = AgentBuilder::new()
+    .provider("claude")
+    .stream_events_to_stderr(ListenFormat::Text)
+    .stream_show_thinking(false)
+    .exec("refactor this module")
+    .await?;
+
+// Or register your own callback for fine-grained handling.
+let output = AgentBuilder::new()
+    .provider("claude")
+    .on_log_event(|event| {
+        eprintln!("{}: {:?}", event.session_id, event.kind);
+    })
+    .exec("refactor this module")
+    .await?;
+
+// The written JSONL path is available on the output once logging is on.
+println!("log: {:?}", output.log_path);
+```
+
+Both helpers implicitly enable `SessionLogMode::Auto`; use
+`.session_log(SessionLogMode::Disabled | Auto | External(coord))` for
+explicit control (e.g. when an outer caller already owns a
+`SessionLogCoordinator`).
+
 See the [`zag-agent` crate](zag-agent/) for the full API including JSON schema validation, custom progress handlers, and interactive sessions. Library-level primitives for `review`, `plan`, `discover`, manpages, and agent-to-agent messaging are re-exported from `zag_agent` and `zag_orch` so downstream programs can drive these flows without shelling out to the CLI.
 
 ### Language bindings

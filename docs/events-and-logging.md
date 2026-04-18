@@ -21,7 +21,8 @@ Every agent session produces an `AgentOutput` structure:
     "output_tokens": 800
   },
   "model": "claude-sonnet-4-5-20250929",
-  "provider": "claude"
+  "provider": "claude",
+  "log_path": "/home/you/.zag/projects/.../sessions/<id>.jsonl"
 }
 ```
 
@@ -40,6 +41,7 @@ Access this with `zag exec -o json` or `zag exec -o json-pretty`.
 | `usage` | Usage? | Aggregated token usage for the session. |
 | `model` | string? | Concrete model reported by the provider (e.g. `claude-sonnet-4-5-20250929`). |
 | `provider` | string? | Effective provider after any tier-list downgrade (see `providers.md#provider-downgrade`). |
+| `log_path` | string? | Absolute path to the JSONL session log on disk, populated when the builder ran with session logging enabled (`AgentBuilder::enable_session_log(true)` or via `on_log_event` / `stream_events_to_stderr`). Omitted from JSON when `null`. |
 
 `exec` exits with a non-zero status when `is_error == true`; pass `--exit-on-failure` to force the CLI to propagate provider failure as an exit code 1 even when the session technically completed.
 
@@ -307,6 +309,40 @@ zag subscribe --json
 # Filtered by tag
 zag subscribe --tag batch --json | jq 'select(.type == "session_ended")'
 ```
+
+### Live event streaming from the builder (Rust)
+
+Rust callers using `AgentBuilder` can subscribe to per-step session log
+events without shelling out to `zag listen`. Opting in starts a
+`SessionLogCoordinator` for the terminal method's lifetime and invokes a
+callback (or tails events to stderr) as each event is written:
+
+```rust
+use zag::{AgentBuilder, listen::ListenFormat};
+
+// Register a typed callback
+let output = AgentBuilder::new()
+    .provider("claude")
+    .on_log_event(|event| {
+        eprintln!("event: {:?}", event.kind);
+    })
+    .exec("analyze the code")
+    .await?;
+
+println!("log on disk: {:?}", output.log_path);
+
+// Or tail a pre-formatted event stream to stderr
+let output = AgentBuilder::new()
+    .provider("claude")
+    .stream_events_to_stderr(ListenFormat::RichText)
+    .stream_show_thinking(true)
+    .exec("analyze the code")
+    .await?;
+```
+
+Both setters implicitly enable session logging. Use
+`.enable_session_log(true)` or `.session_log(SessionLogMode::Auto)` when
+you want the JSONL log on disk but no live callback.
 
 ## Filesystem event markers
 
