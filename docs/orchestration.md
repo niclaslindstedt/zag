@@ -104,6 +104,24 @@ zag wait "$sid"
 zag pipe "$sid" -p gemini "review this implementation for bugs"
 ```
 
+`pipe` accepts the same session-metadata and isolation flags as `spawn` /
+`exec`, so the follow-up session can be named, tagged, time-bounded, and
+isolated just like any other:
+
+```bash
+# Name and time-bound the pipe session
+zag pipe "$sid" --name followup --tag review --timeout 5m \
+  -p gemini "review for correctness"
+
+# Run the follow-up in a fresh worktree and prepend another session's result
+zag pipe "$sid" -w --context "$other_sid" \
+  -p claude "apply the plan from $other_sid"
+```
+
+Supported on `pipe`: `--name`, `--description`, `--tag` (repeatable via the
+builder in library use), `--timeout`, `-w/--worktree`, `--sandbox`,
+`--context`, `--env`, `--file`, and `--mcp-config`.
+
 ## Patterns
 
 ### Sequential pipeline
@@ -255,6 +273,34 @@ zag retry "$sid"                # re-run with same config
 zag gc                          # clean up old session data
 zag gc --older-than 7d          # only sessions older than 7 days
 ```
+
+## Library API
+
+Every orchestration command is also reachable as a library call, so programs
+embedding zag don't have to shell out to the CLI:
+
+| CLI command | Library entry point |
+|-------------|---------------------|
+| `zag spawn` | `zag::orch::spawn::spawn_session` |
+| `zag wait` | `zag::orch::wait::wait_for_sessions` |
+| `zag collect` | `zag::orch::collect::collect_results` |
+| `zag pipe` | `zag::orch::pipe::pipe_sessions` |
+| `zag status` | `zag::orch::status::determine_status` |
+| `zag cancel` | `zag::orch::cancel::run_cancel` |
+| `zag retry` | `zag::orch::retry::retry_sessions` |
+| `zag broadcast` | `zag::orch::messaging::send_broadcast` |
+| `zag input` | `zag::orch::messaging::send_input_once` |
+| `zag review` | `zag_agent::review::run_review` |
+| `zag plan` | `zag_agent::plan::run_plan` |
+| `zag discover` / `zag capability` | `zag_agent::capability::{get_capability, get_all_capabilities, resolve_model}` |
+| `zag --help-agent` | `zag_agent::manpages::manpage(Some("help-agent"))` |
+
+The `zag::orch::spawn::SpawnParams` struct accepts an explicit `zag_bin: Option<PathBuf>`
+so hosts that are not the `zag` CLI can point at the binary to use for
+background children. When unset, `resolve_zag_bin` falls back to the `ZAG_BIN`
+env var, then a `zag` executable on `PATH`, then `current_exe()` (only when
+the host process itself is named `zag`). Library callers embedded in a
+non-`zag` host should always set one of the first two.
 
 ## Related
 

@@ -225,4 +225,5 @@ zag --sandbox exec "run untrusted code"
 - [Remote Access](remote-access.md) -- Control agents over HTTPS/WebSocket
 - [Troubleshooting](troubleshooting.md) -- Common issues and solutions
 - `zag man <command>` -- Built-in manual pages for every command
+- `zag --help-agent` -- Print a compact, AI-oriented CLI reference (useful when feeding docs to an agent)
 - [Examples](../examples/) -- Complete example projects
