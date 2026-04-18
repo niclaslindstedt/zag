@@ -404,6 +404,12 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
             agent,
             output: _,
             json,
+            name,
+            description,
+            timeout,
+            worktree,
+            sandbox,
+            context,
         } => {
             let body = serde_json::json!({
                 "session_ids": session_ids,
@@ -417,6 +423,15 @@ pub(crate) async fn proxy_command(config: &ConnectConfig, command: &Commands) ->
                 "add_dirs": if agent.add_dirs.is_empty() { None } else { Some(&agent.add_dirs) },
                 "size": agent.size,
                 "max_turns": agent.max_turns,
+                "mcp_config": agent.mcp_config,
+                "env_vars": if agent.env_vars.is_empty() { None } else { Some(&agent.env_vars) },
+                "files": if agent.files.is_empty() { None } else { Some(&agent.files) },
+                "name": name,
+                "description": description,
+                "timeout": timeout,
+                "worktree": worktree,
+                "sandbox": sandbox,
+                "context": context,
             });
             proxy_post_json(&client, config, "/api/v1/sessions/pipe", &body, *json).await
         }

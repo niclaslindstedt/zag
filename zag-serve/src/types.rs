@@ -161,6 +161,16 @@ pub struct PipeRequest {
     pub add_dirs: Option<Vec<String>>,
     pub size: Option<String>,
     pub max_turns: Option<u32>,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub timeout: Option<String>,
+    pub env_vars: Option<Vec<(String, String)>>,
+    pub files: Option<Vec<String>>,
+    pub worktree: Option<Option<String>>,
+    pub sandbox: Option<Option<String>>,
+    pub context: Option<String>,
+    pub mcp_config: Option<String>,
 }
 
 /// Request body for POST /api/v1/sessions/broadcast

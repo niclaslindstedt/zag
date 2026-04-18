@@ -183,6 +183,18 @@ pub async fn pipe(Json(req): Json<PipeRequest>) -> impl IntoResponse {
         output: Some("json".to_string()),
         json: true,
         quiet: true,
+        metadata: zag_orch::types::SessionMetadata {
+            name: req.name,
+            description: req.description,
+            tags: req.tags.unwrap_or_default(),
+        },
+        timeout: req.timeout,
+        env_vars: req.env_vars.unwrap_or_default(),
+        files: req.files.unwrap_or_default(),
+        worktree: req.worktree,
+        sandbox: req.sandbox,
+        context: req.context,
+        mcp_config: req.mcp_config,
     };
 
     match zag_orch::pipe::pipe_sessions(&params).await {
