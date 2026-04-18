@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2026-04-18
+
+### Added
+
+- Expose --help-agent, review, plan, discover, messaging, and spawn binary override as library APIs (#158)
+- Support session import over RPC (#157)
+
+### Documentation
+
+- Add maintenance umbrella skill and sync docs/website (#156)
+
 ## [0.13.0] - 2026-04-15
 
 ### Fixed

@@ -855,6 +855,22 @@ export const builderMethods: BuilderMethod[] = [
     "description": "Set a specific session ID (UUID)."
   },
   {
+    "name": "name",
+    "description": "the session store so CLI tools can find it later."
+  },
+  {
+    "name": "description",
+    "description": "`--description`)."
+  },
+  {
+    "name": "tag",
+    "description": "repeatable)."
+  },
+  {
+    "name": "metadata",
+    "description": "Replace the full session metadata in one call."
+  },
+  {
     "name": "output_format",
     "description": "Set the output format (e.g., \"text\", \"json\", \"json-pretty\", \"stream-json\")."
   },
