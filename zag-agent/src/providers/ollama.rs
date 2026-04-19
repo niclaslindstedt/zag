@@ -142,7 +142,12 @@ impl Ollama {
         let mut cmd = self.make_command(agent_args);
 
         if interactive {
-            CommonAgentState::run_interactive_command(&mut cmd, "Ollama").await?;
+            CommonAgentState::run_interactive_command_with_hook(
+                &mut cmd,
+                "Ollama",
+                self.common.on_spawn_hook.as_ref(),
+            )
+            .await?;
             Ok(None)
         } else {
             self.common

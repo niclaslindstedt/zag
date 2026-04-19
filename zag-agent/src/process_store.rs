@@ -94,6 +94,23 @@ impl ProcessStore {
         self.processes.push(entry);
     }
 
+    /// Update the OS pid of a process entry.
+    ///
+    /// Used when the entry was first registered with a placeholder pid
+    /// (typically the parent zag pid) and the actual agent subprocess
+    /// pid becomes available only after spawn. Keeping the registry
+    /// pointed at the agent child lets `zag ps kill self` SIGTERM the
+    /// agent without tearing down the parent orchestrator.
+    pub fn update_pid(&mut self, id: &str, pid: u32) {
+        if let Some(entry) = self.processes.iter_mut().find(|e| e.id == id) {
+            debug!(
+                "Updated process {id}: pid {} -> {} (agent subprocess)",
+                entry.pid, pid
+            );
+            entry.pid = pid;
+        }
+    }
+
     /// Update the status and exit metadata for a process entry.
     pub fn update_status(&mut self, id: &str, status: &str, exit_code: Option<i32>) {
         if let Some(entry) = self.processes.iter_mut().find(|e| e.id == id) {

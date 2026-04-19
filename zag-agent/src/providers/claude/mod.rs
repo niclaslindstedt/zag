@@ -386,15 +386,22 @@ impl Claude {
         let is_native_json = effective_output_format.as_deref() == Some("native-json");
 
         if interactive {
-            // Interactive mode - inherit all stdio
+            // Interactive mode - inherit all stdio. Spawn / notify /
+            // wait so `on_spawn_hook` can capture the child pid before
+            // we block on the interactive session (e.g. to register it
+            // with an external process store for `zag ps kill self`).
             cmd.stdin(Stdio::inherit())
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit());
 
-            let status = cmd
-                .status()
-                .await
+            let mut child = cmd
+                .spawn()
                 .context("Failed to execute 'claude' CLI. Is it installed and in PATH?")?;
+            self.common.notify_spawn(&child);
+            let status = child
+                .wait()
+                .await
+                .context("Failed waiting on 'claude' CLI")?;
             if !status.success() {
                 return Err(crate::process::ProcessError {
                     exit_code: status.code(),
@@ -934,10 +941,16 @@ impl Agent for Claude {
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
 
-        let status = cmd
-            .status()
-            .await
+        // Spawn / notify / wait so `on_spawn_hook` can capture the pid
+        // of the resumed interactive session before we block.
+        let mut child = cmd
+            .spawn()
             .context("Failed to execute 'claude' CLI. Is it installed and in PATH?")?;
+        self.common.notify_spawn(&child);
+        let status = child
+            .wait()
+            .await
+            .context("Failed waiting on 'claude' CLI")?;
         if !status.success() {
             return Err(crate::process::ProcessError {
                 exit_code: status.code(),

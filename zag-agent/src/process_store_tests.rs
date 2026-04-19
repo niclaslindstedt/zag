@@ -38,6 +38,24 @@ fn add_replaces_existing() {
 }
 
 #[test]
+fn update_pid_retargets_existing_entry() {
+    let mut store = ProcessStore::default();
+    store.add(make_entry("id-1", 100, "running"));
+    store.update_pid("id-1", 4242);
+    assert_eq!(store.find("id-1").unwrap().pid, 4242);
+    // Unrelated metadata is untouched.
+    assert_eq!(store.find("id-1").unwrap().status, "running");
+}
+
+#[test]
+fn update_pid_is_noop_for_unknown_id() {
+    let mut store = ProcessStore::default();
+    store.add(make_entry("id-1", 100, "running"));
+    store.update_pid("missing", 4242);
+    assert_eq!(store.find("id-1").unwrap().pid, 100);
+}
+
+#[test]
 fn update_status() {
     let mut store = ProcessStore::default();
     store.add(make_entry("id-1", 100, "running"));

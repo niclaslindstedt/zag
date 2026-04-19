@@ -212,6 +212,11 @@ pub struct AgentBuilder {
     /// Whether the built-in stderr streamer should include reasoning events
     /// (set via [`AgentBuilder::stream_show_thinking`]).
     stream_show_thinking: bool,
+    /// Registered via [`AgentBuilder::on_spawn`] — invoked once with the
+    /// OS pid of the spawned agent subprocess right after spawn, before
+    /// the terminal wait. Useful for registering the child pid with an
+    /// external process store.
+    on_spawn_hook: Option<crate::agent::OnSpawnHook>,
 }
 
 impl Default for AgentBuilder {
@@ -255,6 +260,7 @@ impl AgentBuilder {
             log_event_callback: None,
             stream_events_format: None,
             stream_show_thinking: false,
+            on_spawn_hook: None,
         }
     }
 
@@ -521,6 +527,23 @@ impl AgentBuilder {
         self
     }
 
+    /// Register a callback invoked once with the OS pid of the spawned
+    /// agent subprocess, right after spawn and before the terminal
+    /// wait. Useful for registering the child pid with an external
+    /// process store so `zag ps kill self` (or equivalent) can SIGTERM
+    /// the agent child rather than the parent zag process.
+    ///
+    /// The callback fires once per spawn — on retries or resumes it
+    /// fires again for each new child. See [`crate::agent::OnSpawnHook`]
+    /// for the full semantics.
+    pub fn on_spawn<F>(mut self, f: F) -> Self
+    where
+        F: Fn(u32) + Send + Sync + 'static,
+    {
+        self.on_spawn_hook = Some(Arc::new(f));
+        self
+    }
+
     /// Persist a `SessionEntry` to the session store so `zag session list`
     /// and `zag input --name <n>` can discover this builder-spawned session.
     ///
@@ -752,6 +775,10 @@ impl AgentBuilder {
 
         if !self.env_vars.is_empty() {
             agent.set_env_vars(self.env_vars.clone());
+        }
+
+        if let Some(ref hook) = self.on_spawn_hook {
+            agent.set_on_spawn_hook(hook.clone());
         }
 
         self.progress.on_spinner_finish();

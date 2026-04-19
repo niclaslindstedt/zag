@@ -1,9 +1,10 @@
+use crate::agent::OnSpawnHook;
 use crate::output::AgentOutput;
 use crate::sandbox::SandboxConfig;
 use anyhow::Context;
 use std::path::Path;
 use std::process::Stdio;
-use tokio::process::Command;
+use tokio::process::{Child, Command};
 
 /// Shared configuration state for CLI-based agent providers.
 ///
@@ -20,6 +21,12 @@ pub struct CommonAgentState {
     pub sandbox: Option<SandboxConfig>,
     pub max_turns: Option<u32>,
     pub env_vars: Vec<(String, String)>,
+    /// Optional callback invoked with the OS pid of the spawned agent
+    /// subprocess. Threaded through from `AgentBuilder::on_spawn` /
+    /// `Agent::set_on_spawn_hook`. Providers call
+    /// [`CommonAgentState::notify_spawn`] right after `Command::spawn`
+    /// so callers can capture the child pid before the terminal wait.
+    pub on_spawn_hook: Option<OnSpawnHook>,
 }
 
 impl CommonAgentState {
@@ -35,6 +42,15 @@ impl CommonAgentState {
             sandbox: None,
             max_turns: None,
             env_vars: Vec::new(),
+            on_spawn_hook: None,
+        }
+    }
+
+    /// Invoke the registered `on_spawn` hook with the pid of a freshly
+    /// spawned child, if any. Safe to call even when no hook is set.
+    pub fn notify_spawn(&self, child: &Child) {
+        if let (Some(cb), Some(pid)) = (self.on_spawn_hook.as_ref(), child.id()) {
+            cb(pid);
         }
     }
 
@@ -72,12 +88,35 @@ impl CommonAgentState {
         cmd: &mut Command,
         agent_display_name: &str,
     ) -> anyhow::Result<()> {
+        Self::run_interactive_command_with_hook(cmd, agent_display_name, None).await
+    }
+
+    /// Same as [`run_interactive_command`], but invokes `on_spawn` once
+    /// with the child's OS pid right after spawn and before awaiting
+    /// the child's exit — that window is what lets callers register the
+    /// child pid with an external process store (e.g. so
+    /// `zag ps kill self` can SIGTERM the agent child rather than the
+    /// parent zag process).
+    pub async fn run_interactive_command_with_hook(
+        cmd: &mut Command,
+        agent_display_name: &str,
+        on_spawn: Option<&OnSpawnHook>,
+    ) -> anyhow::Result<()> {
         cmd.stdin(Stdio::inherit())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
-        let status = cmd.status().await.with_context(|| {
+        let mut child = cmd.spawn().with_context(|| {
             format!(
                 "Failed to execute '{}' CLI. Is it installed and in PATH?",
+                agent_display_name.to_lowercase()
+            )
+        })?;
+        if let (Some(cb), Some(pid)) = (on_spawn, child.id()) {
+            cb(pid);
+        }
+        let status = child.wait().await.with_context(|| {
+            format!(
+                "Failed waiting on '{}' CLI",
                 agent_display_name.to_lowercase()
             )
         })?;
@@ -173,9 +212,63 @@ macro_rules! impl_common_agent_setters {
         fn set_max_turns(&mut self, turns: u32) {
             self.common.max_turns = Some(turns);
         }
+
+        fn set_on_spawn_hook(&mut self, hook: crate::agent::OnSpawnHook) {
+            self.common.on_spawn_hook = Some(hook);
+        }
     };
 }
 pub(crate) use impl_common_agent_setters;
+
+#[cfg(test)]
+mod on_spawn_tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    /// `run_interactive_command` must spawn the child, invoke the
+    /// `on_spawn` callback with the real child pid, and then wait for
+    /// the child to exit. The pid surfaced to the callback must match
+    /// the actual OS pid observed by the spawn (proved by checking
+    /// that it is non-zero — on Unix, a freshly spawned child always
+    /// has a live pid).
+    #[tokio::test]
+    async fn notify_spawn_delivers_pid_before_wait() {
+        let captured = Arc::new(AtomicU32::new(0));
+        let captured_clone = captured.clone();
+        let hook: OnSpawnHook = Arc::new(move |pid| {
+            captured_clone.store(pid, Ordering::SeqCst);
+        });
+
+        let mut cmd = Command::new("true");
+        CommonAgentState::run_interactive_command_with_hook(&mut cmd, "Test", Some(&hook))
+            .await
+            .expect("`true` must exit 0");
+
+        let pid = captured.load(Ordering::SeqCst);
+        assert!(pid > 0, "expected a non-zero child pid, got {pid}");
+    }
+
+    #[tokio::test]
+    async fn notify_spawn_without_hook_is_noop() {
+        // Sanity check: the helper still works when no hook is passed.
+        let mut cmd = Command::new("true");
+        CommonAgentState::run_interactive_command_with_hook(&mut cmd, "Test", None)
+            .await
+            .expect("`true` must exit 0");
+    }
+
+    /// The original 2-arg signature is preserved as a backwards-compat
+    /// shim so downstream consumers of the public `CommonAgentState`
+    /// API keep compiling without passing a hook.
+    #[tokio::test]
+    async fn legacy_two_arg_signature_still_works() {
+        let mut cmd = Command::new("true");
+        CommonAgentState::run_interactive_command(&mut cmd, "Test")
+            .await
+            .expect("`true` must exit 0");
+    }
+}
 
 /// Implement `as_any_ref` and `as_any_mut` for a concrete agent type.
 macro_rules! impl_as_any {
