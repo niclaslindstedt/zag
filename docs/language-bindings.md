@@ -155,6 +155,7 @@ All bindings support the same set of builder methods (naming follows each langua
 | `on_log_event` | Rust-only: register a callback fired for every `AgentLogEvent` while the terminal method runs. Implicitly enables session logging. |
 | `stream_events_to_stderr` | Rust-only: tail the session log to stderr in the same formats as `zag listen` (`Text`, `Json`, `RichText`). Implicitly enables session logging. |
 | `stream_show_thinking` | Rust-only: include `Reasoning` events in the stderr stream when `stream_events_to_stderr` is active. |
+| `on_spawn` | Rust-only: register a `Fn(u32)` callback invoked once with the OS pid of the spawned agent subprocess, right after spawn. Useful for registering the child pid with an external process store so `zag ps kill self` signals the agent child rather than the parent zag process. Fires again on each retry or resume. |
 
 > **Capability-aware errors**: feature-gated builder options
 > (`exec_streaming` / `streaming_input`, `worktree`, `sandbox`,
