@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2026-04-19
+
+### Fixed
+
+- Pin rust 1.88.0 and move on_spawn tests out of provider common (#170)
+- Retarget ps-kill-self to the agent subprocess (#164)
+- Guard positional prompt against clap `---` misparse (#163)
+
 ## [0.14.3] - 2026-04-18
 
 ### Documentation
