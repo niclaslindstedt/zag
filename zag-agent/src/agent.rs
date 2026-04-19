@@ -2,6 +2,22 @@ use crate::output::AgentOutput;
 use crate::sandbox::SandboxConfig;
 use anyhow::Result;
 use async_trait::async_trait;
+use std::sync::Arc;
+
+/// Callback invoked once with the OS pid of the spawned agent subprocess.
+///
+/// Set via [`Agent::set_on_spawn_hook`] (or
+/// [`crate::builder::AgentBuilder::on_spawn`]) so callers that need to
+/// act on the running child — for example, updating a process registry
+/// so `zag ps kill self` can SIGTERM the agent child instead of the
+/// parent zag process — can capture the pid right after spawn and
+/// before the terminal wait.
+///
+/// The callback fires *once per spawn*, with the pid of the direct
+/// provider subprocess. On retries or resumes the callback fires again
+/// for the new child. `pid` is not guaranteed to still be alive by the
+/// time the callback runs; use the OS to confirm before signaling.
+pub type OnSpawnHook = Arc<dyn Fn(u32) + Send + Sync>;
 
 /// Model size categories that map to agent-specific models.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -131,6 +147,14 @@ pub trait Agent {
 
     /// Set environment variables to pass to the agent subprocess.
     fn set_env_vars(&mut self, _vars: Vec<(String, String)>) {}
+
+    /// Register a callback that fires with the OS pid of the spawned
+    /// agent subprocess.
+    ///
+    /// Default impl is a no-op; providers that spawn an OS subprocess
+    /// override this to invoke the hook after spawn. See [`OnSpawnHook`]
+    /// for callback semantics.
+    fn set_on_spawn_hook(&mut self, _hook: OnSpawnHook) {}
 
     /// Get a reference to the concrete agent type (for downcasting).
     fn as_any_ref(&self) -> &dyn std::any::Any;

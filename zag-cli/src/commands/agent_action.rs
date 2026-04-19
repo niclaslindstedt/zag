@@ -890,6 +890,23 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         }
     }
 
+    // Retarget the process-store entry's pid to the actual agent
+    // subprocess as soon as it spawns. Until this fires, the entry
+    // points at zag's own pid (set above) so liveness checks and
+    // `zag ps show` still work; once the child is up, `zag ps kill
+    // self` SIGTERMs the agent child rather than the zag parent,
+    // letting the agent die naturally so the orchestrator can
+    // proceed to the next step.
+    {
+        let proc_id_for_hook = proc_id.clone();
+        agent.set_on_spawn_hook(std::sync::Arc::new(move |pid: u32| {
+            if let Ok(mut pstore) = zag_agent::process_store::ProcessStore::load() {
+                pstore.update_pid(&proc_id_for_hook, pid);
+                let _ = pstore.save();
+            }
+        }));
+    }
+
     // Write lifecycle started marker and prune old markers
     let lifecycle_session_id = wt
         .session_id

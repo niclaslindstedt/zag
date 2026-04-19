@@ -90,6 +90,8 @@ This allows an agent to inspect or terminate its own process:
     zag ps stop self
     zag ps kill self
 
+`zag ps kill self` targets the **agent subprocess** (claude, codex, gemini, copilot, or ollama), not the parent `zag` process. When the agent exits the parent naturally wakes up from its `wait()` and continues — letting an orchestrator like `zig run` proceed to the next step. The process-store entry's pid is updated to the agent child's pid the moment it spawns, so the registry and `zag ps show self` always reflect the process that will actually receive the signal.
+
 If `self` is used outside a zag session (where `ZAG_PROCESS_ID` is not set), the command will error with a descriptive message.
 
 ## Status Values
