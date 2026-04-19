@@ -96,6 +96,38 @@ fn test_build_run_args_include_partial_messages_only_non_interactive() {
     assert!(non_interactive_args.contains(&"--include-partial-messages".to_string()));
 }
 
+/// A prompt starting with `---` must not be misread as an unknown
+/// long option by the claude CLI. `build_run_args` terminates option
+/// parsing with `--` immediately before the positional prompt.
+#[test]
+fn test_build_run_args_prompt_is_guarded_by_double_dash() {
+    let claude = Claude::new();
+    let args = claude.build_run_args(false, Some("--- context ---"), &None);
+
+    let dd_idx = args
+        .iter()
+        .position(|a| a == "--")
+        .expect("expected `--` separator before the prompt");
+    let prompt_idx = args
+        .iter()
+        .position(|a| a == "--- context ---")
+        .expect("expected prompt to be present");
+    assert_eq!(
+        dd_idx + 1,
+        prompt_idx,
+        "`--` must be the token immediately preceding the prompt"
+    );
+}
+
+#[test]
+fn test_build_run_args_no_prompt_has_no_double_dash_separator() {
+    // When there is no prompt, there's also no positional to guard —
+    // don't leak a trailing `--` into the arg list.
+    let claude = Claude::new();
+    let args = claude.build_run_args(true, None, &None);
+    assert!(!args.contains(&"--".to_string()));
+}
+
 #[test]
 fn test_build_resume_args() {
     let mut claude = Claude::new();

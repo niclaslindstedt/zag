@@ -57,6 +57,36 @@ fn test_build_run_args_with_system_prompt_and_user_prompt() {
     assert!(last.contains("say hello"));
 }
 
+/// A prompt starting with `---` must not be misread as an unknown
+/// flag by the ollama CLI. `build_run_args` terminates option parsing
+/// with `--` immediately before the positional prompt.
+#[test]
+fn test_build_run_args_prompt_is_guarded_by_double_dash() {
+    let ollama = Ollama::new();
+    let args = ollama.build_run_args(false, Some("--- context ---"));
+
+    let dd_idx = args
+        .iter()
+        .position(|a| a == "--")
+        .expect("expected `--` separator before the prompt");
+    let prompt_idx = args
+        .iter()
+        .position(|a| a == "--- context ---")
+        .expect("expected prompt to be present");
+    assert_eq!(
+        dd_idx + 1,
+        prompt_idx,
+        "`--` must be the token immediately preceding the prompt"
+    );
+}
+
+#[test]
+fn test_build_run_args_no_prompt_has_no_double_dash_separator() {
+    let ollama = Ollama::new();
+    let args = ollama.build_run_args(true, None);
+    assert!(!args.contains(&"--".to_string()));
+}
+
 #[test]
 fn test_build_run_args_json_format() {
     let mut ollama = Ollama::new();

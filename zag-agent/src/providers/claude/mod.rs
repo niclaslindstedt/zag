@@ -181,6 +181,11 @@ impl Claude {
         }
 
         if let Some(p) = prompt {
+            // Terminate option parsing before the positional prompt so
+            // prompts that start with `-` / `--` (e.g. content injected
+            // from a previous step output delimited by `---`) are not
+            // misinterpreted by clap as unknown long options.
+            args.push("--".to_string());
             args.push(p.to_string());
         }
 
@@ -270,6 +275,7 @@ impl Claude {
         }
 
         if let Some(p) = prompt {
+            args.push("--".to_string());
             args.push(p.to_string());
         }
 
@@ -968,6 +974,7 @@ impl Agent for Claude {
             args.extend(["--json-schema".to_string(), schema.clone()]);
         }
 
+        args.push("--".to_string());
         args.push(prompt.to_string());
 
         let mut cmd = self.make_command(args);

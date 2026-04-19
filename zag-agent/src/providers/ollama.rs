@@ -68,6 +68,9 @@ impl Ollama {
         };
 
         if let Some(p) = effective_prompt {
+            // End option parsing before the positional prompt so prompts
+            // that start with `-` / `--` aren't misread as flags.
+            args.push("--".to_string());
             args.push(p);
         }
 

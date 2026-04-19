@@ -84,6 +84,9 @@ impl Gemini {
         // The value is stored but not passed as an argument.
 
         if let Some(p) = prompt {
+            // End option parsing so prompts that start with `-` / `--`
+            // aren't misread as flags by the gemini CLI.
+            args.push("--".to_string());
             args.push(p.to_string());
         }
 
