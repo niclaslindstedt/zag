@@ -497,6 +497,12 @@ Both helpers implicitly enable `SessionLogMode::Auto`; use
 explicit control (e.g. when an outer caller already owns a
 `SessionLogCoordinator`).
 
+Use `.on_spawn(|pid| ...)` to capture the OS pid of the spawned agent
+subprocess right after spawn. This is how `zag` wires its own process
+store so `zag ps kill self` SIGTERMs the agent child rather than the
+parent `zag` process; downstream Rust programs can do the same to
+register the child pid with their own registries.
+
 See the [`zag-agent` crate](zag-agent/) for the full API including JSON schema validation, custom progress handlers, and interactive sessions. Library-level primitives for `review`, `plan`, `discover`, manpages, and agent-to-agent messaging are re-exported from `zag_agent` and `zag_orch` so downstream programs can drive these flows without shelling out to the CLI.
 
 ### Language bindings
