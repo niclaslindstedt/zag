@@ -259,6 +259,10 @@ impl Codex {
         }
 
         if let Some(p) = prompt {
+            // End clap option parsing before the positional prompt —
+            // prompts that start with `-` / `--` (e.g. context injected
+            // by an orchestrator) must not be misread as flags.
+            args.push("--".to_string());
             args.push(p.to_string());
         }
 
@@ -653,6 +657,7 @@ impl Agent for Codex {
         }
 
         args.extend(["--resume".to_string(), session_id.to_string()]);
+        args.push("--".to_string());
         args.push(prompt.to_string());
 
         let mut cmd = self.make_command(args);

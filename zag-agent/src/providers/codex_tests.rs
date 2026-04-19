@@ -258,6 +258,36 @@ fn test_build_run_args_output_schema_not_in_interactive() {
     assert!(!args.contains(&"--output-schema".to_string()));
 }
 
+/// A prompt starting with `---` must not be misread as an unknown
+/// long option by the codex CLI. `build_run_args` terminates option
+/// parsing with `--` immediately before the positional prompt.
+#[test]
+fn test_build_run_args_prompt_is_guarded_by_double_dash() {
+    let codex = Codex::new();
+    let args = codex.build_run_args(false, Some("--- context ---"));
+
+    let dd_idx = args
+        .iter()
+        .position(|a| a == "--")
+        .expect("expected `--` separator before the prompt");
+    let prompt_idx = args
+        .iter()
+        .position(|a| a == "--- context ---")
+        .expect("expected prompt to be present");
+    assert_eq!(
+        dd_idx + 1,
+        prompt_idx,
+        "`--` must be the token immediately preceding the prompt"
+    );
+}
+
+#[test]
+fn test_build_run_args_no_prompt_has_no_double_dash_separator() {
+    let codex = Codex::new();
+    let args = codex.build_run_args(true, None);
+    assert!(!args.contains(&"--".to_string()));
+}
+
 #[test]
 fn test_parse_ndjson_turn_failed_unknown_error() {
     let raw = r#"{"type":"turn.failed"}"#;
