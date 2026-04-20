@@ -1,4 +1,5 @@
 ---
+name: commit
 description: "Commit staged changes, push the branch, and create or update a PR with a conventional-commit-formatted title. Use after completing a feature or fix."
 ---
 
