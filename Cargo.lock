@@ -3435,7 +3435,7 @@ dependencies = [
 
 [[package]]
 name = "zag"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "zag-agent",
  "zag-orch",
@@ -3444,7 +3444,7 @@ dependencies = [
 
 [[package]]
 name = "zag-agent"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3469,7 +3469,7 @@ dependencies = [
 
 [[package]]
 name = "zag-cli"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3495,7 +3495,7 @@ dependencies = [
 
 [[package]]
 name = "zag-orch"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3512,7 +3512,7 @@ dependencies = [
 
 [[package]]
 name = "zag-serve"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "anyhow",
  "axum",

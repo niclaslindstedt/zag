@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.1] - 2026-04-20
+
+### Fixed
+
+- Serialize env-var-mutating session-log tests (#177)
+
+### Documentation
+
+- Sync OSS_SPEC.md to v2.3.0
+- Sync readme, docs, manpages, and website data with v0.15.0 (#171)
+
 ## [0.15.0] - 2026-04-19
 
 ### Fixed
