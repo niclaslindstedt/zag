@@ -144,7 +144,10 @@ probe_cli() {
     version=$($binary --version 2>/dev/null | head -1) || version="(unknown)"
     echo "    CLI version:      $version"
 
-    # Capture main help
+    # Capture main help. Intentional word-splitting on $help_cmd so
+    # multi-word commands like "plugin list" pass through as separate
+    # argv entries.
+    # shellcheck disable=SC2086
     if $binary $help_cmd > "$tmp_file" 2>&1; then
         local line_count
         line_count=$(wc -l < "$tmp_file")
@@ -157,6 +160,8 @@ probe_cli() {
     local extra="${EXTRA_HELP_COMMANDS[$provider]:-}"
     if [ -n "$extra" ]; then
         local extra_file="/tmp/zag-check-${provider}-${extra// /-}-help.txt"
+        # Intentional word-splitting on $extra (see above).
+        # shellcheck disable=SC2086
         if $binary $extra > "$extra_file" 2>&1; then
             local extra_lines
             extra_lines=$(wc -l < "$extra_file")

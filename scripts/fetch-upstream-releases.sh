@@ -40,7 +40,7 @@ fetch_release() {
         return
     }
 
-    local tag name published_at html_url
+    local tag published_at html_url
     tag=$(echo "$response" | grep -oP '"tag_name"\s*:\s*"\K[^"]+' | head -1) || tag=""
     published_at=$(echo "$response" | grep -oP '"published_at"\s*:\s*"\K[^"]+' | head -1) || published_at=""
     html_url=$(echo "$response" | grep -oP '"html_url"\s*:\s*"\K[^"]+' | head -1) || html_url=""

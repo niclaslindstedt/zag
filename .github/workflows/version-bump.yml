@@ -4,11 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       bump:
-        description: 'Version bump type (leave empty to auto-detect from commits)'
-        required: false
+        description: 'Version bump type (auto detects from commits)'
+        required: true
+        default: auto
         type: choice
         options:
-          - ''
+          - auto
           - patch
           - minor
           - major

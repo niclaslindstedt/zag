@@ -10,17 +10,23 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -Dwarnings
 
+# Default to no permissions — every job declares its own least-privilege
+# scopes (OSS_SPEC §10.3).
+permissions: {}
+
 jobs:
   check:
     name: Check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.88.0
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      - run: cargo check --workspace
+      - run: make build
 
   test:
     name: Test
@@ -28,6 +34,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.88.0
@@ -36,13 +44,15 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
         env:
           CARGO_INCREMENTAL: 0
-      - run: cargo test --workspace
+      - run: make test
         env:
           CARGO_INCREMENTAL: 0
 
-  clippy:
+  lint:
     name: Clippy
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.88.0
@@ -56,9 +66,31 @@ jobs:
   fmt:
     name: Format
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.88.0
         with:
           components: rustfmt
       - run: make fmt-check
+
+  # Lint workflow YAML with actionlint and shell scripts with
+  # shellcheck. Catches invalid action pins, bad expressions,
+  # quoting bugs, and SC-class issues in `scripts/*.sh` before
+  # they hit `main`. (shellcheck is preinstalled on ubuntu-latest.)
+  shell-lint:
+    name: Shell lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install actionlint
+        run: |
+          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          echo "${PWD}" >> "$GITHUB_PATH"
+      - name: actionlint
+        run: actionlint -color
+      - name: make shellcheck
+        run: make shellcheck

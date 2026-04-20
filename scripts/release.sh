@@ -45,8 +45,14 @@ if [ "$BUMP" = "--help" ] || [ "$BUMP" = "-h" ]; then
     usage
 fi
 
+# `auto` is an alias for "no explicit bump" — lets the workflow_dispatch
+# input use a non-empty default while still triggering auto-detection.
+if [ "$BUMP" = "auto" ]; then
+    BUMP=""
+fi
+
 if [ -n "$BUMP" ] && [[ ! "$BUMP" =~ ^(patch|minor|major)$ ]]; then
-    die "invalid bump type: $BUMP (expected patch, minor, or major)"
+    die "invalid bump type: $BUMP (expected auto, patch, minor, or major)"
 fi
 
 # --- Safety checks ---

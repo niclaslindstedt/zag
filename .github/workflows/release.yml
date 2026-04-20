@@ -9,6 +9,10 @@ env:
   CARGO_TERM_COLOR: always
   BINARY_NAME: zag
 
+# Default to no permissions; every job declares its own
+# least-privilege `permissions:` block (see OSS_SPEC §10.3).
+permissions: {}
+
 jobs:
   update-repo:
     name: Update changelog and versions
@@ -264,7 +268,7 @@ jobs:
         with:
           ref: ${{ needs.update-repo.outputs.commit_sha }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           # Node 24 ships with npm >= 11.5.1, which has native trusted-publishing
           # support. This avoids the `npm install -g npm@latest` self-upgrade

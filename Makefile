@@ -1,4 +1,4 @@
-.PHONY: build release release-tag install run clean test check fmt fmt-check clippy lint coverage coverage-report extract-website-data website website-dev website-clean
+.PHONY: build release release-tag install run clean test check fmt fmt-check clippy lint shellcheck coverage coverage-report extract-website-data website website-dev website-clean
 
 build:
 	cargo build
@@ -35,6 +35,9 @@ lint:
 
 fmt-check:
 	cargo fmt --all -- --check
+
+shellcheck:
+	shellcheck scripts/*.sh
 
 coverage:
 	cargo llvm-cov --summary-only
