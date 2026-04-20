@@ -345,8 +345,10 @@ fn test_mock_output_log_entries() {
 // ---------------------------------------------------------------------------
 
 /// A scoped override for `ZAG_USER_LOG_DIR` so each test gets a clean logs
-/// directory and doesn't race with other tests or the developer's real
-/// `~/.zag`. Restores the previous value on drop.
+/// directory and doesn't race with the developer's real `~/.zag`. Restores
+/// the previous value on drop. Tests that construct one MUST be tagged
+/// `#[serial_test::serial(zag_user_log_dir)]` — the env var is process-
+/// global and cargo runs tests in parallel threads by default.
 struct ScopedLogsDir {
     _tmp: tempfile::TempDir,
     previous: Option<String>,
@@ -380,6 +382,7 @@ impl Drop for ScopedLogsDir {
 }
 
 #[tokio::test]
+#[serial_test::serial(zag_user_log_dir)]
 async fn test_exec_without_session_log_leaves_log_path_none() {
     let _guard = ScopedLogsDir::new();
     let output = AgentBuilder::new()
@@ -394,6 +397,7 @@ async fn test_exec_without_session_log_leaves_log_path_none() {
 }
 
 #[tokio::test]
+#[serial_test::serial(zag_user_log_dir)]
 async fn test_exec_with_enable_session_log_populates_log_path() {
     let _guard = ScopedLogsDir::new();
     let output = AgentBuilder::new()
@@ -409,6 +413,7 @@ async fn test_exec_with_enable_session_log_populates_log_path() {
 }
 
 #[tokio::test]
+#[serial_test::serial(zag_user_log_dir)]
 async fn test_on_log_event_receives_lifecycle_events() {
     let _guard = ScopedLogsDir::new();
     let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
@@ -433,6 +438,7 @@ async fn test_on_log_event_receives_lifecycle_events() {
 }
 
 #[tokio::test]
+#[serial_test::serial(zag_user_log_dir)]
 async fn test_on_log_event_implicitly_enables_session_log() {
     let _guard = ScopedLogsDir::new();
     let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
@@ -458,6 +464,7 @@ async fn test_on_log_event_implicitly_enables_session_log() {
 }
 
 #[tokio::test]
+#[serial_test::serial(zag_user_log_dir)]
 async fn test_stream_events_to_stderr_implicitly_enables_session_log() {
     let _guard = ScopedLogsDir::new();
     let output = AgentBuilder::new()
