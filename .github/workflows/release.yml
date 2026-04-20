@@ -27,7 +27,7 @@ jobs:
           fetch-depth: 0
           ref: main
 
-      - uses: dtolnay/rust-toolchain@1.88.0
+      - uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Generate changelog
         run: scripts/generate-changelog.sh "${GITHUB_REF_NAME#v}"
@@ -92,7 +92,7 @@ jobs:
         with:
           ref: ${{ needs.update-repo.outputs.commit_sha }}
 
-      - uses: dtolnay/rust-toolchain@1.88.0
+      - uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: ${{ matrix.target }}
 
@@ -212,7 +212,7 @@ jobs:
         with:
           ref: ${{ needs.update-repo.outputs.commit_sha }}
 
-      - uses: dtolnay/rust-toolchain@1.88.0
+      - uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Authenticate to crates.io (trusted publishing)
         id: crates-auth
