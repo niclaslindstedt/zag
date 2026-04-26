@@ -28,7 +28,7 @@ rcgen = "0.13"
 rand = "0.9"
 hex = "0.4"
 bcrypt = "0.17"
-toml = "0.8"
+toml = "1.1"
 futures-util = "0.3"
 
 [dev-dependencies]

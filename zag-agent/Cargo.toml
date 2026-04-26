@@ -21,7 +21,7 @@ async-trait = "0.1"
 tokio = { version = "1", features = ["sync", "time", "rt", "macros", "process", "io-util", "fs"] }
 log = "0.4"
 serde_yaml = "0.9"
-toml = "0.8"
+toml = "1.1"
 dirs = "5"
 uuid = { version = "1", features = ["v4"] }
 jsonschema = "0.29"
