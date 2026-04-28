@@ -35,6 +35,7 @@ use crate::factory::AgentFactory;
 use crate::json_validation;
 use crate::listen::{self, ListenFormat};
 use crate::output::AgentOutput;
+use crate::process_registration::{self, ProcessRegistration, RegisterOptionsOwned};
 use crate::progress::{ProgressHandler, SilentProgress};
 use crate::providers::claude::Claude;
 use crate::providers::ollama::Ollama;
@@ -217,6 +218,13 @@ pub struct AgentBuilder {
     /// the terminal wait. Useful for registering the child pid with an
     /// external process store.
     on_spawn_hook: Option<crate::agent::OnSpawnHook>,
+    /// Set via [`AgentBuilder::register_process`] — when present, the
+    /// terminal method registers a `ProcessEntry` in zag's `ProcessStore`,
+    /// injects `ZAG_PROCESS_ID` / `ZAG_SESSION_ID` etc. into the agent
+    /// subprocess's env, retargets the entry's pid to the agent child via
+    /// an internal `on_spawn` hook, and finalises the entry's status when
+    /// the terminal method returns.
+    register_process_opts: Option<RegisterOptionsOwned>,
 }
 
 impl Default for AgentBuilder {
@@ -261,6 +269,7 @@ impl AgentBuilder {
             stream_events_format: None,
             stream_show_thinking: false,
             on_spawn_hook: None,
+            register_process_opts: None,
         }
     }
 
@@ -544,6 +553,66 @@ impl AgentBuilder {
         self
     }
 
+    /// Register the about-to-spawn agent in zag's `ProcessStore` and inject
+    /// `ZAG_PROCESS_ID` / `ZAG_SESSION_ID` / `ZAG_PROVIDER` / `ZAG_MODEL`
+    /// into its env so commands like `zag ps kill self` and `zig self
+    /// terminate` can resolve the running agent from inside its own
+    /// subshell.
+    ///
+    /// The terminal method takes care of:
+    ///
+    /// 1. Calling [`crate::process_registration::register`] before spawn.
+    /// 2. Appending the resulting env vars onto the builder.
+    /// 3. Composing the registration's `on_spawn` hook with any caller-set
+    ///    [`AgentBuilder::on_spawn`] so both fire.
+    /// 4. Calling [`ProcessRegistration::update_status`] with `"exited"` /
+    ///    `"killed"` once the agent finishes.
+    ///
+    /// Without this call, the builder leaves the registry untouched (the
+    /// pre-existing default behavior). Callers that already manage their
+    /// own `ProcessEntry` should not opt in.
+    pub fn register_process(mut self, opts: RegisterOptionsOwned) -> Self {
+        self.register_process_opts = Some(opts);
+        self
+    }
+}
+
+/// Apply a [`ProcessRegistration`] to the builder's `env_vars` and
+/// `on_spawn_hook` fields so the agent subprocess inherits the env vars and
+/// the registry entry's pid is retargeted on spawn. Composes with any
+/// caller-set `on_spawn` hook — both fire.
+fn apply_registration(builder: &mut AgentBuilder, reg: &ProcessRegistration) {
+    for (k, v) in reg.env_vars() {
+        builder.env_vars.push((k.clone(), v.clone()));
+    }
+    let reg_hook = reg.on_spawn_hook();
+    let prev_hook = builder.on_spawn_hook.take();
+    builder.on_spawn_hook = Some(Arc::new(move |pid: u32| {
+        reg_hook(pid);
+        if let Some(ref h) = prev_hook {
+            h(pid);
+        }
+    }));
+}
+
+/// Map a terminal-method `Result<T>` to the `(status, exit_code)` pair
+/// stored on the `ProcessEntry`. Mirrors what `zag-cli/src/commands/
+/// agent_action.rs` records: `"killed"` + the agent's reported exit code on
+/// failure, `"exited"` + 0 on success.
+fn status_for_result<T>(result: &Result<T>) -> (&'static str, Option<i32>) {
+    match result {
+        Ok(_) => ("exited", Some(0)),
+        Err(err) => {
+            let exit_code = err
+                .downcast_ref::<crate::process::ProcessError>()
+                .and_then(|pe| pe.exit_code)
+                .unwrap_or(1);
+            ("killed", Some(exit_code))
+        }
+    }
+}
+
+impl AgentBuilder {
     /// Persist a `SessionEntry` to the session store so `zag session list`
     /// and `zag input --name <n>` can discover this builder-spawned session.
     ///
@@ -918,7 +987,23 @@ impl AgentBuilder {
     /// Run the agent non-interactively and return structured output.
     ///
     /// This is the primary entry point for programmatic use.
-    pub async fn exec(self, prompt: &str) -> Result<AgentOutput> {
+    pub async fn exec(mut self, prompt: &str) -> Result<AgentOutput> {
+        let registration = self
+            .register_process_opts
+            .as_ref()
+            .map(|opts| process_registration::register(opts.as_borrowed()));
+        if let Some(ref reg) = registration {
+            apply_registration(&mut self, reg);
+        }
+        let result = self.exec_inner(prompt).await;
+        if let Some(reg) = registration {
+            let (status, code) = status_for_result(&result);
+            reg.update_status(status, code);
+        }
+        result
+    }
+
+    async fn exec_inner(self, prompt: &str) -> Result<AgentOutput> {
         let provider = self.resolve_provider()?;
         debug!("exec: provider={provider}");
 
@@ -1135,7 +1220,23 @@ impl AgentBuilder {
     /// Start an interactive agent session.
     ///
     /// This takes over stdin/stdout for the duration of the session.
-    pub async fn run(self, prompt: Option<&str>) -> Result<()> {
+    pub async fn run(mut self, prompt: Option<&str>) -> Result<()> {
+        let registration = self
+            .register_process_opts
+            .as_ref()
+            .map(|opts| process_registration::register(opts.as_borrowed()));
+        if let Some(ref reg) = registration {
+            apply_registration(&mut self, reg);
+        }
+        let result = self.run_inner(prompt).await;
+        if let Some(reg) = registration {
+            let (status, code) = status_for_result(&result);
+            reg.update_status(status, code);
+        }
+        result
+    }
+
+    async fn run_inner(self, prompt: Option<&str>) -> Result<()> {
         let provider = self.resolve_provider()?;
         debug!("run: provider={provider}");
 
@@ -1172,7 +1273,23 @@ impl AgentBuilder {
     }
 
     /// Resume a previous session by ID.
-    pub async fn resume(self, session_id: &str) -> Result<()> {
+    pub async fn resume(mut self, session_id: &str) -> Result<()> {
+        let registration = self
+            .register_process_opts
+            .as_ref()
+            .map(|opts| process_registration::register(opts.as_borrowed()));
+        if let Some(ref reg) = registration {
+            apply_registration(&mut self, reg);
+        }
+        let result = self.resume_inner(session_id).await;
+        if let Some(reg) = registration {
+            let (status, code) = status_for_result(&result);
+            reg.update_status(status, code);
+        }
+        result
+    }
+
+    async fn resume_inner(self, session_id: &str) -> Result<()> {
         let provider = self.resolve_provider()?;
         debug!("resume: provider={provider}, session={session_id}");
 
@@ -1191,7 +1308,23 @@ impl AgentBuilder {
     }
 
     /// Resume the most recent session.
-    pub async fn continue_last(self) -> Result<()> {
+    pub async fn continue_last(mut self) -> Result<()> {
+        let registration = self
+            .register_process_opts
+            .as_ref()
+            .map(|opts| process_registration::register(opts.as_borrowed()));
+        if let Some(ref reg) = registration {
+            apply_registration(&mut self, reg);
+        }
+        let result = self.continue_last_inner().await;
+        if let Some(reg) = registration {
+            let (status, code) = status_for_result(&result);
+            reg.update_status(status, code);
+        }
+        result
+    }
+
+    async fn continue_last_inner(self) -> Result<()> {
         let provider = self.resolve_provider()?;
         debug!("continue_last: provider={provider}");
 

@@ -14,6 +14,7 @@ pub mod output;
 pub mod plan;
 pub mod preflight;
 pub mod process;
+pub mod process_registration;
 pub mod process_store;
 pub mod progress;
 pub mod providers;
