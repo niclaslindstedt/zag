@@ -839,8 +839,25 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         &session_metadata,
     );
 
-    // Register process entry before execution so `zag ps` can see it while running.
-    let proc_id = uuid::Uuid::new_v4().to_string();
+    // Register the process entry, build the `ZAG_*` env vars, and wire the
+    // on_spawn pid retarget — all via the shared `process_registration`
+    // helper. The helper is the single source of truth for this sequence;
+    // library callers (e.g. `zig run` interactive steps via
+    // `AgentBuilder::register_process`) get the same wiring.
+    //
+    // Previously this block called `unsafe std::env::set_var` to leak
+    // `ZAG_PROCESS_ID` etc. into zag's own process env so the spawned agent
+    // would inherit them. The helper now passes the env vars directly to
+    // the agent subprocess via `Agent::set_env_vars`, which the providers
+    // forward to their `Command::env(...)` — so zag's own env stays clean
+    // and there's no `unsafe` block.
+    //
+    // Pid retargeting: the entry is registered with `pid = zag's own pid`
+    // up-front so `zag ps show` works while the agent is still booting;
+    // once the agent subprocess spawns, the on_spawn hook flips the entry
+    // to point at the agent child. That way `zag ps kill self` SIGTERMs
+    // the agent (which dies cleanly so the orchestrator can move on),
+    // not the parent zag wrapper.
     let proc_session_id = wt
         .session_id
         .clone()
@@ -848,64 +865,21 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         .or_else(|| plain.session_id.clone());
     let proc_prompt = action_prompt(&action).map(|p| p.chars().take(100).collect::<String>());
     let proc_cmd = command_name(&action).to_string();
-    // Read parent process/session info from env vars (set by a parent zag process, if nested)
-    let parent_process_id = std::env::var("ZAG_PROCESS_ID").ok();
-    let parent_session_id = std::env::var("ZAG_SESSION_ID").ok();
 
-    if let Ok(mut pstore) = zag_agent::process_store::ProcessStore::load() {
-        pstore.add(zag_agent::process_store::ProcessEntry {
-            id: proc_id.clone(),
-            pid: std::process::id(),
-            session_id: proc_session_id.clone(),
-            provider: provider.clone(),
-            model: persisted_model.clone(),
-            command: proc_cmd,
-            prompt: proc_prompt,
-            started_at: chrono::Utc::now().to_rfc3339(),
-            status: "running".to_string(),
-            exit_code: None,
-            exited_at: None,
-            root: root.clone(),
-            parent_process_id,
-            parent_session_id,
-        });
-        let _ = pstore.save();
-    }
+    let registration = zag_agent::process_registration::register(
+        zag_agent::process_registration::RegisterOptions {
+            provider: &provider,
+            model: &persisted_model,
+            command: &proc_cmd,
+            prompt_preview: proc_prompt.as_deref(),
+            session_id: proc_session_id.as_deref(),
+            session_name: session_metadata.name.as_deref(),
+            root: root.as_deref(),
+        },
+    );
 
-    // Set ZAG_* env vars so child processes (agent CLIs) can discover their identity.
-    // These are inherited by spawned subprocesses automatically.
-    // SAFETY: zag is single-threaded at this point (agent subprocess has not yet been spawned).
-    unsafe {
-        if let Some(ref sid) = proc_session_id {
-            std::env::set_var("ZAG_SESSION_ID", sid);
-        }
-        std::env::set_var("ZAG_PROCESS_ID", &proc_id);
-        std::env::set_var("ZAG_PROVIDER", &provider);
-        std::env::set_var("ZAG_MODEL", &persisted_model);
-        if let Some(ref r) = root {
-            std::env::set_var("ZAG_ROOT", r);
-        }
-        if let Some(ref name) = session_metadata.name {
-            std::env::set_var("ZAG_SESSION_NAME", name);
-        }
-    }
-
-    // Retarget the process-store entry's pid to the actual agent
-    // subprocess as soon as it spawns. Until this fires, the entry
-    // points at zag's own pid (set above) so liveness checks and
-    // `zag ps show` still work; once the child is up, `zag ps kill
-    // self` SIGTERMs the agent child rather than the zag parent,
-    // letting the agent die naturally so the orchestrator can
-    // proceed to the next step.
-    {
-        let proc_id_for_hook = proc_id.clone();
-        agent.set_on_spawn_hook(std::sync::Arc::new(move |pid: u32| {
-            if let Ok(mut pstore) = zag_agent::process_store::ProcessStore::load() {
-                pstore.update_pid(&proc_id_for_hook, pid);
-                let _ = pstore.save();
-            }
-        }));
-    }
+    agent.set_env_vars(registration.env_vars().to_vec());
+    agent.set_on_spawn_hook(registration.on_spawn_hook());
 
     // Write lifecycle started marker and prune old markers
     let lifecycle_session_id = wt
@@ -1092,10 +1066,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             let process_err = err.downcast_ref::<zag_agent::process::ProcessError>();
             let exit_code = process_err.and_then(|pe| pe.exit_code).unwrap_or(1);
 
-            if let Ok(mut pstore) = zag_agent::process_store::ProcessStore::load() {
-                pstore.update_status(&proc_id, "killed", Some(exit_code));
-                let _ = pstore.save();
-            }
+            registration.update_status("killed", Some(exit_code));
             // Use ok() to avoid masking the original error if log finishing also fails
             if let Err(log_err) = log_coordinator.finish(false, Some(err.to_string())).await {
                 log::warn!("Failed to finish session log: {log_err}");
@@ -1163,10 +1134,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         Some(final_exit_code),
     );
 
-    if let Ok(mut pstore) = zag_agent::process_store::ProcessStore::load() {
-        pstore.update_status(&proc_id, "exited", Some(final_exit_code));
-        let _ = pstore.save();
-    }
+    registration.update_status("exited", Some(final_exit_code));
 
     if !agent_success {
         eprintln!("\x1b[31merror\x1b[0m: agent exited with failure");
