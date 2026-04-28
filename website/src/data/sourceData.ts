@@ -64,7 +64,7 @@ export interface ConfigSection {
 
 // --- Data ---
 
-export const version = "0.15.0";
+export const version = "0.15.1";
 
 export const providerCount = 5;
 
@@ -929,6 +929,10 @@ export const builderMethods: BuilderMethod[] = [
   {
     "name": "stream_show_thinking",
     "description": "[`stream_events_to_stderr`] is active. Off by default."
+  },
+  {
+    "name": "register_process",
+    "description": "own `ProcessEntry` should not opt in."
   }
 ];
 
@@ -951,12 +955,12 @@ export const bindings: BindingData[] = [
   {
     "language": "Swift",
     "directory": "swift",
-    "installCommand": ".package(url: \"https://github.com/niclaslindstedt/zag\", from: \"0.15.0\")"
+    "installCommand": ".package(url: \"https://github.com/niclaslindstedt/zag\", from: \"0.15.1\")"
   },
   {
     "language": "Java",
     "directory": "java",
-    "installCommand": "io.zag:zag:0.15.0"
+    "installCommand": "io.zag:zag:0.15.1"
   },
   {
     "language": "Kotlin",
