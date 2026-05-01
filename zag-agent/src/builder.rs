@@ -1307,6 +1307,60 @@ impl AgentBuilder {
         Ok(())
     }
 
+    /// Resume a previous session and inject a new user message as the next
+    /// turn. Captures the agent's response (analogous to [`exec`](Self::exec)).
+    ///
+    /// Unlike [`resume`](Self::resume), this method is non-interactive — it
+    /// does not attach to stdio and instead returns the structured
+    /// [`AgentOutput`] produced by the agent for the injected prompt.
+    ///
+    /// Provider support mirrors the underlying
+    /// [`Agent::run_resume_with_prompt`](crate::agent::Agent::run_resume_with_prompt)
+    /// trait method: Claude, Codex, and the mock provider implement it; the
+    /// trait's default impl errors out for providers that don't, so callers
+    /// see a clear "unsupported" message rather than silent misbehavior.
+    pub async fn resume_with_prompt(
+        mut self,
+        session_id: &str,
+        prompt: &str,
+    ) -> Result<Option<AgentOutput>> {
+        let registration = self
+            .register_process_opts
+            .as_ref()
+            .map(|opts| process_registration::register(opts.as_borrowed()));
+        if let Some(ref reg) = registration {
+            apply_registration(&mut self, reg);
+        }
+        let result = self.resume_with_prompt_inner(session_id, prompt).await;
+        if let Some(reg) = registration {
+            let (status, code) = status_for_result(&result);
+            reg.update_status(status, code);
+        }
+        result
+    }
+
+    async fn resume_with_prompt_inner(
+        self,
+        session_id: &str,
+        prompt: &str,
+    ) -> Result<Option<AgentOutput>> {
+        let provider = self.resolve_provider()?;
+        debug!("resume_with_prompt: provider={provider}, session={session_id}");
+
+        // Resuming must stick with the recorded provider — no downgrade.
+        let mut builder = self;
+        builder.provider_explicit = true;
+        let (agent, effective_provider) = builder.create_agent(&provider).await?;
+        let log_guard =
+            builder.start_session_log("resume", true, &effective_provider, agent.get_model());
+        let output = agent.run_resume_with_prompt(session_id, prompt).await?;
+        agent.cleanup().await?;
+        if let Some(g) = log_guard {
+            g.finish(true, None).await;
+        }
+        Ok(output)
+    }
+
     /// Resume the most recent session.
     pub async fn continue_last(mut self) -> Result<()> {
         let registration = self
