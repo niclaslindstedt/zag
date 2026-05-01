@@ -2020,13 +2020,13 @@ dependencies = [
 
 [[package]]
 name = "rpassword"
-version = "7.4.0"
+version = "7.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66d4c8b64f049c6721ec8ccec37ddfc3d641c4a7fca57e8f2a89de509c73df39"
+checksum = "2501c67132bd19c3005b0111fba298907ef002c8c1cf68e25634707e38bf66fe"
 dependencies = [
  "libc",
  "rtoolbox",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2069,9 +2069,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.39"
+version = "0.23.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c2c118cb077cca2822033836dfb1b975355dfb784b5e8da48f7b6c5db74e60e"
+checksum = "ef86cd5876211988985292b91c96a8f2d298df24e75989a43a3c73f2d4d8168b"
 dependencies = [
  "aws-lc-rs",
  "once_cell",
@@ -3435,7 +3435,7 @@ dependencies = [
 
 [[package]]
 name = "zag"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "zag-agent",
  "zag-orch",
@@ -3444,7 +3444,7 @@ dependencies = [
 
 [[package]]
 name = "zag-agent"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3469,7 +3469,7 @@ dependencies = [
 
 [[package]]
 name = "zag-cli"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3495,7 +3495,7 @@ dependencies = [
 
 [[package]]
 name = "zag-orch"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3512,7 +3512,7 @@ dependencies = [
 
 [[package]]
 name = "zag-serve"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "anyhow",
  "axum",
