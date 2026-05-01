@@ -475,3 +475,47 @@ async fn test_stream_events_to_stderr_implicitly_enables_session_log() {
         .unwrap();
     assert!(output.log_path.is_some(), "stream setter must enable log");
 }
+
+#[tokio::test]
+#[serial_test::serial(zag_user_log_dir)]
+async fn test_resume_with_prompt_fires_on_log_event_live() {
+    // Parity with `exec`: a callback registered via `on_log_event` must
+    // fire at least once during `resume_with_prompt` (not just be visible
+    // after the future resolves via the returned `AgentOutput`).
+    let _guard = ScopedLogsDir::new();
+    let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let counter_clone = counter.clone();
+    let kinds = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+    let kinds_clone = kinds.clone();
+
+    let _ = AgentBuilder::new()
+        .provider("mock")
+        .on_log_event(move |ev| {
+            counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            kinds_clone
+                .lock()
+                .unwrap()
+                .push(crate::listen::event_type_name(&ev.kind).to_string());
+        })
+        .resume_with_prompt("session-resume-log", "follow-up")
+        .await
+        .unwrap();
+
+    let total = counter.load(std::sync::atomic::Ordering::SeqCst);
+    let seen = kinds.lock().unwrap().clone();
+    assert!(
+        total >= 1,
+        "expected on_log_event to fire at least once during resume_with_prompt, \
+         got {total} events: {seen:?}"
+    );
+    // Parity with `exec`: callers must see the session lifecycle bookends
+    // through the same hook.
+    assert!(
+        seen.iter().any(|k| k == "session_started"),
+        "expected session_started event during resume_with_prompt, got: {seen:?}"
+    );
+    assert!(
+        seen.iter().any(|k| k == "session_ended"),
+        "expected session_ended event during resume_with_prompt, got: {seen:?}"
+    );
+}

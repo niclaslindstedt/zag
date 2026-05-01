@@ -873,6 +873,7 @@ impl AgentBuilder {
         resumed: bool,
         provider: &str,
         model: &str,
+        provider_session_id: Option<&str>,
     ) -> Option<SessionLogGuard> {
         let mode = std::mem::replace(&mut self.session_log_mode, SessionLogMode::Disabled);
         match mode {
@@ -902,7 +903,7 @@ impl AgentBuilder {
                 let metadata = SessionLogMetadata {
                     provider: provider.to_string(),
                     wrapper_session_id: wrapper_session_id.clone(),
-                    provider_session_id: None,
+                    provider_session_id: provider_session_id.map(str::to_string),
                     workspace_path: self.root.clone().or_else(|| {
                         std::env::current_dir()
                             .ok()
@@ -1032,7 +1033,8 @@ impl AgentBuilder {
         // Start (or adopt) the session log coordinator. Held for the whole
         // terminal method; dropped after cleanup so the log file is
         // finalised exactly once.
-        let log_guard = builder.start_session_log("exec", false, &provider, agent.get_model());
+        let log_guard =
+            builder.start_session_log("exec", false, &provider, agent.get_model(), None);
 
         // Persist the session entry so discovery (session list --name, input
         // --name) works for builder-spawned sessions. No-op when no metadata
@@ -1257,7 +1259,7 @@ impl AgentBuilder {
         let mut builder = self;
         let (agent, effective_provider) = builder.create_agent(&provider).await?;
         let log_guard =
-            builder.start_session_log("run", false, &effective_provider, agent.get_model());
+            builder.start_session_log("run", false, &effective_provider, agent.get_model(), None);
         let _ = builder.persist_session_metadata_with_id(
             &effective_provider,
             agent.get_model(),
@@ -1297,8 +1299,13 @@ impl AgentBuilder {
         let mut builder = self;
         builder.provider_explicit = true;
         let (agent, effective_provider) = builder.create_agent(&provider).await?;
-        let log_guard =
-            builder.start_session_log("resume", true, &effective_provider, agent.get_model());
+        let log_guard = builder.start_session_log(
+            "resume",
+            true,
+            &effective_provider,
+            agent.get_model(),
+            Some(session_id),
+        );
         agent.run_resume(Some(session_id), false).await?;
         agent.cleanup().await?;
         if let Some(g) = log_guard {
@@ -1351,8 +1358,18 @@ impl AgentBuilder {
         let mut builder = self;
         builder.provider_explicit = true;
         let (agent, effective_provider) = builder.create_agent(&provider).await?;
-        let log_guard =
-            builder.start_session_log("resume", true, &effective_provider, agent.get_model());
+        // Threading `session_id` here lets the live-log adapter locate the
+        // provider transcript file by ID, instead of falling back to
+        // "most-recently-modified" guesswork — which is what gives the
+        // builder's `on_log_event` callback per-turn delivery during a
+        // resumed turn.
+        let log_guard = builder.start_session_log(
+            "resume",
+            true,
+            &effective_provider,
+            agent.get_model(),
+            Some(session_id),
+        );
         let output = agent.run_resume_with_prompt(session_id, prompt).await?;
         agent.cleanup().await?;
         if let Some(g) = log_guard {
@@ -1387,7 +1404,7 @@ impl AgentBuilder {
         builder.provider_explicit = true;
         let (agent, effective_provider) = builder.create_agent(&provider).await?;
         let log_guard =
-            builder.start_session_log("resume", true, &effective_provider, agent.get_model());
+            builder.start_session_log("resume", true, &effective_provider, agent.get_model(), None);
         agent.run_resume(None, true).await?;
         agent.cleanup().await?;
         if let Some(g) = log_guard {
