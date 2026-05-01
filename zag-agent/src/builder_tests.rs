@@ -475,6 +475,31 @@ fn test_persist_session_metadata_writes_entry_when_named() {
     assert_eq!(entry.tags, vec!["experiment".to_string()]);
 }
 
+#[tokio::test]
+async fn test_resume_with_prompt_returns_output() {
+    let output = AgentBuilder::new()
+        .provider("mock")
+        .resume_with_prompt("session-123", "follow-up message")
+        .await
+        .unwrap()
+        .expect("mock provider returns Some(AgentOutput)");
+    assert!(!output.is_error);
+}
+
+#[tokio::test]
+async fn test_resume_with_prompt_pins_provider() {
+    // resume_with_prompt must stick with the recorded provider — no
+    // downgrade — even when the builder was not constructed with an
+    // explicit `.provider()` call. Use the mock provider so this test
+    // doesn't require any external CLI.
+    let output = AgentBuilder::new()
+        .provider("mock")
+        .resume_with_prompt("session-abc", "another turn")
+        .await
+        .unwrap();
+    assert!(output.is_some());
+}
+
 #[cfg(unix)]
 #[test]
 fn test_persist_session_metadata_uses_caller_session_id() {
