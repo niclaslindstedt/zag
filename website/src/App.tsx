@@ -10,8 +10,17 @@ import GettingStarted from "./components/GettingStarted";
 import Footer from "./components/Footer";
 import Documentation from "./components/Documentation";
 import Manual from "./components/Manual";
+import { useSeo } from "./hooks/useSeo";
+// @ts-expect-error - .mjs import shared with build scripts (no .d.ts needed)
+import { siteConfig } from "./seo/siteConfig.mjs";
 
 function LandingPage() {
+  useSeo({
+    title: siteConfig.title,
+    description: siteConfig.description,
+    path: "/",
+    type: "website",
+  });
   return (
     <>
       <Hero />

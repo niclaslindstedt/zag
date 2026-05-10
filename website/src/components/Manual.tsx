@@ -2,6 +2,28 @@ import { useParams, Link, Navigate } from "react-router-dom";
 import { useState, useEffect, useMemo } from "react";
 import { manPageGroups, getManPageBySlug } from "../data/manpages";
 import MarkdownRenderer from "./MarkdownRenderer";
+import { useSeo } from "../hooks/useSeo";
+
+function manSummary(md: string, slug: string, title: string): string {
+  // Manpages typically follow Markdown with NAME / SYNOPSIS / DESCRIPTION sections
+  const desc = md.match(/##\s+DESCRIPTION\s*\n+([\s\S]*?)(?:\n##|$)/i);
+  const nameLine = md.match(/##\s+NAME\s*\n+([\s\S]*?)(?:\n##|$)/i);
+  const fallback = `Reference manual for \`${title}\` in zag, the unified CLI for Claude, Codex, Gemini, Copilot, and Ollama AI coding agents.`;
+  const candidate = (desc?.[1] || nameLine?.[1] || "").trim();
+  if (!candidate) return fallback;
+  const cleaned = candidate
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .join(" ")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (cleaned.length < 40) return `${cleaned} — zag ${slug} manual page.`.trim();
+  return cleaned.length > 200 ? cleaned.slice(0, 197) + "…" : cleaned;
+}
 
 // Convert `zag man <command>` references to internal links
 function preprocessContent(content: string): string {
@@ -25,6 +47,34 @@ export default function Manual() {
     () => (currentPage ? preprocessContent(currentPage.content) : ""),
     [currentPage],
   );
+
+  const seoTitle = currentPage
+    ? `${currentPage.title} — zag manual`
+    : "zag manual";
+  const seoDescription = currentPage
+    ? manSummary(currentPage.content, currentSlug, currentPage.title)
+    : "Reference manual pages for the zag CLI.";
+
+  useSeo({
+    title: seoTitle,
+    description: seoDescription,
+    path: `/manual/${currentSlug}`,
+    type: "article",
+    jsonLd: currentPage
+      ? {
+          "@context": "https://schema.org",
+          "@type": "TechArticle",
+          headline: `${currentPage.title} — zag manual`,
+          name: currentPage.title,
+          description: seoDescription,
+          url: `https://zag.niclaslindstedt.se/manual/${currentSlug}`,
+          inLanguage: "en",
+          isPartOf: { "@id": "https://zag.niclaslindstedt.se/#website" },
+          about: { "@id": "https://zag.niclaslindstedt.se/#software" },
+          author: { "@type": "Person", name: "Niclas Lindstedt" },
+        }
+      : undefined,
+  });
 
   useEffect(() => {
     window.scrollTo(0, 0);

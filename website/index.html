@@ -4,44 +4,116 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>zag — One CLI for all your AI coding agents</title>
-    <meta name="description" content="A unified command-line interface and library for AI coding agents. Switch between Claude, Codex, Gemini, Copilot, and Ollama with a single tool." />
+    <meta name="theme-color" content="#0d0d10" />
+    <meta name="color-scheme" content="dark light" />
+
+    <title>zag — One CLI for Claude, Codex, Gemini, Copilot &amp; Ollama AI coding agents</title>
+    <meta name="description" content="zag is an open-source unified CLI and SDK for AI coding agents. Switch between Claude Code, OpenAI Codex, Google Gemini, GitHub Copilot, and Ollama with one command. Orchestrate multi-agent workflows from Rust, TypeScript, Python, C#, Swift, Java, or Kotlin." />
+    <meta name="keywords" content="zag, AI coding agent, AI CLI, Claude Code CLI, OpenAI Codex CLI, Gemini CLI, GitHub Copilot CLI, Ollama CLI, AI agent orchestration, multi-agent, agent SDK, agent framework, Rust agent library, TypeScript agent SDK, Python agent SDK, AI coding tools, LLM CLI, LLM orchestration, AI pair programming, agentic coding, MCP, Model Context Protocol, Cursor alternative, Aider alternative, autonomous coding agent" />
+    <meta name="author" content="Niclas Lindstedt" />
+    <meta name="generator" content="Vite + React" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow" />
+
     <link rel="canonical" href="https://zag.niclaslindstedt.se/" />
+    <link rel="alternate" type="application/rss+xml" title="zag releases" href="https://github.com/niclaslindstedt/zag/releases.atom" />
 
     <meta property="og:type" content="website" />
     <meta property="og:title" content="zag — One CLI for all your AI coding agents" />
-    <meta property="og:description" content="A unified command-line interface and library for AI coding agents. Switch between Claude, Codex, Gemini, Copilot, and Ollama with a single tool." />
+    <meta property="og:description" content="Open-source unified CLI and SDK for Claude, Codex, Gemini, Copilot, and Ollama. Orchestrate multi-agent coding workflows from Rust, TypeScript, Python, C#, Swift, Java, or Kotlin." />
     <meta property="og:url" content="https://zag.niclaslindstedt.se/" />
-    <meta property="og:image" content="https://zag.niclaslindstedt.se/og-image.png" />
+    <meta property="og:image" content="https://zag.niclaslindstedt.se/og-default.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="zag — One CLI for all your AI coding agents" />
     <meta property="og:site_name" content="zag" />
+    <meta property="og:locale" content="en_US" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="zag — One CLI for all your AI coding agents" />
-    <meta name="twitter:description" content="A unified command-line interface and library for AI coding agents. Switch between Claude, Codex, Gemini, Copilot, and Ollama with a single tool." />
-    <meta name="twitter:image" content="https://zag.niclaslindstedt.se/og-image.png" />
+    <meta name="twitter:description" content="Open-source unified CLI and SDK for Claude, Codex, Gemini, Copilot, and Ollama. Orchestrate multi-agent coding workflows from Rust, TypeScript, Python, C#, Swift, Java, or Kotlin." />
+    <meta name="twitter:image" content="https://zag.niclaslindstedt.se/og-default.png" />
+    <meta name="twitter:image:alt" content="zag — One CLI for all your AI coding agents" />
 
     <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
     <!-- Crawler directives live in /robots.txt -->
 
+    <link rel="preconnect" href="https://github.com" crossorigin />
+    <link rel="dns-prefetch" href="https://crates.io" />
+
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "zag",
-        "description": "A unified command-line interface and library for AI coding agents. Switch between Claude, Codex, Gemini, Copilot, and Ollama with a single tool.",
-        "url": "https://zag.niclaslindstedt.se/",
-        "applicationCategory": "DeveloperApplication",
-        "operatingSystem": "Linux, macOS, Windows",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        }
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://zag.niclaslindstedt.se/#software",
+            "name": "zag",
+            "alternateName": ["zag-cli", "zag-agent"],
+            "description": "Open-source unified command-line interface and SDK for AI coding agents. Switch between Claude Code, OpenAI Codex, Google Gemini, GitHub Copilot, and Ollama with a single tool. Orchestrate multi-agent workflows from Rust, TypeScript, Python, C#, Swift, Java, or Kotlin.",
+            "url": "https://zag.niclaslindstedt.se/",
+            "downloadUrl": "https://crates.io/crates/zag-cli",
+            "applicationCategory": "DeveloperApplication",
+            "applicationSubCategory": "AI Coding Agent CLI",
+            "operatingSystem": "Linux, macOS, Windows",
+            "softwareVersion": "0.17.0",
+            "license": "https://github.com/niclaslindstedt/zag/blob/main/LICENSE",
+            "programmingLanguage": ["Rust", "TypeScript", "Python", "C#", "Swift", "Java", "Kotlin"],
+            "keywords": "AI coding agent, CLI, Claude, Codex, Gemini, Copilot, Ollama, multi-agent orchestration, MCP, agent SDK",
+            "author": {
+              "@type": "Person",
+              "@id": "https://niclaslindstedt.se/#person",
+              "name": "Niclas Lindstedt",
+              "url": "https://niclaslindstedt.se/"
+            },
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "codeRepository": "https://github.com/niclaslindstedt/zag"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://zag.niclaslindstedt.se/#website",
+            "url": "https://zag.niclaslindstedt.se/",
+            "name": "zag",
+            "description": "One CLI for all your AI coding agents.",
+            "inLanguage": "en",
+            "publisher": {
+              "@id": "https://niclaslindstedt.se/#person"
+            }
+          },
+          {
+            "@type": "SoftwareSourceCode",
+            "@id": "https://github.com/niclaslindstedt/zag#source",
+            "name": "zag",
+            "codeRepository": "https://github.com/niclaslindstedt/zag",
+            "programmingLanguage": "Rust",
+            "runtimePlatform": "Linux, macOS, Windows",
+            "license": "https://github.com/niclaslindstedt/zag/blob/main/LICENSE",
+            "author": { "@id": "https://niclaslindstedt.se/#person" }
+          }
+        ]
       }
     </script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <div style="max-width:640px;margin:4rem auto;padding:1.5rem;font-family:system-ui,sans-serif;line-height:1.5;color:#e5e7eb;background:#111;border:1px solid #333;border-radius:8px;">
+        <h1 style="margin-top:0;">zag — One CLI for all your AI coding agents</h1>
+        <p>zag is an open-source unified command-line interface and SDK for AI coding agents. Switch between <strong>Claude Code</strong>, <strong>OpenAI Codex</strong>, <strong>Google Gemini</strong>, <strong>GitHub Copilot</strong>, and <strong>Ollama</strong> with a single command, and orchestrate multi-agent workflows from Rust, TypeScript, Python, C#, Swift, Java, or Kotlin.</p>
+        <p>Install with <code>cargo install zag-cli</code>.</p>
+        <ul>
+          <li><a href="https://github.com/niclaslindstedt/zag">Source on GitHub</a></li>
+          <li><a href="https://crates.io/crates/zag-cli">crates.io</a></li>
+          <li><a href="/docs/getting-started">Documentation</a></li>
+          <li><a href="/manual/zag">Manual</a></li>
+        </ul>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
