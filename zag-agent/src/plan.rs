@@ -30,9 +30,14 @@ use anyhow::{Context, Result};
 use log::debug;
 use std::path::{Path, PathBuf};
 
-/// Plan prompt template — `{GOAL}`, `{CONTEXT_SECTION}`, `{PROMPT}` are
-/// replaced at run time.
-pub const PLAN_TEMPLATE: &str = include_str!("../prompts/plan/1_0_0.md");
+/// Raw `prompts/plan/1_0_0.md` source, including YAML front matter.
+const PLAN_TEMPLATE_SOURCE: &str = include_str!("../prompts/plan/1_0_0.md");
+
+/// Plan prompt template (front matter stripped) — `{GOAL}`,
+/// `{CONTEXT_SECTION}`, `{PROMPT}` are replaced at run time.
+pub fn plan_template() -> &'static str {
+    crate::prompts::strip_front_matter(PLAN_TEMPLATE_SOURCE)
+}
 
 /// Parameters for [`run_plan`].
 pub struct PlanParams {
@@ -82,7 +87,7 @@ pub struct PlanResult {
     pub written_to: Option<PathBuf>,
 }
 
-/// Render the plan prompt from [`PLAN_TEMPLATE`].
+/// Render the plan prompt from [`plan_template`].
 pub fn build_plan_prompt(goal: &str, instructions: Option<&str>) -> String {
     let context_section = String::new();
     let prompt_section = match instructions {
@@ -90,7 +95,7 @@ pub fn build_plan_prompt(goal: &str, instructions: Option<&str>) -> String {
         None => String::new(),
     };
 
-    PLAN_TEMPLATE
+    plan_template()
         .replace("{GOAL}", goal)
         .replace("{CONTEXT_SECTION}", &context_section)
         .replace("{PROMPT}", &prompt_section)

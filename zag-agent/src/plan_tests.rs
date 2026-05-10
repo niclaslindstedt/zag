@@ -2,9 +2,9 @@ use super::*;
 
 #[test]
 fn plan_template_has_placeholders() {
-    assert!(PLAN_TEMPLATE.contains("{GOAL}"));
-    assert!(PLAN_TEMPLATE.contains("{CONTEXT_SECTION}"));
-    assert!(PLAN_TEMPLATE.contains("{PROMPT}"));
+    assert!(plan_template().contains("{GOAL}"));
+    assert!(plan_template().contains("{CONTEXT_SECTION}"));
+    assert!(plan_template().contains("{PROMPT}"));
 }
 
 #[test]

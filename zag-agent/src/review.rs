@@ -30,9 +30,14 @@ use anyhow::{Result, bail};
 use log::debug;
 use std::process::Command;
 
-/// Review prompt template — `{DIFF}`, `{TITLE_SECTION}`, `{PROMPT}` are
-/// replaced at run time.
-pub const REVIEW_TEMPLATE: &str = include_str!("../prompts/review/1_0_0.md");
+/// Raw `prompts/review/1_0_0.md` source, including YAML front matter.
+const REVIEW_TEMPLATE_SOURCE: &str = include_str!("../prompts/review/1_0_0.md");
+
+/// Review prompt template (front matter stripped) — `{DIFF}`,
+/// `{TITLE_SECTION}`, `{PROMPT}` are replaced at run time.
+pub fn review_template() -> &'static str {
+    crate::prompts::strip_front_matter(REVIEW_TEMPLATE_SOURCE)
+}
 
 /// Parameters for [`run_review`].
 pub struct ReviewParams {
@@ -153,7 +158,7 @@ pub fn gather_diff(
     Ok(combined)
 }
 
-/// Render a review prompt from [`REVIEW_TEMPLATE`] with the given diff,
+/// Render a review prompt from [`review_template`] with the given diff,
 /// optional title, and optional reviewer prompt.
 pub fn build_review_prompt(diff: &str, title: Option<&str>, user_prompt: Option<&str>) -> String {
     let title_section = match title {
@@ -162,7 +167,7 @@ pub fn build_review_prompt(diff: &str, title: Option<&str>, user_prompt: Option<
     };
     let prompt_section = user_prompt.unwrap_or("");
 
-    REVIEW_TEMPLATE
+    review_template()
         .replace("{DIFF}", diff)
         .replace("{TITLE_SECTION}", &title_section)
         .replace("{PROMPT}", prompt_section)

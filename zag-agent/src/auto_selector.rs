@@ -9,7 +9,11 @@ use anyhow::{Result, bail};
 use log::debug;
 use serde::Deserialize;
 
-const PROMPT_TEMPLATE: &str = include_str!("../prompts/auto-selector/3_1_0.md");
+const PROMPT_TEMPLATE_SOURCE: &str = include_str!("../prompts/auto-selector/3_1_0.md");
+
+fn prompt_template() -> &'static str {
+    crate::prompts::strip_front_matter(PROMPT_TEMPLATE_SOURCE)
+}
 
 /// Result of auto-selection.
 #[derive(Debug)]
@@ -51,7 +55,7 @@ pub async fn resolve(
         build_mode_and_format(auto_provider, auto_model, current_provider);
 
     // Build the selector prompt
-    let selector_prompt = PROMPT_TEMPLATE
+    let selector_prompt = prompt_template()
         .replace("{MODE}", &mode)
         .replace("{RESPONSE_FORMAT}", &response_format)
         .replace("{TASK}", prompt);

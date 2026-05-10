@@ -359,7 +359,7 @@ fn test_parse_response_refusal_with_provider_only() {
 #[test]
 fn test_prompt_template_loads() {
     // Verify the prompt template is embedded and contains expected placeholders
-    assert!(PROMPT_TEMPLATE.contains("{MODE}"));
-    assert!(PROMPT_TEMPLATE.contains("{RESPONSE_FORMAT}"));
-    assert!(PROMPT_TEMPLATE.contains("{TASK}"));
+    assert!(prompt_template().contains("{MODE}"));
+    assert!(prompt_template().contains("{RESPONSE_FORMAT}"));
+    assert!(prompt_template().contains("{TASK}"));
 }
