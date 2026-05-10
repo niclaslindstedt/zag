@@ -503,6 +503,22 @@ store so `zag ps kill self` SIGTERMs the agent child rather than the
 parent `zag` process; downstream Rust programs can do the same to
 register the child pid with their own registries.
 
+Use `.register_process(opts)` for the full `ProcessStore` integration
+that `zag` itself uses: the terminal method registers a `ProcessEntry`,
+injects `ZAG_PROCESS_ID` / `ZAG_SESSION_ID` / `ZAG_PROVIDER` /
+`ZAG_MODEL` into the agent subprocess's env, retargets the entry's pid
+to the agent child via an internal `on_spawn` hook (composing with any
+caller-set hook), and finalises the entry's status when the terminal
+method returns. This makes builder-spawned sessions discoverable by
+`zag ps`, `zag ps kill self`, and the rest of the orchestration
+toolchain.
+
+Use `.resume_with_prompt(session_id, prompt)` for non-interactive
+resume that sends a fresh prompt to an existing session and returns an
+`AgentOutput`. This is the programmatic counterpart to interactive
+`.resume(session_id)` and complements `.exec(prompt)` for builder-driven
+multi-turn flows.
+
 See the [`zag-agent` crate](zag-agent/) for the full API including JSON schema validation, custom progress handlers, and interactive sessions. Library-level primitives for `review`, `plan`, `discover`, manpages, and agent-to-agent messaging are re-exported from `zag_agent` and `zag_orch` so downstream programs can drive these flows without shelling out to the CLI.
 
 ### Language bindings

@@ -156,6 +156,7 @@ All bindings support the same set of builder methods (naming follows each langua
 | `stream_events_to_stderr` | Rust-only: tail the session log to stderr in the same formats as `zag listen` (`Text`, `Json`, `RichText`). Implicitly enables session logging. |
 | `stream_show_thinking` | Rust-only: include `Reasoning` events in the stderr stream when `stream_events_to_stderr` is active. |
 | `on_spawn` | Rust-only: register a `Fn(u32)` callback invoked once with the OS pid of the spawned agent subprocess, right after spawn. Useful for registering the child pid with an external process store so `zag ps kill self` signals the agent child rather than the parent zag process. Fires again on each retry or resume. |
+| `register_process` | Rust-only: register the about-to-spawn agent in zag's `ProcessStore` and inject `ZAG_PROCESS_ID` / `ZAG_SESSION_ID` / `ZAG_PROVIDER` / `ZAG_MODEL` into its env so commands like `zag ps kill self` resolve the running agent from inside its own subshell. Composes with any caller-set `on_spawn`. The terminal method finalises the entry's status (`exited` / `killed`) on return. |
 
 > **Capability-aware errors**: feature-gated builder options
 > (`exec_streaming` / `streaming_input`, `worktree`, `sandbox`,
@@ -175,6 +176,7 @@ All bindings support the same set of builder methods (naming follows each langua
 | `exec` | Non-interactive execution with a prompt |
 | `run` | Start an interactive session |
 | `resume` | Resume a previous session by ID |
+| `resume_with_prompt` | Rust-only: non-interactive resume that sends a fresh prompt to the existing session and returns `AgentOutput`. Mirrors `Agent::run_resume_with_prompt`. |
 | `continue_last` | Resume the most recent tracked session |
 | `stream` | Stream NDJSON events from a one-shot turn |
 | `exec_streaming` | Open a bidirectional `StreamingSession` (Claude only) |
