@@ -10,7 +10,7 @@
 .coverage/
 
 .claude/*
-!.claude/skills/
+!.claude/skills
 
 # Binding build artifacts
 bindings/typescript/node_modules/

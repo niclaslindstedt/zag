@@ -1,7 +1,7 @@
 ---
 title: Open Source Project Bootstrap Specification
 description: A prescriptive, language-agnostic specification for bootstrapping a new open source project with the licensing, documentation, automation, governance, and release plumbing that users and contributors expect from a well-run OSS codebase.
-version: 2.3.0
+version: 2.6.0
 ---
 
 # Open Source Project Bootstrap Specification
@@ -507,6 +507,13 @@ The release workflow performs the following steps in order:
    force-pushing a git ref is permitted, and it is permitted only for
    the exact tag that `version-bump` just created. Branches must
    never be force-pushed.
+
+   The commit-and-retag step must authenticate with the default
+   `GITHUB_TOKEN`, not `RELEASE_TOKEN`. `GITHUB_TOKEN` deliberately
+   suppresses downstream workflow triggers, so the force-push does
+   not re-fire the release workflow on itself. Using `RELEASE_TOKEN`
+   here would start a second release run that attempts to re-publish
+   an already-published version and fails noisily.
 7. **Build release artifacts in a matrix** covering every target
    platform the project ships — operating systems, architectures,
    language toolchains, container variants. Matrix jobs run in
@@ -538,14 +545,13 @@ Design constraints:
   scoping tag creation to the release bot identity.
 - **Idempotent version-bump step.** If the computed version already
   matches every manifest, step 5 is a no-op.
-- **RELEASE_TOKEN secret.** Both workflows need a token with write
-  access to `main` and to tags. `version-bump` needs it so its tag
-  push actually triggers the `release` workflow (the default
-  `GITHUB_TOKEN` deliberately suppresses downstream workflow
-  triggers, so a tag pushed with it would not fire the release pipeline);
-  `release` needs it for the commit-to-`main` and force-push-tag
-  steps. A dedicated `RELEASE_TOKEN` PAT or GitHub App token is the
-  canonical choice.
+- **RELEASE_TOKEN secret.** `version-bump` needs a PAT or GitHub App
+  token with write access to tags, because `GITHUB_TOKEN`
+  deliberately suppresses downstream workflow triggers and a tag
+  pushed with it would not fire `release`. `release` itself uses the
+  default `GITHUB_TOKEN` for its commit-to-`main` and retag steps —
+  that same trigger suppression is what prevents the retag from
+  starting a duplicate release run.
 - **Branch protection.** `main` must be protected, and the release
   bot (or `github-actions[bot]`) must have a narrowly scoped
   exception to push the `chore(release): ...` commit. Disable branch
@@ -846,6 +852,98 @@ A staleness CI check should run on every pull request: build the
 website in dry-run mode, and fail if the extractor reports that any
 source-derived field no longer matches what the website components
 expect. This prevents PRs from silently breaking the showcase.
+
+### 11.3 SEO and discoverability
+
+**Every project website must be optimized for discovery by its intended
+audience.** A landing page that crawlers cannot read, or that previews
+as a blank URL on Slack/LinkedIn/Twitter, is invisible to the
+contributors and users the project is trying to reach.
+
+What "optimized" looks like is project-shape dependent — a CLI's
+audience is not a library's audience is not a long-form documentation
+site's audience — but the mechanics below apply regardless. Adapt the
+*content* of each element (titles, descriptions, schema.org type,
+keywords) to the project; keep the *structure* in place.
+
+#### Required `<head>` metadata per route
+
+Every public route must emit values that describe **that page**, not
+the site as a whole:
+
+- `<title>` and `<meta name="description">`.
+- `<link rel="canonical" href="...">` — absolute URL.
+- `<meta name="robots" content="index,follow,max-image-preview:large">`.
+- Open Graph: `og:site_name`, `og:type`, `og:title`, `og:description`,
+  `og:url`, `og:image` (plus `og:image:width`, `og:image:height`,
+  `og:image:alt`).
+- Twitter Card: `twitter:card="summary_large_image"`, plus
+  `twitter:title`, `twitter:description`, `twitter:image`.
+
+#### Open Graph image
+
+Every route must reference a 1200×630 PNG suitable for Facebook,
+LinkedIn, Slack, Discord, and Twitter previews. Ship a default at
+`website/public/og-default.png`. Projects whose content benefits from
+per-page cards (e.g. one per release, per docs page, per post) should
+code-render them at build time (`satori` + `@resvg/resvg-js`,
+`playwright`, or equivalent) so they stay in sync with their source
+data without manual upkeep.
+
+#### Structured data (JSON-LD)
+
+Every route must emit at least one
+`<script type="application/ld+json">` block describing the page in
+[schema.org](https://schema.org/) terms. Pick the type that best
+matches the page — `SoftwareApplication` or `SoftwareSourceCode` for a
+tool's landing page, `TechArticle` for documentation,
+`Article`/`BlogPosting` for posts, `CollectionPage` for indexes — and
+use absolute, stable `@id` URLs so the graph composes cleanly across
+deploys.
+
+#### Sitemap and robots.txt
+
+Every website must publish, at the site root, a `sitemap.xml` listing
+every route the project wants indexed (with `<lastmod>` derived from
+real source data — file `mtime`, latest git commit touching the
+source, etc. — never a build-time `now()`) and a `robots.txt` with an
+absolute `Sitemap:` line pointing at it. The sitemap must also be
+advertised in the shell's `<head>` via
+`<link rel="sitemap" type="application/xml" href="/sitemap.xml" />`.
+
+Projects that publish time-ordered content (release notes, blog posts,
+changelog entries) should additionally publish RSS 2.0 and Atom 1.0
+feeds linked from every route via `<link rel="alternate">`.
+
+These outputs must be **generated from the same source data the
+website itself consumes** (see §11.2), not hand-maintained.
+
+#### Single source of truth for SEO copy
+
+All SEO copy and configuration — site name, tagline, description,
+canonical site URL, default keywords, OG image dimensions, language
+code, feed/sitemap paths — must live in a single configuration module
+(e.g. `website/src/seo/siteConfig.ts`) imported by both runtime client
+code (`<head>` updates via Helmet, `next/head`, `<svelte:head>`, or
+equivalent) and any build-time generator. Tweaking the site's pitch
+must be a one-file change.
+
+#### Pre-rendered metadata for single-page apps
+
+Generic crawlers do not execute JavaScript, and even those that do
+will not wait for client-side `<head>` mutations before snapshotting.
+SPA projects must therefore run a post-build generator that, for every
+public route, splices a route-specific `<head>` block into a copy of
+the framework's `dist/index.html` shell and writes it to the route's
+path. The body remains the framework's hydration root — the generator
+only rewrites `<head>`. A `dist/404.html` copy of the homepage keeps
+SPA-fallback hosting sensible on unknown URLs.
+
+#### CI verification
+
+The website build job (§10.4) must fail if any required SEO output is
+missing — `sitemap.xml`, `robots.txt`, the homepage's JSON-LD, and
+per-route `<title>` plus canonical link.
 
 ## 12. Additional requirements for CLI projects
 
@@ -1207,6 +1305,30 @@ equivalent) with hooks for:
 - Forbidden edits (e.g., `CHANGELOG.md` outside release commits).
 
 Pre-commit hooks must be installable with a single documented command.
+
+### 16.1 Shell scripts and workflow YAML
+
+Linting is not just about the primary language. Shell scripts and
+GitHub Actions workflow files are production infrastructure and must
+be linted with the same zero-warning rigor as the rest of the
+codebase:
+
+- **Shell scripts** (`*.sh`, `*.bash`) must be linted with
+  [`shellcheck`](https://www.shellcheck.net/). A project with any
+  shell scripts must expose a `make shellcheck` target that runs
+  `shellcheck` against them.
+- **GitHub Actions workflow files** (`.github/workflows/*.yml`) must
+  be linted with [`actionlint`](https://github.com/rhysd/actionlint).
+  A project with any workflow files must expose a `make actionlint`
+  target.
+
+Both tools must run in CI (typically in a dedicated `shell-lint` job
+on `ubuntu-latest`, where `shellcheck` is preinstalled and
+`actionlint` can be fetched via its official installer script). CI
+must fail on any `shellcheck` or `actionlint` finding. These targets
+should also be wired into the pre-commit hook alongside `make lint`
+so shell and workflow issues are caught locally before they hit
+review.
 
 ## 17. Governance
 
@@ -1674,7 +1796,9 @@ checked before the first public tag.
     generating changelog, updating versions,
     force-pushing the rewritten tag, matrix-building
     and publishing                                      (§10.3)
-[ ] RELEASE_TOKEN secret with main-branch bypass        (§10.3)
+[ ] RELEASE_TOKEN secret used by version-bump only;
+    release workflow uses the default GITHUB_TOKEN for
+    its commit-to-main and retag steps                  (§10.3)
 [ ] Trusted publishing (OIDC) configured for every
     target registry; no long-lived publish tokens       (§10.3)
 [ ] Publish jobs declare explicit least-privilege
@@ -1729,3 +1853,90 @@ CLI projects additionally:
 A repository that satisfies this checklist has the foundational
 infrastructure of a healthy open source project and is ready to accept
 its first contribution.
+
+---
+
+## 23. Interactive init tailoring
+
+Bootstrap tools that generate a project from templates SHOULD offer an
+optional, **interactive** AI-driven pass that tailors the scaffolding
+layer of the just-bootstrapped project to the user's description, so
+the first commit reads as if a human wrote it for this specific
+project rather than as generic boilerplate. The following mandates
+apply to any tool that ships such a pass.
+
+### 23.1 Scope — plumbing only
+
+The tailoring pass MUST operate only on the **scaffolding layer**:
+
+- `README.md`
+- `AGENTS.md` (and leave its symlinks alone — §7.1)
+- `docs/**`
+- `.agent/skills/**`
+- `.github/workflows/**`, `.github/ISSUE_TEMPLATE/**`,
+  `.github/PULL_REQUEST_TEMPLATE.md`
+- `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md`
+- `.gitignore`, `.editorconfig`, `Makefile` (restricted to comments
+  and target descriptions — see §9)
+- `website/**`
+
+The pass MUST NOT edit application source (`src/**`, `tests/**`, any
+language entry file like `main.rs` / `main.py` / `index.ts`), any
+lockfile (`Cargo.lock`, `package-lock.json`, `poetry.lock`,
+`go.sum`, …), or this spec itself (`OSS_SPEC.md`). Writing application
+code is the developer's job, not the bootstrap's.
+
+### 23.2 Interactivity
+
+The pass MUST be interactive: each file write, edit, or shell command
+it intends to run MUST be surfaced to the user for approval before
+execution. "Summarize at the end and commit the diff" is **not**
+compliant — the user has to see proposals in flight, not after the
+fact, so they can catch off-scope edits while the agent can still
+redirect.
+
+### 23.3 Opt-out and skip conditions
+
+The tool MUST expose two independent skip mechanisms:
+
+- A `--no-tailor` (or equivalent) flag that disables the tailoring
+  pass while leaving other AI steps (prompt interpretation, manifest
+  drafting) intact.
+- A `--no-ai` (or equivalent) flag that disables *all* AI steps,
+  including tailoring.
+
+The pass SHOULD also skip itself automatically when there is nothing
+meaningful to tailor against (empty description, placeholder like
+`TODO: describe <name>`, non-interactive CI environment).
+
+### 23.4 Fallback
+
+When the tailoring pass is skipped or fails, the bootstrap output MUST
+stand on its own. Templates MUST render a sensible README, AGENTS.md,
+and supporting files from the manifest alone, so a user who bootstraps
+with `--no-ai` still receives a §19-conformant repository.
+
+### 23.5 Prompt versioning
+
+The tailoring agent's system/user prompt MUST live under
+`prompts/<name>/<major>_<minor>_<patch>.md` and follow §13.5. The
+allowed/forbidden path lists from §23.1 MUST be reiterated in the
+system prompt so the agent has two independent guards: the human
+approving each tool call, and the instructions steering its
+proposals.
+
+### 23.6 Checklist
+
+```
+[ ] Interactive tailoring pass implemented (or explicit rationale
+    documented for why it is not applicable)               (§23.2)
+[ ] Edit surface restricted to scaffolding paths only       (§23.1)
+[ ] Application source and lockfiles forbidden              (§23.1)
+[ ] `--no-tailor` flag skips tailoring while keeping other
+    AI steps                                               (§23.3)
+[ ] `--no-ai` flag skips all AI including tailoring         (§23.3)
+[ ] Bootstrap output is valid §19-conformant when tailoring
+    is skipped                                             (§23.4)
+[ ] Tailoring prompt under prompts/<name>/<major>_<minor>_<patch>.md
+    with YAML front matter                                 (§23.5)
+```

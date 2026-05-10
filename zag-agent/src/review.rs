@@ -32,7 +32,7 @@ use std::process::Command;
 
 /// Review prompt template — `{DIFF}`, `{TITLE_SECTION}`, `{PROMPT}` are
 /// replaced at run time.
-pub const REVIEW_TEMPLATE: &str = include_str!("../prompts/review/1_0.md");
+pub const REVIEW_TEMPLATE: &str = include_str!("../prompts/review/1_0_0.md");
 
 /// Parameters for [`run_review`].
 pub struct ReviewParams {

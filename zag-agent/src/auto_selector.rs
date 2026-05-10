@@ -9,7 +9,7 @@ use anyhow::{Result, bail};
 use log::debug;
 use serde::Deserialize;
 
-const PROMPT_TEMPLATE: &str = include_str!("../prompts/auto-selector/3_1.md");
+const PROMPT_TEMPLATE: &str = include_str!("../prompts/auto-selector/3_1_0.md");
 
 /// Result of auto-selection.
 #[derive(Debug)]

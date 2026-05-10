@@ -32,7 +32,7 @@ use std::path::{Path, PathBuf};
 
 /// Plan prompt template — `{GOAL}`, `{CONTEXT_SECTION}`, `{PROMPT}` are
 /// replaced at run time.
-pub const PLAN_TEMPLATE: &str = include_str!("../prompts/plan/1_0.md");
+pub const PLAN_TEMPLATE: &str = include_str!("../prompts/plan/1_0_0.md");
 
 /// Parameters for [`run_plan`].
 pub struct PlanParams {
