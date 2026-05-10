@@ -2,9 +2,9 @@ use super::*;
 
 #[test]
 fn review_template_has_placeholders() {
-    assert!(REVIEW_TEMPLATE.contains("{DIFF}"));
-    assert!(REVIEW_TEMPLATE.contains("{TITLE_SECTION}"));
-    assert!(REVIEW_TEMPLATE.contains("{PROMPT}"));
+    assert!(review_template().contains("{DIFF}"));
+    assert!(review_template().contains("{TITLE_SECTION}"));
+    assert!(review_template().contains("{PROMPT}"));
 }
 
 #[test]

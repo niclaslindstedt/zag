@@ -17,6 +17,7 @@ pub mod process;
 pub mod process_registration;
 pub mod process_store;
 pub mod progress;
+pub mod prompts;
 pub mod providers;
 pub mod review;
 pub mod sandbox;

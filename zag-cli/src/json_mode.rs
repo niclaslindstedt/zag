@@ -6,11 +6,15 @@ use log::debug;
 
 const MAX_JSON_RETRIES: usize = 3;
 
-const JSON_WRAP_TEMPLATE: &str = include_str!("../prompts/json-wrap/1_0_0.md");
+const JSON_WRAP_TEMPLATE_SOURCE: &str = include_str!("../prompts/json-wrap/1_0_0.md");
+
+fn json_wrap_template() -> &'static str {
+    zag_agent::prompts::strip_front_matter(JSON_WRAP_TEMPLATE_SOURCE)
+}
 
 /// Wrap a user prompt with explicit JSON instructions for non-Claude agents.
 pub fn wrap_prompt_for_json(prompt: &str) -> String {
-    JSON_WRAP_TEMPLATE.replace("{PROMPT}", prompt)
+    json_wrap_template().replace("{PROMPT}", prompt)
 }
 
 /// Handle JSON output mode: validate agent output and retry via session resume if invalid.
