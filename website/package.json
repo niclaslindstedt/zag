@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "extract": "node scripts/extract-source-data.mjs",
-    "build": "npm run extract && vite build && cp dist/index.html dist/404.html",
+    "og-image": "node scripts/og-image.mjs",
+    "seo": "node scripts/seo.mjs",
+    "build": "npm run extract && npm run og-image && vite build && npm run seo",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -17,10 +19,12 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/vite": "^4.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
+    "satori": "^0.12.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.6.0",
     "vite": "^6.0.0"

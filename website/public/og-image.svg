@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="zag — One CLI for all your AI coding agents">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0a0d"/>
+      <stop offset="100%" stop-color="#14141b"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="20%" r="60%">
+      <stop offset="0%" stop-color="#ff7a18" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#ff7a18" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ff7a18"/>
+      <stop offset="100%" stop-color="#ffb066"/>
+    </linearGradient>
+    <style>
+      .title { font: 700 88px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      .sub   { font: 500 36px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      .pill  { font: 600 24px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      .mono  { font: 600 28px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .small { font: 500 22px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    </style>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+
+  <!-- bolt mark -->
+  <g transform="translate(80,76)">
+    <text x="0" y="64" class="title" fill="url(#accent)">⚡</text>
+    <text x="84" y="64" class="title" fill="#f8fafc">zag</text>
+  </g>
+  <text x="84" y="170" class="small" fill="#9ca3af" transform="translate(80,76)">v0.17 — open source · MIT</text>
+
+  <!-- headline -->
+  <g transform="translate(80,290)">
+    <text x="0" y="0" class="title" fill="#f8fafc">One CLI for all your</text>
+    <text x="0" y="100" class="title" fill="url(#accent)">AI coding agents</text>
+  </g>
+
+  <!-- providers row -->
+  <g transform="translate(80,470)">
+    <g>
+      <rect x="0"   y="0" rx="22" ry="22" width="150" height="44" fill="#1f2937" stroke="#334155"/>
+      <text x="75"  y="30" class="pill" fill="#f8fafc" text-anchor="middle">Claude</text>
+    </g>
+    <g>
+      <rect x="166" y="0" rx="22" ry="22" width="140" height="44" fill="#1f2937" stroke="#334155"/>
+      <text x="236" y="30" class="pill" fill="#f8fafc" text-anchor="middle">Codex</text>
+    </g>
+    <g>
+      <rect x="322" y="0" rx="22" ry="22" width="150" height="44" fill="#1f2937" stroke="#334155"/>
+      <text x="397" y="30" class="pill" fill="#f8fafc" text-anchor="middle">Gemini</text>
+    </g>
+    <g>
+      <rect x="488" y="0" rx="22" ry="22" width="160" height="44" fill="#1f2937" stroke="#334155"/>
+      <text x="568" y="30" class="pill" fill="#f8fafc" text-anchor="middle">Copilot</text>
+    </g>
+    <g>
+      <rect x="664" y="0" rx="22" ry="22" width="150" height="44" fill="#1f2937" stroke="#334155"/>
+      <text x="739" y="30" class="pill" fill="#f8fafc" text-anchor="middle">Ollama</text>
+    </g>
+  </g>
+
+  <!-- install hint -->
+  <g transform="translate(80,548)">
+    <rect x="0" y="0" rx="10" ry="10" width="520" height="56" fill="#0f172a" stroke="#334155"/>
+    <text x="20" y="36" class="mono" fill="#e2e8f0">$ cargo install zag-cli</text>
+  </g>
+
+  <!-- url -->
+  <text x="1120" y="600" class="small" fill="#9ca3af" text-anchor="end">zag.niclaslindstedt.se</text>
+</svg>

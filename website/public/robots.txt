@@ -1,4 +1,12 @@
+# https://zag.niclaslindstedt.se/robots.txt
+# zag — One CLI for all your AI coding agents
+# Source: https://github.com/niclaslindstedt/zag
+
 User-agent: *
 Allow: /
 
+# Don't waste crawl budget on the SPA's 404 fallback
+Disallow: /404.html
+
+# Search engines: please follow the sitemap
 Sitemap: https://zag.niclaslindstedt.se/sitemap.xml

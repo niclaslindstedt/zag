@@ -2,6 +2,27 @@ import { useParams, Link, Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { docs, getDocBySlug } from "../data/docs";
 import MarkdownRenderer from "./MarkdownRenderer";
+import { useSeo } from "../hooks/useSeo";
+
+function firstParagraph(md: string, fallback: string): string {
+  const lines = md.split("\n");
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (line.startsWith("#")) continue;
+    if (line.startsWith("```") || line.startsWith("---")) continue;
+    if (line.startsWith("|") || line.startsWith("- ") || line.startsWith("* ")) continue;
+    const stripped = line
+      .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/\*([^*]+)\*/g, "$1")
+      .trim();
+    if (stripped.length < 40) continue;
+    return stripped.length > 200 ? stripped.slice(0, 197) + "…" : stripped;
+  }
+  return fallback;
+}
 
 export default function Documentation() {
   const { slug } = useParams<{ slug: string }>();
@@ -9,6 +30,37 @@ export default function Documentation() {
 
   const currentSlug = slug || "getting-started";
   const currentDoc = getDocBySlug(currentSlug);
+
+  const seoTitle = currentDoc
+    ? `${currentDoc.title} — zag documentation`
+    : "zag documentation";
+  const seoDescription = currentDoc
+    ? firstParagraph(
+        currentDoc.content,
+        `${currentDoc.title} documentation for zag — the unified CLI for Claude, Codex, Gemini, Copilot, and Ollama.`,
+      )
+    : "Documentation for zag, the unified CLI and SDK for AI coding agents.";
+
+  useSeo({
+    title: seoTitle,
+    description: seoDescription,
+    path: `/docs/${currentSlug}`,
+    type: "article",
+    jsonLd: currentDoc
+      ? {
+          "@context": "https://schema.org",
+          "@type": "TechArticle",
+          headline: `${currentDoc.title} — zag documentation`,
+          name: currentDoc.title,
+          description: seoDescription,
+          url: `https://zag.niclaslindstedt.se/docs/${currentSlug}`,
+          inLanguage: "en",
+          isPartOf: { "@id": "https://zag.niclaslindstedt.se/#website" },
+          about: { "@id": "https://zag.niclaslindstedt.se/#software" },
+          author: { "@type": "Person", name: "Niclas Lindstedt" },
+        }
+      : undefined,
+  });
 
   useEffect(() => {
     window.scrollTo(0, 0);
