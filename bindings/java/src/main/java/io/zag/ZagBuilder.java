@@ -27,6 +27,7 @@ public class ZagBuilder {
     private String systemPrompt;
     private String root;
     private boolean autoApprove;
+    private boolean headless;
     private final List<String> addDirs = new ArrayList<>();
     private final List<String> files = new ArrayList<>();
     private final List<String> envVars = new ArrayList<>();
@@ -72,6 +73,17 @@ public class ZagBuilder {
 
     /** Enable or disable auto-approve mode. */
     public ZagBuilder autoApprove(boolean a) { this.autoApprove = a; return this; }
+
+    /**
+     * Run the provider's interactive TUI attached to a private pseudo-terminal
+     * so it is invisible to the operator. Pair with {@link #autoApprove()} and
+     * {@code exit} — otherwise the hidden run can block on permission prompts
+     * or finish without producing a result. The CLI enforces this pairing.
+     */
+    public ZagBuilder headless() { this.headless = true; return this; }
+
+    /** Enable or disable headless mode. */
+    public ZagBuilder headless(boolean h) { this.headless = h; return this; }
 
     /** Add an additional directory for the agent to include. */
     public ZagBuilder addDir(String d) { this.addDirs.add(d); return this; }
@@ -205,6 +217,7 @@ public class ZagBuilder {
         if (systemPrompt != null) { args.add("--system-prompt"); args.add(systemPrompt); }
         if (root != null) { args.add("--root"); args.add(root); }
         if (autoApprove) args.add("--auto-approve");
+        if (headless) args.add("--headless");
         for (String d : addDirs) { args.add("--add-dir"); args.add(d); }
         for (String f : files) { args.add("--file"); args.add(f); }
         for (String e : envVars) { args.add("--env"); args.add(e); }

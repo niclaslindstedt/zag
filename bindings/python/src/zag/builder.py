@@ -34,6 +34,7 @@ class ZagBuilder:
         self._system_prompt: str | None = None
         self._root: str | None = None
         self._auto_approve: bool = False
+        self._headless: bool = False
         self._add_dirs: list[str] = []
         self._files: list[str] = []
         self._env_vars: list[str] = []
@@ -90,6 +91,15 @@ class ZagBuilder:
     def auto_approve(self, a: bool = True) -> ZagBuilder:
         """Enable auto-approve mode (skip permission prompts)."""
         self._auto_approve = a
+        return self
+
+    def headless(self, h: bool = True) -> ZagBuilder:
+        """Run the provider's interactive TUI attached to a private PTY so
+        it is invisible to the operator. Pair with ``auto_approve()`` and
+        ``exit()`` — otherwise the hidden run can block on permission
+        prompts or finish without producing a result. The CLI enforces this
+        pairing."""
+        self._headless = h
         return self
 
     def add_dir(self, d: str) -> ZagBuilder:
@@ -282,6 +292,8 @@ class ZagBuilder:
             args.extend(["--root", self._root])
         if self._auto_approve:
             args.append("--auto-approve")
+        if self._headless:
+            args.append("--headless")
         for d in self._add_dirs:
             args.extend(["--add-dir", d])
         for f in self._files:

@@ -179,12 +179,9 @@ impl Copilot {
         let mut cmd = self.make_command(agent_args);
 
         if interactive {
-            CommonAgentState::run_interactive_command_with_hook(
-                &mut cmd,
-                "Copilot",
-                self.common.on_spawn_hook.as_ref(),
-            )
-            .await?;
+            self.common
+                .run_interactive_dispatch(&mut cmd, "Copilot")
+                .await?;
             Ok(None)
         } else {
             self.common
@@ -763,12 +760,9 @@ impl Agent for Copilot {
         }
 
         let mut cmd = self.make_command(args);
-        CommonAgentState::run_interactive_command_with_hook(
-            &mut cmd,
-            "Copilot",
-            self.common.on_spawn_hook.as_ref(),
-        )
-        .await
+        self.common
+            .run_interactive_dispatch(&mut cmd, "Copilot")
+            .await
     }
 
     async fn run_resume_with_prompt(

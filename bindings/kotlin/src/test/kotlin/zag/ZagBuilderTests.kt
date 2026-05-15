@@ -51,6 +51,15 @@ class ZagBuilderTests {
     }
 
     @Test
+    fun `headless emits --headless flag`() {
+        val enabled = ZagBuilder().provider("claude").headless().buildGlobalArgs()
+        assertTrue(enabled.contains("--headless"))
+
+        val disabled = ZagBuilder().provider("claude").headless(false).buildGlobalArgs()
+        assertTrue(!disabled.contains("--headless"))
+    }
+
+    @Test
     fun `env vars produce correct args`() {
         val builder = ZagBuilder()
             .env("FOO", "bar")

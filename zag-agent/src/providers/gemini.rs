@@ -155,12 +155,9 @@ impl Gemini {
         }
 
         if interactive {
-            CommonAgentState::run_interactive_command_with_hook(
-                &mut cmd,
-                "Gemini",
-                self.common.on_spawn_hook.as_ref(),
-            )
-            .await?;
+            self.common
+                .run_interactive_dispatch(&mut cmd, "Gemini")
+                .await?;
             Ok(None)
         } else {
             self.common
@@ -507,12 +504,9 @@ impl Agent for Gemini {
         }
 
         let mut cmd = self.make_command(args);
-        CommonAgentState::run_interactive_command_with_hook(
-            &mut cmd,
-            "Gemini",
-            self.common.on_spawn_hook.as_ref(),
-        )
-        .await
+        self.common
+            .run_interactive_dispatch(&mut cmd, "Gemini")
+            .await
     }
 
     async fn run_resume_with_prompt(

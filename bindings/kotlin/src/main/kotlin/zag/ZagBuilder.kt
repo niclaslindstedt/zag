@@ -26,6 +26,7 @@ class ZagBuilder {
     private var _systemPrompt: String? = null
     private var _root: String? = null
     private var _autoApprove: Boolean = false
+    private var _headless: Boolean = false
     private val _addDirs: MutableList<String> = mutableListOf()
     private val _files: MutableList<String> = mutableListOf()
     private val _envVars: MutableList<String> = mutableListOf()
@@ -68,6 +69,14 @@ class ZagBuilder {
 
     /** Enable auto-approve mode (skip permission prompts). */
     fun autoApprove(a: Boolean = true) = apply { _autoApprove = a }
+
+    /**
+     * Run the provider's interactive TUI attached to a private pseudo-terminal
+     * so it is invisible to the operator. Pair with [autoApprove] and
+     * `exit` — otherwise the hidden run can block on permission prompts or
+     * finish without producing a result. The CLI enforces this pairing.
+     */
+    fun headless(h: Boolean = true) = apply { _headless = h }
 
     /** Add an additional directory for the agent to include. */
     fun addDir(d: String) = apply { _addDirs.add(d) }
@@ -172,6 +181,7 @@ class ZagBuilder {
         _systemPrompt?.let { args.addAll(listOf("--system-prompt", it)) }
         _root?.let { args.addAll(listOf("--root", it)) }
         if (_autoApprove) args.add("--auto-approve")
+        if (_headless) args.add("--headless")
         for (d in _addDirs) { args.addAll(listOf("--add-dir", d)) }
         for (f in _files) { args.addAll(listOf("--file", f)) }
         for (e in _envVars) { args.addAll(listOf("--env", e)) }

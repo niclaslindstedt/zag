@@ -95,6 +95,13 @@ zag review --uncommitted
 # (the agent ends the session by calling `zag ps kill self "<result>"`)
 zag -p claude run --exit "the result of the calculation" "what is 2 + 3"
 zag output <session-id>   # prints "5"
+
+# Same idea, but fully hidden — the Claude TUI is attached to a private PTY
+# so you never see it. Requires `-a` (auto-approve, so it can't block on a
+# prompt you can't see) and `--exit` (so the run has a defined termination).
+# `-e` is a short alias for `--exit`.
+zag -p claude run -ae "the result of the calculation" --headless "what is 2 + 3"
+zag output <session-id>   # prints "5"
 ```
 
 ### Claude `--print` is opt-in
@@ -177,6 +184,8 @@ zag man [command]             Built-in manual pages
 | `--system-prompt <text>` | `-s` | Appended to the agent's system prompt |
 | `--root <path>` | `-r` | Root directory for the agent |
 | `--auto-approve` | `-a` | Skip permission prompts |
+| `--exit [<hint>]` | `-e` | `run` only — capture the final result via `zag ps kill self <result>` (see [docs/exit-mode.md](docs/exit-mode.md)) |
+| `--headless` | | `run` only — hide the provider's TUI by attaching it to a private PTY. Requires `-a` and `--exit`. |
 | `--add-dir <path>` | | Additional directories to include (repeatable) |
 | `--file <path>` | | Attach a file to the prompt (repeatable) |
 | `--env <KEY=VALUE>` | | Environment variable for the agent subprocess (repeatable) |

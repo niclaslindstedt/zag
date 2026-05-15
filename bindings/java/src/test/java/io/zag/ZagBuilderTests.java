@@ -46,6 +46,15 @@ class ZagBuilderTests {
     }
 
     @Test
+    void builderHeadless_emitsFlag() {
+        var enabled = new ZagBuilder().provider("claude").headless().buildGlobalArgs();
+        assertTrue(enabled.contains("--headless"));
+
+        var disabled = new ZagBuilder().provider("claude").headless(false).buildGlobalArgs();
+        assertTrue(!disabled.contains("--headless"));
+    }
+
+    @Test
     void builderEnvVars_produceCorrectArgs() {
         var builder = new ZagBuilder()
                 .env("FOO", "bar")

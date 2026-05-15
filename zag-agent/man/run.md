@@ -36,7 +36,8 @@ All global flags apply (see `zag man zag`).
     --env <KEY=VALUE>        Environment variable for the agent subprocess (repeatable)
     --file <PATH>            Attach a file to the prompt (repeatable)
     --mcp-config <CONFIG>    MCP server config: JSON string or path to a JSON file (Claude only)
-    --exit [<hint>]          Capture the final result via `zag ps kill self <result>` (see Exit mode below)
+    -e, --exit [<hint>]      Capture the final result via `zag ps kill self <result>` (see Exit mode below)
+    --headless               Hide the provider's TUI by attaching it to a private PTY (requires `-a` and `--exit`)
 
 ## Exit mode
 
@@ -48,7 +49,7 @@ All global flags apply (see `zag man zag`).
 - Validation failures reject the kill with a steering stderr message, so the agent can self-correct and call kill again.
 - After a successful kill, the result is recorded as a `session_result` event in the session log and surfaced by `zag output <session>`.
 
-`--exit` is only valid with `run`. Combining it with `exec` is rejected at parse time.
+`--exit` is only valid with `run`. Combining it with `exec` is rejected at parse time. `-e` is a short alias for `--exit`.
 
 See [docs/exit-mode.md](../../docs/exit-mode.md) for the full reference, including how exit constraints survive auto-resume across upstream usage limits.
 
@@ -56,6 +57,20 @@ Example: run Claude interactively to compute a result without using `--print`.
 
     zag -p claude run --exit "the sum" "what is 2+3"
     # ...agent thinks, then runs: zag ps kill self "5"
+    zag output <session-id>    # prints "5"
+
+## Headless mode
+
+`--headless` attaches the provider's interactive TUI to a private pseudo-terminal so it is invisible to the operator. Combined with `-a` (auto-approve) and `--exit`, this emulates a "print"-style run for every provider without paying the cost of the provider's native `--print` mode (notably Claude's, which is gated behind `ZAG_CLAUDE_ALLOW_PRINT`).
+
+- `--headless` requires `-a` and `--exit`. Without `-a` the hidden TUI would block on permission prompts the operator cannot answer; without `--exit` the run has no defined termination or result signal.
+- `--headless` is only valid with `run`. `exec` already runs non-interactively, so combining the two is rejected.
+- `zag ps kill self` keeps working as usual — the agent subprocess pid is registered regardless of whether stdio is inherited or attached to a PTY. SIGTERM goes to the agent, not the PTY.
+- The PTY master is drained and discarded; no agent output reaches the operator's terminal. The result is captured via the same `zag ps kill self <result>` → `zag output <session>` path as ordinary `--exit` runs.
+
+Example: a fully hidden Claude run that prints only the result.
+
+    zag -p claude run -ae "the sum" --headless "what is 2+3"
     zag output <session-id>    # prints "5"
 
 ## Behavior

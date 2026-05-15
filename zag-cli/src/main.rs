@@ -902,6 +902,7 @@ async fn main() -> Result<()> {
                 exit_hint: agent_args
                     .exit
                     .map(|s| zag_agent::exit_mode::ExitHint::from_optional(Some(s))),
+                headless: agent_args.headless,
             })
             .await?;
         }

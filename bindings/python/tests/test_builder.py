@@ -118,6 +118,13 @@ class TestZagBuilder:
             "--session", "sess-1",
         ]
 
+    def test_headless_args(self) -> None:
+        args = ZagBuilder().headless()._global_args()
+        assert "--headless" in args
+        # Disabling stays chainable and removes the flag.
+        disabled = ZagBuilder().headless(False)._global_args()
+        assert "--headless" not in disabled
+
     def test_max_turns_args(self) -> None:
         args = ZagBuilder().max_turns(10)._global_args()
         assert ["--max-turns", "10"] == args[-2:]

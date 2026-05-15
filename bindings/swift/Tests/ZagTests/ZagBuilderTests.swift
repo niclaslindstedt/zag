@@ -43,6 +43,15 @@ struct ZagBuilderTests {
         ])
     }
 
+    @Test("headless emits --headless flag")
+    func headlessEmitsFlag() {
+        let enabled = ZagBuilder().provider("claude").headless().buildGlobalArgs()
+        #expect(enabled.contains("--headless"))
+
+        let disabled = ZagBuilder().provider("claude").headless(false).buildGlobalArgs()
+        #expect(!disabled.contains("--headless"))
+    }
+
     @Test("env vars produce correct args")
     func envVarsProduceCorrectArgs() {
         let builder = ZagBuilder()

@@ -38,6 +38,7 @@ public final class ZagBuilder {
     private var _systemPrompt: String?
     private var _root: String?
     private var _autoApprove = false
+    private var _headless = false
     private var _addDirs: [String] = []
     private var _files: [String] = []
     private var _envVars: [String] = []
@@ -95,6 +96,14 @@ public final class ZagBuilder {
     /// Enable auto-approve mode (skip permission prompts).
     @discardableResult
     public func autoApprove() -> Self { _autoApprove = true; return self }
+
+    /// Run the provider's interactive TUI attached to a private
+    /// pseudo-terminal so it is invisible to the operator. Pair with
+    /// ``autoApprove()`` and ``exit(_:)`` — otherwise the hidden run can
+    /// block on permission prompts or finish without producing a result.
+    /// The CLI enforces this pairing.
+    @discardableResult
+    public func headless(_ h: Bool = true) -> Self { _headless = h; return self }
 
     /// Add an additional directory for the agent to include.
     @discardableResult
@@ -239,6 +248,7 @@ public final class ZagBuilder {
         if let s = _systemPrompt { args += ["--system-prompt", s] }
         if let r = _root { args += ["--root", r] }
         if _autoApprove { args.append("--auto-approve") }
+        if _headless { args.append("--headless") }
         for d in _addDirs { args += ["--add-dir", d] }
         for f in _files { args += ["--file", f] }
         for e in _envVars { args += ["--env", e] }

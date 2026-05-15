@@ -6,6 +6,8 @@ use std::path::Path;
 use std::process::Stdio;
 use tokio::process::{Child, Command};
 
+use crate::headless_pty;
+
 /// Shared configuration state for CLI-based agent providers.
 ///
 /// Embed this struct in each provider to avoid duplicating field
@@ -27,6 +29,12 @@ pub struct CommonAgentState {
     /// [`CommonAgentState::notify_spawn`] right after `Command::spawn`
     /// so callers can capture the child pid before the terminal wait.
     pub on_spawn_hook: Option<OnSpawnHook>,
+    /// When set, interactive spawns attach to a private pseudo-terminal
+    /// instead of inheriting the user's TTY, so the provider's TUI is
+    /// invisible to the operator. Used to emulate "print"-style runs in
+    /// combination with `--exit` and `-a`. CLI guarantees both are set
+    /// when this is true.
+    pub headless: bool,
 }
 
 impl CommonAgentState {
@@ -43,6 +51,7 @@ impl CommonAgentState {
             max_turns: None,
             env_vars: Vec::new(),
             on_spawn_hook: None,
+            headless: false,
         }
     }
 
@@ -131,6 +140,49 @@ impl CommonAgentState {
         Ok(())
     }
 
+    /// Headless variant of [`run_interactive_command_with_hook`]: attaches
+    /// the child to a private pseudo-terminal instead of inheriting the
+    /// user's TTY. The PTY master output is drained and discarded, so the
+    /// provider's TUI is invisible to the operator. The `on_spawn` hook
+    /// fires with the child's pid just like the normal path, so
+    /// `zag ps kill self` continues to target the agent subprocess.
+    ///
+    /// Dispatches automatically from [`run_interactive_command_with_hook`]
+    /// when `headless` is `true`; providers can also call this directly
+    /// when they don't go through the shared helper (e.g. Claude's
+    /// custom interactive branch).
+    pub async fn run_interactive_command_headless(
+        cmd: &mut Command,
+        agent_display_name: &str,
+        on_spawn: Option<&OnSpawnHook>,
+    ) -> anyhow::Result<()> {
+        headless_pty::spawn_headless(cmd, agent_display_name, on_spawn).await
+    }
+
+    /// Dispatch interactive spawn based on `self.common.headless` — handy
+    /// for providers that have access to `self` at the call site.
+    pub async fn run_interactive_dispatch(
+        &self,
+        cmd: &mut Command,
+        agent_display_name: &str,
+    ) -> anyhow::Result<()> {
+        if self.headless {
+            Self::run_interactive_command_headless(
+                cmd,
+                agent_display_name,
+                self.on_spawn_hook.as_ref(),
+            )
+            .await
+        } else {
+            Self::run_interactive_command_with_hook(
+                cmd,
+                agent_display_name,
+                self.on_spawn_hook.as_ref(),
+            )
+            .await
+        }
+    }
+
     /// Execute a non-interactive command with simple capture-or-passthrough.
     ///
     /// If `capture_output` is set, captures stdout and returns `Some(AgentOutput)`.
@@ -215,6 +267,10 @@ macro_rules! impl_common_agent_setters {
 
         fn set_on_spawn_hook(&mut self, hook: crate::agent::OnSpawnHook) {
             self.common.on_spawn_hook = Some(hook);
+        }
+
+        fn set_headless(&mut self, headless: bool) {
+            self.common.headless = headless;
         }
     };
 }
