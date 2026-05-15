@@ -1282,7 +1282,7 @@ impl AgentBuilder {
         result
     }
 
-    async fn run_inner(self, prompt: Option<&str>) -> Result<()> {
+    async fn run_inner(mut self, prompt: Option<&str>) -> Result<()> {
         let provider = self.resolve_provider()?;
         debug!("run: provider={provider}");
 
@@ -1300,25 +1300,22 @@ impl AgentBuilder {
             None => None,
         };
 
-        // Append the `--exit` suffix when set so library callers using
-        // `.exit(...).run(...)` get the same prompt augmentation as the
-        // CLI path in `zag-cli/src/commands/agent_action.rs`.
-        let prompt_with_exit = match (self.exit_hint.as_ref(), prompt_with_files) {
-            (Some(hint), Some(p)) => {
-                let suffix = crate::exit_mode::build_exit_suffix(
-                    hint.as_str(),
-                    self.json_mode,
-                    self.json_schema.as_ref(),
-                );
-                Some(format!("{p}\n\n{suffix}"))
-            }
-            (Some(hint), None) => Some(crate::exit_mode::build_exit_suffix(
+        // Inject the `--exit` suffix into the system prompt (not the user
+        // prompt) so library callers using `.exit(...).run(...)` get the
+        // termination protocol while keeping the user's typed prompt
+        // visible and unmangled in the TUI / session log. The CLI path in
+        // `zag-cli/src/commands/agent_action.rs` does the same.
+        if let Some(hint) = self.exit_hint.as_ref() {
+            let suffix = crate::exit_mode::build_exit_suffix(
                 hint.as_str(),
                 self.json_mode,
                 self.json_schema.as_ref(),
-            )),
-            (None, p) => p,
-        };
+            );
+            self.system_prompt = Some(match self.system_prompt.take() {
+                Some(existing) if !existing.is_empty() => format!("{existing}\n\n{suffix}"),
+                _ => suffix,
+            });
+        }
 
         let mut builder = self;
         let (agent, effective_provider) = builder.create_agent(&provider).await?;
@@ -1330,7 +1327,7 @@ impl AgentBuilder {
             builder.root.as_deref(),
             log_guard.as_ref().map(|g| g.wrapper_session_id.as_str()),
         );
-        agent.run_interactive(prompt_with_exit.as_deref()).await?;
+        agent.run_interactive(prompt_with_files.as_deref()).await?;
         agent.cleanup().await?;
         if let Some(g) = log_guard {
             g.finish(true, None).await;
