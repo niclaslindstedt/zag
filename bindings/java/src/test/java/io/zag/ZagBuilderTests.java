@@ -112,6 +112,26 @@ class ZagBuilderTests {
     }
 
     @Test
+    void builderExit_withHint() {
+        var args = new ZagBuilder().exit("the answer").buildRunArgs("compute");
+        int i = args.indexOf("--exit");
+        assertTrue(i >= 0);
+        assertEquals("the answer", args.get(i + 1));
+    }
+
+    @Test
+    void builderExit_bare() {
+        var args = new ZagBuilder().exit().buildRunArgs(null);
+        assertTrue(args.contains("--exit"));
+    }
+
+    @Test
+    void builderExit_omittedWhenNotSet() {
+        var args = new ZagBuilder().buildRunArgs("hi");
+        assertFalse(args.contains("--exit"));
+    }
+
+    @Test
     void builderMaxTurns() {
         var builder = new ZagBuilder().maxTurns(10);
         var args = builder.buildGlobalArgs();

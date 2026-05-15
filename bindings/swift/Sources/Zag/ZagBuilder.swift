@@ -58,6 +58,7 @@ public final class ZagBuilder {
     private var _mcpConfig: String?
     private var _showUsage = false
     private var _size: String?
+    private var _exit: IsolationOption?
     private var _connection: ZagConnection?
     private var _urlSession: URLSession?
 
@@ -198,6 +199,19 @@ public final class ZagBuilder {
     /// Set the Ollama model parameter size (e.g., `"2b"`, `"9b"`, `"35b"`).
     @discardableResult
     public func size(_ s: String) -> Self { _size = s; return self }
+
+    /// Capture the final result of an interactive session via
+    /// `zag ps kill self <result>` instead of running in `exec` mode.
+    ///
+    /// Only meaningful with `run()`. The optional `hint` is a short
+    /// description of the expected result; when set, the kill command
+    /// rejects empty results. Pass `nil` (or omit `hint`) to enable
+    /// exit mode without a hint.
+    @discardableResult
+    public func exit(_ hint: String? = nil) -> Self {
+        _exit = hint.map(IsolationOption.named) ?? .enabled
+        return self
+    }
 
     /// Configure a remote `zag serve` connection.
     /// When set, terminal methods use HTTP/WebSocket instead of local subprocess.
@@ -476,17 +490,27 @@ public final class ZagBuilder {
         return ZagRemoteSession(webSocketTask: webSocketTask, client: client, sessionId: spawned.sessionId)
     }
 
+    /// Build CLI arguments for the `run` interactive subcommand.
+    public func buildRunArgs(prompt: String? = nil) -> [String] {
+        var args: [String] = ["run"]
+        args += buildGlobalArgs()
+        if _json { args.append("--json") }
+        if let s = _jsonSchema { args += ["--json-schema", s] }
+        switch _exit {
+        case .enabled: args.append("--exit")
+        case .named(let h): args += ["--exit", h]
+        case nil: break
+        }
+        if let p = prompt { args.append(p) }
+        return args
+    }
+
     /// Start an interactive agent session (inherits stdio).
     /// Only available in local mode (macOS/Linux).
     #if os(macOS) || os(Linux)
     public func run(_ prompt: String? = nil) async throws {
         try await preflight()
-        var args: [String] = ["run"]
-        args += buildGlobalArgs()
-        if _json { args.append("--json") }
-        if let s = _jsonSchema { args += ["--json-schema", s] }
-        if let p = prompt { args.append(p) }
-        try await ZagProcess.runInteractive(bin: bin, args: args)
+        try await ZagProcess.runInteractive(bin: bin, args: buildRunArgs(prompt: prompt))
     }
 
     /// Resume a previous session by ID.

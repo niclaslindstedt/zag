@@ -8,7 +8,7 @@ List, inspect, stop, and kill agent processes started by zag.
     zag ps list [--running] [-p <provider>] [-n <N>] [--json]
     zag ps show <id|self> [--json]
     zag ps stop <id|self>
-    zag ps kill <id|self>
+    zag ps kill <id|self> [<result>] [--file <path>]
 
 ## Description
 
@@ -70,13 +70,29 @@ Errors if the process is not currently running.
 
 ---
 
-### `kill <id>`
+### `kill <id> [<result>] [--file <path>]`
 
 Send `SIGTERM` to a running process — a forceful termination request. Updates the process status to `killed` in the store.
 
     zag ps kill <id>
+    zag ps kill <id> "<result>"
+    zag ps kill <id> --file <path>
 
 Errors if the process is not currently running.
+
+#### Capturing a session result
+
+When the target session was launched with [`--exit`](run.md#--exit) the optional `<result>` positional (or `--file <path>`) is recorded as the session's final output. The result is written to the session log as a `session_result` event and surfaced by `zag output <session>`.
+
+The result is **validated** against the launching constraints before SIGTERM is sent:
+
+- If the session was launched with `--exit '<non-empty-hint>'` and the result is empty/missing, the kill is **rejected** with a steering error pointing to the hint.
+- If `--json` was set, the result must be valid JSON (markdown fences are stripped automatically).
+- If `--json-schema <SCHEMA>` was set, the result must validate against the schema; violations are printed on stderr one per line.
+
+On validation failure the process keeps running, so the agent can read the stderr message and call `zag ps kill self <corrected-result>` again. On success the result is written to the log and the process is SIGTERM'd.
+
+`<result>` and `--file` are mutually exclusive.
 
 ---
 

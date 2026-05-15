@@ -1,5 +1,49 @@
 use super::Claude;
+use super::{ALLOW_PRINT_ENV, check_print_allowed};
 use crate::sandbox::SandboxConfig;
+
+/// Tests that touch `ZAG_CLAUDE_ALLOW_PRINT` are grouped so they don't
+/// race with each other (env mutation is process-global).
+#[test]
+fn test_check_print_allowed_env_variants() {
+    unsafe {
+        std::env::remove_var(ALLOW_PRINT_ENV);
+    }
+    let err = check_print_allowed().unwrap_err();
+    let msg = err.to_string();
+    assert!(msg.contains("--print mode is disabled"));
+    assert!(msg.contains(ALLOW_PRINT_ENV));
+    assert!(msg.contains("--exit"));
+
+    unsafe {
+        std::env::set_var(ALLOW_PRINT_ENV, "1");
+    }
+    assert!(check_print_allowed().is_ok());
+
+    unsafe {
+        std::env::set_var(ALLOW_PRINT_ENV, "true");
+    }
+    assert!(check_print_allowed().is_ok());
+
+    unsafe {
+        std::env::set_var(ALLOW_PRINT_ENV, "0");
+    }
+    assert!(check_print_allowed().is_err());
+
+    unsafe {
+        std::env::set_var(ALLOW_PRINT_ENV, "false");
+    }
+    assert!(check_print_allowed().is_err());
+
+    unsafe {
+        std::env::set_var(ALLOW_PRINT_ENV, "");
+    }
+    assert!(check_print_allowed().is_err());
+
+    unsafe {
+        std::env::remove_var(ALLOW_PRINT_ENV);
+    }
+}
 
 #[test]
 fn test_build_run_args_non_interactive() {

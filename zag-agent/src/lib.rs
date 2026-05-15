@@ -4,6 +4,7 @@ pub mod auto_selector;
 pub mod builder;
 pub mod capability;
 pub mod config;
+pub mod exit_mode;
 pub mod factory;
 pub mod file_util;
 pub mod json_validation;

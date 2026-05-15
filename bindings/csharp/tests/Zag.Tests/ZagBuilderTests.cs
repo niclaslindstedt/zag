@@ -113,6 +113,29 @@ public class ZagBuilderTests
     }
 
     [Fact]
+    public void Builder_Exit_WithHint()
+    {
+        var args = new ZagBuilder().Exit("the answer").BuildRunArgs("compute");
+        var i = args.IndexOf("--exit");
+        Assert.True(i >= 0);
+        Assert.Equal("the answer", args[i + 1]);
+    }
+
+    [Fact]
+    public void Builder_Exit_Bare()
+    {
+        var args = new ZagBuilder().Exit().BuildRunArgs();
+        Assert.Contains("--exit", args);
+    }
+
+    [Fact]
+    public void Builder_Exit_OmittedWhenNotSet()
+    {
+        var args = new ZagBuilder().BuildRunArgs("hi");
+        Assert.DoesNotContain("--exit", args);
+    }
+
+    [Fact]
     public void Builder_Sandbox_Named()
     {
         var builder = new ZagBuilder().Sandbox("box1");

@@ -163,6 +163,22 @@ class TestZagBuilder:
         args = ZagBuilder().sandbox("box1")._global_args()
         assert ["--sandbox", "box1"] == args[-2:]
 
+    def test_exit_with_hint_in_run_args(self) -> None:
+        args = ZagBuilder().exit("the answer")._run_args("compute")
+        idx = args.index("--exit")
+        assert args[idx + 1] == "the answer"
+
+    def test_exit_bare_in_run_args(self) -> None:
+        args = ZagBuilder().exit()._run_args()
+        assert "--exit" in args
+        # `--exit` is bare; no value should follow it
+        idx = args.index("--exit")
+        assert idx == len(args) - 1 or args[idx + 1].startswith("-")
+
+    def test_exit_omitted_when_not_set(self) -> None:
+        args = ZagBuilder()._run_args("hi")
+        assert "--exit" not in args
+
     def test_timeout_in_exec_args(self) -> None:
         builder = ZagBuilder().timeout("5m")
         args = builder._exec_args("test")

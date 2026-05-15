@@ -158,6 +158,11 @@ pub enum LogEventKind {
         success: bool,
         error: Option<String>,
     },
+    /// Final result of the session, captured via `zag ps kill <id> <result>`
+    /// (or `--file <path>`) after a session was launched with `--exit`.
+    SessionResult {
+        result: String,
+    },
     Heartbeat {
         interval_secs: Option<u64>,
     },
@@ -738,6 +743,48 @@ pub fn record_prompt(writer: &SessionLogWriter, prompt: Option<&str>) -> Result<
             },
         )?;
     }
+    Ok(())
+}
+
+/// Append a single event to an existing session log file without going
+/// through the [`SessionLogWriter`] machinery (no index updates, no
+/// callbacks). Used by out-of-process tools like `zag ps kill` that
+/// need to record a `SessionResult` event into a session log owned by
+/// another running zag process.
+pub fn append_event_to_log(
+    log_path: &Path,
+    provider: &str,
+    wrapper_session_id: &str,
+    provider_session_id: Option<&str>,
+    kind: LogEventKind,
+) -> Result<()> {
+    if let Some(parent) = log_path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
+    }
+    let next_seq = if log_path.exists() {
+        next_sequence(log_path)?
+    } else {
+        File::create(log_path)
+            .with_context(|| format!("Failed to create log file: {}", log_path.display()))?;
+        0
+    };
+    let event = AgentLogEvent {
+        seq: next_seq,
+        ts: Utc::now().to_rfc3339(),
+        provider: provider.to_string(),
+        wrapper_session_id: wrapper_session_id.to_string(),
+        provider_session_id: provider_session_id.map(str::to_string),
+        source_kind: LogSourceKind::Wrapper,
+        completeness: LogCompleteness::Full,
+        kind,
+    };
+    let mut file = OpenOptions::new()
+        .append(true)
+        .open(log_path)
+        .with_context(|| format!("Failed to open {}", log_path.display()))?;
+    writeln!(file, "{}", serde_json::to_string(&event)?)
+        .with_context(|| format!("Failed to write {}", log_path.display()))?;
     Ok(())
 }
 

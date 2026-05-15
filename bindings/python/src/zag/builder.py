@@ -54,6 +54,11 @@ class ZagBuilder:
         self._mcp_config: str | None = None
         self._show_usage: bool = False
         self._size: str | None = None
+        # ``--exit`` flag state:
+        # - ``None``: not set
+        # - ``True``: ``--exit`` passed without a hint
+        # - ``str``: ``--exit <hint>``
+        self._exit: str | bool | None = None
 
     # -- Configuration methods -----------------------------------------------
 
@@ -207,6 +212,17 @@ class ZagBuilder:
     def size(self, s: str) -> ZagBuilder:
         """Set the Ollama model parameter size (e.g., ``"2b"``, ``"9b"``, ``"35b"``)."""
         self._size = s
+        return self
+
+    def exit(self, hint: str | None = None) -> ZagBuilder:
+        """Capture the final result via ``zag ps kill self <result>`` instead of ``exec``.
+
+        Only meaningful with :meth:`run`. The optional ``hint`` is a short
+        description of the expected result and, when set, requires a
+        non-empty result at kill time. Passing this together with
+        :meth:`exec` is rejected by zag at run time.
+        """
+        self._exit = hint if hint is not None else True
         return self
 
     # -- Version checking ----------------------------------------------------
@@ -393,17 +409,25 @@ class ZagBuilder:
         async for event in stream_zag(self._bin, args):
             yield event
 
-    async def run(self, prompt: str | None = None) -> None:
-        """Start an interactive agent session (inherits stdio)."""
-        await self._preflight()
+    def _run_args(self, prompt: str | None = None) -> list[str]:
+        """Build CLI args for ``run`` interactive mode."""
         args = ["run", *self._global_args()]
         if self._json:
             args.append("--json")
         if self._json_schema:
             args.extend(["--json-schema", json.dumps(self._json_schema)])
+        if self._exit is True:
+            args.append("--exit")
+        elif isinstance(self._exit, str):
+            args.extend(["--exit", self._exit])
         if prompt:
             args.append(prompt)
-        await run_zag(self._bin, args)
+        return args
+
+    async def run(self, prompt: str | None = None) -> None:
+        """Start an interactive agent session (inherits stdio)."""
+        await self._preflight()
+        await run_zag(self._bin, self._run_args(prompt))
 
     async def resume(self, session_id: str) -> None:
         """Resume a previous session by ID."""

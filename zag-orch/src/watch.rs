@@ -49,6 +49,7 @@ fn event_type_str(kind: &LogEventKind) -> &'static str {
         LogEventKind::Heartbeat { .. } => "heartbeat",
         LogEventKind::UserEvent { .. } => "user_event",
         LogEventKind::Usage { .. } => "usage",
+        LogEventKind::SessionResult { .. } => "session_result",
     }
 }
 

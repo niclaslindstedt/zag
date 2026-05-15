@@ -1,5 +1,7 @@
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use zag_agent::process_store::{ProcessEntry, ProcessStore};
+use zag_agent::session::SessionStore;
+use zag_agent::session_log::{LogEventKind, append_event_to_log, logs_dir};
 
 /// If `id` is the literal `"self"`, resolve it from the `ZAG_PROCESS_ID`
 /// environment variable. Otherwise return the id unchanged.
@@ -141,21 +143,148 @@ pub fn request_stop(id: &str) -> Result<()> {
     stop_process(entry.pid)
 }
 
-/// Send a kill signal (SIGTERM) to a process by ID.
-pub fn request_kill(id: &str) -> Result<()> {
+/// Source of a result string passed to `zag ps kill`.
+#[derive(Debug, Clone)]
+pub enum KillResult {
+    /// Inline result string (positional argument).
+    Inline(String),
+    /// Path to a file whose contents are used as the result.
+    File(std::path::PathBuf),
+}
+
+impl KillResult {
+    /// Read the result string. For `File`, reads and returns the file
+    /// contents (trailing whitespace preserved). Empty strings are valid
+    /// at this layer; the validation step decides whether to reject.
+    pub fn read(&self) -> Result<String> {
+        match self {
+            Self::Inline(s) => Ok(s.clone()),
+            Self::File(path) => std::fs::read_to_string(path)
+                .with_context(|| format!("Failed to read result file: {}", path.display())),
+        }
+    }
+}
+
+/// Resolved data needed to perform a kill: the process entry, the
+/// associated session entry (if any), and the result string to record.
+struct PreparedKill {
+    process_id: String,
+    process_entry: ProcessEntry,
+    session_entry: Option<zag_agent::session::SessionEntry>,
+    result_text: Option<String>,
+}
+
+/// Resolve the target process, validate the optional result against the
+/// session's `--exit` constraints, and return the data needed to send
+/// the kill signal. Does NOT mutate any state — the caller decides when
+/// to record the result and signal the process.
+fn prepare_kill(id: &str, result: Option<KillResult>) -> Result<PreparedKill> {
     let id = resolve_process_id(id)?;
-    let mut store = ProcessStore::load()?;
-    let entry = store
+    let process_entry = ProcessStore::load()?
         .find(&id)
         .ok_or_else(|| anyhow::anyhow!("Process not found: {id}"))?
         .clone();
-    let live = resolve_live_status(&entry);
+    let live = resolve_live_status(&process_entry);
     if live != "running" {
         bail!("Process {id} is not running (status: {live})");
     }
-    store.update_status(&id, "killed", None);
+
+    let result_text = match &result {
+        Some(r) => Some(r.read()?),
+        None => None,
+    };
+
+    let session_entry = process_entry.session_id.as_deref().and_then(|sid| {
+        SessionStore::load(process_entry.root.as_deref())
+            .ok()
+            .and_then(|store| store.find_by_any_id(sid).cloned())
+    });
+
+    if let Some(s) = session_entry.as_ref() {
+        let has_constraints =
+            s.exit_hint.is_some() || s.exit_json_mode || s.exit_json_schema.is_some();
+        if has_constraints {
+            let text = result_text.as_deref().unwrap_or("");
+            zag_agent::exit_mode::validate_exit_result(
+                text,
+                s.exit_hint.as_deref(),
+                s.exit_json_mode,
+                s.exit_json_schema.as_ref(),
+            )
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        }
+    }
+
+    Ok(PreparedKill {
+        process_id: id,
+        process_entry,
+        session_entry,
+        result_text,
+    })
+}
+
+/// Apply the prepared kill: record the result (if any), update the
+/// process store, and SIGTERM the process.
+fn apply_kill(prepared: PreparedKill) -> Result<()> {
+    let PreparedKill {
+        process_id,
+        process_entry,
+        session_entry,
+        result_text,
+    } = prepared;
+
+    if let (Some(text), Some(session)) = (result_text.as_ref(), session_entry.as_ref())
+        && let Err(e) = record_session_result(session, text, process_entry.root.as_deref())
+    {
+        log::warn!("Failed to record session result: {e}");
+    }
+
+    let mut store = ProcessStore::load()?;
+    store.update_status(&process_id, "killed", None);
     store.save()?;
-    kill_process(entry.pid)
+    kill_process(process_entry.pid)
+}
+
+/// Send a kill signal (SIGTERM) to a process by ID, optionally capturing
+/// a final result.
+///
+/// When the target session was launched with `--exit`, the result is
+/// validated against the launching constraints (`--exit '<hint>'`,
+/// `--json`, `--json-schema`) and recorded as a `SessionResult` event in
+/// the session log. If validation fails, the kill is **rejected** — the
+/// process keeps running so the agent can self-correct.
+pub fn request_kill(id: &str, result: Option<KillResult>) -> Result<()> {
+    apply_kill(prepare_kill(id, result)?)
+}
+
+/// Write a `SessionResult` event into the session log for `session_entry`.
+///
+/// Prefers the stored `log_path` (when the session was launched through
+/// the normal path), otherwise falls back to
+/// `<logs_dir>/sessions/<session_id>.jsonl`.
+fn record_session_result(
+    session_entry: &zag_agent::session::SessionEntry,
+    result: &str,
+    root: Option<&str>,
+) -> Result<()> {
+    let log_path = session_entry
+        .log_path
+        .as_ref()
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            logs_dir(root)
+                .join("sessions")
+                .join(format!("{}.jsonl", session_entry.session_id))
+        });
+    append_event_to_log(
+        &log_path,
+        &session_entry.provider,
+        &session_entry.session_id,
+        session_entry.provider_session_id.as_deref(),
+        LogEventKind::SessionResult {
+            result: result.to_string(),
+        },
+    )
 }
 
 pub fn run_ps(command: PsCommand, json: bool) -> Result<()> {
@@ -290,27 +419,21 @@ pub fn run_ps(command: PsCommand, json: bool) -> Result<()> {
             stop_process(entry.pid)?;
             println!("\x1b[32m✓\x1b[0m Stop signal sent");
         }
-        PsCommand::Kill { id } => {
-            let id = resolve_process_id(&id)?;
-            let mut store = ProcessStore::load()?;
-            let entry = store
-                .find(&id)
-                .ok_or_else(|| anyhow::anyhow!("Process not found: {id}"))?
-                .clone();
-            let live = resolve_live_status(&entry);
-            if live != "running" {
-                bail!("Process {id} is not running (status: {live})");
-            }
-            // Update store before sending the signal — if this is a self-kill,
-            // the SIGTERM will terminate this process and post-signal code may
-            // not execute.
-            store.update_status(&id, "killed", None);
-            store.save()?;
+        PsCommand::Kill { id, result, file } => {
+            let kill_result = match (result, file) {
+                (Some(r), None) => Some(KillResult::Inline(r)),
+                (None, Some(p)) => Some(KillResult::File(p)),
+                (None, None) => None,
+                // clap's `conflicts_with` should prevent this case; bail
+                // defensively rather than silently picking one.
+                (Some(_), Some(_)) => bail!("`<result>` and `--file` are mutually exclusive"),
+            };
+            let prepared = prepare_kill(&id, kill_result)?;
             println!(
                 "\x1b[33m>\x1b[0m Sending kill signal to process {} ({})",
-                entry.pid, entry.id
+                prepared.process_entry.pid, prepared.process_entry.id
             );
-            kill_process(entry.pid)?;
+            apply_kill(prepared)?;
             println!("\x1b[32m✓\x1b[0m Process killed");
         }
     }
@@ -364,10 +487,26 @@ pub enum PsCommand {
         /// Process ID (or "self" to use current process)
         id: String,
     },
-    /// Send kill signal to a running process (forceful termination)
+    /// Send kill signal to a running process (forceful termination).
+    ///
+    /// When the target session was launched with `--exit`, an optional
+    /// `result` (or `--file <path>`) is captured as the session's final
+    /// output and written to its log. The result is validated against
+    /// any `--exit` hint, `--json`, or `--json-schema` constraint set at
+    /// launch; if validation fails, the kill is rejected and the process
+    /// keeps running so the agent can self-correct.
     Kill {
         /// Process ID (or "self" to use current process)
         id: String,
+        /// Final result to record against the session. Required (or
+        /// `--file`) when the session was launched with a non-empty
+        /// `--exit '<hint>'`.
+        #[arg(conflicts_with = "file")]
+        result: Option<String>,
+        /// Path to a file whose contents should be used as the final
+        /// result. Mutually exclusive with the `result` positional.
+        #[arg(long, value_name = "PATH", conflicts_with = "result")]
+        file: Option<std::path::PathBuf>,
     },
 }
 

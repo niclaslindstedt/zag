@@ -892,6 +892,14 @@ async fn main() -> Result<()> {
                         tags: meta.tags,
                     }
                 },
+                exit_hint: agent_args.exit.map(|s| {
+                    let trimmed = s.trim();
+                    if trimmed.is_empty() {
+                        None
+                    } else {
+                        Some(trimmed.to_string())
+                    }
+                }),
             })
             .await?;
         }

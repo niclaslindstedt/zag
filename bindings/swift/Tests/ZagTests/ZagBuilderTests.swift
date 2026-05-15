@@ -109,6 +109,28 @@ struct ZagBuilderTests {
         #expect(args == ["--sandbox", "box1"])
     }
 
+    @Test("exit with hint")
+    func exitWithHint() {
+        let args = ZagBuilder().exit("the answer").buildRunArgs(prompt: "compute")
+        guard let i = args.firstIndex(of: "--exit") else {
+            Issue.record("--exit missing")
+            return
+        }
+        #expect(args[args.index(after: i)] == "the answer")
+    }
+
+    @Test("exit bare")
+    func exitBare() {
+        let args = ZagBuilder().exit().buildRunArgs()
+        #expect(args.contains("--exit"))
+    }
+
+    @Test("exit omitted when not set")
+    func exitOmitted() {
+        let args = ZagBuilder().buildRunArgs(prompt: "hi")
+        #expect(!args.contains("--exit"))
+    }
+
     @Test("max turns")
     func maxTurns() {
         let builder = ZagBuilder().maxTurns(10)

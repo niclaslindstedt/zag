@@ -72,6 +72,7 @@ pub fn event_type_name(kind: &LogEventKind) -> &'static str {
         LogEventKind::Heartbeat { .. } => "heartbeat",
         LogEventKind::UserEvent { .. } => "user_event",
         LogEventKind::Usage { .. } => "usage",
+        LogEventKind::SessionResult { .. } => "session_result",
     }
 }
 
@@ -187,6 +188,10 @@ pub fn format_event_text(event: &AgentLogEvent, show_thinking: bool) -> Option<S
         LogEventKind::UserEvent { level, message, .. } => {
             Some(format!("  [{}] {}", level, truncate(message, 200)))
         }
+        LogEventKind::SessionResult { result } => Some(format!(
+            "\n\u{25cf} Result: {}",
+            truncate(result, 200)
+        )),
     }
 }
 
@@ -328,6 +333,10 @@ pub fn format_event_rich(event: &AgentLogEvent, show_thinking: bool) -> Option<S
                 truncate(message, 200)
             ))
         }
+        LogEventKind::SessionResult { result } => Some(format!(
+            "\n\x1b[32m\u{25cf}\x1b[0m Result: \x1b[1m{}\x1b[0m",
+            truncate(result, 200)
+        )),
     }
 }
 

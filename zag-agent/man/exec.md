@@ -12,6 +12,10 @@ Sends a single prompt to the agent, prints the output, and exits. This is the pr
 
 By default, exec mode suppresses wrapper UI (spinners, status messages, icons) so the output is clean for piping. Use `--verbose` to restore the styled output.
 
+> **Note (Claude):** `exec` against the Claude provider invokes `claude --print` under the hood, which now consumes API tokens. To enable it set `ZAG_CLAUDE_ALLOW_PRINT=1`. Without that env var, `exec` against Claude fails with a steering error pointing at [`run --exit`](run.md#exit-mode), which captures a result from an interactive session via `zag ps kill self <result>` without paying for `--print`.
+
+The `--exit` flag is **not valid** with `exec` — `exec` already produces structured output natively. Use `run --exit` instead.
+
 ## Arguments
 
     prompt    The prompt to send to the agent (required)

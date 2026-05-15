@@ -89,7 +89,16 @@ zag -p auto -m auto exec "refactor the auth module"
 
 # Code review (delegates to Codex)
 zag review --uncommitted
+
+# Capture a result from a Claude interactive session without paying for `--print`
+# (the agent ends the session by calling `zag ps kill self "<result>"`)
+zag -p claude run --exit "the result of the calculation" "what is 2 + 3"
+zag output <session-id>   # prints "5"
 ```
+
+### Claude `--print` is opt-in
+
+`zag exec -p claude` (and any other path that delegates to `claude --print`) now consumes API tokens. To enable it set `ZAG_CLAUDE_ALLOW_PRINT=1`. Without that env var, those paths fail with a steering error pointing at `run --exit`, which captures a result from an interactive session via `zag ps kill self <result>` without paying for `--print`. See `zag man run` and `zag man config` for details.
 
 ## Providers
 

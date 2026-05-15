@@ -26,6 +26,29 @@ pub const DEFAULT_MODEL: &str = "default";
 
 pub const AVAILABLE_MODELS: &[&str] = &["default", "sonnet", "opus", "haiku"];
 
+/// Env var that gates Claude's `--print` (non-interactive / exec) mode.
+///
+/// Claude CLI's `--print` now consumes API tokens for every invocation,
+/// so we require an explicit opt-in. When unset, callers should be
+/// steered toward interactive `--exit` mode (see `zag-agent::exit_mode`)
+/// which captures a result via `zag ps kill self <result>` without
+/// paying for `--print`.
+pub const ALLOW_PRINT_ENV: &str = "ZAG_CLAUDE_ALLOW_PRINT";
+
+/// Returns `Ok(())` if `--print` mode is permitted, otherwise an error
+/// with a steering message pointing users at `--exit`.
+pub fn check_print_allowed() -> Result<()> {
+    match std::env::var(ALLOW_PRINT_ENV) {
+        Ok(v) if !v.is_empty() && v != "0" && v.to_ascii_lowercase() != "false" => Ok(()),
+        _ => Err(anyhow::anyhow!(
+            "Claude --print mode is disabled because it consumes API tokens. \
+             Set {ALLOW_PRINT_ENV}=1 to enable it, or run interactively with \
+             `zag -p claude run --exit '<hint>' \"<prompt>\"` to capture a result via \
+             `zag ps kill self <result>` without paying for --print."
+        )),
+    }
+}
+
 /// Callback for streaming events. Set via `set_event_handler` to receive
 /// unified events as they arrive during non-interactive execution.
 pub type EventHandler = Box<dyn Fn(&crate::output::Event, bool) + Send + Sync>;
@@ -239,6 +262,7 @@ impl Claude {
         &self,
         prompt: Option<&str>,
     ) -> Result<crate::streaming::StreamingSession> {
+        check_print_allowed()?;
         // Build args for non-interactive streaming mode
         let mut args = Vec::new();
         let in_sandbox = self.common.sandbox.is_some();
@@ -333,6 +357,7 @@ impl Claude {
         &self,
         session_id: &str,
     ) -> Result<crate::streaming::StreamingSession> {
+        check_print_allowed()?;
         let args = self.build_streaming_resume_args(session_id);
 
         log::debug!("Claude streaming resume command: claude {}", args.join(" "));
@@ -353,6 +378,9 @@ impl Claude {
         interactive: bool,
         prompt: Option<&str>,
     ) -> Result<Option<AgentOutput>> {
+        if !interactive {
+            check_print_allowed()?;
+        }
         // When capture_output is set (e.g. by auto-selector), use "json" format
         // so stdout is piped and parsed into AgentOutput
         let effective_output_format =
@@ -967,6 +995,7 @@ impl Agent for Claude {
         session_id: &str,
         prompt: &str,
     ) -> Result<Option<AgentOutput>> {
+        check_print_allowed()?;
         log::debug!("Claude resume with prompt: session={session_id}, prompt={prompt}");
         let in_sandbox = self.common.sandbox.is_some();
         let mut args = vec!["--print".to_string()];

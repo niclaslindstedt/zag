@@ -57,7 +57,7 @@ pub async fn stop(Path(id): Path<String>) -> impl IntoResponse {
 
 /// POST /api/v1/processes/:id/kill
 pub async fn kill(Path(id): Path<String>) -> impl IntoResponse {
-    match zag_orch::ps::request_kill(&id) {
+    match zag_orch::ps::request_kill(&id, None) {
         Ok(()) => Json(serde_json::json!({"status": "killed"})).into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,

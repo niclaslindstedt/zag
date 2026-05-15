@@ -117,6 +117,26 @@ class ZagBuilderTests {
     }
 
     @Test
+    fun `exit with hint`() {
+        val args = ZagBuilder().exit("the answer").buildRunArgs("compute")
+        val i = args.indexOf("--exit")
+        assertTrue(i >= 0)
+        assertEquals("the answer", args[i + 1])
+    }
+
+    @Test
+    fun `exit bare`() {
+        val args = ZagBuilder().exit().buildRunArgs()
+        assertTrue(args.contains("--exit"))
+    }
+
+    @Test
+    fun `exit omitted when not set`() {
+        val args = ZagBuilder().buildRunArgs("hi")
+        assertFalse(args.contains("--exit"))
+    }
+
+    @Test
     fun `max turns`() {
         val builder = ZagBuilder().maxTurns(10)
         val args = builder.buildGlobalArgs()

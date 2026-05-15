@@ -52,6 +52,7 @@ fn extract_result(
 
     let reader = BufReader::new(file);
     let mut last_assistant_msg: Option<String> = None;
+    let mut session_result: Option<String> = None;
     let mut status = "unknown".to_string();
     let mut error: Option<String> = None;
 
@@ -68,6 +69,9 @@ fn extract_result(
             match &event.kind {
                 LogEventKind::AssistantMessage { content, .. } => {
                     last_assistant_msg = Some(content.clone());
+                }
+                LogEventKind::SessionResult { result } => {
+                    session_result = Some(result.clone());
                 }
                 LogEventKind::SessionEnded {
                     success,
@@ -86,10 +90,22 @@ fn extract_result(
     }
 
     if status == "unknown" {
-        status = "running".to_string();
+        // A SessionResult event implies the session terminated via
+        // `zag ps kill self <result>` even if the SessionEnded event
+        // was lost to the SIGTERM race.
+        status = if session_result.is_some() {
+            "completed".to_string()
+        } else {
+            "running".to_string()
+        };
     }
 
-    (status, last_assistant_msg, error)
+    // Prefer the explicit SessionResult (captured at `zag ps kill self`)
+    // over the last assistant message — when both are present, the kill
+    // result is the authoritative final output.
+    let result_text = session_result.or(last_assistant_msg);
+
+    (status, result_text, error)
 }
 
 /// Collect results from multiple sessions, returning structured data.

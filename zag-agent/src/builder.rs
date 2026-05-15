@@ -218,6 +218,12 @@ pub struct AgentBuilder {
     /// the terminal wait. Useful for registering the child pid with an
     /// external process store.
     on_spawn_hook: Option<crate::agent::OnSpawnHook>,
+    /// Set via [`AgentBuilder::exit`] — when present, an interactive
+    /// session is augmented with instructions to terminate via
+    /// `zag ps kill self <result>`. Outer `None` means unset; inner
+    /// `None` means the flag was passed without a hint; inner
+    /// `Some(hint)` means a hint message was supplied.
+    exit_hint: Option<Option<String>>,
     /// Set via [`AgentBuilder::register_process`] — when present, the
     /// terminal method registers a `ProcessEntry` in zag's `ProcessStore`,
     /// injects `ZAG_PROCESS_ID` / `ZAG_SESSION_ID` etc. into the agent
@@ -270,6 +276,7 @@ impl AgentBuilder {
             stream_show_thinking: false,
             on_spawn_hook: None,
             register_process_opts: None,
+            exit_hint: None,
         }
     }
 
@@ -356,6 +363,23 @@ impl AgentBuilder {
     pub fn json_schema(mut self, schema: serde_json::Value) -> Self {
         self.json_schema = Some(schema);
         self.json_mode = true;
+        self
+    }
+
+    /// Enable exit-on-kill mode for an interactive session.
+    ///
+    /// When set, the user prompt is augmented with instructions telling
+    /// the agent to terminate the session via
+    /// `zag ps kill self "<result>"` (or `zag ps kill self --file <path>`).
+    /// The `hint` is an optional human-readable description of the
+    /// expected result, used both to guide the agent and (when non-empty)
+    /// to require a non-empty result at kill time.
+    ///
+    /// Pass `Some(hint)` to set a hint, or `None` to enable exit mode
+    /// without one. Only meaningful for interactive `run` mode; using
+    /// this together with [`exec`](Self::exec) will fail at run time.
+    pub fn exit(mut self, hint: Option<&str>) -> Self {
+        self.exit_hint = Some(hint.map(String::from));
         self
     }
 
@@ -631,7 +655,11 @@ impl AgentBuilder {
     ) -> Option<String> {
         let has_metadata = self.metadata.name.is_some()
             || self.metadata.description.is_some()
-            || !self.metadata.tags.is_empty();
+            || !self.metadata.tags.is_empty()
+            // `--exit` sessions must also be persisted so `zag ps kill`
+            // can look up the exit-mode constraints when validating the
+            // submitted result.
+            || self.exit_hint.is_some();
         if !has_metadata {
             return None;
         }
@@ -669,6 +697,13 @@ impl AgentBuilder {
             dependencies: Vec::new(),
             retried_from: None,
             interactive: false,
+            exit_hint: self.exit_hint.as_ref().map(|h| h.clone().unwrap_or_default()),
+            exit_json_mode: self.exit_hint.is_some() && self.json_mode,
+            exit_json_schema: if self.exit_hint.is_some() {
+                self.json_schema.clone()
+            } else {
+                None
+            },
         };
 
         let mut store = SessionStore::load(self.root.as_deref()).unwrap_or_default();
@@ -1005,6 +1040,12 @@ impl AgentBuilder {
     }
 
     async fn exec_inner(self, prompt: &str) -> Result<AgentOutput> {
+        if self.exit_hint.is_some() {
+            bail!(
+                "`exit()` is only valid with `run()`. `exec()` already produces a structured \
+                 output natively, so combining the two would be ambiguous."
+            );
+        }
         let provider = self.resolve_provider()?;
         debug!("exec: provider={provider}");
 
@@ -1256,6 +1297,26 @@ impl AgentBuilder {
             None => None,
         };
 
+        // Append the `--exit` suffix when set so library callers using
+        // `.exit(...).run(...)` get the same prompt augmentation as the
+        // CLI path in `zag-cli/src/commands/agent_action.rs`.
+        let prompt_with_exit = match (self.exit_hint.as_ref(), prompt_with_files) {
+            (Some(hint_opt), Some(p)) => {
+                let suffix = crate::exit_mode::build_exit_suffix(
+                    hint_opt.as_deref(),
+                    self.json_mode,
+                    self.json_schema.as_ref(),
+                );
+                Some(format!("{p}\n\n{suffix}"))
+            }
+            (Some(hint_opt), None) => Some(crate::exit_mode::build_exit_suffix(
+                hint_opt.as_deref(),
+                self.json_mode,
+                self.json_schema.as_ref(),
+            )),
+            (None, p) => p,
+        };
+
         let mut builder = self;
         let (agent, effective_provider) = builder.create_agent(&provider).await?;
         let log_guard =
@@ -1266,7 +1327,7 @@ impl AgentBuilder {
             builder.root.as_deref(),
             log_guard.as_ref().map(|g| g.wrapper_session_id.as_str()),
         );
-        agent.run_interactive(prompt_with_files.as_deref()).await?;
+        agent.run_interactive(prompt_with_exit.as_deref()).await?;
         agent.cleanup().await?;
         if let Some(g) = log_guard {
             g.finish(true, None).await;

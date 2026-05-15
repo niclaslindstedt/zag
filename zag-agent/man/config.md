@@ -158,6 +158,16 @@ The `--provider` flag overrides `defaults.provider`, and `--auto-approve` overri
     zag config listen.format rich-text  Set default listen output format
     zag config listen.timestamp_format "%Y-%m-%d %H:%M:%S"  Set timestamp format
 
+## Environment Variables
+
+| Variable | Effect |
+|----------|--------|
+| `ZAG_CLAUDE_ALLOW_PRINT` | Opt in to Claude's `--print` (non-interactive) mode, which consumes API tokens. Required for `zag claude` invocations that use `exec`, `--output-format`, or any other path that delegates to `claude --print`. Without it, those paths fail with a steering error pointing at `run --exit`. Recognised values: `1`, `true` (anything else, including empty / `0` / `false`, leaves the gate closed). |
+| `ZAG_USER_LOG_DIR` | Override the session-log directory (set by `zag serve` in user-account mode). |
+| `ZAG_PROCESS_ID` | Set inside every agent subprocess. `zag ps show self` / `zag ps kill self` resolve `self` to this value. |
+| `ZAG_SESSION_ID` | Set inside every agent subprocess. Identifies the active wrapper session. |
+| `ZAG_PROVIDER`, `ZAG_MODEL` | Set inside every agent subprocess so agents can introspect their own context. |
+
 ## See Also
 
     zag man zag      Global flags and providers overview

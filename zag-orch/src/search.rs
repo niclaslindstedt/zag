@@ -217,6 +217,7 @@ fn event_kind_label(event: &AgentLogEvent) -> String {
         LogEventKind::Heartbeat { .. } => "Heartbeat".to_string(),
         LogEventKind::Usage { .. } => "Usage".to_string(),
         LogEventKind::UserEvent { level, .. } => format!("UserEvent ({level})"),
+        LogEventKind::SessionResult { .. } => "SessionResult".to_string(),
     }
 }
 
