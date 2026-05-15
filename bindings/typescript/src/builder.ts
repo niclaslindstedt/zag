@@ -39,6 +39,7 @@ export class ZagBuilder {
   private _systemPrompt?: string;
   private _root?: string;
   private _autoApprove = false;
+  private _headless = false;
   private _addDirs: string[] = [];
   private _files: string[] = [];
   private _envVars: string[] = [];
@@ -100,6 +101,17 @@ export class ZagBuilder {
   /** Enable auto-approve mode (skip permission prompts). */
   autoApprove(a = true): this {
     this._autoApprove = a;
+    return this;
+  }
+
+  /**
+   * Run the provider's interactive TUI attached to a private pseudo-terminal
+   * so it is invisible to the operator. Pair with `autoApprove()` and
+   * `exit()` — otherwise the hidden run can block on permission prompts or
+   * finish without producing a result. The CLI enforces this pairing.
+   */
+  headless(h = true): this {
+    this._headless = h;
     return this;
   }
 
@@ -341,6 +353,7 @@ export class ZagBuilder {
     if (this._systemPrompt) args.push("--system-prompt", this._systemPrompt);
     if (this._root) args.push("--root", this._root);
     if (this._autoApprove) args.push("--auto-approve");
+    if (this._headless) args.push("--headless");
     for (const d of this._addDirs) args.push("--add-dir", d);
     for (const f of this._files) args.push("--file", f);
     for (const e of this._envVars) args.push("--env", e);

@@ -431,30 +431,15 @@ impl Claude {
         let is_native_json = effective_output_format.as_deref() == Some("native-json");
 
         if interactive {
-            // Interactive mode - inherit all stdio. Spawn / notify /
-            // wait so `on_spawn_hook` can capture the child pid before
-            // we block on the interactive session (e.g. to register it
-            // with an external process store for `zag ps kill self`).
-            cmd.stdin(Stdio::inherit())
-                .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit());
-
-            let mut child = cmd
-                .spawn()
-                .context("Failed to execute 'claude' CLI. Is it installed and in PATH?")?;
-            self.common.notify_spawn(&child);
-            let status = child
-                .wait()
-                .await
-                .context("Failed waiting on 'claude' CLI")?;
-            if !status.success() {
-                return Err(crate::process::ProcessError {
-                    exit_code: status.code(),
-                    stderr: String::new(),
-                    agent_name: "Claude".to_string(),
-                }
-                .into());
-            }
+            // Interactive mode. Headless dispatch happens inside
+            // `run_interactive_dispatch` — it attaches the child to a
+            // private PTY when `self.common.headless` is set so the
+            // operator never sees the TUI, otherwise inherits stdio as
+            // before. Both paths invoke the `on_spawn` hook with the
+            // child's pid, so `zag ps kill self` keeps working.
+            self.common
+                .run_interactive_dispatch(&mut cmd, "Claude")
+                .await?;
             Ok(None)
         } else if is_native_json {
             // Native JSON mode - pass through Claude's raw JSON output, capture stderr

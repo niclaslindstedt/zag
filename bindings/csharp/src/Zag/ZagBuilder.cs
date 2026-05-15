@@ -24,6 +24,7 @@ public class ZagBuilder
     private string? _systemPrompt;
     private string? _root;
     private bool _autoApprove;
+    private bool _headless;
     private readonly List<string> _addDirs = [];
     private readonly List<string> _files = [];
     private readonly List<string> _envVars = [];
@@ -65,6 +66,14 @@ public class ZagBuilder
 
     /// <summary>Enable auto-approve mode (skip permission prompts).</summary>
     public ZagBuilder AutoApprove(bool a = true) { _autoApprove = a; return this; }
+
+    /// <summary>
+    /// Run the provider's interactive TUI attached to a private pseudo-terminal
+    /// so it is invisible to the operator. Pair with <see cref="AutoApprove"/>
+    /// and <c>Exit</c> — otherwise the hidden run can block on permission
+    /// prompts or finish without producing a result. The CLI enforces this.
+    /// </summary>
+    public ZagBuilder Headless(bool h = true) { _headless = h; return this; }
 
     /// <summary>Add an additional directory for the agent to include.</summary>
     public ZagBuilder AddDir(string d) { _addDirs.Add(d); return this; }
@@ -196,6 +205,7 @@ public class ZagBuilder
         if (_systemPrompt != null) { args.Add("--system-prompt"); args.Add(_systemPrompt); }
         if (_root != null) { args.Add("--root"); args.Add(_root); }
         if (_autoApprove) args.Add("--auto-approve");
+        if (_headless) args.Add("--headless");
         foreach (var d in _addDirs) { args.Add("--add-dir"); args.Add(d); }
         foreach (var f in _files) { args.Add("--file"); args.Add(f); }
         foreach (var e in _envVars) { args.Add("--env"); args.Add(e); }

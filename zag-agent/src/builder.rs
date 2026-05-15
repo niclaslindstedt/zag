@@ -231,6 +231,11 @@ pub struct AgentBuilder {
     /// an internal `on_spawn` hook, and finalises the entry's status when
     /// the terminal method returns.
     register_process_opts: Option<RegisterOptionsOwned>,
+    /// Set via [`AgentBuilder::headless`] — when true, the provider's
+    /// interactive TUI is attached to a private PTY so it is invisible
+    /// to the operator. Requires `auto_approve` and `exit_hint` at the
+    /// CLI; library callers are trusted to pair it correctly.
+    headless: bool,
 }
 
 impl Default for AgentBuilder {
@@ -277,6 +282,7 @@ impl AgentBuilder {
             on_spawn_hook: None,
             register_process_opts: None,
             exit_hint: None,
+            headless: false,
         }
     }
 
@@ -470,6 +476,16 @@ impl AgentBuilder {
     /// Enable quiet mode (suppress all non-essential output).
     pub fn quiet(mut self, q: bool) -> Self {
         self.quiet = q;
+        self
+    }
+
+    /// Run the provider's interactive TUI attached to a private
+    /// pseudo-terminal so it is invisible to the operator. Pair with
+    /// [`AgentBuilder::auto_approve`] and [`AgentBuilder::exit`] —
+    /// otherwise the hidden run can block on permission prompts or
+    /// finish without producing a result.
+    pub fn headless(mut self, headless: bool) -> Self {
+        self.headless = headless;
         self
     }
 
@@ -886,6 +902,10 @@ impl AgentBuilder {
 
         if let Some(ref hook) = self.on_spawn_hook {
             agent.set_on_spawn_hook(hook.clone());
+        }
+
+        if self.headless {
+            agent.set_headless(true);
         }
 
         self.progress.on_spinner_finish();

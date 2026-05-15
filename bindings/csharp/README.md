@@ -47,6 +47,7 @@ await foreach (var evt in new ZagBuilder().Provider("claude").StreamAsync("analy
 | `.SystemPrompt(text)` | Set a system prompt |
 | `.Root(path)` | Set the working directory |
 | `.AutoApprove()` | Skip permission prompts |
+| `.Headless()` | Hide the provider's TUI by attaching it to a private PTY (requires `--exit` and `--auto-approve` at the CLI) |
 | `.AddDir(path)` | Add an additional directory (chainable) |
 | `.File(path)` | Attach a file to the prompt (chainable) |
 | `.Env(key, value)` | Add an environment variable for the agent subprocess (chainable) |

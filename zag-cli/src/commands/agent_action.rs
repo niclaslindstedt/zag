@@ -56,6 +56,10 @@ pub(crate) struct AgentActionParams {
     /// [`ExitHint`](zag_agent::exit_mode::ExitHint) describing
     /// whether it was passed bare or with a hint string.
     pub(crate) exit_hint: Option<zag_agent::exit_mode::ExitHint>,
+    /// `--headless` flag: when true, attach the provider's interactive
+    /// TUI to a private PTY so it is invisible to the operator. Validated
+    /// to require `auto_approve` + `exit_hint` + Claude provider.
+    pub(crate) headless: bool,
 }
 
 pub(crate) fn run_resume_id(action: &Commands) -> Option<&str> {
@@ -219,6 +223,7 @@ struct AgentSetupParams {
     max_turns: Option<u32>,
     mcp_config: Option<String>,
     env_vars: Vec<(String, String)>,
+    headless: bool,
 }
 
 /// Create and configure the agent with all settings.
@@ -243,6 +248,10 @@ fn create_and_configure_agent(
         p.auto_approve,
         p.add_dirs,
     )?;
+
+    if p.headless {
+        agent.set_headless(true);
+    }
 
     let output_fmt_clone = p.output_format.clone();
     agent.set_output_format(p.output_format);
@@ -618,6 +627,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         files,
         session_metadata: _,
         exit_hint,
+        headless,
     } = params;
 
     // `--exit` is only meaningful in interactive run mode — it tells the
@@ -629,6 +639,33 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             "--exit is only valid with `run` (interactive) mode. Use \
              `zag -p <provider> run --exit '<hint>' \"<prompt>\"` instead of `exec`."
         );
+    }
+
+    // `--headless` hides the provider's TUI by attaching it to a private
+    // PTY. The hidden TUI cannot answer permission prompts and produces no
+    // visible output, so it only makes sense with `-a` (auto-approve) and
+    // `--exit` (so the run has a well-defined termination + result signal
+    // via `zag ps kill self`). It also only applies to the interactive
+    // `run` path — `exec` already runs non-interactively.
+    if headless {
+        if !auto_approve {
+            bail!(
+                "--headless requires -a (auto-approve): the hidden TUI cannot answer \
+                 permission prompts. Re-run with `-a` or drop `--headless`."
+            );
+        }
+        if exit_hint.is_none() {
+            bail!(
+                "--headless requires --exit: a hidden run needs an explicit termination \
+                 and result signal (the agent should call `zag ps kill self <result>`)."
+            );
+        }
+        if matches!(action, Commands::Exec { .. }) {
+            bail!(
+                "--headless only applies to `run` (interactive) mode; `exec` already runs \
+                 non-interactively. Drop `--headless` or switch to `run`."
+            );
+        }
     }
 
     // Apply config fallbacks for max_turns and system_prompt
@@ -816,6 +853,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             max_turns,
             mcp_config,
             env_vars,
+            headless,
         },
         &json_schema,
         show_wrapper,

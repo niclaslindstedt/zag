@@ -99,6 +99,7 @@ don't need them.
 | `.systemPrompt(text)` | Set a system prompt |
 | `.root(path)` | Set the working directory |
 | `.autoApprove()` | Skip permission prompts |
+| `.headless()` | Hide the provider's TUI by attaching it to a private PTY (requires `--exit` and `--auto-approve` at the CLI) |
 | `.addDir(path)` | Add an additional directory (chainable) |
 | `.file(path)` | Attach a file to the prompt (chainable) |
 | `.env(key, value)` | Add an environment variable for the agent subprocess (chainable) |

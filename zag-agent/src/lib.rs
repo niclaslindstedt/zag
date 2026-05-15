@@ -7,6 +7,7 @@ pub mod config;
 pub mod exit_mode;
 pub mod factory;
 pub mod file_util;
+pub mod headless_pty;
 pub mod json_validation;
 pub mod listen;
 pub mod manpages;

@@ -156,6 +156,15 @@ pub trait Agent {
     /// for callback semantics.
     fn set_on_spawn_hook(&mut self, _hook: OnSpawnHook) {}
 
+    /// Enable headless interactive mode: the provider's TUI is attached
+    /// to a private pseudo-terminal instead of inheriting the user's
+    /// terminal, so its output is invisible to the operator.
+    ///
+    /// Default impl is a no-op. Providers that build on
+    /// `CommonAgentState` pick this up automatically through the shared
+    /// `impl_common_agent_setters!` macro.
+    fn set_headless(&mut self, _headless: bool) {}
+
     /// Get a reference to the concrete agent type (for downcasting).
     fn as_any_ref(&self) -> &dyn std::any::Any;
 

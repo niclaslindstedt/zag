@@ -60,6 +60,23 @@ describe("ZagBuilder", () => {
     assert.deepStrictEqual(builder._envVars, ["FOO=bar", "BAZ=qux"]);
   });
 
+  it("should support headless()", () => {
+    const builder = new ZagBuilder().headless();
+    // @ts-expect-error -- accessing private for test
+    assert.equal(builder._headless, true);
+    // Explicit false disables it again and stays chainable.
+    const disabled = new ZagBuilder().headless(false);
+    // @ts-expect-error -- accessing private for test
+    assert.equal(disabled._headless, false);
+  });
+
+  it("emits --headless in global args when enabled", () => {
+    const builder = new ZagBuilder().provider("claude").headless();
+    // @ts-expect-error -- accessing private for test
+    const args = builder.buildGlobalArgs() as string[];
+    assert.ok(args.includes("--headless"), `expected --headless in ${args.join(" ")}`);
+  });
+
   it("should support autoCleanup()", () => {
     const builder = new ZagBuilder().autoCleanup();
     // @ts-expect-error -- accessing private for test

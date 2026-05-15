@@ -87,8 +87,16 @@ pub(crate) struct AgentArgs {
     /// for Claude). Only valid with `run`. The optional `<hint>` is a
     /// short human-readable description of the expected result, appended
     /// to the prompt and used to require a non-empty result at kill time.
-    #[arg(long = "exit", value_name = "HINT", num_args = 0..=1, default_missing_value = "")]
+    #[arg(short = 'e', long = "exit", value_name = "HINT", num_args = 0..=1, default_missing_value = "")]
     pub(crate) exit: Option<String>,
+
+    /// Hide the provider's interactive UI by attaching it to a private
+    /// pseudo-terminal. Requires `-a` (auto-approve) and `--exit` —
+    /// without auto-approve the hidden TUI would block on permission
+    /// prompts, and without `--exit` there would be no termination/result
+    /// signal.
+    #[arg(long)]
+    pub(crate) headless: bool,
 }
 
 /// Arguments for session discovery metadata (name, description, tags)

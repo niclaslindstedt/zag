@@ -48,6 +48,17 @@ public class ZagBuilderTests
     }
 
     [Fact]
+    public void Builder_Headless_EmitsFlag()
+    {
+        var builder = new ZagBuilder().Provider("claude").Headless();
+        var args = builder.BuildGlobalArgs();
+        Assert.Contains("--headless", args);
+
+        var disabled = new ZagBuilder().Provider("claude").Headless(false).BuildGlobalArgs();
+        Assert.DoesNotContain("--headless", disabled);
+    }
+
+    [Fact]
     public void Builder_EnvVars_ProduceCorrectArgs()
     {
         var builder = new ZagBuilder()

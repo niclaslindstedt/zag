@@ -224,6 +224,8 @@ Config priority: CLI flags > `models.<agent>` > `defaults.model` > agent built-i
 -s, --system-prompt <TEXT>   Custom system prompt
 -r, --root <PATH>            Root directory for the agent
 -a, --auto-approve           Skip permission prompts
+-e, --exit [HINT]            (run) Capture final result via `zag ps kill self`
+    --headless               (run) Hide the TUI in a private PTY (requires -a and --exit)
     --add-dir <PATH>         Add extra directory (repeatable)
     --file <PATH>            Attach a file to the prompt (repeatable)
     --env <KEY=VALUE>        Environment variable for subprocess (repeatable)
