@@ -77,6 +77,11 @@ pub struct UsageLimitConfig {
     /// Default 30s.
     #[serde(default = "default_jitter_secs")]
     pub jitter_secs: u64,
+    /// Maximum auto-resume attempts within a single foreground `zag exec` or
+    /// `zag spawn` invocation. Default 12 — with the default 1h fallback this
+    /// caps a stuck batch at ~12h. Set to 0 to disable the cap.
+    #[serde(default = "default_max_attempts")]
+    pub max_attempts: u32,
     /// Per-provider overrides keyed by provider name.
     #[serde(default)]
     pub providers: HashMap<String, UsageLimitProviderOverride>,
@@ -90,6 +95,7 @@ impl Default for UsageLimitConfig {
             max_wait_secs: default_max_wait_secs(),
             default_fallback_secs: default_fallback_secs(),
             jitter_secs: default_jitter_secs(),
+            max_attempts: default_max_attempts(),
             providers: HashMap::new(),
         }
     }
@@ -121,6 +127,9 @@ fn default_fallback_secs() -> u64 {
 }
 fn default_jitter_secs() -> u64 {
     30
+}
+fn default_max_attempts() -> u32 {
+    12
 }
 
 impl UsageLimitConfig {
@@ -197,20 +206,36 @@ pub fn compute_resume_at(hit: &UsageLimit, cfg: &UsageLimitConfig) -> (DateTime<
 }
 
 /// Build a [`crate::session_log::LogEventKind::UsageLimitHit`] from a detected
-/// `UsageLimit`. Used by every provider parser so each wiring is one line.
+/// `UsageLimit`. Single source of truth for the scheduled-resume path — every
+/// site that knows a resume timer is going to fire (relay, foreground
+/// auto-resume loop) calls this so the wire shape can never drift.
 ///
-/// `scheduled_resume_at` and `fallback_used` are left at safe defaults — the
-/// relay (which owns the scheduler) replaces them when it observes the hit.
-pub fn to_log_event_hit(hit: UsageLimit) -> crate::session_log::LogEventKind {
+/// `scheduled_resume_at` and `fallback_used` come from [`compute_resume_at`].
+/// `incident_id` is provided by the caller so it can be stitched into the
+/// matching `UsageLimitResumed` / `UsageLimitResumeFailed` events.
+pub fn log_event_hit(
+    hit: &UsageLimit,
+    incident_id: &str,
+    scheduled_resume_at: Option<DateTime<Utc>>,
+    fallback_used: bool,
+) -> crate::session_log::LogEventKind {
     crate::session_log::LogEventKind::UsageLimitHit {
         provider: hit.provider.to_string(),
         scope: hit.scope.as_str().to_string(),
         reset_at: hit.reset_at.map(|t| t.to_rfc3339()),
-        scheduled_resume_at: None,
-        fallback_used: false,
-        incident_id: uuid::Uuid::new_v4().to_string(),
-        raw: Some(hit.raw),
+        scheduled_resume_at: scheduled_resume_at.map(|t| t.to_rfc3339()),
+        fallback_used,
+        incident_id: incident_id.to_string(),
+        raw: Some(hit.raw.clone()),
     }
+}
+
+/// Build a `UsageLimitHit` log event for orphan log-only detections (e.g. the
+/// Codex TUI line parser) where no auto-resume scheduler is involved.
+/// Generates a fresh incident id; scheduling fields are left empty because
+/// nothing is scheduled.
+pub fn to_log_event_hit(hit: UsageLimit) -> crate::session_log::LogEventKind {
+    log_event_hit(&hit, &uuid::Uuid::new_v4().to_string(), None, false)
 }
 
 #[cfg(test)]

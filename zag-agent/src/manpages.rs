@@ -64,6 +64,7 @@ pub const GC: &str = include_str!("../man/gc.md");
 pub const SERVE: &str = include_str!("../man/serve.md");
 pub const CONNECT: &str = include_str!("../man/connect.md");
 pub const USER: &str = include_str!("../man/user.md");
+pub const USAGE: &str = include_str!("../man/usage.md");
 pub const ORCHESTRATION: &str = include_str!("../man/orchestration.md");
 
 /// Names of every manpage accepted by [`manpage`], in a stable order suited
@@ -106,6 +107,7 @@ pub const MANPAGE_NAMES: &[&str] = &[
     "connect",
     "disconnect",
     "user",
+    "usage",
     "orchestration",
 ];
 
@@ -150,6 +152,7 @@ pub fn manpage(command: Option<&str>) -> Option<&'static str> {
         "serve" => SERVE,
         "connect" | "disconnect" => CONNECT,
         "user" => USER,
+        "usage" => USAGE,
         "orchestration" => ORCHESTRATION,
         _ => return None,
     })

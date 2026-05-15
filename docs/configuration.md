@@ -84,6 +84,7 @@ resume_message = "Continue"     # Message injected into the session when the tim
 max_wait_secs = 86400           # Hard cap on a single wait (24h)
 default_fallback_secs = 3600    # Used when the provider didn't give us a reset time (1h)
 jitter_secs = 30                # Added on top of the computed reset time
+max_attempts = 12               # Cap on auto-resume attempts in a single exec/spawn invocation (0 = unbounded)
 # [usage_limits.providers.<provider>] supports `enabled`, `resume_message`,
 # `fallback_secs`, and `extra_patterns` overrides. See docs/usage-limits.md.
 ```

@@ -87,16 +87,34 @@ fn test_builder_exit_default_unset() {
 
 #[test]
 fn test_builder_exit_bare() {
+    use crate::exit_mode::ExitHint;
     let builder = AgentBuilder::new().exit(None);
-    assert_eq!(builder.exit_hint, Some(None));
+    assert_eq!(builder.exit_hint, Some(ExitHint::Bare));
 }
 
 #[test]
 fn test_builder_exit_with_hint() {
+    use crate::exit_mode::ExitHint;
     let builder = AgentBuilder::new().exit(Some("the final answer"));
     assert_eq!(
         builder.exit_hint,
-        Some(Some("the final answer".to_string()))
+        Some(ExitHint::Provided("the final answer".to_string()))
+    );
+}
+
+#[test]
+fn test_builder_exit_empty_hint_is_bare() {
+    // An empty-string or whitespace-only hint collapses to Bare — the
+    // agent needs the prompt suffix but `ps kill` doesn't require a
+    // non-empty result.
+    use crate::exit_mode::ExitHint;
+    assert_eq!(
+        AgentBuilder::new().exit(Some("")).exit_hint,
+        Some(ExitHint::Bare)
+    );
+    assert_eq!(
+        AgentBuilder::new().exit(Some("   ")).exit_hint,
+        Some(ExitHint::Bare)
     );
 }
 

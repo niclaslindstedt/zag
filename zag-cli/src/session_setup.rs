@@ -179,9 +179,7 @@ pub(crate) fn save_session_mapping(
             dependencies: vec![],
             retried_from: None,
             interactive: false,
-            exit_hint: None,
-            exit_json_mode: false,
-            exit_json_schema: None,
+            exit: None,
         });
         if let Err(e) = store.save(root) {
             log::warn!("Failed to save session mapping: {e}");
@@ -218,9 +216,7 @@ pub(crate) fn save_session_mapping(
             dependencies: vec![],
             retried_from: None,
             interactive: false,
-            exit_hint: None,
-            exit_json_mode: false,
-            exit_json_schema: None,
+            exit: None,
         });
         if let Err(e) = store.save(root) {
             log::warn!("Failed to save session mapping: {e}");
@@ -252,9 +248,7 @@ pub(crate) fn save_session_mapping(
             dependencies: vec![],
             retried_from: None,
             interactive: false,
-            exit_hint: None,
-            exit_json_mode: false,
-            exit_json_schema: None,
+            exit: None,
         });
         if let Err(e) = store.save(root) {
             log::warn!("Failed to save sandbox session mapping: {e}");

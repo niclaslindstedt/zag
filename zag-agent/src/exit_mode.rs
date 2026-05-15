@@ -5,10 +5,107 @@
 //! `zag ps kill self <result>` (or `zag ps kill self --file <path>`) to
 //! terminate the session and submit the final result.
 //!
-//! This module owns the prompt template and the validation logic used
-//! by `zag ps kill` to accept or reject a submitted result.
+//! This module owns the prompt template, the typed [`ExitHint`] /
+//! [`ExitConstraints`] state, and the validation logic used by
+//! `zag ps kill` to accept or reject a submitted result.
 
 use crate::json_validation::{validate_json, validate_json_schema};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+/// State of the `--exit` flag for a single session.
+///
+/// `Bare` means `--exit` was passed with no argument — the agent must
+/// terminate via `zag ps kill self`, but the result is unconstrained.
+/// `Provided(s)` carries a non-empty human-readable description and also
+/// makes `zag ps kill` require a non-empty result.
+///
+/// On-disk JSON shape is intentionally a string: `""` for `Bare`, `"foo"`
+/// for `Provided("foo")`. A missing field (`None` in `Option<ExitHint>`)
+/// means `--exit` was not set at all. This keeps the disk format flat and
+/// human-inspectable while giving Rust callers a typed enum instead of
+/// the previous `Option<Option<String>>`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExitHint {
+    Bare,
+    Provided(String),
+}
+
+impl ExitHint {
+    /// Build from a clap-style `Option<String>`: `None` and `Some("")`
+    /// both yield [`ExitHint::Bare`]; anything else is [`Provided`].
+    pub fn from_optional(s: Option<String>) -> Self {
+        match s {
+            Some(s) if !s.trim().is_empty() => Self::Provided(s),
+            _ => Self::Bare,
+        }
+    }
+
+    /// The hint text iff non-empty. `None` for [`Bare`].
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            Self::Provided(s) => Some(s.as_str()),
+            Self::Bare => None,
+        }
+    }
+}
+
+impl Serialize for ExitHint {
+    fn serialize<S: Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::Bare => ser.serialize_str(""),
+            Self::Provided(s) => ser.serialize_str(s),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for ExitHint {
+    fn deserialize<D: Deserializer<'de>>(de: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(de)?;
+        Ok(if s.trim().is_empty() {
+            Self::Bare
+        } else {
+            Self::Provided(s)
+        })
+    }
+}
+
+fn is_false(v: &bool) -> bool {
+    !v
+}
+
+/// All exit-mode constraints captured at session launch.
+///
+/// Stored on [`crate::session::SessionEntry`] as `Option<ExitConstraints>`:
+/// `None` means `--exit` was not set; `Some(_)` means the session is in exit
+/// mode and the agent must terminate via `zag ps kill self <result>`.
+///
+/// The validator [`ExitConstraints::validate`] checks the submitted result
+/// against the hint requirement (non-empty when [`ExitHint::Provided`]),
+/// the JSON-validity requirement (when `json_mode` or `schema` is set), and
+/// the schema (when `schema` is set).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ExitConstraints {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hint: Option<ExitHint>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub json_mode: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub schema: Option<serde_json::Value>,
+}
+
+impl ExitConstraints {
+    /// Validate a submitted result against these constraints. See
+    /// [`validate_exit_result`] for the underlying logic — this is a
+    /// thin wrapper.
+    pub fn validate(&self, result: &str) -> Result<(), ExitValidationError> {
+        validate_exit_result(
+            result,
+            self.hint.as_ref().and_then(|h| h.as_str()),
+            self.json_mode,
+            self.schema.as_ref(),
+        )
+    }
+}
 
 /// Raw `prompts/exit/1_0_0.md` source, including YAML front matter.
 const EXIT_TEMPLATE_SOURCE: &str = include_str!("../prompts/exit/1_0_0.md");
@@ -52,10 +149,20 @@ pub fn build_exit_suffix(
         }
         None => String::new(),
     };
-    exit_template()
+    let rendered = exit_template()
         .replace("{HINT_SECTION}", &hint_section)
         .replace("{JSON_INSTRUCTION}", &json_instruction)
-        .replace("{SCHEMA_INSTRUCTION}", &schema_instruction)
+        .replace("{SCHEMA_INSTRUCTION}", &schema_instruction);
+    // Belt-and-braces: if the template gains a new placeholder and the
+    // renderer isn't updated, fail loudly in debug/test rather than
+    // leaking `{TOKEN}` into the agent's prompt.
+    debug_assert!(
+        !rendered.contains("{HINT_SECTION}")
+            && !rendered.contains("{JSON_INSTRUCTION}")
+            && !rendered.contains("{SCHEMA_INSTRUCTION}"),
+        "exit prompt template contains unrendered placeholder"
+    );
+    rendered
 }
 
 /// Reason a `zag ps kill` invocation was rejected. The CLI prints the

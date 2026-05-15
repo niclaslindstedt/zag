@@ -87,6 +87,12 @@ default_fallback_secs = 3600
 # Added on top of the computed reset time to spread retries.
 jitter_secs = 30
 
+# Maximum auto-resume attempts within a single foreground `zag exec` or
+# `zag spawn` invocation. With the default 1h fallback this caps a stuck
+# batch at ~12h before exiting with the last (failed) output. Set to 0
+# for an unbounded loop (use carefully).
+max_attempts = 12
+
 # Per-provider overrides.
 [usage_limits.providers.copilot]
 resume_message = "Please continue with the task."
@@ -184,23 +190,49 @@ to a few seconds in your project's `zag.toml`:
 default_fallback_secs = 5
 ```
 
+## Crash recovery and `zag usage`
+
+Every scheduled resume is mirrored to an append-only JSONL at
+`<state_dir>/scheduled_resumes.jsonl` (under `~/.zag/projects/<sanitized>/`
+for project-rooted sessions, or `~/.zag/` for global ones). Three kinds
+of record:
+
+```jsonl
+{"action":"schedule","incident_id":"...","session_id":"...","provider":"...","when":"2026-...","message":"Continue","attempt":1,"log_path":"..."}
+{"action":"complete","incident_id":"...","status":"resumed"}
+{"action":"complete","incident_id":"...","status":"failed","error":"..."}
+{"action":"cancel","incident_id":"..."}
+```
+
+This gives you:
+
+- **Visibility into pending resumes.** `zag usage list` (or
+  `zag usage --json list`) prints every incident scheduled but not yet
+  completed, sorted by wake-up time. If the original relay died, the
+  record still surfaces here — proof that something was stranded.
+- **Cancellation.** `zag usage cancel <incident_id>` writes a tombstone
+  so any rehydrating process skips the incident. (Live in-process
+  timers in other relays are not aborted; if you need that, kill the
+  relay too.)
+- **Crash forensics.** A pending record older than its `when` indicates
+  the originating process died after scheduling. Future work: a
+  rehydration pass on relay startup that re-arms expired timers
+  automatically.
+
 ## Limitations
 
-1. **Process restart loses scheduled resumes.** If the `zag` process holding
-   the timer (the relay, or the foreground `zag exec`) dies before the
-   wake-up fires, the schedule is dropped. A
-   `~/.zag/scheduled_resumes.json` persistence layer + a `zag resume --scan`
-   rehydration command is on the roadmap. As a workaround for background
-   sessions, `zag spawn` survives terminal disconnect on its own — only a
-   reboot or explicit kill loses state.
+1. **No automatic rehydration yet.** The persistence layer above
+   ensures pending resumes are *visible* after a crash, but the relay
+   does not yet re-arm them on startup. For now, recovery is manual:
+   `zag usage cancel <incident>` to drop it, or re-trigger the agent
+   manually. Auto-rehydration is on the roadmap.
 2. **Gemini reset times.** Gemini's stderr 429 envelope rarely carries a
    reset timestamp. Auto-resume relies on the configurable fallback (default
    1h) until the upstream surfaces a usable `retryDelay`.
-3. **Soft cap on attempts per exec invocation.** A single `zag exec`
-   tolerates up to 12 consecutive resume cycles (so worst case ~12h with
-   the default 1h fallback) before giving up. Background `zag spawn` runs
-   inherit the same cap via the subprocess. The cap is a constant today;
-   making it configurable is a small follow-up.
+3. **Attempt cap per exec invocation.** Configurable via
+   `[usage_limits].max_attempts` (default 12; `0` = unbounded). With the
+   default 1h fallback this caps a stuck batch at ~12h before exiting
+   with the last (failed) output.
 4. **Ollama is excluded.** No usage-limit concept on a self-hosted model.
 
 ## Why this matters
