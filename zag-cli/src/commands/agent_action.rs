@@ -52,11 +52,10 @@ pub(crate) struct AgentActionParams {
     pub(crate) env_vars: Vec<(String, String)>,
     pub(crate) files: Vec<String>,
     pub(crate) session_metadata: SessionMetadata,
-    /// `--exit` flag state:
-    /// - `None` — flag not set
-    /// - `Some(None)` — flag passed without a hint
-    /// - `Some(Some(hint))` — flag passed with a hint
-    pub(crate) exit_hint: Option<Option<String>>,
+    /// `--exit` flag state: `None` when unset, otherwise an
+    /// [`ExitHint`](zag_agent::exit_mode::ExitHint) describing
+    /// whether it was passed bare or with a hint string.
+    pub(crate) exit_hint: Option<zag_agent::exit_mode::ExitHint>,
 }
 
 pub(crate) fn run_resume_id(action: &Commands) -> Option<&str> {
@@ -1083,9 +1082,9 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
     // Resolve --exit: append exit-mode instructions to the prompt and
     // persist the exit constraints into the session store so that
     // `zag ps kill self <result>` can validate them at termination.
-    if let Some(ref hint_opt) = exit_hint {
-        let hint = hint_opt.as_deref();
-        let suffix = zag_agent::exit_mode::build_exit_suffix(hint, json_mode, json_schema.as_ref());
+    if let Some(ref hint) = exit_hint {
+        let suffix =
+            zag_agent::exit_mode::build_exit_suffix(hint.as_str(), json_mode, json_schema.as_ref());
         match &mut action {
             Commands::Run {
                 prompt: Some(p), ..
@@ -1106,9 +1105,11 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             let mut store =
                 zag_agent::session::SessionStore::load(root.as_deref()).unwrap_or_default();
             if let Some(entry) = store.sessions.iter_mut().find(|e| e.session_id == sid) {
-                entry.exit_hint = Some(hint.unwrap_or("").to_string());
-                entry.exit_json_mode = json_mode;
-                entry.exit_json_schema = json_schema.clone();
+                entry.exit = Some(zag_agent::exit_mode::ExitConstraints {
+                    hint: Some(hint.clone()),
+                    json_mode,
+                    schema: json_schema.clone(),
+                });
                 if let Err(e) = store.save(root.as_deref()) {
                     log::warn!("Failed to persist --exit session metadata: {e}");
                 }

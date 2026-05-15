@@ -175,9 +175,7 @@ pub fn cache_discovered_session(
         dependencies: vec![],
         retried_from: None,
         interactive: false,
-        exit_hint: None,
-        exit_json_mode: false,
-        exit_json_schema: None,
+        exit: None,
     };
 
     let mut store = session::SessionStore::load(root).unwrap_or_default();

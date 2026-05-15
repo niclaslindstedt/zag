@@ -106,3 +106,57 @@ fn empty_result_takes_precedence_over_json_validation() {
     let err = validate_exit_result("", Some("a number"), true, None).unwrap_err();
     matches!(err, ExitValidationError::EmptyResult { .. });
 }
+
+#[test]
+fn exit_hint_from_optional_collapses_empty_to_bare() {
+    assert_eq!(ExitHint::from_optional(None), ExitHint::Bare);
+    assert_eq!(ExitHint::from_optional(Some("".into())), ExitHint::Bare);
+    assert_eq!(ExitHint::from_optional(Some("   ".into())), ExitHint::Bare);
+    assert_eq!(
+        ExitHint::from_optional(Some("text".into())),
+        ExitHint::Provided("text".into())
+    );
+}
+
+#[test]
+fn exit_hint_serializes_as_string() {
+    // Wire format: Bare → "", Provided(s) → s. Lets the SessionEntry
+    // disk format stay flat and human-readable while Rust gets the
+    // typed enum.
+    let bare = serde_json::to_string(&ExitHint::Bare).unwrap();
+    assert_eq!(bare, "\"\"");
+    let with = serde_json::to_string(&ExitHint::Provided("foo".into())).unwrap();
+    assert_eq!(with, "\"foo\"");
+
+    let bare_back: ExitHint = serde_json::from_str("\"\"").unwrap();
+    assert_eq!(bare_back, ExitHint::Bare);
+    let with_back: ExitHint = serde_json::from_str("\"foo\"").unwrap();
+    assert_eq!(with_back, ExitHint::Provided("foo".into()));
+}
+
+#[test]
+fn exit_constraints_validate_method_matches_free_function() {
+    let schema = serde_json::json!({"type": "object", "required": ["answer"]});
+    let constraints = ExitConstraints {
+        hint: Some(ExitHint::Provided("the answer".into())),
+        json_mode: true,
+        schema: Some(schema.clone()),
+    };
+
+    // Failure path: empty result.
+    assert!(constraints.validate("").is_err());
+
+    // Failure path: missing required field.
+    assert!(constraints.validate(r#"{"other":1}"#).is_err());
+
+    // Success path.
+    assert!(constraints.validate(r#"{"answer":42}"#).is_ok());
+
+    // Bare hint accepts an empty result.
+    let bare = ExitConstraints {
+        hint: Some(ExitHint::Bare),
+        json_mode: false,
+        schema: None,
+    };
+    assert!(bare.validate("").is_ok());
+}

@@ -200,19 +200,11 @@ fn prepare_kill(id: &str, result: Option<KillResult>) -> Result<PreparedKill> {
             .and_then(|store| store.find_by_any_id(sid).cloned())
     });
 
-    if let Some(s) = session_entry.as_ref() {
-        let has_constraints =
-            s.exit_hint.is_some() || s.exit_json_mode || s.exit_json_schema.is_some();
-        if has_constraints {
-            let text = result_text.as_deref().unwrap_or("");
-            zag_agent::exit_mode::validate_exit_result(
-                text,
-                s.exit_hint.as_deref(),
-                s.exit_json_mode,
-                s.exit_json_schema.as_ref(),
-            )
+    if let Some(constraints) = session_entry.as_ref().and_then(|s| s.exit.as_ref()) {
+        let text = result_text.as_deref().unwrap_or("");
+        constraints
+            .validate(text)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
-        }
     }
 
     Ok(PreparedKill {

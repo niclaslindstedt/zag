@@ -220,10 +220,10 @@ pub struct AgentBuilder {
     on_spawn_hook: Option<crate::agent::OnSpawnHook>,
     /// Set via [`AgentBuilder::exit`] — when present, an interactive
     /// session is augmented with instructions to terminate via
-    /// `zag ps kill self <result>`. Outer `None` means unset; inner
-    /// `None` means the flag was passed without a hint; inner
-    /// `Some(hint)` means a hint message was supplied.
-    exit_hint: Option<Option<String>>,
+    /// `zag ps kill self <result>`. `None` means `--exit` is unset;
+    /// `Some(ExitHint::Bare)` means the flag was passed without a hint;
+    /// `Some(ExitHint::Provided(s))` carries a hint message.
+    exit_hint: Option<crate::exit_mode::ExitHint>,
     /// Set via [`AgentBuilder::register_process`] — when present, the
     /// terminal method registers a `ProcessEntry` in zag's `ProcessStore`,
     /// injects `ZAG_PROCESS_ID` / `ZAG_SESSION_ID` etc. into the agent
@@ -379,7 +379,9 @@ impl AgentBuilder {
     /// without one. Only meaningful for interactive `run` mode; using
     /// this together with [`exec`](Self::exec) will fail at run time.
     pub fn exit(mut self, hint: Option<&str>) -> Self {
-        self.exit_hint = Some(hint.map(String::from));
+        self.exit_hint = Some(crate::exit_mode::ExitHint::from_optional(
+            hint.map(str::to_string),
+        ));
         self
     }
 
@@ -697,16 +699,14 @@ impl AgentBuilder {
             dependencies: Vec::new(),
             retried_from: None,
             interactive: false,
-            exit_hint: self
+            exit: self
                 .exit_hint
                 .as_ref()
-                .map(|h| h.clone().unwrap_or_default()),
-            exit_json_mode: self.exit_hint.is_some() && self.json_mode,
-            exit_json_schema: if self.exit_hint.is_some() {
-                self.json_schema.clone()
-            } else {
-                None
-            },
+                .map(|h| crate::exit_mode::ExitConstraints {
+                    hint: Some(h.clone()),
+                    json_mode: self.json_mode,
+                    schema: self.json_schema.clone(),
+                }),
         };
 
         let mut store = SessionStore::load(self.root.as_deref()).unwrap_or_default();
@@ -1304,16 +1304,16 @@ impl AgentBuilder {
         // `.exit(...).run(...)` get the same prompt augmentation as the
         // CLI path in `zag-cli/src/commands/agent_action.rs`.
         let prompt_with_exit = match (self.exit_hint.as_ref(), prompt_with_files) {
-            (Some(hint_opt), Some(p)) => {
+            (Some(hint), Some(p)) => {
                 let suffix = crate::exit_mode::build_exit_suffix(
-                    hint_opt.as_deref(),
+                    hint.as_str(),
                     self.json_mode,
                     self.json_schema.as_ref(),
                 );
                 Some(format!("{p}\n\n{suffix}"))
             }
-            (Some(hint_opt), None) => Some(crate::exit_mode::build_exit_suffix(
-                hint_opt.as_deref(),
+            (Some(hint), None) => Some(crate::exit_mode::build_exit_suffix(
+                hint.as_str(),
                 self.json_mode,
                 self.json_schema.as_ref(),
             )),

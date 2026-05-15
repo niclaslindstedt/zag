@@ -52,19 +52,12 @@ pub struct SessionEntry {
     /// Whether this is a long-lived interactive session (FIFO-based).
     #[serde(default, skip_serializing_if = "is_false")]
     pub interactive: bool,
-    /// Exit-mode hint set via `--exit [<hint>]` at launch time. When
-    /// `Some("")` the flag was passed without a value; when `Some(hint)`
-    /// with non-empty content, `zag ps kill` requires a non-empty result.
+    /// Exit-mode constraints captured at launch (`--exit`, `--json`,
+    /// `--json-schema`). `None` means the session was launched without
+    /// `--exit` and `zag ps kill` accepts any result. See
+    /// [`crate::exit_mode::ExitConstraints`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub exit_hint: Option<String>,
-    /// Whether `--json` was set on the launching invocation. Drives JSON
-    /// validation of the result passed to `zag ps kill`.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub exit_json_mode: bool,
-    /// Optional JSON schema (`--json-schema`) for validating the result
-    /// passed to `zag ps kill`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub exit_json_schema: Option<serde_json::Value>,
+    pub exit: Option<crate::exit_mode::ExitConstraints>,
 }
 
 fn is_false(v: &bool) -> bool {
