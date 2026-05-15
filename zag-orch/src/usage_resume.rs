@@ -196,14 +196,6 @@ pub fn schedule_resume(
 // spawns `zag exec` as its subprocess).
 // ---------------------------------------------------------------------------
 
-/// Default cap on auto-resume attempts within a single `zag exec` invocation.
-///
-/// With the default 1h fallback this caps a stuck batch at ~12 hours, after
-/// which the command exits with the last (failed) output. The user can lower
-/// it via `[usage_limits].max_attempts` in `zag.toml` — currently treated as
-/// a soft constant; see follow-up to make it configurable.
-const DEFAULT_MAX_ATTEMPTS: u32 = 12;
-
 /// Run an agent with foreground auto-resume.
 ///
 /// The agent is invoked once. If the resulting [`AgentOutput`] contains a
@@ -212,7 +204,7 @@ const DEFAULT_MAX_ATTEMPTS: u32 = 12;
 /// computed resume time and re-invokes via
 /// [`Agent::run_resume_with_prompt`] with the upstream provider session id
 /// and the configured resume message. The loop continues until either a
-/// run finishes cleanly or `DEFAULT_MAX_ATTEMPTS` is reached.
+/// run finishes cleanly or `cfg.max_attempts` is reached (0 = unlimited).
 ///
 /// Each iteration's output is passed to `writer` via
 /// [`zag_agent::session_log::record_agent_output`] (if `writer` is `Some`),
@@ -258,8 +250,11 @@ pub async fn run_with_auto_resume(
             return Ok(output);
         };
 
-        if attempt >= DEFAULT_MAX_ATTEMPTS {
-            log::warn!("auto_resume: reached max attempts ({DEFAULT_MAX_ATTEMPTS}); giving up");
+        if cfg.max_attempts > 0 && attempt >= cfg.max_attempts {
+            log::warn!(
+                "auto_resume: reached max attempts ({}); giving up",
+                cfg.max_attempts
+            );
             return Ok(output);
         }
 
@@ -280,15 +275,7 @@ pub async fn run_with_auto_resume(
         if let Some(w) = writer {
             let _ = w.emit(
                 LogSourceKind::Wrapper,
-                LogEventKind::UsageLimitHit {
-                    provider: provider.to_string(),
-                    scope: hit.scope.as_str().to_string(),
-                    reset_at: hit.reset_at.map(|t| t.to_rfc3339()),
-                    scheduled_resume_at: Some(scheduled_at.to_rfc3339()),
-                    fallback_used,
-                    incident_id: incident_id.clone(),
-                    raw: Some(hit.raw.clone()),
-                },
+                usage_limits::log_event_hit(&hit, &incident_id, Some(scheduled_at), fallback_used),
             );
         }
 
@@ -430,10 +417,6 @@ fn scope_from_str(s: &str) -> UsageLimitScope {
         _ => UsageLimitScope::Unknown,
     }
 }
-
-// Suppress unused-import warning when no callers reference these directly.
-#[allow(unused_imports)]
-use usage_limits as _usage_limits;
 
 #[cfg(test)]
 #[path = "usage_resume_tests.rs"]

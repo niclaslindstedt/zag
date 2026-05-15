@@ -87,6 +87,12 @@ default_fallback_secs = 3600
 # Added on top of the computed reset time to spread retries.
 jitter_secs = 30
 
+# Maximum auto-resume attempts within a single foreground `zag exec` or
+# `zag spawn` invocation. With the default 1h fallback this caps a stuck
+# batch at ~12h before exiting with the last (failed) output. Set to 0
+# for an unbounded loop (use carefully).
+max_attempts = 12
+
 # Per-provider overrides.
 [usage_limits.providers.copilot]
 resume_message = "Please continue with the task."

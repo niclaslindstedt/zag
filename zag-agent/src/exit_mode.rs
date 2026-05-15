@@ -52,10 +52,20 @@ pub fn build_exit_suffix(
         }
         None => String::new(),
     };
-    exit_template()
+    let rendered = exit_template()
         .replace("{HINT_SECTION}", &hint_section)
         .replace("{JSON_INSTRUCTION}", &json_instruction)
-        .replace("{SCHEMA_INSTRUCTION}", &schema_instruction)
+        .replace("{SCHEMA_INSTRUCTION}", &schema_instruction);
+    // Belt-and-braces: if the template gains a new placeholder and the
+    // renderer isn't updated, fail loudly in debug/test rather than
+    // leaking `{TOKEN}` into the agent's prompt.
+    debug_assert!(
+        !rendered.contains("{HINT_SECTION}")
+            && !rendered.contains("{JSON_INSTRUCTION}")
+            && !rendered.contains("{SCHEMA_INSTRUCTION}"),
+        "exit prompt template contains unrendered placeholder"
+    );
+    rendered
 }
 
 /// Reason a `zag ps kill` invocation was rejected. The CLI prints the

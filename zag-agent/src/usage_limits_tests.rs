@@ -106,6 +106,77 @@ fn enabled_for_respects_global_and_per_provider() {
 }
 
 #[test]
+fn default_max_attempts_is_twelve() {
+    let cfg = UsageLimitConfig::default();
+    assert_eq!(cfg.max_attempts, 12);
+}
+
+#[test]
+fn max_attempts_round_trips_through_toml() {
+    // Override-from-toml path: parse a partial table and confirm the
+    // value lands. (Bare-bones — toml-rs is already a dev-dep via serde.)
+    let parsed: UsageLimitConfig = toml::from_str("max_attempts = 0\n").unwrap();
+    assert_eq!(parsed.max_attempts, 0);
+    let parsed: UsageLimitConfig = toml::from_str("max_attempts = 50\n").unwrap();
+    assert_eq!(parsed.max_attempts, 50);
+}
+
+#[test]
+fn log_event_hit_carries_through_all_fields() {
+    let hit = UsageLimit {
+        provider: "claude",
+        scope: UsageLimitScope::Weekly,
+        reset_at: Some(Utc::now() + Duration::seconds(60)),
+        raw: "boom".to_string(),
+    };
+    let when = Utc::now() + Duration::seconds(90);
+    let kind = log_event_hit(&hit, "incident-xyz", Some(when), true);
+    match kind {
+        crate::session_log::LogEventKind::UsageLimitHit {
+            provider,
+            scope,
+            reset_at,
+            scheduled_resume_at,
+            fallback_used,
+            incident_id,
+            raw,
+        } => {
+            assert_eq!(provider, "claude");
+            assert_eq!(scope, "weekly");
+            assert!(reset_at.is_some());
+            assert!(scheduled_resume_at.is_some());
+            assert!(fallback_used);
+            assert_eq!(incident_id, "incident-xyz");
+            assert_eq!(raw.as_deref(), Some("boom"));
+        }
+        _ => panic!("expected UsageLimitHit"),
+    }
+}
+
+#[test]
+fn to_log_event_hit_generates_fresh_incident() {
+    let hit = UsageLimit {
+        provider: "codex",
+        scope: UsageLimitScope::Session,
+        reset_at: None,
+        raw: "boom".to_string(),
+    };
+    let a = to_log_event_hit(hit.clone());
+    let b = to_log_event_hit(hit);
+    match (a, b) {
+        (
+            crate::session_log::LogEventKind::UsageLimitHit {
+                incident_id: i1, ..
+            },
+            crate::session_log::LogEventKind::UsageLimitHit {
+                incident_id: i2, ..
+            },
+        ) => assert_ne!(i1, i2, "orphan emissions must each get a fresh incident id"),
+        _ => panic!("expected UsageLimitHit"),
+    }
+}
+
+#[test]
 fn resume_message_per_provider_override() {
     let mut cfg = UsageLimitConfig::default();
     assert_eq!(cfg.resume_message_for("claude"), "Continue");

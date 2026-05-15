@@ -233,10 +233,17 @@ fn apply_kill(prepared: PreparedKill) -> Result<()> {
         result_text,
     } = prepared;
 
-    if let (Some(text), Some(session)) = (result_text.as_ref(), session_entry.as_ref())
-        && let Err(e) = record_session_result(session, text, process_entry.root.as_deref())
-    {
-        log::warn!("Failed to record session result: {e}");
+    // Record the session result *before* signaling the process. If the
+    // write fails we abort the kill: the agent is still alive and can
+    // retry, but a silent kill with a missing result would lose work.
+    if let (Some(text), Some(session)) = (result_text.as_ref(), session_entry.as_ref()) {
+        record_session_result(session, text, process_entry.root.as_deref()).map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to record session result: {e}. Kill aborted — the \
+                 process is still running. Retry once the underlying I/O \
+                 error is resolved."
+            )
+        })?;
     }
 
     let mut store = ProcessStore::load()?;

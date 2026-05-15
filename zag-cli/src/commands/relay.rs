@@ -374,15 +374,12 @@ pub(crate) async fn run_relay(params: RelayParams) -> Result<()> {
 
                                 let _ = writer_for_output.emit(
                                     LogSourceKind::Wrapper,
-                                    LogEventKind::UsageLimitHit {
-                                        provider: provider.clone(),
-                                        scope: scope.clone(),
-                                        reset_at: reset_at.clone(),
-                                        scheduled_resume_at: Some(scheduled_at.to_rfc3339()),
+                                    usage_limits::log_event_hit(
+                                        &hit,
+                                        &incident_id,
+                                        Some(scheduled_at),
                                         fallback_used,
-                                        incident_id: incident_id.clone(),
-                                        raw: raw.clone(),
-                                    },
+                                    ),
                                 );
 
                                 resume_attempt = resume_attempt.saturating_add(1);
