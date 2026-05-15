@@ -50,6 +50,8 @@ All global flags apply (see `zag man zag`).
 
 `--exit` is only valid with `run`. Combining it with `exec` is rejected at parse time.
 
+See [docs/exit-mode.md](../../docs/exit-mode.md) for the full reference, including how exit constraints survive auto-resume across upstream usage limits.
+
 Example: run Claude interactively to compute a result without using `--print`.
 
     zag -p claude run --exit "the sum" "what is 2+3"

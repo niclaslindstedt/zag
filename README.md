@@ -18,7 +18,7 @@ One CLI for all your AI coding agents.
 - **One CLI, five agents** — Switch between Claude, Codex, Gemini, Copilot, and Ollama without learning five different CLIs
 - **Cross-provider features** — Model size aliases, JSON schema validation, git worktree isolation, and Docker sandboxing work with every provider
 - **Orchestration primitives** — Spawn, wait, collect, pipe, and chain agents in shell scripts for multi-agent workflows
-- **Usage-limit aware** — When a provider hits a 5-hour / weekly / 429 limit, zag detects it, waits until reset, and auto-resumes the session — so overnight batches don't silently stall. See [docs/usage-limits.md](docs/usage-limits.md).
+- **Usage-limit aware** — When a provider hits a 5-hour / weekly / 429 limit, zag detects it, waits until reset, and auto-resumes the session — so overnight batches don't silently stall. Pending resumes are persisted to disk and inspectable via `zag usage list`. See [docs/usage-limits.md](docs/usage-limits.md).
 - **Programmatic API** — Rust library crate plus TypeScript, Python, C#, Swift, Java, and Kotlin SDKs
 
 ## Prerequisites
@@ -99,7 +99,7 @@ zag output <session-id>   # prints "5"
 
 ### Claude `--print` is opt-in
 
-`zag exec -p claude` (and any other path that delegates to `claude --print`) now consumes API tokens. To enable it set `ZAG_CLAUDE_ALLOW_PRINT=1`. Without that env var, those paths fail with a steering error pointing at `run --exit`, which captures a result from an interactive session via `zag ps kill self <result>` without paying for `--print`. See `zag man run` and `zag man config` for details.
+`zag exec -p claude` (and any other path that delegates to `claude --print`) now consumes API tokens. To enable it set `ZAG_CLAUDE_ALLOW_PRINT=1`. Without that env var, those paths fail with a steering error pointing at `run --exit`, which captures a result from an interactive session via `zag ps kill self <result>` without paying for `--print`. See [docs/exit-mode.md](docs/exit-mode.md), `zag man run`, and `zag man config` for details.
 
 ## Providers
 
