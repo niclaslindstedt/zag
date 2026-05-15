@@ -598,6 +598,11 @@ export const commands: CommandData[] = [
     "category": "session"
   },
   {
+    "name": "usage",
+    "description": "Manage in-flight usage-limit auto-resume timers",
+    "category": "core"
+  },
+  {
     "name": "capability",
     "description": "Show capability declarations for a provider",
     "category": "core"
@@ -849,6 +854,10 @@ export const builderMethods: BuilderMethod[] = [
   {
     "name": "json_schema",
     "description": "Implies `json()`."
+  },
+  {
+    "name": "exit",
+    "description": "this together with [`exec`](Self::exec) will fail at run time."
   },
   {
     "name": "session_id",

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0] - 2026-05-15
+
+### Added
+
+- Implement run_resume_with_prompt for Copilot and Gemini (#197)
+- Auto-resume usage limits in exec and background sessions (#196)
+- Detect provider usage limits and auto-resume sessions (#195)
+- Gate Claude --print and add --exit interactive result capture (#194)
+- SEO + discoverability per OSS_SPEC §11.3 (#193)
+
+### Documentation
+
+- Document register_process and resume_with_prompt builder methods (#192)
+
 ## [0.17.0] - 2026-05-01
 
 ### Added
