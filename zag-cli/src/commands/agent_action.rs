@@ -642,6 +642,19 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
     let mut system_prompt =
         augment_system_prompt_for_json(system_prompt, json_mode, &provider, &json_schema);
 
+    // When `--exit` is set, inject the kill-self instructions into the
+    // system prompt rather than the user prompt — this keeps the user's
+    // visible prompt clean in the TUI / log while the agent still gets the
+    // termination protocol via the system channel.
+    if let Some(ref hint) = exit_hint {
+        let suffix =
+            zag_agent::exit_mode::build_exit_suffix(hint.as_str(), json_mode, json_schema.as_ref());
+        system_prompt = Some(match system_prompt {
+            Some(existing) if !existing.is_empty() => format!("{existing}\n\n{suffix}"),
+            _ => suffix,
+        });
+    }
+
     if let Err(e) = skills::setup_skills(&provider, &mut system_prompt) {
         log::warn!("Failed to set up skills: {e}");
     }
@@ -1085,23 +1098,12 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         }
     }
 
-    // Resolve --exit: append exit-mode instructions to the prompt and
-    // persist the exit constraints into the session store so that
-    // `zag ps kill self <result>` can validate them at termination.
+    // Persist the --exit constraints into the session store so that
+    // `zag ps kill self <result>` can validate them at termination. The
+    // exit-mode instructions themselves were injected into the system
+    // prompt earlier (before agent creation) so the user's typed prompt
+    // stays clean in the TUI / session log.
     if let Some(ref hint) = exit_hint {
-        let suffix =
-            zag_agent::exit_mode::build_exit_suffix(hint.as_str(), json_mode, json_schema.as_ref());
-        match &mut action {
-            Commands::Run {
-                prompt: Some(p), ..
-            } => {
-                *p = format!("{p}\n\n{suffix}");
-            }
-            Commands::Run { prompt, .. } => {
-                *prompt = Some(suffix);
-            }
-            _ => {}
-        }
         let sid_for_exit = wt
             .session_id
             .as_deref()
@@ -1164,8 +1166,25 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         log::warn!("Agent cleanup failed: {cleanup_err}");
     }
 
-    let agent_success = match &action_result {
-        Err(err) => {
+    // When `--exit` is active, the agent's intended termination path is
+    // `zag ps kill self <result>`, which SIGTERMs the agent process —
+    // making the provider exit with 143. That's not a crash, so look for
+    // a `SessionResult` event in the log: if one is present, the kill was
+    // the agent's own clean exit and we should treat it as success.
+    let exit_mode_result: Option<String> = if action_result.is_err() && exit_hint.is_some() {
+        let sid = wt
+            .session_id
+            .as_deref()
+            .or(sb.session_id.as_deref())
+            .or(plain.session_id.as_deref());
+        sid.and_then(|id| zag_orch::collect::extract_session_result(id, root.as_deref()))
+    } else {
+        None
+    };
+
+    let agent_success = match (&action_result, &exit_mode_result) {
+        (Err(_), Some(_)) => true,
+        (Err(err), None) => {
             // Extract structured error info if available
             let process_err = err.downcast_ref::<zag_agent::process::ProcessError>();
             let exit_code = process_err.and_then(|pe| pe.exit_code).unwrap_or(1);
@@ -1187,7 +1206,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             }
             return Err(anyhow::anyhow!(err.to_string()));
         }
-        Ok(success) => *success,
+        (Ok(success), _) => *success,
     };
 
     let wrapper_session_id = wt
@@ -1247,6 +1266,18 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
 
     if show_wrapper {
         println!("\x1b[32m✓\x1b[0m Session terminated");
+    }
+
+    // Surface the captured `--exit` result. When the wrapper UI is on,
+    // print it under a labelled header so it's visually distinct from
+    // the rest of the session output. When quiet, print just the raw
+    // result so the output is pipe-friendly.
+    if let Some(ref result) = exit_mode_result {
+        if show_wrapper {
+            println!("\x1b[36m> Result:\x1b[0m {result}");
+        } else {
+            println!("{result}");
+        }
     }
 
     // Sandbox cleanup prompt

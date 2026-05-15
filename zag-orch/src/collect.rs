@@ -35,6 +35,29 @@ pub fn extract_last_assistant_message(session_id: &str, root: Option<&str>) -> O
     text
 }
 
+/// Extract just the captured `SessionResult` (from `zag ps kill self
+/// <result>`) from a session log, if present. Returns `None` when no
+/// such event was recorded — e.g. the session ended without `--exit`,
+/// or the kill happened before the result was written.
+pub fn extract_session_result(session_id: &str, root: Option<&str>) -> Option<String> {
+    let log_path = listen::resolve_session_log(Some(session_id), false, false, root).ok()?;
+    let file = std::fs::File::open(&log_path).ok()?;
+    let reader = BufReader::new(file);
+    let mut session_result: Option<String> = None;
+    for line in reader.lines().map_while(Result::ok) {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if let Ok(event) = serde_json::from_str::<AgentLogEvent>(trimmed)
+            && let LogEventKind::SessionResult { result } = event.kind
+        {
+            session_result = Some(result);
+        }
+    }
+    session_result
+}
+
 /// Extract the last assistant message and session status from a log file.
 fn extract_result(
     session_id: &str,
