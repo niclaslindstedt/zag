@@ -8,11 +8,15 @@ use anyhow::{Result, bail};
 use log::debug;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::task::JoinHandle;
+use zag_agent::config::Config;
 use zag_agent::factory::AgentFactory;
 use zag_agent::output::{ContentBlock, Event};
 use zag_agent::session_log::{
     LogCompleteness, LogEventKind, LogSourceKind, SessionLogMetadata, SessionLogWriter, ToolKind,
 };
+use zag_agent::usage_limits::{self, UsageLimitConfig};
+use zag_orch::usage_resume::{self, ResumeStrategy};
 
 pub(crate) struct RelayParams {
     pub session: String,
@@ -23,6 +27,17 @@ pub(crate) struct RelayParams {
     pub system_prompt: Option<String>,
     pub add_dirs: Vec<String>,
     pub prompt: Option<String>,
+}
+
+fn parse_scope(s: &str) -> zag_agent::usage_limits::UsageLimitScope {
+    use zag_agent::usage_limits::UsageLimitScope;
+    match s {
+        "session" => UsageLimitScope::Session,
+        "weekly" => UsageLimitScope::Weekly,
+        "global" => UsageLimitScope::Global,
+        "daily" => UsageLimitScope::Daily,
+        _ => UsageLimitScope::Unknown,
+    }
 }
 
 /// Record a streaming event to the session log.
@@ -172,14 +187,25 @@ fn record_event(writer: &SessionLogWriter, event: &Event) -> Result<()> {
                 },
             )?;
         }
+        Event::UsageLimitDetected { .. } => {
+            // Handled by the relay loop, which schedules a resume timer and
+            // emits the LogEventKind::UsageLimitHit there (so it has access
+            // to scheduled_resume_at + incident_id).
+        }
     }
     Ok(())
 }
 
 pub(crate) async fn run_relay(params: RelayParams) -> Result<()> {
+    // Bidirectional streaming is currently Claude-only — see
+    // `zag-agent/src/streaming.rs:45`. Detection + auto-resume work for all
+    // providers via the session-log parsers, but the live FIFO injection
+    // path requires Claude's `--input-format stream-json`.
     if params.provider != "claude" {
         bail!(
-            "Interactive sessions currently require the Claude provider (got '{}')",
+            "Interactive (live-streaming) sessions currently require the Claude provider \
+             (got '{}'). Other providers detect usage limits but cannot live-inject \
+             a resume; use `zag spawn` (background) or `zag exec` instead.",
             params.provider
         );
     }
@@ -189,11 +215,18 @@ pub(crate) async fn run_relay(params: RelayParams) -> Result<()> {
         bail!("FIFO not found at {}", fifo_path.display());
     }
 
+    // Load usage-limit config once at startup. The relay arms timers using
+    // these values; per-provider overrides are honored via the helpers on
+    // `UsageLimitConfig`.
+    let usage_cfg: Arc<UsageLimitConfig> =
+        Arc::new(Config::load(params.root.as_deref())?.usage_limits);
+
     debug!(
-        "Starting relay: session={}, provider={}, fifo={}",
+        "Starting relay: session={}, provider={}, fifo={}, auto_resume_enabled={}",
         params.session,
         params.provider,
-        fifo_path.display()
+        fifo_path.display(),
+        usage_cfg.enabled_for(&params.provider),
     );
 
     // Set up session log writer
@@ -214,6 +247,11 @@ pub(crate) async fn run_relay(params: RelayParams) -> Result<()> {
     writer.set_completeness(LogCompleteness::Full)?;
 
     let writer = Arc::new(writer);
+
+    let resume_strategy: Arc<dyn ResumeStrategy> =
+        usage_resume::strategy_for(&params.provider, params.model.clone(), params.root.clone());
+    let mut resume_handles: Vec<JoinHandle<()>> = Vec::new();
+    let mut resume_attempt: u32 = 0;
 
     // Create agent and start streaming session
     let mut agent = AgentFactory::create(
@@ -302,6 +340,76 @@ pub(crate) async fn run_relay(params: RelayParams) -> Result<()> {
                         if let Err(e) = record_event(&writer_for_output, &event) {
                             log::warn!("Failed to record event: {e}");
                         }
+                        // Auto-resume: detect a UsageLimitDetected event,
+                        // record a UsageLimitHit, and schedule a wake-up
+                        // timer that injects the resume message.
+                        if let Event::UsageLimitDetected {
+                            provider,
+                            scope,
+                            reset_at,
+                            raw,
+                        } = &event
+                        {
+                            if usage_cfg.enabled_for(provider) {
+                                let hit = usage_limits::UsageLimit {
+                                    provider: match provider.as_str() {
+                                        "claude" => "claude",
+                                        "codex" => "codex",
+                                        "copilot" => "copilot",
+                                        "gemini" => "gemini",
+                                        _ => "claude",
+                                    },
+                                    scope: parse_scope(scope),
+                                    reset_at: reset_at
+                                        .as_deref()
+                                        .and_then(|s| {
+                                            chrono::DateTime::parse_from_rfc3339(s).ok()
+                                        })
+                                        .map(|d| d.with_timezone(&chrono::Utc)),
+                                    raw: raw.clone().unwrap_or_default(),
+                                };
+                                let (scheduled_at, fallback_used) =
+                                    usage_limits::compute_resume_at(&hit, &usage_cfg);
+                                let incident_id = uuid::Uuid::new_v4().to_string();
+
+                                let _ = writer_for_output.emit(
+                                    LogSourceKind::Wrapper,
+                                    LogEventKind::UsageLimitHit {
+                                        provider: provider.clone(),
+                                        scope: scope.clone(),
+                                        reset_at: reset_at.clone(),
+                                        scheduled_resume_at: Some(scheduled_at.to_rfc3339()),
+                                        fallback_used,
+                                        incident_id: incident_id.clone(),
+                                        raw: raw.clone(),
+                                    },
+                                );
+
+                                resume_attempt = resume_attempt.saturating_add(1);
+                                let message = usage_cfg.resume_message_for(provider).to_string();
+                                log::info!(
+                                    "Relay: scheduling resume for session {} at {} (incident {}, fallback={})",
+                                    params.session,
+                                    scheduled_at.to_rfc3339(),
+                                    incident_id,
+                                    fallback_used,
+                                );
+                                let handle = usage_resume::schedule_resume(
+                                    params.session.clone(),
+                                    scheduled_at,
+                                    message,
+                                    incident_id,
+                                    resume_attempt,
+                                    Arc::clone(&writer_for_output),
+                                    Arc::clone(&resume_strategy),
+                                );
+                                resume_handles.push(handle);
+                            } else {
+                                log::debug!(
+                                    "Relay: usage limit detected but auto-resume is disabled for {provider}"
+                                );
+                            }
+                        }
                     }
                     Ok(None) => {
                         // Agent process exited
@@ -315,6 +423,11 @@ pub(crate) async fn run_relay(params: RelayParams) -> Result<()> {
                 }
             }
         }
+    }
+
+    // Abort any still-pending resume timers — the session is ending.
+    for handle in &resume_handles {
+        handle.abort();
     }
 
     // Clean up

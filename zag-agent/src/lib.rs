@@ -27,6 +27,7 @@ pub mod session;
 pub mod session_log;
 pub mod skills;
 pub mod streaming;
+pub mod usage_limits;
 pub mod worktree;
 
 /// Truncate a string to at most `max_bytes` bytes, rounding down to a valid

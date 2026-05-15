@@ -453,6 +453,16 @@ pub(crate) fn parse_copilot_event_line(
         .map(str::to_string);
     let mut events = Vec::new();
 
+    // Usage-limit detection runs before regular event dispatch so a rate-limit
+    // error event is recorded as a UsageLimitHit even if the type string also
+    // matches one of the regular arms.
+    {
+        let cfg = crate::usage_limits::UsageLimitConfig::default();
+        if let Some(hit) = crate::providers::copilot_usage_limits::detect_json(&value, &cfg) {
+            events.push(crate::usage_limits::to_log_event_hit(hit));
+        }
+    }
+
     match event_type {
         "session.start" => events.push(LogEventKind::ProviderStatus {
             message: "Copilot session started".to_string(),

@@ -116,6 +116,16 @@ The `--provider` flag overrides `defaults.provider`, and `--auto-approve` overri
     format = "text"
     timestamp_format = "%H:%M:%S"
 
+    [usage_limits]
+    # Detect upstream usage/rate/weekly limits and auto-resume sessions.
+    enabled = true
+    resume_message = "Continue"
+    max_wait_secs = 86400          # 24h cap on any single wait
+    default_fallback_secs = 3600   # used when the provider gave no reset time
+    jitter_secs = 30
+    # [usage_limits.providers.<provider>] supports `enabled`,
+    # `resume_message`, `fallback_secs`, and `extra_patterns` overrides.
+
 ## Subcommands
 
     init     Create a default config file with commented-out settings.

@@ -18,6 +18,7 @@ One CLI for all your AI coding agents.
 - **One CLI, five agents** — Switch between Claude, Codex, Gemini, Copilot, and Ollama without learning five different CLIs
 - **Cross-provider features** — Model size aliases, JSON schema validation, git worktree isolation, and Docker sandboxing work with every provider
 - **Orchestration primitives** — Spawn, wait, collect, pipe, and chain agents in shell scripts for multi-agent workflows
+- **Usage-limit aware** — When a provider hits a 5-hour / weekly / 429 limit, zag detects it, waits until reset, and auto-resumes the session — so overnight batches don't silently stall. See [docs/usage-limits.md](docs/usage-limits.md).
 - **Programmatic API** — Rust library crate plus TypeScript, Python, C#, Swift, Java, and Kotlin SDKs
 
 ## Prerequisites
