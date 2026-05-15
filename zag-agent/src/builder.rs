@@ -697,7 +697,10 @@ impl AgentBuilder {
             dependencies: Vec::new(),
             retried_from: None,
             interactive: false,
-            exit_hint: self.exit_hint.as_ref().map(|h| h.clone().unwrap_or_default()),
+            exit_hint: self
+                .exit_hint
+                .as_ref()
+                .map(|h| h.clone().unwrap_or_default()),
             exit_json_mode: self.exit_hint.is_some() && self.json_mode,
             exit_json_schema: if self.exit_hint.is_some() {
                 self.json_schema.clone()

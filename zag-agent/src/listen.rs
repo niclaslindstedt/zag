@@ -188,10 +188,9 @@ pub fn format_event_text(event: &AgentLogEvent, show_thinking: bool) -> Option<S
         LogEventKind::UserEvent { level, message, .. } => {
             Some(format!("  [{}] {}", level, truncate(message, 200)))
         }
-        LogEventKind::SessionResult { result } => Some(format!(
-            "\n\u{25cf} Result: {}",
-            truncate(result, 200)
-        )),
+        LogEventKind::SessionResult { result } => {
+            Some(format!("\n\u{25cf} Result: {}", truncate(result, 200)))
+        }
     }
 }
 

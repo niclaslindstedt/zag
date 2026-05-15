@@ -1057,8 +1057,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
     // `zag ps kill self <result>` can validate them at termination.
     if let Some(ref hint_opt) = exit_hint {
         let hint = hint_opt.as_deref();
-        let suffix =
-            zag_agent::exit_mode::build_exit_suffix(hint, json_mode, json_schema.as_ref());
+        let suffix = zag_agent::exit_mode::build_exit_suffix(hint, json_mode, json_schema.as_ref());
         match &mut action {
             Commands::Run {
                 prompt: Some(p), ..
@@ -1078,11 +1077,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         if let Some(sid) = sid_for_exit {
             let mut store =
                 zag_agent::session::SessionStore::load(root.as_deref()).unwrap_or_default();
-            if let Some(entry) = store
-                .sessions
-                .iter_mut()
-                .find(|e| e.session_id == sid)
-            {
+            if let Some(entry) = store.sessions.iter_mut().find(|e| e.session_id == sid) {
                 entry.exit_hint = Some(hint.unwrap_or("").to_string());
                 entry.exit_json_mode = json_mode;
                 entry.exit_json_schema = json_schema.clone();

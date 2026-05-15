@@ -39,7 +39,7 @@ pub const ALLOW_PRINT_ENV: &str = "ZAG_CLAUDE_ALLOW_PRINT";
 /// with a steering message pointing users at `--exit`.
 pub fn check_print_allowed() -> Result<()> {
     match std::env::var(ALLOW_PRINT_ENV) {
-        Ok(v) if !v.is_empty() && v != "0" && v.to_ascii_lowercase() != "false" => Ok(()),
+        Ok(v) if !v.is_empty() && v != "0" && !v.eq_ignore_ascii_case("false") => Ok(()),
         _ => Err(anyhow::anyhow!(
             "Claude --print mode is disabled because it consumes API tokens. \
              Set {ALLOW_PRINT_ENV}=1 to enable it, or run interactively with \

@@ -94,7 +94,10 @@ fn test_builder_exit_bare() {
 #[test]
 fn test_builder_exit_with_hint() {
     let builder = AgentBuilder::new().exit(Some("the final answer"));
-    assert_eq!(builder.exit_hint, Some(Some("the final answer".to_string())));
+    assert_eq!(
+        builder.exit_hint,
+        Some(Some("the final answer".to_string()))
+    );
 }
 
 #[tokio::test]

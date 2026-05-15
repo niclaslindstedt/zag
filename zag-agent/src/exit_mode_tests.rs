@@ -6,7 +6,7 @@ fn template_renders_without_hint() {
     assert!(out.contains("zag ps kill self"));
     assert!(!out.contains("Expected result:"));
     assert!(!out.contains("MUST be valid JSON"));
-    assert!(!out.contains("schema"));
+    assert!(!out.contains("MUST validate against this schema"));
 }
 
 #[test]

@@ -128,9 +128,7 @@ pub fn validate_exit_result(
         if let Err(errors) = validate_json_schema(result, schema) {
             return Err(ExitValidationError::SchemaViolations { errors });
         }
-    } else if json_mode
-        && let Err(detail) = validate_json(result)
-    {
+    } else if json_mode && let Err(detail) = validate_json(result) {
         return Err(ExitValidationError::InvalidJson { detail });
     }
 
