@@ -376,6 +376,23 @@ pub fn claude_output_to_agent_output(claude_output: ClaudeOutput) -> AgentOutput
                 });
                 pending_turn_usage = msg_usage.clone();
 
+                // Scan assistant text for upstream usage-limit signals (e.g.
+                // `Claude AI usage limit reached|<epoch>`). The streaming
+                // translator does the same — mirroring here keeps exec/batch
+                // mode consistent so `record_agent_output` produces a
+                // `UsageLimitHit` log event in both paths.
+                if let Some(ref text) = last_assistant_text {
+                    let cfg = crate::usage_limits::UsageLimitConfig::default();
+                    if let Some(hit) = super::usage_limits::detect_text(text, &cfg) {
+                        events.push(UnifiedEvent::UsageLimitDetected {
+                            provider: hit.provider.to_string(),
+                            scope: hit.scope.as_str().to_string(),
+                            reset_at: hit.reset_at.map(|t| t.to_rfc3339()),
+                            raw: Some(hit.raw),
+                        });
+                    }
+                }
+
                 events.push(UnifiedEvent::AssistantMessage {
                     content,
                     usage: msg_usage,

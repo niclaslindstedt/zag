@@ -200,3 +200,163 @@ async fn strategy_for_codex_uses_respawn_path() {
         "expected respawn-path error, got: {err}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Tests for run_with_auto_resume helpers (find_usage_limit_in_output,
+// extract_provider_session_id, text-blob fallback).
+//
+// The full end-to-end loop test against an Agent stub lives in zag-cli where
+// `providers::mock` is in scope; here we cover the decision-making logic that
+// drives the loop.
+// ---------------------------------------------------------------------------
+
+use std::collections::HashMap;
+use zag_agent::output::{AgentOutput, ContentBlock, Event};
+use zag_agent::usage_limits::UsageLimitConfig;
+
+fn empty_output(provider: &str) -> AgentOutput {
+    AgentOutput {
+        agent: provider.to_string(),
+        session_id: String::new(),
+        events: Vec::new(),
+        result: None,
+        is_error: false,
+        exit_code: None,
+        error_message: None,
+        total_cost_usd: None,
+        usage: None,
+        model: None,
+        provider: Some(provider.to_string()),
+        log_path: None,
+    }
+}
+
+#[test]
+fn find_usage_limit_recognizes_explicit_detected_event() {
+    let cfg = UsageLimitConfig::default();
+    let mut out = empty_output("claude");
+    out.events.push(Event::UsageLimitDetected {
+        provider: "claude".to_string(),
+        scope: "weekly".to_string(),
+        reset_at: Some("2030-01-01T00:00:00Z".to_string()),
+        raw: Some("Claude AI weekly usage limit reached|1893456000".to_string()),
+    });
+
+    let hit = find_usage_limit_in_output(&out, "claude", &cfg).expect("should detect");
+    assert_eq!(hit.provider, "claude");
+    assert_eq!(hit.scope.as_str(), "weekly");
+    assert!(hit.reset_at.is_some());
+}
+
+#[test]
+fn find_usage_limit_falls_back_to_text_scan_for_codex() {
+    let cfg = UsageLimitConfig::default();
+    let mut out = empty_output("codex");
+    // Simulate Codex from_text output — a single Result event with the limit
+    // message embedded.
+    out.result = Some(
+        "You've hit your usage limit. Please try again at Mar 20th, 2030 3:36 PM.".to_string(),
+    );
+    out.events.push(Event::Result {
+        success: false,
+        message: out.result.clone(),
+        duration_ms: None,
+        num_turns: None,
+    });
+
+    let hit = find_usage_limit_in_output(&out, "codex", &cfg).expect("should detect via text scan");
+    assert_eq!(hit.provider, "codex");
+    assert!(hit.reset_at.is_some());
+}
+
+#[test]
+fn find_usage_limit_returns_none_when_no_signal() {
+    let cfg = UsageLimitConfig::default();
+    let mut out = empty_output("codex");
+    out.result = Some("All good, no limits hit".to_string());
+    out.events.push(Event::AssistantMessage {
+        content: vec![ContentBlock::Text {
+            text: "hello world".to_string(),
+        }],
+        usage: None,
+        parent_tool_use_id: None,
+    });
+
+    assert!(find_usage_limit_in_output(&out, "codex", &cfg).is_none());
+}
+
+#[test]
+fn find_usage_limit_skips_unknown_providers() {
+    let cfg = UsageLimitConfig::default();
+    let mut out = empty_output("ollama");
+    out.result = Some(
+        "Claude AI usage limit reached|1893456000 — but this is an ollama session".to_string(),
+    );
+    out.events.push(Event::Result {
+        success: false,
+        message: out.result.clone(),
+        duration_ms: None,
+        num_turns: None,
+    });
+    // Ollama isn't wired for auto-resume — no detector → no hit.
+    assert!(find_usage_limit_in_output(&out, "ollama", &cfg).is_none());
+}
+
+#[test]
+fn extract_provider_session_id_prefers_output_field() {
+    let mut out = empty_output("codex");
+    out.session_id = "thread-abc".to_string();
+    out.events.push(Event::Init {
+        model: "x".to_string(),
+        tools: vec![],
+        working_directory: None,
+        metadata: HashMap::new(),
+    });
+    assert_eq!(
+        extract_provider_session_id(&out),
+        Some("thread-abc".to_string())
+    );
+}
+
+#[test]
+fn extract_provider_session_id_falls_back_to_init_metadata() {
+    let mut out = empty_output("claude");
+    out.session_id = "unknown".to_string(); // Claude's sentinel
+    let mut meta = HashMap::new();
+    meta.insert(
+        "session_id".to_string(),
+        serde_json::Value::String("claude-sid-1".to_string()),
+    );
+    out.events.push(Event::Init {
+        model: "claude-sonnet".to_string(),
+        tools: vec![],
+        working_directory: None,
+        metadata: meta,
+    });
+    assert_eq!(
+        extract_provider_session_id(&out),
+        Some("claude-sid-1".to_string())
+    );
+}
+
+#[test]
+fn extract_provider_session_id_returns_none_when_absent() {
+    let out = empty_output("codex");
+    assert_eq!(extract_provider_session_id(&out), None);
+}
+
+#[test]
+fn find_usage_limit_pulls_text_from_assistant_messages_too() {
+    let cfg = UsageLimitConfig::default();
+    let mut out = empty_output("claude");
+    out.events.push(Event::AssistantMessage {
+        content: vec![ContentBlock::Text {
+            text: "Claude AI usage limit reached|1893456000".to_string(),
+        }],
+        usage: None,
+        parent_tool_use_id: None,
+    });
+
+    let hit = find_usage_limit_in_output(&out, "claude", &cfg).expect("should detect");
+    assert_eq!(hit.reset_at.unwrap().timestamp(), 1_893_456_000);
+}

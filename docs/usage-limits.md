@@ -37,20 +37,34 @@ Three new `LogEventKind` variants thread the lifecycle:
 
 You'll see all three in `zag listen <session>` and `zag events <session>`.
 
+## Where auto-resume kicks in
+
+Auto-resume works in **every long-running mode**:
+
+| Invocation | How resume happens |
+|---|---|
+| `zag spawn --interactive --provider claude` | The relay holds a bidirectional `stream-json` session open. The timer fires inside the relay and live-injects the resume message via the FIFO — no respawn. |
+| `zag exec ...` (foreground one-shot) | Wraps the agent invocation in a foreground auto-resume loop: when the agent exits with a `UsageLimitHit` in its output, the `exec` process sleeps until reset, then re-invokes via `--resume <provider_session_id>` with the resume message as the new prompt. The same `zag exec` process blocks across the reset window. Best for CI / scripted automation. |
+| `zag spawn ...` (background, non-interactive) | `zag spawn` already invokes `zag exec` as its subprocess, so it picks up the same loop transparently. The background process now survives upstream rate-limit boundaries. |
+| Historical replay (`zag listen` / backfill) | Detection only — no scheduling. Useful for after-the-fact diagnostics. |
+
+In all cases the same configuration knobs apply (`[usage_limits]` in `zag.toml`).
+
 ## What gets resumed
 
 When the timer fires, zag sends the configured **resume message** (default
 literal `"Continue"`) into the session via the right channel for that provider:
 
-- **Claude** — live-injected into the existing interactive `stream-json`
-  session via the relay's FIFO, so the running process picks it up like any
-  human-typed message.
-- **Codex / Copilot / Gemini** — the upstream CLI has exited by then, so zag
-  re-invokes the agent with `--resume <provider_session_id>` and the resume
-  message as the new prompt. Currently Codex supports this out of the box via
-  its `Agent::run_resume_with_prompt` trait method; Copilot and Gemini will
-  surface a `UsageLimitResumeFailed` event until they ship the same hook
-  (tracked separately — see the **Limitations** section).
+- **Claude (interactive relay)** — live-injected into the existing interactive
+  `stream-json` session via the relay's FIFO, so the running process picks it
+  up like any human-typed message.
+- **All providers in exec / background mode** — the upstream CLI has exited by
+  the time the timer fires, so zag re-invokes the agent with
+  `--resume <provider_session_id>` and the resume message as the new prompt.
+  Currently Claude and Codex implement `Agent::run_resume_with_prompt` out of
+  the box; Copilot and Gemini surface a `UsageLimitResumeFailed` event until
+  they ship the same hook (tracked separately — see the **Limitations**
+  section).
 
 ## Configuration
 
@@ -172,23 +186,27 @@ to a few seconds in your project's `zag.toml`:
 default_fallback_secs = 5
 ```
 
-## Limitations (v1)
+## Limitations
 
-1. **Process restart loses scheduled resumes.** If the relay process dies
-   before the timer fires, the wake-up is dropped. A `~/.zag/scheduled_resumes.json`
-   persistence layer + a `zag resume --scan` rehydration command is on the
-   roadmap.
-2. **Non-Claude live injection.** Only Claude supports bidirectional
-   `stream-json`, so for Codex / Copilot / Gemini the resume mechanism is
-   re-spawn via `--resume <provider_session_id>` rather than in-band
-   injection.
-3. **Copilot and Gemini respawn-with-prompt.** Codex implements
+1. **Process restart loses scheduled resumes.** If the `zag` process holding
+   the timer (the relay, or the foreground `zag exec`) dies before the
+   wake-up fires, the schedule is dropped. A
+   `~/.zag/scheduled_resumes.json` persistence layer + a `zag resume --scan`
+   rehydration command is on the roadmap. As a workaround for background
+   sessions, `zag spawn` survives terminal disconnect on its own — only a
+   reboot or explicit kill loses state.
+2. **Copilot and Gemini respawn-with-prompt.** Claude and Codex implement
    `Agent::run_resume_with_prompt`; Copilot and Gemini do not yet. Until
-   they do, those resumes emit `UsageLimitResumeFailed`. Detection itself
-   works for all four.
-4. **Gemini reset times.** Gemini's stderr 429 envelope rarely carries a
+   they do, exec/spawn-mode auto-resume for those two providers will emit
+   `UsageLimitResumeFailed`. Detection itself works for all four.
+3. **Gemini reset times.** Gemini's stderr 429 envelope rarely carries a
    reset timestamp. Auto-resume relies on the configurable fallback (default
    1h) until the upstream surfaces a usable `retryDelay`.
+4. **Soft cap on attempts per exec invocation.** A single `zag exec`
+   tolerates up to 12 consecutive resume cycles (so worst case ~12h with
+   the default 1h fallback) before giving up. Background `zag spawn` runs
+   inherit the same cap via the subprocess. The cap is a constant today;
+   making it configurable is a small follow-up.
 5. **Ollama is excluded.** No usage-limit concept on a self-hosted model.
 
 ## Why this matters
