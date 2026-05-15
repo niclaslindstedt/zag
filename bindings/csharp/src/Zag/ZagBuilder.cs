@@ -44,6 +44,7 @@ public class ZagBuilder
     private string? _mcpConfig;
     private bool _showUsage;
     private string? _size;
+    private object? _exit; // null = unset, true = bare --exit, string = --exit <hint>
 
     // -- Configuration methods -----------------------------------------------
 
@@ -145,6 +146,15 @@ public class ZagBuilder
 
     /// <summary>Set the Ollama model parameter size (e.g., "2b", "9b", "35b").</summary>
     public ZagBuilder Size(string s) { _size = s; return this; }
+
+    /// <summary>
+    /// Capture the final result via <c>zag ps kill self &lt;result&gt;</c>
+    /// instead of running in <c>exec</c> mode. Only meaningful with
+    /// <see cref="RunAsync"/>. The optional <paramref name="hint"/> is a
+    /// short description of the expected result; when set, the kill
+    /// command rejects empty results.
+    /// </summary>
+    public ZagBuilder Exit(string? hint = null) { _exit = hint ?? (object)true; return this; }
 
     private IReadOnlyList<VersionCheck.Requirement> VersionRequirements() => new[]
     {
@@ -284,10 +294,9 @@ public class ZagBuilder
         return ZagProcess.StartStreamingProcess(_bin, [.. args]);
     }
 
-    /// <summary>Start an interactive agent session (inherits stdio).</summary>
-    public async Task RunAsync(string? prompt = null, CancellationToken ct = default)
+    /// <summary>Build CLI args for <c>run</c> interactive mode.</summary>
+    internal List<string> BuildRunArgs(string? prompt = null)
     {
-        await PreflightAsync(ct: ct);
         var args = new List<string> { "run" };
         args.AddRange(BuildGlobalArgs());
         if (_json) args.Add("--json");
@@ -296,7 +305,17 @@ public class ZagBuilder
             args.Add("--json-schema");
             args.Add(JsonSerializer.Serialize(_jsonSchema));
         }
+        if (_exit is true) args.Add("--exit");
+        else if (_exit is string exitHint) { args.Add("--exit"); args.Add(exitHint); }
         if (prompt != null) args.Add(prompt);
+        return args;
+    }
+
+    /// <summary>Start an interactive agent session (inherits stdio).</summary>
+    public async Task RunAsync(string? prompt = null, CancellationToken ct = default)
+    {
+        await PreflightAsync(ct: ct);
+        var args = BuildRunArgs(prompt);
         await ZagProcess.RunAsync(_bin, [.. args], ct);
     }
 

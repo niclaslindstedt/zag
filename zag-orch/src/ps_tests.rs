@@ -85,3 +85,29 @@ fn test_resolve_live_status_running_dead_process() {
     // Should be either "running" (if PID happens to exist) or "dead"
     assert!(status == "running" || status == "dead");
 }
+
+#[test]
+fn test_kill_result_inline_read() {
+    let r = KillResult::Inline("hello".to_string());
+    assert_eq!(r.read().unwrap(), "hello");
+}
+
+#[test]
+fn test_kill_result_file_read() {
+    let dir = std::env::temp_dir().join(format!("zag-ps-killresult-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&dir);
+    let path = dir.join("payload.txt");
+    std::fs::write(&path, "from a file").unwrap();
+    let r = KillResult::File(path.clone());
+    assert_eq!(r.read().unwrap(), "from a file");
+    let _ = std::fs::remove_file(&path);
+    let _ = std::fs::remove_dir(&dir);
+}
+
+#[test]
+fn test_kill_result_file_missing_errors() {
+    let r = KillResult::File(std::path::PathBuf::from(
+        "/definitely/does/not/exist-zag-test.txt",
+    ));
+    assert!(r.read().is_err());
+}

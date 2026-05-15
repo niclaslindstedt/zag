@@ -60,6 +60,12 @@ export class ZagBuilder {
   private _showUsage = false;
   private _size?: string;
   private _autoCleanup = false;
+  /**
+   * `undefined` — `--exit` not set.
+   * `true` — `--exit` passed without a hint.
+   * `string` — `--exit <hint>`.
+   */
+  private _exit?: string | true;
 
   /** Override the zag binary path (default: `ZAG_BIN` env or `"zag"`). */
   bin(path: string): this {
@@ -239,6 +245,20 @@ export class ZagBuilder {
   /** Set the Ollama model parameter size (e.g., "2b", "9b", "35b"). */
   size(s: string): this {
     this._size = s;
+    return this;
+  }
+
+  /**
+   * Capture the final result of an interactive session via
+   * `zag ps kill self <result>` instead of running in `exec` mode.
+   *
+   * The optional `hint` is a short description of the expected result;
+   * when set, `zag ps kill` will reject empty results. Only meaningful
+   * with `run()` — passing it together with `exec()` will be rejected
+   * by zag at run time.
+   */
+  exit(hint?: string): this {
+    this._exit = hint ?? true;
     return this;
   }
 
@@ -462,15 +482,25 @@ export class ZagBuilder {
    * Start an interactive agent session.
    * Inherits stdin/stdout/stderr.
    */
-  async run(prompt?: string): Promise<void> {
-    await this.preflight();
+  /** Build CLI args for `run` interactive mode. */
+  private buildRunArgs(prompt?: string): string[] {
     const args = ["run", ...this.buildGlobalArgs()];
     if (this._json) args.push("--json");
     if (this._jsonSchema) {
       args.push("--json-schema", JSON.stringify(this._jsonSchema));
     }
+    if (this._exit === true) {
+      args.push("--exit");
+    } else if (typeof this._exit === "string") {
+      args.push("--exit", this._exit);
+    }
     if (prompt) args.push(prompt);
-    return runZag(this._bin, args);
+    return args;
+  }
+
+  async run(prompt?: string): Promise<void> {
+    await this.preflight();
+    return runZag(this._bin, this.buildRunArgs(prompt));
   }
 
   /** Resume a previous session by ID. */

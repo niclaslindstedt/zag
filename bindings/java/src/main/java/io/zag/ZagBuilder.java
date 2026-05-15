@@ -47,6 +47,8 @@ public class ZagBuilder {
     private String mcpConfig;
     private boolean showUsage;
     private String size;
+    /** {@code null} = unset, {@code Boolean.TRUE} = bare {@code --exit}, {@link String} = {@code --exit <hint>}. */
+    private Object exit;
 
     // -- Configuration methods -----------------------------------------------
 
@@ -179,6 +181,19 @@ public class ZagBuilder {
 
     /** Set the Ollama model parameter size (e.g., "2b", "9b", "35b"). */
     public ZagBuilder size(String s) { this.size = s; return this; }
+
+    /**
+     * Capture the final result of an interactive session via
+     * {@code zag ps kill self <result>} instead of running in {@code exec}
+     * mode. Only meaningful with {@link #run(String)}.
+     */
+    public ZagBuilder exit() { this.exit = Boolean.TRUE; return this; }
+
+    /**
+     * Capture the final result with a human-readable hint. The hint is
+     * appended to the prompt and required at kill time when non-empty.
+     */
+    public ZagBuilder exit(String hint) { this.exit = hint; return this; }
 
     // -- Arg building --------------------------------------------------------
 
@@ -364,9 +379,8 @@ public class ZagBuilder {
         return ZagProcess.startStreamingProcess(bin, args);
     }
 
-    /** Start an interactive agent session (inherits stdio). */
-    public void run(String prompt) throws ZagException {
-        preflight();
+    /** Build CLI args for {@code run} interactive mode. */
+    List<String> buildRunArgs(String prompt) {
         List<String> args = new ArrayList<>();
         args.add("run");
         args.addAll(buildGlobalArgs());
@@ -379,8 +393,20 @@ public class ZagBuilder {
                 throw new IllegalArgumentException("Failed to serialize JSON schema", e);
             }
         }
+        if (exit instanceof Boolean) {
+            args.add("--exit");
+        } else if (exit instanceof String hint) {
+            args.add("--exit");
+            args.add(hint);
+        }
         if (prompt != null) args.add(prompt);
-        ZagProcess.run(bin, args);
+        return args;
+    }
+
+    /** Start an interactive agent session (inherits stdio). */
+    public void run(String prompt) throws ZagException {
+        preflight();
+        ZagProcess.run(bin, buildRunArgs(prompt));
     }
 
     /** Start an interactive agent session without a prompt. */

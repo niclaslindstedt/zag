@@ -1,5 +1,31 @@
 use super::Claude;
+use super::{ALLOW_PRINT_ENV, allow_print_value_is_truthy, print_disabled_error};
 use crate::sandbox::SandboxConfig;
+
+#[test]
+fn test_allow_print_value_truthiness() {
+    // Permitted values: non-empty strings other than "0" / case-variant "false".
+    assert!(allow_print_value_is_truthy("1"));
+    assert!(allow_print_value_is_truthy("true"));
+    assert!(allow_print_value_is_truthy("TRUE"));
+    assert!(allow_print_value_is_truthy("yes"));
+
+    // Rejected values: empty, "0", "false" (any case).
+    assert!(!allow_print_value_is_truthy(""));
+    assert!(!allow_print_value_is_truthy("0"));
+    assert!(!allow_print_value_is_truthy("false"));
+    assert!(!allow_print_value_is_truthy("False"));
+    assert!(!allow_print_value_is_truthy("FALSE"));
+}
+
+#[test]
+fn test_print_disabled_error_message() {
+    let err = print_disabled_error();
+    let msg = err.to_string();
+    assert!(msg.contains("--print mode is disabled"));
+    assert!(msg.contains(ALLOW_PRINT_ENV));
+    assert!(msg.contains("--exit"));
+}
 
 #[test]
 fn test_build_run_args_non_interactive() {

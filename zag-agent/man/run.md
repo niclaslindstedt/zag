@@ -36,6 +36,25 @@ All global flags apply (see `zag man zag`).
     --env <KEY=VALUE>        Environment variable for the agent subprocess (repeatable)
     --file <PATH>            Attach a file to the prompt (repeatable)
     --mcp-config <CONFIG>    MCP server config: JSON string or path to a JSON file (Claude only)
+    --exit [<hint>]          Capture the final result via `zag ps kill self <result>` (see Exit mode below)
+
+## Exit mode
+
+`--exit [<hint>]` augments the user prompt with instructions telling the agent to terminate the session by calling `zag ps kill self "<result>"` (or `zag ps kill self --file <path>`) once it has produced its result. This is the cost-free alternative to non-interactive `exec` mode for Claude (where `--print` now consumes API tokens — see `ZAG_CLAUDE_ALLOW_PRINT` in `zag man config`).
+
+- The optional `<hint>` is a short human-readable description of the expected result. When non-empty, `zag ps kill` rejects empty results.
+- Combine with `--json` to require the result to be valid JSON (validated at kill time).
+- Combine with `--json-schema <SCHEMA>` to validate the result against a JSON schema.
+- Validation failures reject the kill with a steering stderr message, so the agent can self-correct and call kill again.
+- After a successful kill, the result is recorded as a `session_result` event in the session log and surfaced by `zag output <session>`.
+
+`--exit` is only valid with `run`. Combining it with `exec` is rejected at parse time.
+
+Example: run Claude interactively to compute a result without using `--print`.
+
+    zag -p claude run --exit "the sum" "what is 2+3"
+    # ...agent thinks, then runs: zag ps kill self "5"
+    zag output <session-id>    # prints "5"
 
 ## Behavior
 

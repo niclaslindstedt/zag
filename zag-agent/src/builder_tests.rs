@@ -80,6 +80,34 @@ fn test_builder_env_vars() {
 }
 
 #[test]
+fn test_builder_exit_default_unset() {
+    let builder = AgentBuilder::new();
+    assert!(builder.exit_hint.is_none());
+}
+
+#[test]
+fn test_builder_exit_bare() {
+    let builder = AgentBuilder::new().exit(None);
+    assert_eq!(builder.exit_hint, Some(None));
+}
+
+#[test]
+fn test_builder_exit_with_hint() {
+    let builder = AgentBuilder::new().exit(Some("the final answer"));
+    assert_eq!(
+        builder.exit_hint,
+        Some(Some("the final answer".to_string()))
+    );
+}
+
+#[tokio::test]
+async fn test_builder_exit_rejects_exec() {
+    let builder = AgentBuilder::new().exit(Some("hint"));
+    let err = builder.exec_inner("ignored").await.unwrap_err();
+    assert!(err.to_string().contains("only valid with `run()"));
+}
+
+#[test]
 fn test_resolve_provider_default() {
     let builder = AgentBuilder::new();
     // Default provider is "claude" (or whatever is in config)

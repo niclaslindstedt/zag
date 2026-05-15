@@ -39,6 +39,9 @@ fn sample_entry(id: &str) -> SessionEntry {
         dependencies: vec![],
         retried_from: None,
         interactive: false,
+        exit_hint: None,
+        exit_json_mode: false,
+        exit_json_schema: None,
     }
 }
 

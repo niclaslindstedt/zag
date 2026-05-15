@@ -52,6 +52,11 @@ pub(crate) struct AgentActionParams {
     pub(crate) env_vars: Vec<(String, String)>,
     pub(crate) files: Vec<String>,
     pub(crate) session_metadata: SessionMetadata,
+    /// `--exit` flag state:
+    /// - `None` — flag not set
+    /// - `Some(None)` — flag passed without a hint
+    /// - `Some(Some(hint))` — flag passed with a hint
+    pub(crate) exit_hint: Option<Option<String>>,
 }
 
 pub(crate) fn run_resume_id(action: &Commands) -> Option<&str> {
@@ -86,10 +91,13 @@ fn run_prompt(action: &Commands) -> Option<&str> {
     }
 }
 
-fn is_new_interactive_run(action: &Commands, json_mode: bool) -> bool {
+fn is_new_interactive_run(action: &Commands, json_mode: bool, exit_active: bool) -> bool {
     matches!(action, Commands::Run { .. })
         && !is_resume_run(action)
-        && !(json_mode && run_prompt(action).is_some())
+        // JSON mode + prompt normally short-circuits to a single-shot
+        // run, but `--exit` always wants an interactive session (the
+        // agent terminates by calling `zag ps kill self <result>`).
+        && (exit_active || !(json_mode && run_prompt(action).is_some()))
 }
 
 /// Resolve the effective provider by walking the fallback tier list.
@@ -335,6 +343,9 @@ struct ExecutionContext<'a> {
     output_fmt: Option<&'a str>,
     show_usage: bool,
     verbose: bool,
+    /// True when `--exit` was set; forces the Run path to interactive
+    /// regardless of `json_mode + prompt`.
+    exit_active: bool,
 }
 
 /// Execute the requested action.
@@ -362,7 +373,7 @@ async fn execute_action(
                 agent
                     .run_resume(resume.as_deref(), continue_session)
                     .await?;
-            } else if ctx.json_mode && prompt.is_some() {
+            } else if !ctx.exit_active && ctx.json_mode && prompt.is_some() {
                 info!("Starting non-interactive session (JSON mode)");
                 let wrapped = if ctx.provider != "claude" {
                     let w = prompt.as_deref().map(wrap_prompt_for_json);
@@ -517,8 +528,8 @@ fn action_prompt(action: &Commands) -> Option<&str> {
     }
 }
 
-fn should_enable_live_session_logs(action: &Commands, json_mode: bool) -> bool {
-    matches!(action, Commands::Run { .. }) && !json_mode
+fn should_enable_live_session_logs(action: &Commands, json_mode: bool, exit_active: bool) -> bool {
+    matches!(action, Commands::Run { .. }) && (exit_active || !json_mode)
 }
 
 pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()> {
@@ -573,7 +584,19 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         env_vars,
         files,
         session_metadata: _,
+        exit_hint,
     } = params;
+
+    // `--exit` is only meaningful in interactive run mode — it tells the
+    // agent to terminate by calling `zag ps kill self <result>`. `exec`
+    // already produces a structured output natively, so combining the
+    // two would be ambiguous.
+    if exit_hint.is_some() && matches!(action, Commands::Exec { .. }) {
+        bail!(
+            "--exit is only valid with `run` (interactive) mode. Use \
+             `zag -p <provider> run --exit '<hint>' \"<prompt>\"` instead of `exec`."
+        );
+    }
 
     // Apply config fallbacks for max_turns and system_prompt
     let config = Config::load(root.as_deref()).unwrap_or_default();
@@ -655,7 +678,11 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
     }
 
     let is_resume = is_resume_run(&action);
-    let plain = setup_plain_session(is_new_interactive_run(&action, json_mode), &root, &session);
+    let plain = setup_plain_session(
+        is_new_interactive_run(&action, json_mode, exit_hint.is_some()),
+        &root,
+        &session,
+    );
     let wrapper_session_id = plain.session_id.clone();
     let log_session_id = wrapper_session_id
         .clone()
@@ -935,7 +962,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
     let live_adapter = crate::session_log::live_adapter_for_provider(
         &provider,
         live_ctx,
-        should_enable_live_session_logs(&action, json_mode),
+        should_enable_live_session_logs(&action, json_mode, exit_hint.is_some()),
     );
     let log_coordinator = crate::session_log::SessionLogCoordinator::start(
         &crate::session_log::logs_dir(root.as_deref()),
@@ -1025,6 +1052,42 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         }
     }
 
+    // Resolve --exit: append exit-mode instructions to the prompt and
+    // persist the exit constraints into the session store so that
+    // `zag ps kill self <result>` can validate them at termination.
+    if let Some(ref hint_opt) = exit_hint {
+        let hint = hint_opt.as_deref();
+        let suffix = zag_agent::exit_mode::build_exit_suffix(hint, json_mode, json_schema.as_ref());
+        match &mut action {
+            Commands::Run {
+                prompt: Some(p), ..
+            } => {
+                *p = format!("{p}\n\n{suffix}");
+            }
+            Commands::Run { prompt, .. } => {
+                *prompt = Some(suffix);
+            }
+            _ => {}
+        }
+        let sid_for_exit = wt
+            .session_id
+            .as_deref()
+            .or(sb.session_id.as_deref())
+            .or(plain.session_id.as_deref());
+        if let Some(sid) = sid_for_exit {
+            let mut store =
+                zag_agent::session::SessionStore::load(root.as_deref()).unwrap_or_default();
+            if let Some(entry) = store.sessions.iter_mut().find(|e| e.session_id == sid) {
+                entry.exit_hint = Some(hint.unwrap_or("").to_string());
+                entry.exit_json_mode = json_mode;
+                entry.exit_json_schema = json_schema.clone();
+                if let Err(e) = store.save(root.as_deref()) {
+                    log::warn!("Failed to persist --exit session metadata: {e}");
+                }
+            }
+        }
+    }
+
     let is_worktree_session = wt.is_worktree_session;
     let is_interactive_worktree = wt.is_worktree_session && matches!(action, Commands::Run { .. });
     let is_interactive_sandbox = sb.is_sandbox_session && matches!(action, Commands::Run { .. });
@@ -1037,6 +1100,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         output_fmt: output_fmt_clone.as_deref(),
         show_usage,
         verbose,
+        exit_active: exit_hint.is_some(),
     };
     let action_future = execute_action(
         action,

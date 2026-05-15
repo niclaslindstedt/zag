@@ -111,6 +111,32 @@ describe("ZagBuilder", () => {
     assert.ok(builder);
   });
 
+  it("should include --exit with hint in run args", () => {
+    const builder = new ZagBuilder().exit("the final answer");
+    const args = (builder as any).buildRunArgs("compute 2+2");
+    const i = args.indexOf("--exit");
+    assert.notEqual(i, -1);
+    assert.equal(args[i + 1], "the final answer");
+  });
+
+  it("should include bare --exit in run args when no hint", () => {
+    const builder = new ZagBuilder().exit();
+    const args = (builder as any).buildRunArgs();
+    const i = args.indexOf("--exit");
+    assert.notEqual(i, -1);
+    // Either no following arg, or following arg isn't a hint (e.g. another flag)
+    const next = args[i + 1];
+    if (next !== undefined) {
+      assert.ok(next.startsWith("-"));
+    }
+  });
+
+  it("should omit --exit when not set", () => {
+    const builder = new ZagBuilder();
+    const args = (builder as any).buildRunArgs("hi");
+    assert.ok(!args.includes("--exit"));
+  });
+
   it("should include timeout in exec args", () => {
     const builder = new ZagBuilder().timeout("5m");
     const args = (builder as any).buildExecArgs("test", false);

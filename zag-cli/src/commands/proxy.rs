@@ -859,13 +859,22 @@ async fn proxy_ps(
             )
             .await
         }
-        Some(PsCommand::Kill { id }) => {
-            let body = serde_json::json!({});
+        Some(PsCommand::Kill { id, result, file }) => {
+            let mut body = serde_json::Map::new();
+            if let Some(r) = result {
+                body.insert("result".to_string(), serde_json::Value::String(r.clone()));
+            }
+            if let Some(p) = file {
+                body.insert(
+                    "file".to_string(),
+                    serde_json::Value::String(p.to_string_lossy().to_string()),
+                );
+            }
             proxy_post_json(
                 client,
                 config,
                 &format!("/api/v1/processes/{id}/kill"),
-                &body,
+                &serde_json::Value::Object(body),
                 json,
             )
             .await

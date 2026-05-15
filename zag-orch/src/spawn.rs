@@ -417,6 +417,9 @@ pub fn spawn_session(params: &SpawnParams) -> Result<SpawnResult> {
         dependencies: params.depends_on.clone(),
         retried_from: params.retried_from.clone(),
         interactive: params.interactive,
+        exit_hint: None,
+        exit_json_mode: false,
+        exit_json_schema: None,
     });
     if let Err(e) = session_store.save(params.root.as_deref()) {
         log::warn!("Failed to save session store: {e}");

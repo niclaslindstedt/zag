@@ -266,6 +266,9 @@ fn extract_searchable_text(event: &AgentLogEvent) -> String {
         LogEventKind::UserEvent { message, .. } => {
             parts.push(message.clone());
         }
+        LogEventKind::SessionResult { result } => {
+            parts.push(result.clone());
+        }
     }
 
     parts.join(" ")

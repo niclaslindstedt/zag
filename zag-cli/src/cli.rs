@@ -81,6 +81,14 @@ pub(crate) struct AgentArgs {
     /// Attach a file to the prompt (repeatable)
     #[arg(long = "file", value_name = "PATH")]
     pub(crate) files: Vec<String>,
+
+    /// Capture the final result via `zag ps kill self <result>` instead of
+    /// running in non-interactive `--print` mode (which costs API tokens
+    /// for Claude). Only valid with `run`. The optional `<hint>` is a
+    /// short human-readable description of the expected result, appended
+    /// to the prompt and used to require a non-empty result at kill time.
+    #[arg(long = "exit", value_name = "HINT", num_args = 0..=1, default_missing_value = "")]
+    pub(crate) exit: Option<String>,
 }
 
 /// Arguments for session discovery metadata (name, description, tags)

@@ -46,6 +46,8 @@ class ZagBuilder {
     private var _mcpConfig: String? = null
     private var _showUsage: Boolean = false
     private var _size: String? = null
+    /** `null` = unset, `true` = bare `--exit`, [String] = `--exit <hint>`. */
+    private var _exit: Any? = null
 
     // -- Configuration methods -----------------------------------------------
 
@@ -150,6 +152,16 @@ class ZagBuilder {
 
     /** Set the Ollama model parameter size (e.g., "2b", "9b", "35b"). */
     fun size(s: String) = apply { _size = s }
+
+    /**
+     * Capture the final result of an interactive session via
+     * `zag ps kill self <result>` instead of running in `exec` mode.
+     *
+     * Only meaningful with [run]. The optional [hint] is a short
+     * description of the expected result; when set, the kill command
+     * rejects empty results.
+     */
+    fun exit(hint: String? = null) = apply { _exit = hint ?: true }
 
     // -- Arg building --------------------------------------------------------
 
@@ -280,9 +292,8 @@ class ZagBuilder {
         return ZagProcess.startStreamingProcess(_bin, args)
     }
 
-    /** Start an interactive agent session (inherits stdio). */
-    suspend fun run(prompt: String? = null) {
-        preflight()
+    /** Build CLI args for `run` interactive mode. */
+    internal fun buildRunArgs(prompt: String? = null): List<String> {
         val args = mutableListOf("run")
         args.addAll(buildGlobalArgs())
         if (_json) args.add("--json")
@@ -290,8 +301,18 @@ class ZagBuilder {
             args.add("--json-schema")
             args.add(Json.encodeToString(it.toString()))
         }
+        when (val e = _exit) {
+            true -> args.add("--exit")
+            is String -> args.addAll(listOf("--exit", e))
+        }
         prompt?.let { args.add(it) }
-        ZagProcess.run(_bin, args)
+        return args
+    }
+
+    /** Start an interactive agent session (inherits stdio). */
+    suspend fun run(prompt: String? = null) {
+        preflight()
+        ZagProcess.run(_bin, buildRunArgs(prompt))
     }
 
     /** Resume a previous session by ID. */
