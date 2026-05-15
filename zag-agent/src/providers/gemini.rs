@@ -98,6 +98,38 @@ impl Gemini {
         self.common.make_command("gemini", agent_args)
     }
 
+    /// Build args for `--resume <id> -- <prompt>` headless invocation.
+    ///
+    /// Mirrors `build_run_args(false, Some(prompt))` plus `--resume <id>`.
+    /// The trailing `--` ends option parsing so prompts beginning with `-`
+    /// aren't misread as flags by the gemini CLI. Used by
+    /// [`Agent::run_resume_with_prompt`] for auto-resume after a detected
+    /// usage limit.
+    fn build_resume_args(&self, session_id: &str, prompt: &str) -> Vec<String> {
+        let mut args = Vec::new();
+
+        if self.common.skip_permissions {
+            args.extend(["--approval-mode", "yolo"].map(String::from));
+        }
+
+        if !self.common.model.is_empty() && self.common.model != "auto" {
+            args.extend(["--model".to_string(), self.common.model.clone()]);
+        }
+
+        for dir in &self.common.add_dirs {
+            args.extend(["--include-directories".to_string(), dir.clone()]);
+        }
+
+        if let Some(ref format) = self.common.output_format {
+            args.extend(["--output-format".to_string(), format.clone()]);
+        }
+
+        args.extend(["--resume".to_string(), session_id.to_string()]);
+        args.push("--".to_string());
+        args.push(prompt.to_string());
+        args
+    }
+
     async fn execute(
         &self,
         interactive: bool,
@@ -481,6 +513,29 @@ impl Agent for Gemini {
             self.common.on_spawn_hook.as_ref(),
         )
         .await
+    }
+
+    async fn run_resume_with_prompt(
+        &self,
+        session_id: &str,
+        prompt: &str,
+    ) -> Result<Option<AgentOutput>> {
+        log::debug!("Gemini resume with prompt: session={session_id}, prompt={prompt}");
+
+        if !self.common.system_prompt.is_empty() {
+            self.write_system_file().await?;
+        }
+
+        let args = self.build_resume_args(session_id, prompt);
+        let mut cmd = self.make_command(args);
+
+        if !self.common.system_prompt.is_empty() {
+            cmd.env("GEMINI_SYSTEM_MD", "true");
+        }
+
+        self.common
+            .run_non_interactive_simple(&mut cmd, "Gemini")
+            .await
     }
 
     /// Cheap startup probe that runs `gemini --version` with a short

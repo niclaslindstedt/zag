@@ -61,10 +61,8 @@ literal `"Continue"`) into the session via the right channel for that provider:
 - **All providers in exec / background mode** — the upstream CLI has exited by
   the time the timer fires, so zag re-invokes the agent with
   `--resume <provider_session_id>` and the resume message as the new prompt.
-  Currently Claude and Codex implement `Agent::run_resume_with_prompt` out of
-  the box; Copilot and Gemini surface a `UsageLimitResumeFailed` event until
-  they ship the same hook (tracked separately — see the **Limitations**
-  section).
+  All four providers (Claude, Codex, Copilot, Gemini) implement
+  `Agent::run_resume_with_prompt`, so auto-resume is fully end-to-end.
 
 ## Configuration
 
@@ -195,19 +193,15 @@ default_fallback_secs = 5
    rehydration command is on the roadmap. As a workaround for background
    sessions, `zag spawn` survives terminal disconnect on its own — only a
    reboot or explicit kill loses state.
-2. **Copilot and Gemini respawn-with-prompt.** Claude and Codex implement
-   `Agent::run_resume_with_prompt`; Copilot and Gemini do not yet. Until
-   they do, exec/spawn-mode auto-resume for those two providers will emit
-   `UsageLimitResumeFailed`. Detection itself works for all four.
-3. **Gemini reset times.** Gemini's stderr 429 envelope rarely carries a
+2. **Gemini reset times.** Gemini's stderr 429 envelope rarely carries a
    reset timestamp. Auto-resume relies on the configurable fallback (default
    1h) until the upstream surfaces a usable `retryDelay`.
-4. **Soft cap on attempts per exec invocation.** A single `zag exec`
+3. **Soft cap on attempts per exec invocation.** A single `zag exec`
    tolerates up to 12 consecutive resume cycles (so worst case ~12h with
    the default 1h fallback) before giving up. Background `zag spawn` runs
    inherit the same cap via the subprocess. The cap is a constant today;
    making it configurable is a small follow-up.
-5. **Ollama is excluded.** No usage-limit concept on a self-hosted model.
+4. **Ollama is excluded.** No usage-limit concept on a self-hosted model.
 
 ## Why this matters
 

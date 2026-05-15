@@ -204,3 +204,41 @@ fn test_available_models_includes_gpt_5_4() {
     assert!(AVAILABLE_MODELS.contains(&"gpt-5.2-codex"));
     assert!(AVAILABLE_MODELS.contains(&"gemini-3.1-pro-preview"));
 }
+
+#[test]
+fn test_build_resume_args_basic() {
+    let mut copilot = Copilot::new();
+    copilot.common.model = "claude-sonnet-4.6".to_string();
+
+    let args = copilot.build_resume_args("session-abc", "Continue");
+    // --resume <id> comes first
+    assert_eq!(args[0], "--resume");
+    assert_eq!(args[1], "session-abc");
+    // --allow-all required for non-interactive
+    assert!(args.contains(&"--allow-all".to_string()));
+    // model passed through
+    assert!(args.contains(&"--model".to_string()));
+    assert!(args.contains(&"claude-sonnet-4.6".to_string()));
+    // -p <prompt> for headless
+    let p_idx = args.iter().position(|a| a == "-p").expect("-p present");
+    assert_eq!(args[p_idx + 1], "Continue");
+}
+
+#[test]
+fn test_build_resume_args_includes_add_dirs_and_max_turns() {
+    let mut copilot = Copilot::new();
+    copilot.common.add_dirs = vec!["/extra".to_string()];
+    copilot.common.max_turns = Some(5);
+
+    let args = copilot.build_resume_args("sid", "go");
+    assert!(args.windows(2).any(|w| w == ["--add-dir", "/extra"]));
+    assert!(args.windows(2).any(|w| w == ["--max-turns", "5"]));
+}
+
+#[test]
+fn test_build_resume_args_omits_model_when_empty() {
+    let mut copilot = Copilot::new();
+    copilot.common.model = String::new();
+    let args = copilot.build_resume_args("sid", "go");
+    assert!(!args.contains(&"--model".to_string()));
+}
