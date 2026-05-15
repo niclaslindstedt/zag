@@ -346,6 +346,10 @@ struct ExecutionContext<'a> {
     /// True when `--exit` was set; forces the Run path to interactive
     /// regardless of `json_mode + prompt`.
     exit_active: bool,
+    /// Usage-limit / auto-resume config, loaded once from `zag.toml`. Wraps
+    /// the foreground auto-resume loop in the `Exec` and `Run` (JSON)
+    /// branches — see `zag_orch::usage_resume::run_with_auto_resume`.
+    usage_cfg: zag_agent::usage_limits::UsageLimitConfig,
 }
 
 /// Execute the requested action.
@@ -385,11 +389,21 @@ async fn execute_action(
                     debug!("Run prompt (JSON mode, Claude): {prompt:?}");
                     None
                 };
-                let run_prompt = wrapped.as_deref().or(prompt.as_deref());
-                let agent_output = agent.run(run_prompt).await?;
-                if let (Some(writer), Some(agent_output)) = (log_writer, agent_output.as_ref()) {
-                    crate::session_log::record_agent_output(writer, agent_output)?;
-                }
+                let run_prompt = wrapped
+                    .as_deref()
+                    .or(prompt.as_deref())
+                    .unwrap_or("")
+                    .to_string();
+                let usage_cfg = ctx.usage_cfg.clone();
+                let agent_output = zag_orch::usage_resume::run_with_auto_resume(
+                    agent,
+                    ctx.provider,
+                    run_prompt,
+                    None,
+                    &usage_cfg,
+                    log_writer,
+                )
+                .await?;
                 handle_json_output(
                     agent_output,
                     agent,
@@ -413,19 +427,33 @@ async fn execute_action(
                 prompt.clone()
             };
 
-            let agent_output = if let Some(ref session_id) = resume {
-                info!("Resuming session {session_id} with prompt");
-                agent
-                    .run_resume_with_prompt(session_id, &run_prompt)
-                    .await?
-            } else {
-                info!("Starting non-interactive session");
-                agent.run(Some(&run_prompt)).await?
-            };
+            // Load usage-limit config once so the auto-resume loop honors
+            // user overrides (resume_message, fallback_secs, extra_patterns).
+            let usage_cfg = ctx.usage_cfg.clone();
 
-            if let (Some(writer), Some(agent_output)) = (log_writer, agent_output.as_ref()) {
-                crate::session_log::record_agent_output(writer, agent_output)?;
-            }
+            info!(
+                "{} (auto-resume {})",
+                if resume.is_some() {
+                    "Resuming session with prompt"
+                } else {
+                    "Starting non-interactive session"
+                },
+                if usage_cfg.enabled_for(ctx.provider) {
+                    "enabled"
+                } else {
+                    "disabled"
+                }
+            );
+
+            let agent_output = zag_orch::usage_resume::run_with_auto_resume(
+                agent,
+                ctx.provider,
+                run_prompt,
+                resume.clone(),
+                &usage_cfg,
+                log_writer,
+            )
+            .await?;
 
             let agent_success = agent_output.as_ref().map(|o| !o.is_error).unwrap_or(true);
 
@@ -1093,6 +1121,9 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
     let is_interactive_sandbox = sb.is_sandbox_session && matches!(action, Commands::Run { .. });
     let is_interactive_run = matches!(action, Commands::Run { .. });
 
+    let usage_cfg = Config::load(root.as_deref())
+        .map(|c| c.usage_limits)
+        .unwrap_or_default();
     let exec_ctx = ExecutionContext {
         provider: &provider,
         json_mode,
@@ -1101,6 +1132,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         show_usage,
         verbose,
         exit_active: exit_hint.is_some(),
+        usage_cfg,
     };
     let action_future = execute_action(
         action,
