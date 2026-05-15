@@ -974,7 +974,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
             .or(plain.session_id.as_deref())
             .unwrap_or(&log_session_id);
         println!("\x1b[33m>\x1b[0m Session: {display_session_id}");
-        println!("\x1b[33m>\x1b[0m Listen:  agent listen {display_session_id}");
+        println!("\x1b[33m>\x1b[0m Listen:  zag listen {display_session_id}");
     }
 
     let initial_provider_session_id = if provider == "claude" {

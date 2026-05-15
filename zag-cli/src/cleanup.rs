@@ -100,7 +100,7 @@ pub fn prompt_worktree_cleanup(
 }
 
 pub fn print_resume_hint(wrapper_session_id: &str, provider_session_id: Option<&str>, label: &str) {
-    println!("\x1b[32m✓\x1b[0m {label} kept. Resume with: agent run --resume {wrapper_session_id}");
+    println!("\x1b[32m✓\x1b[0m {label} kept. Resume with: zag run --resume {wrapper_session_id}");
     if let Some(provider_session_id) = provider_session_id
         && provider_session_id != wrapper_session_id
     {
@@ -111,7 +111,7 @@ pub fn print_resume_hint(wrapper_session_id: &str, provider_session_id: Option<&
 /// Prints a session resume hint after exiting an interactive session.
 pub fn print_session_resume_hint(wrapper_session_id: &str, provider_session_id: Option<&str>) {
     println!();
-    println!("Resume this session: \x1b[36magent run --resume {wrapper_session_id}\x1b[0m");
+    println!("Resume this session: \x1b[36mzag run --resume {wrapper_session_id}\x1b[0m");
     if let Some(provider_session_id) = provider_session_id
         && provider_session_id != wrapper_session_id
     {

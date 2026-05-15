@@ -9,7 +9,7 @@ pub(crate) fn run(json: bool) -> Result<()> {
     }
     if skill_list.is_empty() {
         println!("No skills found in {}", skills::skills_dir().display());
-        println!("Use 'agent skills add <name>' to create one.");
+        println!("Use 'zag skills add <name>' to create one.");
         return Ok(());
     }
     println!("{:<20} {:<50} PATH", "NAME", "DESCRIPTION");
