@@ -1,48 +1,30 @@
 use super::Claude;
-use super::{ALLOW_PRINT_ENV, check_print_allowed};
+use super::{ALLOW_PRINT_ENV, allow_print_value_is_truthy, print_disabled_error};
 use crate::sandbox::SandboxConfig;
 
-/// Tests that touch `ZAG_CLAUDE_ALLOW_PRINT` are grouped so they don't
-/// race with each other (env mutation is process-global).
 #[test]
-fn test_check_print_allowed_env_variants() {
-    unsafe {
-        std::env::remove_var(ALLOW_PRINT_ENV);
-    }
-    let err = check_print_allowed().unwrap_err();
+fn test_allow_print_value_truthiness() {
+    // Permitted values: non-empty strings other than "0" / case-variant "false".
+    assert!(allow_print_value_is_truthy("1"));
+    assert!(allow_print_value_is_truthy("true"));
+    assert!(allow_print_value_is_truthy("TRUE"));
+    assert!(allow_print_value_is_truthy("yes"));
+
+    // Rejected values: empty, "0", "false" (any case).
+    assert!(!allow_print_value_is_truthy(""));
+    assert!(!allow_print_value_is_truthy("0"));
+    assert!(!allow_print_value_is_truthy("false"));
+    assert!(!allow_print_value_is_truthy("False"));
+    assert!(!allow_print_value_is_truthy("FALSE"));
+}
+
+#[test]
+fn test_print_disabled_error_message() {
+    let err = print_disabled_error();
     let msg = err.to_string();
     assert!(msg.contains("--print mode is disabled"));
     assert!(msg.contains(ALLOW_PRINT_ENV));
     assert!(msg.contains("--exit"));
-
-    unsafe {
-        std::env::set_var(ALLOW_PRINT_ENV, "1");
-    }
-    assert!(check_print_allowed().is_ok());
-
-    unsafe {
-        std::env::set_var(ALLOW_PRINT_ENV, "true");
-    }
-    assert!(check_print_allowed().is_ok());
-
-    unsafe {
-        std::env::set_var(ALLOW_PRINT_ENV, "0");
-    }
-    assert!(check_print_allowed().is_err());
-
-    unsafe {
-        std::env::set_var(ALLOW_PRINT_ENV, "false");
-    }
-    assert!(check_print_allowed().is_err());
-
-    unsafe {
-        std::env::set_var(ALLOW_PRINT_ENV, "");
-    }
-    assert!(check_print_allowed().is_err());
-
-    unsafe {
-        std::env::remove_var(ALLOW_PRINT_ENV);
-    }
 }
 
 #[test]

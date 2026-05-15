@@ -35,17 +35,33 @@ pub const AVAILABLE_MODELS: &[&str] = &["default", "sonnet", "opus", "haiku"];
 /// paying for `--print`.
 pub const ALLOW_PRINT_ENV: &str = "ZAG_CLAUDE_ALLOW_PRINT";
 
+/// Returns `true` for env-var values that count as "opted in" to
+/// `--print` mode: any non-empty string other than `0` / `false`
+/// (case-insensitive).
+///
+/// Split out from [`check_print_allowed`] so the truthiness logic can be
+/// unit-tested without mutating the process environment (which is
+/// `unsafe` in Rust 2024 and races with other parallel tests).
+pub fn allow_print_value_is_truthy(value: &str) -> bool {
+    !value.is_empty() && value != "0" && !value.eq_ignore_ascii_case("false")
+}
+
+/// Steering error message returned when `--print` is gated.
+fn print_disabled_error() -> anyhow::Error {
+    anyhow::anyhow!(
+        "Claude --print mode is disabled because it consumes API tokens. \
+         Set {ALLOW_PRINT_ENV}=1 to enable it, or run interactively with \
+         `zag -p claude run --exit '<hint>' \"<prompt>\"` to capture a result via \
+         `zag ps kill self <result>` without paying for --print."
+    )
+}
+
 /// Returns `Ok(())` if `--print` mode is permitted, otherwise an error
 /// with a steering message pointing users at `--exit`.
 pub fn check_print_allowed() -> Result<()> {
     match std::env::var(ALLOW_PRINT_ENV) {
-        Ok(v) if !v.is_empty() && v != "0" && !v.eq_ignore_ascii_case("false") => Ok(()),
-        _ => Err(anyhow::anyhow!(
-            "Claude --print mode is disabled because it consumes API tokens. \
-             Set {ALLOW_PRINT_ENV}=1 to enable it, or run interactively with \
-             `zag -p claude run --exit '<hint>' \"<prompt>\"` to capture a result via \
-             `zag ps kill self <result>` without paying for --print."
-        )),
+        Ok(ref v) if allow_print_value_is_truthy(v) => Ok(()),
+        _ => Err(print_disabled_error()),
     }
 }
 
