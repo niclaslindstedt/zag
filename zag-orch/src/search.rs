@@ -218,6 +218,17 @@ fn event_kind_label(event: &AgentLogEvent) -> String {
         LogEventKind::Usage { .. } => "Usage".to_string(),
         LogEventKind::UserEvent { level, .. } => format!("UserEvent ({level})"),
         LogEventKind::SessionResult { .. } => "SessionResult".to_string(),
+        LogEventKind::UsageLimitHit {
+            provider, scope, ..
+        } => {
+            format!("UsageLimitHit ({provider}/{scope})")
+        }
+        LogEventKind::UsageLimitResumed { attempt, .. } => {
+            format!("UsageLimitResumed (attempt {attempt})")
+        }
+        LogEventKind::UsageLimitResumeFailed { attempt, .. } => {
+            format!("UsageLimitResumeFailed (attempt {attempt})")
+        }
     }
 }
 

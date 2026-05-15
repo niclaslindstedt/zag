@@ -85,6 +85,10 @@ pub struct Config {
     /// Listen command settings
     #[serde(default)]
     pub listen: ListenConfig,
+    /// Usage-limit detection + auto-resume settings.
+    /// See [`crate::usage_limits::UsageLimitConfig`].
+    #[serde(default)]
+    pub usage_limits: crate::usage_limits::UsageLimitConfig,
 }
 
 impl Config {

@@ -521,6 +521,13 @@ impl HistoricalLogAdapter for CodexHistoricalLogAdapter {
 }
 
 fn parse_codex_tui_line(line: &str) -> Option<LogEventKind> {
+    // Usage-limit detection runs first so a limit line is never
+    // mis-classified as a generic background event.
+    let cfg = crate::usage_limits::UsageLimitConfig::default();
+    if let Some(hit) = crate::providers::codex_usage_limits::detect_text(line, &cfg) {
+        return Some(crate::usage_limits::to_log_event_hit(hit));
+    }
+
     if let Some(rest) = line.split("ToolCall: ").nth(1) {
         let mut parts = rest.splitn(2, ' ');
         let tool_name = parts.next()?.to_string();

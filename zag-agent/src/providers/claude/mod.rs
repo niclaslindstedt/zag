@@ -7,6 +7,7 @@ pub mod logs;
 /// - JSON output models for parsing Claude's verbose output
 /// - Conversion to unified AgentOutput format
 pub mod models;
+pub mod usage_limits;
 
 use crate::agent::{Agent, ModelSize};
 
@@ -613,6 +614,9 @@ pub(crate) struct ClaudeEventTranslator {
     /// subsequent `ToolExecution` events (which only carry the id) can be
     /// enriched with the correct tool name.
     tool_name_by_id: std::collections::HashMap<String, String>,
+    /// Usage-limit event synthesized from the current assistant message text.
+    /// Drained into the translator's output list alongside the AssistantMessage.
+    pending_usage_limit: Option<crate::output::Event>,
 }
 
 impl ClaudeEventTranslator {
@@ -667,6 +671,23 @@ impl ClaudeEventTranslator {
                 self.last_assistant_text = Some(text_parts.join("\n"));
             }
 
+            // Scan assistant text for upstream usage-limit signals (e.g.
+            // `Claude AI usage limit reached|<epoch>`). When matched, prepend
+            // a `UsageLimitDetected` event so the relay can record the hit
+            // and arm a resume timer.
+            let cfg = crate::usage_limits::UsageLimitConfig::default();
+            for text in &text_parts {
+                if let Some(hit) = usage_limits::detect_text(text, &cfg) {
+                    self.pending_usage_limit = Some(crate::output::Event::UsageLimitDetected {
+                        provider: hit.provider.to_string(),
+                        scope: hit.scope.as_str().to_string(),
+                        reset_at: hit.reset_at.map(|t| t.to_rfc3339()),
+                        raw: Some(hit.raw),
+                    });
+                    break;
+                }
+            }
+
             // Track tool_use_id → tool_name so ToolExecution events get the
             // correct name instead of "unknown".
             for block in &message.content {
@@ -677,8 +698,9 @@ impl ClaudeEventTranslator {
         }
 
         let unified = convert_claude_event_to_unified(event);
+        let usage_limit = self.pending_usage_limit.take();
 
-        match unified {
+        let mut events = match unified {
             Some(UnifiedEvent::Result {
                 success,
                 message,
@@ -739,7 +761,12 @@ impl ClaudeEventTranslator {
             }
             Some(ev) => vec![ev],
             None => Vec::new(),
+        };
+
+        if let Some(ul) = usage_limit {
+            events.push(ul);
         }
+        events
     }
 }
 

@@ -73,6 +73,9 @@ pub fn event_type_name(kind: &LogEventKind) -> &'static str {
         LogEventKind::UserEvent { .. } => "user_event",
         LogEventKind::Usage { .. } => "usage",
         LogEventKind::SessionResult { .. } => "session_result",
+        LogEventKind::UsageLimitHit { .. } => "usage_limit_hit",
+        LogEventKind::UsageLimitResumed { .. } => "usage_limit_resumed",
+        LogEventKind::UsageLimitResumeFailed { .. } => "usage_limit_resume_failed",
     }
 }
 
@@ -191,6 +194,39 @@ pub fn format_event_text(event: &AgentLogEvent, show_thinking: bool) -> Option<S
         LogEventKind::SessionResult { result } => {
             Some(format!("\n\u{25cf} Result: {}", truncate(result, 200)))
         }
+        LogEventKind::UsageLimitHit {
+            provider,
+            scope,
+            reset_at,
+            scheduled_resume_at,
+            fallback_used,
+            ..
+        } => {
+            let resets = reset_at
+                .as_deref()
+                .map(|t| format!(" — resets {t}"))
+                .unwrap_or_default();
+            let sched = scheduled_resume_at
+                .as_deref()
+                .map(|t| format!(", resuming {t}"))
+                .unwrap_or_default();
+            let fb = if *fallback_used { " (fallback)" } else { "" };
+            Some(format!(
+                "\n\u{26a0} {provider} usage limit ({scope}){resets}{sched}{fb}"
+            ))
+        }
+        LogEventKind::UsageLimitResumed {
+            resume_message,
+            attempt,
+            ..
+        } => Some(format!(
+            "\n\u{21bb} Resumed (attempt {attempt}): {}",
+            truncate(resume_message, 80)
+        )),
+        LogEventKind::UsageLimitResumeFailed { error, attempt, .. } => Some(format!(
+            "\n\u{2717} Resume failed (attempt {attempt}): {}",
+            truncate(error, 200)
+        )),
     }
 }
 
@@ -335,6 +371,43 @@ pub fn format_event_rich(event: &AgentLogEvent, show_thinking: bool) -> Option<S
         LogEventKind::SessionResult { result } => Some(format!(
             "\n\x1b[32m\u{25cf}\x1b[0m Result: \x1b[1m{}\x1b[0m",
             truncate(result, 200)
+        )),
+        LogEventKind::UsageLimitHit {
+            provider,
+            scope,
+            reset_at,
+            scheduled_resume_at,
+            fallback_used,
+            ..
+        } => {
+            let resets = reset_at
+                .as_deref()
+                .map(|t| format!(" — resets \x1b[1m{t}\x1b[0m"))
+                .unwrap_or_default();
+            let sched = scheduled_resume_at
+                .as_deref()
+                .map(|t| format!(", \x1b[2mresuming {t}\x1b[0m"))
+                .unwrap_or_default();
+            let fb = if *fallback_used {
+                " \x1b[2m(fallback)\x1b[0m"
+            } else {
+                ""
+            };
+            Some(format!(
+                "\n\x1b[33m\u{26a0}\x1b[0m \x1b[1m{provider}\x1b[0m usage limit \x1b[2m({scope})\x1b[0m{resets}{sched}{fb}"
+            ))
+        }
+        LogEventKind::UsageLimitResumed {
+            resume_message,
+            attempt,
+            ..
+        } => Some(format!(
+            "\n\x1b[32m\u{21bb}\x1b[0m Resumed \x1b[2m(attempt {attempt})\x1b[0m: \x1b[1m{}\x1b[0m",
+            truncate(resume_message, 80)
+        )),
+        LogEventKind::UsageLimitResumeFailed { error, attempt, .. } => Some(format!(
+            "\n\x1b[31m\u{2717}\x1b[0m Resume failed \x1b[2m(attempt {attempt})\x1b[0m: {}",
+            truncate(error, 200)
         )),
     }
 }

@@ -28,6 +28,7 @@ pub mod spawn;
 pub mod status;
 pub mod subscribe;
 pub mod summary;
+pub mod usage_resume;
 pub mod wait;
 pub mod watch;
 pub mod whoami;

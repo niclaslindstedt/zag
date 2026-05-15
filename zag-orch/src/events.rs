@@ -39,6 +39,9 @@ fn event_type_name(kind: &LogEventKind) -> &'static str {
         LogEventKind::UserEvent { .. } => "user_event",
         LogEventKind::Usage { .. } => "usage",
         LogEventKind::SessionResult { .. } => "session_result",
+        LogEventKind::UsageLimitHit { .. } => "usage_limit_hit",
+        LogEventKind::UsageLimitResumed { .. } => "usage_limit_resumed",
+        LogEventKind::UsageLimitResumeFailed { .. } => "usage_limit_resume_failed",
     }
 }
 

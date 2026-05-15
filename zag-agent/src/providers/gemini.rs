@@ -218,6 +218,24 @@ impl LiveLogAdapter for GeminiLiveLogAdapter {
         if let Some(session_id) = json.get("sessionId").and_then(|value| value.as_str()) {
             writer.set_provider_session_id(Some(session_id.to_string()))?;
         }
+        // Scan the whole chat blob for a Gemini 429 / RESOURCE_EXHAUSTED
+        // envelope. The canonical signal lives on stderr, but some Gemini
+        // versions also leak it into the chat file as a system message, and
+        // user-supplied `extra_patterns` may match arbitrary content. Dedup
+        // by the matched substring so we don't re-emit on every poll cycle.
+        {
+            let cfg = crate::usage_limits::UsageLimitConfig::default();
+            if let Some(hit) = crate::providers::gemini_usage_limits::detect_text(&content, &cfg) {
+                let key = format!("usage_limit:{}", hit.raw);
+                if self.emitted_message_ids.insert(key) {
+                    writer.emit(
+                        LogSourceKind::ProviderFile,
+                        crate::usage_limits::to_log_event_hit(hit),
+                    )?;
+                }
+            }
+        }
+
         if let Some(messages) = json.get("messages").and_then(|value| value.as_array()) {
             for message in messages {
                 let message_id = message

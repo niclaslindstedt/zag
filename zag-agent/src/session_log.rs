@@ -182,6 +182,56 @@ pub enum LogEventKind {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         data: Option<Value>,
     },
+    /// Upstream usage / rate limit detected in the live event stream.
+    ///
+    /// Emitted by each provider's `usage_limits` detector. When emitted by the
+    /// active relay, a wake-up timer is armed for `scheduled_resume_at` and a
+    /// matching `UsageLimitResumed` (or `UsageLimitResumeFailed`) event will
+    /// follow when the timer fires. Detection inside historical adapters
+    /// (backfill, `zag events`) emits the hit but does not arm a timer.
+    UsageLimitHit {
+        /// `"claude"` | `"codex"` | `"copilot"` | `"gemini"`
+        provider: String,
+        /// `"session"` | `"weekly"` | `"global"` | `"daily"` | `"unknown"`
+        scope: String,
+        /// RFC3339 UTC when usage resets, if the provider gave us a parseable
+        /// value. `None` means a fallback duration was used.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reset_at: Option<String>,
+        /// RFC3339 UTC when zag intends to attempt the resume.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        scheduled_resume_at: Option<String>,
+        /// True when `reset_at` was `None` and we substituted `fallback_secs`.
+        #[serde(default)]
+        fallback_used: bool,
+        /// Stable ID joining this hit to its later `UsageLimitResumed` /
+        /// `UsageLimitResumeFailed` event.
+        incident_id: String,
+        /// Original matched substring / JSON snippet — invaluable when
+        /// patterns drift.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        raw: Option<String>,
+    },
+    /// Auto-resume successfully delivered to the session after a usage limit.
+    UsageLimitResumed {
+        incident_id: String,
+        resume_message: String,
+        /// 1 for first resume; increments only within a single relay process
+        /// (across respawns each is a fresh attempt-1).
+        #[serde(default = "default_attempt")]
+        attempt: u32,
+    },
+    /// Auto-resume could not be delivered (FIFO closed, spawn failed, etc.).
+    UsageLimitResumeFailed {
+        incident_id: String,
+        error: String,
+        #[serde(default = "default_attempt")]
+        attempt: u32,
+    },
+}
+
+fn default_attempt() -> u32 {
+    1
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -927,6 +977,27 @@ pub fn record_agent_output(writer: &SessionLogWriter, output: &AgentOutput) -> R
                             "turn_index": turn_index,
                             "usage": usage,
                         })),
+                    },
+                )?;
+            }
+            Event::UsageLimitDetected {
+                provider,
+                scope,
+                reset_at,
+                raw,
+            } => {
+                // No relay context here, so no scheduled_resume_at / incident
+                // joining; this is the wrapper-level backfill path.
+                writer.emit(
+                    LogSourceKind::Wrapper,
+                    LogEventKind::UsageLimitHit {
+                        provider: provider.clone(),
+                        scope: scope.clone(),
+                        reset_at: reset_at.clone(),
+                        scheduled_resume_at: None,
+                        fallback_used: false,
+                        incident_id: uuid::Uuid::new_v4().to_string(),
+                        raw: raw.clone(),
                     },
                 )?;
             }

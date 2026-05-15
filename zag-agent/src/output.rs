@@ -147,6 +147,24 @@ pub enum Event {
         description: String,
         granted: bool,
     },
+
+    /// An upstream usage / rate limit was detected in the provider's stream.
+    ///
+    /// Carries enough information for the relay to record a
+    /// [`crate::session_log::LogEventKind::UsageLimitHit`] event and arm a
+    /// resume timer. See [`crate::usage_limits`] for the detection contract.
+    UsageLimitDetected {
+        /// Provider that emitted the hit (`"claude"`, `"codex"`, `"copilot"`, `"gemini"`).
+        provider: String,
+        /// Scope as a string (`"session"` / `"weekly"` / `"global"` / `"daily"` / `"unknown"`).
+        scope: String,
+        /// RFC3339 UTC reset time as reported by the provider (when parseable).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reset_at: Option<String>,
+        /// The exact matched substring or JSON snippet that triggered detection.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        raw: Option<String>,
+    },
 }
 
 /// A block of content in a message.
@@ -465,6 +483,21 @@ fn event_to_log_entry(event: &Event) -> Option<LogEntry> {
             data: None,
             timestamp: None,
         }),
+
+        Event::UsageLimitDetected {
+            provider,
+            scope,
+            reset_at,
+            ..
+        } => Some(LogEntry {
+            level: LogLevel::Warn,
+            message: match reset_at {
+                Some(t) => format!("{provider} usage limit ({scope}) — resets {t}"),
+                None => format!("{provider} usage limit ({scope}) — reset time unknown"),
+            },
+            data: None,
+            timestamp: None,
+        }),
     }
 }
 
@@ -700,6 +733,21 @@ pub fn format_event_as_text(event: &Event) -> Option<String> {
                     "\x1b[33m!\x1b[0m Permission denied for tool '{tool_name}'"
                 ))
             }
+        }
+
+        Event::UsageLimitDetected {
+            provider,
+            scope,
+            reset_at,
+            ..
+        } => {
+            let suffix = reset_at
+                .as_deref()
+                .map(|t| format!(" — resets {t}"))
+                .unwrap_or_default();
+            Some(format!(
+                "\x1b[33m!\x1b[0m {provider} usage limit ({scope}){suffix}"
+            ))
         }
     }
 }

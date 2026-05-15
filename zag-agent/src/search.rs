@@ -269,6 +269,24 @@ fn extract_searchable_text(event: &AgentLogEvent) -> String {
         LogEventKind::SessionResult { result } => {
             parts.push(result.clone());
         }
+        LogEventKind::UsageLimitHit {
+            provider,
+            scope,
+            raw,
+            ..
+        } => {
+            parts.push(provider.clone());
+            parts.push(scope.clone());
+            if let Some(r) = raw {
+                parts.push(r.clone());
+            }
+        }
+        LogEventKind::UsageLimitResumed { resume_message, .. } => {
+            parts.push(resume_message.clone());
+        }
+        LogEventKind::UsageLimitResumeFailed { error, .. } => {
+            parts.push(error.clone());
+        }
     }
 
     parts.join(" ")

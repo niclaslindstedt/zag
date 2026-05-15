@@ -77,6 +77,15 @@ size_large = "35b"       # Size for the "large" alias
 [listen]
 format = "text"          # Default output format for `zag listen`: text, json, rich-text
 timestamp_format = "%H:%M:%S"  # strftime-style timestamp format
+
+[usage_limits]
+enabled = true                  # Detect upstream usage / rate / weekly limits and auto-resume
+resume_message = "Continue"     # Message injected into the session when the timer fires
+max_wait_secs = 86400           # Hard cap on a single wait (24h)
+default_fallback_secs = 3600    # Used when the provider didn't give us a reset time (1h)
+jitter_secs = 30                # Added on top of the computed reset time
+# [usage_limits.providers.<provider>] supports `enabled`, `resume_message`,
+# `fallback_secs`, and `extra_patterns` overrides. See docs/usage-limits.md.
 ```
 
 ## Valid config keys

@@ -216,6 +216,39 @@ A permission prompt event (when not using `--auto-approve`).
 }
 ```
 
+### UsageLimitHit / UsageLimitResumed / UsageLimitResumeFailed
+
+zag detects when a provider hits an upstream usage / rate / weekly limit and
+records the full lifecycle in the session log so you can see (in `zag listen`)
+exactly when the run was paused, when it resumed, and what was injected.
+Each hit is joined to its later `resumed`/`failed` event by `incident_id`.
+
+```json
+{
+  "type": "usage_limit_hit",
+  "provider": "claude",
+  "scope": "weekly",
+  "reset_at": "2026-05-20T14:32:00Z",
+  "scheduled_resume_at": "2026-05-20T14:32:30Z",
+  "fallback_used": false,
+  "incident_id": "a4b2…",
+  "raw": "Claude AI weekly usage limit reached|1747754320"
+}
+```
+
+```json
+{ "type": "usage_limit_resumed", "incident_id": "a4b2…",
+  "resume_message": "Continue", "attempt": 1 }
+```
+
+```json
+{ "type": "usage_limit_resume_failed", "incident_id": "a4b2…",
+  "error": "No FIFO for session …", "attempt": 1 }
+```
+
+See `docs/usage-limits.md` for the full feature reference (detection
+patterns, configuration, per-provider behaviour, manual repro).
+
 ## Usage statistics
 
 The `usage` field tracks token consumption:
