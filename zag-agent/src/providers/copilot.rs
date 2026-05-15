@@ -126,6 +126,31 @@ impl Copilot {
         self.common.make_command("copilot", agent_args)
     }
 
+    /// Build args for `--resume <session_id> -p <prompt>` headless invocation.
+    ///
+    /// Mirrors `build_run_args(false, Some(prompt))` plus `--resume <id>`.
+    /// Used by [`Agent::run_resume_with_prompt`] for auto-resume after a
+    /// detected usage limit.
+    fn build_resume_args(&self, session_id: &str, prompt: &str) -> Vec<String> {
+        let mut args = vec!["--resume".to_string(), session_id.to_string()];
+        args.push("--allow-all".to_string());
+
+        if !self.common.model.is_empty() {
+            args.extend(["--model".to_string(), self.common.model.clone()]);
+        }
+
+        for dir in &self.common.add_dirs {
+            args.extend(["--add-dir".to_string(), dir.clone()]);
+        }
+
+        if let Some(turns) = self.common.max_turns {
+            args.extend(["--max-turns".to_string(), turns.to_string()]);
+        }
+
+        args.extend(["-p".to_string(), prompt.to_string()]);
+        args
+    }
+
     async fn execute(
         &self,
         interactive: bool,
@@ -744,6 +769,30 @@ impl Agent for Copilot {
             self.common.on_spawn_hook.as_ref(),
         )
         .await
+    }
+
+    async fn run_resume_with_prompt(
+        &self,
+        session_id: &str,
+        prompt: &str,
+    ) -> Result<Option<AgentOutput>> {
+        log::debug!("Copilot resume with prompt: session={session_id}, prompt={prompt}");
+
+        if self.common.output_format.is_some() {
+            anyhow::bail!(
+                "Copilot does not support the --output flag. Remove the flag and try again."
+            );
+        }
+
+        if !self.common.system_prompt.is_empty() {
+            self.write_instructions_file().await?;
+        }
+
+        let args = self.build_resume_args(session_id, prompt);
+        let mut cmd = self.make_command(args);
+        self.common
+            .run_non_interactive_simple(&mut cmd, "Copilot")
+            .await
     }
 
     async fn cleanup(&self) -> Result<()> {
