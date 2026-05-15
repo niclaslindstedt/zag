@@ -286,7 +286,7 @@ Use `zag exec -o <format>` to control the output format:
 With `-o stream-json`, events are emitted as newline-delimited JSON:
 
 ```bash
-zag exec -o stream-json "analyze the code" | while read -r line; do
+zag exec -o stream-json --prompt "analyze the code" | while read -r line; do
   type=$(echo "$line" | jq -r '.type')
   echo "Event: $type"
 done

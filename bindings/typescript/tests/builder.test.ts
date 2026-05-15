@@ -164,24 +164,24 @@ describe("ZagBuilder", () => {
   it("should include --resume in execResume args", () => {
     const builder = new ZagBuilder().provider("claude");
     const args = (builder as any).buildExecArgs("follow up", false);
-    const promptIdx = args.lastIndexOf("follow up");
+    const promptIdx = args.lastIndexOf("--prompt");
     args.splice(promptIdx, 0, "--resume", "sess-123");
     assert.ok(args.includes("--resume"));
     assert.ok(args.includes("sess-123"));
-    // --resume should come before the prompt
+    // --resume should come before the --prompt flag
     const resumeIdx = args.indexOf("--resume");
-    const newPromptIdx = args.lastIndexOf("follow up");
+    const newPromptIdx = args.lastIndexOf("--prompt");
     assert.ok(resumeIdx < newPromptIdx);
   });
 
   it("should include --continue in execContinue args", () => {
     const builder = new ZagBuilder().provider("claude");
     const args = (builder as any).buildExecArgs("follow up", false);
-    const promptIdx = args.lastIndexOf("follow up");
+    const promptIdx = args.lastIndexOf("--prompt");
     args.splice(promptIdx, 0, "--continue");
     assert.ok(args.includes("--continue"));
     const continueIdx = args.indexOf("--continue");
-    const newPromptIdx = args.lastIndexOf("follow up");
+    const newPromptIdx = args.lastIndexOf("--prompt");
     assert.ok(continueIdx < newPromptIdx);
   });
 });

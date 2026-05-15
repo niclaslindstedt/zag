@@ -58,6 +58,42 @@ pub fn extract_session_result(session_id: &str, root: Option<&str>) -> Option<St
     session_result
 }
 
+/// Resolve the final result text for a session that exited via `--exit`.
+///
+/// Precedence: a non-empty `SessionResult` (from `zag ps kill self
+/// <result>`) wins; otherwise fall back to the last `AssistantMessage`
+/// in the log. Returns `None` when neither is available. Use this
+/// when an `--exit` bare invocation needs a sensible default result
+/// even if the agent passed an empty string to `kill self`.
+pub fn resolve_result(session_id: &str, root: Option<&str>) -> Option<String> {
+    let log_path = listen::resolve_session_log(Some(session_id), false, false, root).ok()?;
+    let file = std::fs::File::open(&log_path).ok()?;
+    let reader = BufReader::new(file);
+    let mut session_result: Option<String> = None;
+    let mut last_assistant_msg: Option<String> = None;
+    for line in reader.lines().map_while(Result::ok) {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if let Ok(event) = serde_json::from_str::<AgentLogEvent>(trimmed) {
+            match event.kind {
+                LogEventKind::SessionResult { result } => {
+                    session_result = Some(result);
+                }
+                LogEventKind::AssistantMessage { content, .. } => {
+                    last_assistant_msg = Some(content);
+                }
+                _ => {}
+            }
+        }
+    }
+    session_result
+        .filter(|s| !s.is_empty())
+        .or(last_assistant_msg)
+        .filter(|s| !s.is_empty())
+}
+
 /// Extract the last assistant message and session status from a log file.
 fn extract_result(
     session_id: &str,

@@ -6,7 +6,12 @@ use zag_agent::json_validation;
 #[derive(Parser)]
 #[command(name = "zag")]
 #[command(version, about = "A wrapper for different AI agents")]
+#[command(disable_help_flag = true)]
 pub struct Cli {
+    /// Print help (use `-H` or `--help`; `-h` is reserved for `--headless`)
+    #[arg(short = 'H', long, global = true, action = clap::ArgAction::Help)]
+    pub help: Option<bool>,
+
     /// Enable debug logging
     #[arg(short, long, global = true)]
     pub debug: bool,
@@ -95,7 +100,7 @@ pub(crate) struct AgentArgs {
     /// without auto-approve the hidden TUI would block on permission
     /// prompts, and without `--exit` there would be no termination/result
     /// signal.
-    #[arg(long)]
+    #[arg(short = 'h', long)]
     pub(crate) headless: bool,
 }
 
@@ -142,9 +147,10 @@ pub(crate) struct SessionIsolationArgs {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Start an interactive session
+    #[command(disable_help_flag = true)]
     Run {
         /// Initial prompt for the session
-        #[arg(conflicts_with = "resume", conflicts_with = "continue_session")]
+        #[arg(long, conflicts_with = "resume", conflicts_with = "continue_session")]
         prompt: Option<String>,
 
         /// Resume a specific session
@@ -173,8 +179,10 @@ pub enum Commands {
         metadata: SessionMetadataArgs,
     },
     /// Run non-interactively (print output and exit)
+    #[command(disable_help_flag = true)]
     Exec {
         /// The prompt to send to the agent
+        #[arg(long)]
         prompt: String,
 
         /// Resume a specific session
@@ -227,6 +235,7 @@ pub enum Commands {
         metadata: SessionMetadataArgs,
     },
     /// Review code changes
+    #[command(disable_help_flag = true)]
     Review {
         /// Review staged/unstaged/untracked changes
         #[arg(long)]
@@ -251,6 +260,7 @@ pub enum Commands {
         agent: AgentArgs,
     },
     /// Generate an implementation plan
+    #[command(disable_help_flag = true)]
     Plan {
         /// What to plan (goal or task description)
         goal: String,
@@ -594,6 +604,7 @@ pub enum Commands {
         root: Option<String>,
     },
     /// Launch an agent session in the background, print session ID, and exit
+    #[command(disable_help_flag = true)]
     Spawn {
         /// The prompt to send to the agent (optional with --interactive)
         prompt: Option<String>,
@@ -658,6 +669,7 @@ pub enum Commands {
         root: Option<String>,
     },
     /// Chain results from completed sessions into a new agent session
+    #[command(disable_help_flag = true)]
     Pipe {
         /// Session IDs to pipe results from
         session_ids: Vec<String>,
@@ -1017,7 +1029,7 @@ pub enum Commands {
         command: UserCommand,
     },
     /// Internal: relay for interactive sessions (FIFO-based streaming)
-    #[command(hide = true)]
+    #[command(hide = true, disable_help_flag = true)]
     Relay {
         /// Session ID
         #[arg(long)]

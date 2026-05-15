@@ -294,7 +294,7 @@ public final class ZagBuilder {
         if _replayUserMessages { args.append("--replay-user-messages") }
         if _includePartialMessages { args.append("--include-partial-messages") }
         if let t = _timeout { args += ["--timeout", t] }
-        args.append(prompt)
+        args += ["--prompt", prompt]
         return args
     }
 
@@ -471,7 +471,7 @@ public final class ZagBuilder {
         args += ["-o", "stream-json"]
         args.append("--replay-user-messages")
         if _includePartialMessages { args.append("--include-partial-messages") }
-        args.append(prompt)
+        args += ["--prompt", prompt]
         return try ZagProcess.startStreamingProcess(bin: bin, args: args)
     }
     #endif
@@ -511,7 +511,7 @@ public final class ZagBuilder {
         case .named(let h): args += ["--exit", h]
         case nil: break
         }
-        if let p = prompt { args.append(p) }
+        if let p = prompt { args += ["--prompt", p] }
         return args
     }
 
@@ -545,7 +545,7 @@ public final class ZagBuilder {
     public func execResume(sessionId: String, prompt: String) async throws -> AgentOutput {
         try await preflight()
         var args = buildExecArgs(prompt: prompt)
-        let promptIdx = args.count - 1
+        let promptIdx = args.count - 2 // insert before "--prompt", prompt
         args.insert(contentsOf: ["--resume", sessionId], at: promptIdx)
         return try await ZagProcess.exec(bin: bin, args: args)
     }
@@ -554,7 +554,7 @@ public final class ZagBuilder {
     public func execContinue(prompt: String) async throws -> AgentOutput {
         try await preflight()
         var args = buildExecArgs(prompt: prompt)
-        let promptIdx = args.count - 1
+        let promptIdx = args.count - 2 // insert before "--prompt", prompt
         args.insert("--continue", at: promptIdx)
         return try await ZagProcess.exec(bin: bin, args: args)
     }
@@ -566,7 +566,7 @@ public final class ZagBuilder {
         let featureReqs = featureRequirements()
         let providerName = _provider
         var args = buildExecArgs(prompt: prompt, streaming: true)
-        let promptIdx = args.count - 1
+        let promptIdx = args.count - 2 // insert before "--prompt", prompt
         args.insert(contentsOf: ["--resume", sessionId], at: promptIdx)
         let capturedArgs = args
         return AsyncThrowingStream { continuation in
@@ -594,7 +594,7 @@ public final class ZagBuilder {
         let featureReqs = featureRequirements()
         let providerName = _provider
         var args = buildExecArgs(prompt: prompt, streaming: true)
-        let promptIdx = args.count - 1
+        let promptIdx = args.count - 2 // insert before "--prompt", prompt
         args.insert("--continue", at: promptIdx)
         let capturedArgs = args
         return AsyncThrowingStream { continuation in

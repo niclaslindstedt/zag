@@ -178,19 +178,20 @@ class ZagBuilderTests {
     @Test
     void resume_includedInExecArgs() {
         var args = new ZagBuilder().provider("claude").buildExecArgs("follow up", false);
-        args.add(args.size() - 1, "--resume");
-        args.add(args.size() - 1, "sess-123");
+        int idx = args.size() - 2; // insert before "--prompt", prompt
+        args.add(idx, "--resume");
+        args.add(idx + 1, "sess-123");
         assertTrue(args.contains("--resume"));
         assertTrue(args.contains("sess-123"));
-        assertTrue(args.indexOf("--resume") < args.indexOf("follow up"));
+        assertTrue(args.indexOf("--resume") < args.indexOf("--prompt"));
     }
 
     @Test
     void continue_includedInExecArgs() {
         var args = new ZagBuilder().provider("claude").buildExecArgs("follow up", false);
-        args.add(args.size() - 1, "--continue");
+        args.add(args.size() - 2, "--continue");
         assertTrue(args.contains("--continue"));
-        assertTrue(args.indexOf("--continue") < args.indexOf("follow up"));
+        assertTrue(args.indexOf("--continue") < args.indexOf("--prompt"));
     }
 }
 

@@ -75,33 +75,34 @@ You need at least one underlying agent CLI installed:
 zag run
 
 # Non-interactive — prints the response and exits
-zag exec "write a hello world program in Rust"
+zag exec --prompt "write a hello world program in Rust"
 
 # Pick a different provider
 zag -p gemini run
-zag -p codex exec "add error handling to src/main.rs"
+zag -p codex exec --prompt "add error handling to src/main.rs"
 
 # Use size aliases instead of provider-specific model names
-zag -m small exec "what does this function do?"   # fastest/cheapest
-zag -m large run                                   # most capable
+zag -m small exec --prompt "what does this function do?"   # fastest/cheapest
+zag -m large run                                            # most capable
 
 # Let an LLM pick the best provider and model for the task
-zag -p auto -m auto exec "refactor the auth module"
+zag -p auto -m auto exec --prompt "refactor the auth module"
 
 # Code review (delegates to Codex)
 zag review --uncommitted
 
 # Capture a result from a Claude interactive session without paying for `--print`
 # (the agent ends the session by calling `zag ps kill self "<result>"`)
-zag -p claude run --exit "the result of the calculation" "what is 2 + 3"
+zag -p claude run --exit "the result of the calculation" --prompt "what is 2 + 3"
 zag output <session-id>   # prints "5"
 
 # Same idea, but fully hidden — the Claude TUI is attached to a private PTY
 # so you never see it. Requires `-a` (auto-approve, so it can't block on a
 # prompt you can't see) and `--exit` (so the run has a defined termination).
-# `-e` is a short alias for `--exit`.
-zag -p claude run -ae "the result of the calculation" --headless "what is 2 + 3"
-zag output <session-id>   # prints "5"
+# `-e` is a short alias for `--exit`, `-h` is a short alias for `--headless`,
+# and `-q` makes the wrapper print only the raw result.
+zag -p claude run -aeh -q --prompt "what is 2 + 3"   # one-shot, just prints "5"
+zag -p claude run -aeh --exit "the calculation result" --prompt "what is 2 + 3"
 ```
 
 ### Claude `--print` is opt-in
@@ -133,8 +134,8 @@ The default tier order is `claude → codex → gemini → copilot → ollama`. 
 ## Commands
 
 ```
-zag run [prompt]              Interactive session (optional initial prompt)
-zag exec <prompt>             Non-interactive — print output and exit (supports --resume, --continue)
+zag run [--prompt TEXT]       Interactive session (optional initial prompt)
+zag exec --prompt TEXT        Non-interactive — print output and exit (supports --resume, --continue)
 zag review                    Code review (--uncommitted, --base, --commit)
 zag plan <goal>               Generate an implementation plan (writes to file or stdout)
 zag config [key] [value]      View or set configuration
@@ -184,8 +185,10 @@ zag man [command]             Built-in manual pages
 | `--system-prompt <text>` | `-s` | Appended to the agent's system prompt |
 | `--root <path>` | `-r` | Root directory for the agent |
 | `--auto-approve` | `-a` | Skip permission prompts |
-| `--exit [<hint>]` | `-e` | `run` only — capture the final result via `zag ps kill self <result>` (see [docs/exit-mode.md](docs/exit-mode.md)) |
-| `--headless` | | `run` only — hide the provider's TUI by attaching it to a private PTY. Requires `-a` and `--exit`. |
+| `--prompt <text>` | | Initial/exec prompt (replaces the old positional argument; required for `exec`, optional for `run`) |
+| `--exit [<hint>]` | `-e` | `run` only — capture the final result via `zag ps kill self <result>` (see [docs/exit-mode.md](docs/exit-mode.md)). With no `<hint>`, the result falls back to the last assistant message. |
+| `--headless` | `-h` | `run` only — hide the provider's TUI by attaching it to a private PTY. Requires `-a` and `--exit`. With `-q` the wrapper prints only the raw result. |
+| `--help` | `-H` | Print help. `-h` is reserved for `--headless`. |
 | `--add-dir <path>` | | Additional directories to include (repeatable) |
 | `--file <path>` | | Attach a file to the prompt (repeatable) |
 | `--env <KEY=VALUE>` | | Environment variable for the agent subprocess (repeatable) |
@@ -215,16 +218,16 @@ Every interactive session gets a session ID. You can name and tag sessions for d
 
 ```bash
 # Create sessions with metadata for discovery
-zag exec --name "backend-agent" --tag backend "implement API"
+zag exec --name "backend-agent" --tag backend --prompt "implement API"
 zag run --name "frontend-agent" --tag frontend --description "CSS work"
 
 # Resume a specific session (interactive or non-interactive)
 zag run --resume <session-id>
-zag exec --resume <session-id> "add tests for the new handler"
+zag exec --resume <session-id> --prompt "add tests for the new handler"
 
 # Resume the most recent session
 zag run --continue
-zag exec --continue "keep going"
+zag exec --continue --prompt "keep going"
 
 # List and filter sessions
 zag session list
@@ -267,10 +270,10 @@ zag wait --tag batch --timeout 10m
 zag collect --tag batch --json > results.json
 
 # Feed a session's result into a new agent
-zag exec --context $sid1 "summarize the analysis and suggest fixes"
+zag exec --context $sid1 --prompt "summarize the analysis and suggest fixes"
 
 # Propagate agent failure as a non-zero exit code
-zag exec --exit-on-failure "fix the bug" || echo "Agent reported failure"
+zag exec --exit-on-failure --prompt "fix the bug" || echo "Agent reported failure"
 
 # Export session env for nested invocations
 eval $(zag env --shell --session $sid1)
@@ -374,13 +377,13 @@ After interactive sessions, you're prompted to keep or remove the workspace. Exe
 
 ```bash
 # Request JSON output
-zag exec --json "list 3 programming languages"
+zag exec --json --prompt "list 3 programming languages"
 
 # Validate against a schema (inline or file path)
-zag exec --json-schema '{"type":"object","required":["languages"]}' "list 3 languages"
+zag exec --json-schema '{"type":"object","required":["languages"]}' --prompt "list 3 languages"
 
 # Stream events as NDJSON
-zag exec -o stream-json "complex task"
+zag exec -o stream-json --prompt "complex task"
 ```
 
 Claude uses its native `--json-schema` support. Other providers get JSON instructions injected into the system prompt. On validation failure, `zag` retries up to 3 times via session resume.

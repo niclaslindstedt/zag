@@ -4,26 +4,24 @@ Start an interactive agent session.
 
 ## Synopsis
 
-    zag [flags] run [prompt] [--resume <session-id> | --continue]
+    zag [flags] run [--prompt <text>] [--resume <session-id> | --continue]
 
 ## Description
 
 Starts a full interactive session with the selected agent. The agent's CLI takes over the terminal — you can type prompts, approve tool use, and have a back-and-forth conversation.
 
-If a prompt is provided, it is sent as the first message. Otherwise the agent starts with an empty conversation.
+If `--prompt` is provided, its value is sent as the first message. Otherwise the agent starts with an empty conversation.
 
-When `--json` or `--json-schema` is combined with a prompt, the session runs non-interactively instead (equivalent to `exec`) to capture and validate the output.
+When `--json` or `--json-schema` is combined with `--prompt`, the session runs non-interactively instead (equivalent to `exec`) to capture and validate the output.
 
 Use `--resume <session-id>` to resume a specific session or `--continue` to resume the latest tracked session. The wrapper accepts either its own printed session ID or a native provider session ID.
-
-## Arguments
-
-    prompt    Optional initial prompt for the session
 
 ## Flags
 
 All global flags apply (see `zag man zag`).
 
+    --prompt <text>          Initial prompt for the session (replaces the old positional argument).
+                             Required as a flag so `--exit "hint"` and the prompt cannot collide.
     --resume <session-id>    Resume a specific interactive session
     --continue               Resume the latest tracked interactive session
     --session <UUID>         Use a specific session ID (cannot combine with --resume/--continue)
@@ -36,8 +34,11 @@ All global flags apply (see `zag man zag`).
     --env <KEY=VALUE>        Environment variable for the agent subprocess (repeatable)
     --file <PATH>            Attach a file to the prompt (repeatable)
     --mcp-config <CONFIG>    MCP server config: JSON string or path to a JSON file (Claude only)
-    -e, --exit [<hint>]      Capture the final result via `zag ps kill self <result>` (see Exit mode below)
-    --headless               Hide the provider's TUI by attaching it to a private PTY (requires `-a` and `--exit`)
+    -e, --exit [<hint>]      Capture the final result via `zag ps kill self <result>` (see Exit mode below).
+                             With no `<hint>`, the result falls back to the last assistant message in the log.
+    -h, --headless           Hide the provider's TUI by attaching it to a private PTY (requires `-a` and `--exit`).
+                             With `-q`, the wrapper prints only the raw result on stdout.
+    -H, --help               Print help. `-h` is reserved for `--headless`.
 
 ## Exit mode
 
@@ -55,9 +56,13 @@ See [docs/exit-mode.md](../../docs/exit-mode.md) for the full reference, includi
 
 Example: run Claude interactively to compute a result without using `--print`.
 
-    zag -p claude run --exit "the sum" "what is 2+3"
+    zag -p claude run --exit "the sum" --prompt "what is 2+3"
     # ...agent thinks, then runs: zag ps kill self "5"
     zag output <session-id>    # prints "5"
+
+When `--exit` is given without a `<hint>`, the agent may simply produce its
+final answer as its last assistant message and call `zag ps kill self` with no
+argument — the wrapper falls back to that last message as the result.
 
 ## Headless mode
 
@@ -70,8 +75,12 @@ Example: run Claude interactively to compute a result without using `--print`.
 
 Example: a fully hidden Claude run that prints only the result.
 
-    zag -p claude run -ae "the sum" --headless "what is 2+3"
+    zag -p claude run -ae "the sum" -h --prompt "what is 2+3"
     zag output <session-id>    # prints "5"
+
+    # One-shot: pipe-friendly single line on stdout
+    zag -p claude run -aeh -q --prompt "what is 2+3"
+    # prints just "5"
 
 ## Behavior
 
@@ -96,7 +105,7 @@ After an interactive sandbox session, you are prompted whether to keep or remove
 
     zag run                                 Start with default provider (Claude)
     zag -p gemini run                       Interactive Gemini session
-    zag run "refactor the auth module"      Start with an initial prompt
+    zag run --prompt "refactor the auth module"     Start with an initial prompt
     zag -w my-feature run                   Run in a named worktree
     zag --sandbox run                       Run in a Docker sandbox
     zag --sandbox my-sandbox run            Named sandbox session

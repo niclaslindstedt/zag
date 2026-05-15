@@ -4,7 +4,7 @@ Run an agent non-interactively.
 
 ## Synopsis
 
-    zag [flags] exec [options] <prompt>
+    zag [flags] exec [options] --prompt <text>
 
 ## Description
 
@@ -16,12 +16,11 @@ By default, exec mode suppresses wrapper UI (spinners, status messages, icons) s
 
 The `--exit` flag is **not valid** with `exec` — `exec` already produces structured output natively. Use `run --exit` instead.
 
-## Arguments
-
-    prompt    The prompt to send to the agent (required)
-
 ## Flags
 
+    --prompt <text>               The prompt to send to the agent (required, replaces the
+                                  old positional argument so `--resume "id"`-style flags
+                                  and the prompt cannot collide).
     --resume <SESSION_ID>         Resume a specific session with a follow-up prompt
     --continue                    Resume the most recent tracked session
     -o, --output <FORMAT>         Output format (see Output Formats below)
@@ -115,31 +114,31 @@ In exec mode, the sandbox is kept after execution (no cleanup prompt). Resume wi
 
 ## Examples
 
-    zag exec "say hello"                              Simple prompt
-    zag exec "list files" -o json                     Full session as JSON
-    zag exec --json "list 3 colors"                   Raw JSON response
-    zag exec --json-schema schema.json "get users"    Validated against schema
-    zag exec -o stream-json "complex task"            Real-time NDJSON events
-    zag exec -o text "simple question"                Raw text, no parsing
-    zag -q exec "write tests" | less                  Pipe clean output
-    zag -v exec "analyze code"                        Verbose with icons
-    zag --sandbox exec "write tests"                  Run in Docker sandbox
-    zag --session $(uuidgen) exec "say hello"          Pre-set session ID
-    zag exec --name backend --tag api "implement API"  Named and tagged session
-    zag exec --timeout 5m "complex task"               Kill agent after 5 minutes
-    zag -p ollama exec "explain this code"            Ollama non-interactive
-    zag -p ollama --size 35b exec "complex task"      Ollama with large size
-    zag exec --resume <session-id> "follow up"        Resume session with prompt
-    zag exec --continue "what about tests?"           Resume latest session
+    zag exec --prompt "say hello"                              Simple prompt
+    zag exec --prompt "list files" -o json                     Full session as JSON
+    zag exec --json --prompt "list 3 colors"                   Raw JSON response
+    zag exec --json-schema schema.json --prompt "get users"    Validated against schema
+    zag exec -o stream-json --prompt "complex task"            Real-time NDJSON events
+    zag exec -o text --prompt "simple question"                Raw text, no parsing
+    zag -q exec --prompt "write tests" | less                  Pipe clean output
+    zag -v exec --prompt "analyze code"                        Verbose with icons
+    zag --sandbox exec --prompt "write tests"                  Run in Docker sandbox
+    zag --session $(uuidgen) exec --prompt "say hello"          Pre-set session ID
+    zag exec --name backend --tag api --prompt "implement API"  Named and tagged session
+    zag exec --timeout 5m --prompt "complex task"               Kill agent after 5 minutes
+    zag -p ollama exec --prompt "explain this code"            Ollama non-interactive
+    zag -p ollama --size 35b exec --prompt "complex task"      Ollama with large size
+    zag exec --resume <session-id> --prompt "follow up"        Resume session with prompt
+    zag exec --continue --prompt "what about tests?"           Resume latest session
 
-    echo '{"data":"input"}' | zag exec -i stream-json "process"     Structured input
+    echo '{"data":"input"}' | zag exec -i stream-json --prompt "process"     Structured input
 
     # Streaming input with replay (see user messages in output)
     echo '{"type":"user_message","content":"hello"}' | \
-      zag exec -i stream-json --replay-user-messages -o stream-json "chat"
+      zag exec -i stream-json --replay-user-messages -o stream-json --prompt "chat"
 
     # Include partial message chunks for fine-grained streaming
-    zag exec -i stream-json --include-partial-messages -o stream-json "task"
+    zag exec -i stream-json --include-partial-messages -o stream-json --prompt "task"
 
 ## See Also
 

@@ -198,18 +198,18 @@ class TestZagBuilder:
 
     def test_resume_in_exec_args(self) -> None:
         args = ZagBuilder().provider("claude")._exec_args("follow up")
-        idx = len(args) - 1
+        idx = len(args) - 2  # insert before "--prompt", "follow up"
         args[idx:idx] = ["--resume", "sess-123"]
         assert "--resume" in args
         assert "sess-123" in args
-        assert args.index("--resume") < args.index("follow up")
+        assert args.index("--resume") < args.index("--prompt")
 
     def test_continue_in_exec_args(self) -> None:
         args = ZagBuilder().provider("claude")._exec_args("follow up")
-        idx = len(args) - 1
+        idx = len(args) - 2
         args[idx:idx] = ["--continue"]
         assert "--continue" in args
-        assert args.index("--continue") < args.index("follow up")
+        assert args.index("--continue") < args.index("--prompt")
 
 
 class TestVersionChecking:
