@@ -242,6 +242,7 @@ public class ZagBuilder
         if (_replayUserMessages) args.Add("--replay-user-messages");
         if (_includePartialMessages) args.Add("--include-partial-messages");
         if (_timeout != null) { args.Add("--timeout"); args.Add(_timeout); }
+        args.Add("--prompt");
         args.Add(prompt);
         return args;
     }
@@ -300,6 +301,7 @@ public class ZagBuilder
         args.Add("-o"); args.Add("stream-json");
         args.Add("--replay-user-messages");
         if (_includePartialMessages) args.Add("--include-partial-messages");
+        args.Add("--prompt");
         args.Add(prompt);
         return ZagProcess.StartStreamingProcess(_bin, [.. args]);
     }
@@ -317,7 +319,7 @@ public class ZagBuilder
         }
         if (_exit is true) args.Add("--exit");
         else if (_exit is string exitHint) { args.Add("--exit"); args.Add(exitHint); }
-        if (prompt != null) args.Add(prompt);
+        if (prompt != null) { args.Add("--prompt"); args.Add(prompt); }
         return args;
     }
 
@@ -355,8 +357,9 @@ public class ZagBuilder
     {
         await PreflightAsync(ct: ct);
         var args = BuildExecArgs(prompt);
-        args.Insert(args.Count - 1, "--resume");
-        args.Insert(args.Count - 1, sessionId);
+        int idx = args.Count - 2; // insert before "--prompt", prompt
+        args.Insert(idx, "--resume");
+        args.Insert(idx + 1, sessionId);
         return await ZagProcess.ExecAsync(_bin, [.. args], ct);
     }
 
@@ -365,7 +368,7 @@ public class ZagBuilder
     {
         await PreflightAsync(ct: ct);
         var args = BuildExecArgs(prompt);
-        args.Insert(args.Count - 1, "--continue");
+        args.Insert(args.Count - 2, "--continue");
         return await ZagProcess.ExecAsync(_bin, [.. args], ct);
     }
 
@@ -374,8 +377,9 @@ public class ZagBuilder
     {
         await PreflightAsync(ct: ct);
         var args = BuildExecArgs(prompt, streaming: true);
-        args.Insert(args.Count - 1, "--resume");
-        args.Insert(args.Count - 1, sessionId);
+        int idx = args.Count - 2; // insert before "--prompt", prompt
+        args.Insert(idx, "--resume");
+        args.Insert(idx + 1, sessionId);
         await foreach (var evt in ZagProcess.StreamAsync(_bin, [.. args], ct).WithCancellation(ct))
         {
             yield return evt;
@@ -387,7 +391,7 @@ public class ZagBuilder
     {
         await PreflightAsync(ct: ct);
         var args = BuildExecArgs(prompt, streaming: true);
-        args.Insert(args.Count - 1, "--continue");
+        args.Insert(args.Count - 2, "--continue");
         await foreach (var evt in ZagProcess.StreamAsync(_bin, [.. args], ct).WithCancellation(ct))
         {
             yield return evt;

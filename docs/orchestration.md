@@ -51,7 +51,7 @@ Set a per-agent timeout to automatically kill agents that run too long:
 
 ```bash
 zag spawn --timeout 5m -p claude "quick review"
-zag exec --timeout 30s "simple question"
+zag exec --timeout 30s --prompt "simple question"
 ```
 
 ### Tags and naming

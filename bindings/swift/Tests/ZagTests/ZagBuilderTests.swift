@@ -178,23 +178,23 @@ struct ZagBuilderTests {
     @Test("resume included in exec args")
     func resumeInExecArgs() {
         var args = ZagBuilder().provider("claude").buildExecArgs(prompt: "follow up")
-        let promptIdx = args.count - 1
+        let promptIdx = args.count - 2 // insert before "--prompt", prompt
         args.insert(contentsOf: ["--resume", "sess-123"], at: promptIdx)
         #expect(args.contains("--resume"))
         #expect(args.contains("sess-123"))
         let resumeIdx = args.firstIndex(of: "--resume")!
-        let newPromptIdx = args.lastIndex(of: "follow up")!
+        let newPromptIdx = args.lastIndex(of: "--prompt")!
         #expect(resumeIdx < newPromptIdx)
     }
 
     @Test("continue included in exec args")
     func continueInExecArgs() {
         var args = ZagBuilder().provider("claude").buildExecArgs(prompt: "follow up")
-        let promptIdx = args.count - 1
+        let promptIdx = args.count - 2 // insert before "--prompt", prompt
         args.insert("--continue", at: promptIdx)
         #expect(args.contains("--continue"))
         let continueIdx = args.firstIndex(of: "--continue")!
-        let newPromptIdx = args.lastIndex(of: "follow up")!
+        let newPromptIdx = args.lastIndex(of: "--prompt")!
         #expect(continueIdx < newPromptIdx)
     }
 

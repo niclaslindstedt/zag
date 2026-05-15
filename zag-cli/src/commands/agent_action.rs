@@ -1209,13 +1209,27 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
     // making the provider exit with 143. That's not a crash, so look for
     // a `SessionResult` event in the log: if one is present, the kill was
     // the agent's own clean exit and we should treat it as success.
+    //
+    // For `--exit` with no hint (`ExitHint::Bare`), fall back to the
+    // last assistant message when the kill-self argument is empty or
+    // missing — agents commonly say "done" and then call
+    // `zag ps kill self`, expecting the message itself to be the result.
+    // For `--exit <hint>` (`Provided`), keep the strict behaviour so
+    // the hint-validation contract isn't silently bypassed.
     let exit_mode_result: Option<String> = if action_result.is_err() && exit_hint.is_some() {
         let sid = wt
             .session_id
             .as_deref()
             .or(sb.session_id.as_deref())
             .or(plain.session_id.as_deref());
-        sid.and_then(|id| zag_orch::collect::extract_session_result(id, root.as_deref()))
+        let use_fallback = matches!(exit_hint, Some(zag_agent::exit_mode::ExitHint::Bare));
+        sid.and_then(|id| {
+            if use_fallback {
+                zag_orch::collect::resolve_result(id, root.as_deref())
+            } else {
+                zag_orch::collect::extract_session_result(id, root.as_deref())
+            }
+        })
     } else {
         None
     };

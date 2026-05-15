@@ -397,7 +397,7 @@ export class ZagBuilder {
     if (this._replayUserMessages) args.push("--replay-user-messages");
     if (this._includePartialMessages) args.push("--include-partial-messages");
     if (this._timeout) args.push("--timeout", this._timeout);
-    args.push(prompt);
+    args.push("--prompt", prompt);
     return args;
   }
 
@@ -485,7 +485,7 @@ export class ZagBuilder {
     args.push("--replay-user-messages");
     if (this._includePartialMessages) args.push("--include-partial-messages");
     if (this._outputFormat) args.push("-o", this._outputFormat);
-    args.push(prompt);
+    args.push("--prompt", prompt);
     return streamWithInput(this._bin, args, {
       autoCleanup: this._autoCleanup,
     });
@@ -507,7 +507,7 @@ export class ZagBuilder {
     } else if (typeof this._exit === "string") {
       args.push("--exit", this._exit);
     }
-    if (prompt) args.push(prompt);
+    if (prompt) args.push("--prompt", prompt);
     return args;
   }
 
@@ -544,8 +544,8 @@ export class ZagBuilder {
   async execResume(sessionId: string, prompt: string): Promise<AgentOutput> {
     await this.preflight();
     const args = this.buildExecArgs(prompt, false);
-    // Insert --resume before the prompt positional arg
-    const promptIdx = args.lastIndexOf(prompt);
+    // Insert --resume before the --prompt flag (so resume options are ordered before the prompt)
+    const promptIdx = args.lastIndexOf("--prompt");
     args.splice(promptIdx, 0, "--resume", sessionId);
     return execZag(this._bin, args);
   }
@@ -564,7 +564,7 @@ export class ZagBuilder {
   async execContinue(prompt: string): Promise<AgentOutput> {
     await this.preflight();
     const args = this.buildExecArgs(prompt, false);
-    const promptIdx = args.lastIndexOf(prompt);
+    const promptIdx = args.lastIndexOf("--prompt");
     args.splice(promptIdx, 0, "--continue");
     return execZag(this._bin, args);
   }
@@ -576,7 +576,7 @@ export class ZagBuilder {
   ): AsyncGenerator<Event> {
     await this.preflight();
     const args = this.buildExecArgs(prompt, true);
-    const promptIdx = args.lastIndexOf(prompt);
+    const promptIdx = args.lastIndexOf("--prompt");
     args.splice(promptIdx, 0, "--resume", sessionId);
     yield* streamZag(this._bin, args);
   }
@@ -585,7 +585,7 @@ export class ZagBuilder {
   async *streamContinue(prompt: string): AsyncGenerator<Event> {
     await this.preflight();
     const args = this.buildExecArgs(prompt, true);
-    const promptIdx = args.lastIndexOf(prompt);
+    const promptIdx = args.lastIndexOf("--prompt");
     args.splice(promptIdx, 0, "--continue");
     yield* streamZag(this._bin, args);
   }

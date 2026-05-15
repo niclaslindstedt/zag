@@ -151,17 +151,17 @@ Settings priority: CLI flags > config file > agent defaults.
 ## Examples
 
     zag run                                  Interactive session with default provider
-    zag -p codex exec "write tests"          Non-interactive with Codex
+    zag -p codex exec --prompt "write tests" Non-interactive with Codex
     zag --model large run                    Use the largest model
-    zag -p auto -m auto exec "refactor"      Auto-select provider and model
+    zag -p auto -m auto exec --prompt "refactor"   Auto-select provider and model
     zag -w run                               Run in isolated worktree
     zag --sandbox run                        Run in Docker sandbox
     zag run --continue                       Resume latest tracked interactive session
     zag run --resume abc-123                 Resume a specific session
-    zag -p ollama --size 35b exec "hello"    Ollama with large model size
-    zag exec --json "list 3 colors"          Get structured JSON output
+    zag -p ollama --size 35b exec --prompt "hello"  Ollama with large model size
+    zag exec --json --prompt "list 3 colors" Get structured JSON output
     zag plan "Add auth" -o auth-plan.md      Generate an implementation plan
-    zag exec --plan auth-plan.md "Implement" Execute the plan
+    zag exec --plan auth-plan.md --prompt "Implement"   Execute the plan
     zag listen --latest                      Tail the latest session's logs
     zag session list                         List all tracked sessions
     zag skills list                          List available skills

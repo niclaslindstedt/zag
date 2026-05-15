@@ -18,13 +18,13 @@ Give sessions human-readable names and tags for easy discovery:
 
 ```bash
 # Name a session
-zag exec --name auth-review "review the auth module"
+zag exec --name auth-review --prompt "review the auth module"
 
 # Add tags (repeatable)
-zag exec --tag backend --tag review "review the API"
+zag exec --tag backend --tag review --prompt "review the API"
 
 # Add a description
-zag exec --name deploy --description "pre-release deployment check" "verify all tests pass"
+zag exec --name deploy --description "pre-release deployment check" --prompt "verify all tests pass"
 ```
 
 Names, tags, and descriptions are stored in the session record and can be used for filtering.
@@ -82,8 +82,8 @@ zag run --resume <session-id>
 zag run --continue
 
 # One-shot resume: pick up an existing session, send one more prompt, and exit
-zag exec --resume <session-id> "also add tests"
-zag exec --continue "summarize what we just did"
+zag exec --resume <session-id> --prompt "also add tests"
+zag exec --continue --prompt "summarize what we just did"
 ```
 
 Both `run` and `exec` accept `--resume <SESSION_ID>` and `--continue`. For

@@ -166,7 +166,7 @@ Use these shell commands to delegate:
   zag wait --tag job
   zag collect --tag job --json
 Return the collected results.
-' "Refactor the auth system: update the API, fix the tests, and update the docs"
+' --prompt "Refactor the auth system: update the API, fix the tests, and update the docs"
 ```
 
 ### Script-based dispatcher
@@ -175,12 +175,12 @@ Return the collected results.
 #!/bin/bash
 # Dispatcher: classify the task, then route to the right provider/model
 classification=$(zag -q exec -p claude -m small --json \
-  "Classify this task as 'simple', 'complex', or 'creative': $1")
+  --prompt "Classify this task as 'simple', 'complex', or 'creative': $1")
 
 case $(echo "$classification" | jq -r '.category') in
-  simple)   zag exec -p claude -m small "$1" ;;
-  complex)  zag exec -p claude -m large "$1" ;;
-  creative) zag exec -p gemini -m large "$1" ;;
+  simple)   zag exec -p claude -m small --prompt "$1" ;;
+  complex)  zag exec -p claude -m large --prompt "$1" ;;
+  creative) zag exec -p gemini -m large --prompt "$1" ;;
 esac
 ```
 
@@ -227,7 +227,7 @@ You are a lead engineer. Break the task into sub-tasks and delegate:
 Wait for all: zag wait --tag subtask --timeout 10m
 Collect results: zag collect --tag subtask --json
 Then synthesize a final answer.
-' "Implement a complete user authentication system with OAuth, JWT, and MFA"
+' --prompt "Implement a complete user authentication system with OAuth, JWT, and MFA"
 ```
 
 ## Pattern 5: Generator & Critic
@@ -363,7 +363,7 @@ while true; do
       zag output $sid
       read -p "Approve deployment? [y/n] " answer
       if [ "$answer" = "y" ]; then
-        zag exec --context $sid "execute the deployment plan"
+        zag exec --context $sid --prompt "execute the deployment plan"
       fi
       break
       ;;
@@ -396,7 +396,7 @@ zag wait $sid
 zag output $sid
 read -p "Proceed with fixes? [y/n] " answer
 if [ "$answer" = "y" ]; then
-  zag exec --context $sid "implement the security fixes you identified"
+  zag exec --context $sid --prompt "implement the security fixes you identified"
 fi
 ```
 
@@ -626,7 +626,7 @@ Based on Google Research's scaling principles, choose the right topology:
 
 | Topology | When to use | zag implementation |
 |----------|------------|-------------------|
-| **Single agent** | Simple tasks, small context | `zag exec "..."` |
+| **Single agent** | Simple tasks, small context | `zag exec --prompt "..."` |
 | **Independent** | Embarrassingly parallel sub-tasks | `spawn` (no deps) + `wait` + `collect` |
 | **Centralized** | Tasks needing coordination, error-sensitive | Orchestrator `exec` that `spawn`s workers |
 | **Decentralized** | Peer-to-peer collaboration, exploration | Named agents with `input`/`broadcast` |

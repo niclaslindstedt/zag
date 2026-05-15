@@ -222,7 +222,7 @@ class ZagBuilder {
         if (_replayUserMessages) args.add("--replay-user-messages")
         if (_includePartialMessages) args.add("--include-partial-messages")
         _timeout?.let { args.addAll(listOf("--timeout", it)) }
-        args.add(prompt)
+        args.addAll(listOf("--prompt", prompt))
         return args
     }
 
@@ -298,7 +298,7 @@ class ZagBuilder {
         args.addAll(listOf("-o", "stream-json"))
         args.add("--replay-user-messages")
         if (_includePartialMessages) args.add("--include-partial-messages")
-        args.add(prompt)
+        args.addAll(listOf("--prompt", prompt))
         return ZagProcess.startStreamingProcess(_bin, args)
     }
 
@@ -315,7 +315,7 @@ class ZagBuilder {
             true -> args.add("--exit")
             is String -> args.addAll(listOf("--exit", e))
         }
-        prompt?.let { args.add(it) }
+        prompt?.let { args.addAll(listOf("--prompt", it)) }
         return args
     }
 
@@ -348,7 +348,7 @@ class ZagBuilder {
     suspend fun execResume(sessionId: String, prompt: String): AgentOutput {
         preflight()
         val args = buildExecArgs(prompt).toMutableList()
-        val promptIdx = args.size - 1
+        val promptIdx = args.size - 2 // insert before "--prompt", prompt
         args.add(promptIdx, "--resume")
         args.add(promptIdx + 1, sessionId)
         return ZagProcess.exec(_bin, args)
@@ -358,7 +358,7 @@ class ZagBuilder {
     suspend fun execContinue(prompt: String): AgentOutput {
         preflight()
         val args = buildExecArgs(prompt).toMutableList()
-        val promptIdx = args.size - 1
+        val promptIdx = args.size - 2 // insert before "--prompt", prompt
         args.add(promptIdx, "--continue")
         return ZagProcess.exec(_bin, args)
     }
@@ -367,7 +367,7 @@ class ZagBuilder {
     fun streamResume(sessionId: String, prompt: String): Flow<Event> = kotlinx.coroutines.flow.flow {
         preflight()
         val args = buildExecArgs(prompt, streaming = true).toMutableList()
-        val promptIdx = args.size - 1
+        val promptIdx = args.size - 2 // insert before "--prompt", prompt
         args.add(promptIdx, "--resume")
         args.add(promptIdx + 1, sessionId)
         kotlinx.coroutines.flow.emitAll(ZagProcess.stream(_bin, args))
@@ -377,7 +377,7 @@ class ZagBuilder {
     fun streamContinue(prompt: String): Flow<Event> = kotlinx.coroutines.flow.flow {
         preflight()
         val args = buildExecArgs(prompt, streaming = true).toMutableList()
-        val promptIdx = args.size - 1
+        val promptIdx = args.size - 2 // insert before "--prompt", prompt
         args.add(promptIdx, "--continue")
         kotlinx.coroutines.flow.emitAll(ZagProcess.stream(_bin, args))
     }

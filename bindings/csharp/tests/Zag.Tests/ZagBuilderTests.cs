@@ -199,20 +199,21 @@ public class ZagBuilderTests
     public void Resume_IncludedInExecArgs()
     {
         var args = new ZagBuilder().Provider("claude").BuildExecArgs("follow up");
-        args.Insert(args.Count - 1, "--resume");
-        args.Insert(args.Count - 1, "sess-123");
+        int idx = args.Count - 2; // insert before "--prompt", prompt
+        args.Insert(idx, "--resume");
+        args.Insert(idx + 1, "sess-123");
         Assert.Contains("--resume", args);
         Assert.Contains("sess-123", args);
-        Assert.True(args.IndexOf("--resume") < args.IndexOf("follow up"));
+        Assert.True(args.IndexOf("--resume") < args.IndexOf("--prompt"));
     }
 
     [Fact]
     public void Continue_IncludedInExecArgs()
     {
         var args = new ZagBuilder().Provider("claude").BuildExecArgs("follow up");
-        args.Insert(args.Count - 1, "--continue");
+        args.Insert(args.Count - 2, "--continue");
         Assert.Contains("--continue", args);
-        Assert.True(args.IndexOf("--continue") < args.IndexOf("follow up"));
+        Assert.True(args.IndexOf("--continue") < args.IndexOf("--prompt"));
     }
 }
 

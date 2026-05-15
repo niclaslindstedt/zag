@@ -268,6 +268,7 @@ public class ZagBuilder {
         if (replayUserMessages) args.add("--replay-user-messages");
         if (includePartialMessages) args.add("--include-partial-messages");
         if (timeout != null) { args.add("--timeout"); args.add(timeout); }
+        args.add("--prompt");
         args.add(prompt);
         return args;
     }
@@ -388,6 +389,7 @@ public class ZagBuilder {
         args.add("--replay-user-messages");
         if (includePartialMessages) args.add("--include-partial-messages");
         if (outputFormat != null) { args.add("-o"); args.add(outputFormat); }
+        args.add("--prompt");
         args.add(prompt);
         return ZagProcess.startStreamingProcess(bin, args);
     }
@@ -412,7 +414,7 @@ public class ZagBuilder {
             args.add("--exit");
             args.add(hint);
         }
-        if (prompt != null) args.add(prompt);
+        if (prompt != null) { args.add("--prompt"); args.add(prompt); }
         return args;
     }
 
@@ -453,8 +455,9 @@ public class ZagBuilder {
     public AgentOutput execResume(String sessionId, String prompt) throws ZagException {
         preflight();
         List<String> args = buildExecArgs(prompt, false);
-        args.add(args.size() - 1, "--resume");
-        args.add(args.size() - 1, sessionId);
+        int idx = args.size() - 2; // insert before "--prompt", prompt
+        args.add(idx, "--resume");
+        args.add(idx + 1, sessionId);
         return ZagProcess.exec(bin, args);
     }
 
@@ -462,7 +465,7 @@ public class ZagBuilder {
     public AgentOutput execContinue(String prompt) throws ZagException {
         preflight();
         List<String> args = buildExecArgs(prompt, false);
-        args.add(args.size() - 1, "--continue");
+        args.add(args.size() - 2, "--continue");
         return ZagProcess.exec(bin, args);
     }
 
@@ -470,8 +473,9 @@ public class ZagBuilder {
     public Iterable<Event> streamResume(String sessionId, String prompt) throws ZagException {
         preflight();
         List<String> args = buildExecArgs(prompt, true);
-        args.add(args.size() - 1, "--resume");
-        args.add(args.size() - 1, sessionId);
+        int idx = args.size() - 2; // insert before "--prompt", prompt
+        args.add(idx, "--resume");
+        args.add(idx + 1, sessionId);
         return ZagProcess.stream(bin, args);
     }
 
@@ -479,7 +483,7 @@ public class ZagBuilder {
     public Iterable<Event> streamContinue(String prompt) throws ZagException {
         preflight();
         List<String> args = buildExecArgs(prompt, true);
-        args.add(args.size() - 1, "--continue");
+        args.add(args.size() - 2, "--continue");
         return ZagProcess.stream(bin, args);
     }
 }

@@ -347,7 +347,7 @@ class ZagBuilder:
             args.append("--include-partial-messages")
         if self._timeout:
             args.extend(["--timeout", self._timeout])
-        args.append(prompt)
+        args.extend(["--prompt", prompt])
         return args
 
     # -- Terminal methods ----------------------------------------------------
@@ -405,7 +405,7 @@ class ZagBuilder:
         args.append("--replay-user-messages")
         if self._include_partial_messages:
             args.append("--include-partial-messages")
-        args.append(prompt)
+        args.extend(["--prompt", prompt])
         return await _StreamingSession.create(self._bin, args)
 
     async def stream(self, prompt: str) -> AsyncGenerator[Event, None]:
@@ -433,7 +433,7 @@ class ZagBuilder:
         elif isinstance(self._exit, str):
             args.extend(["--exit", self._exit])
         if prompt:
-            args.append(prompt)
+            args.extend(["--prompt", prompt])
         return args
 
     async def run(self, prompt: str | None = None) -> None:
@@ -463,7 +463,7 @@ class ZagBuilder:
         """
         await self._preflight()
         args = self._exec_args(prompt)
-        idx = len(args) - 1  # prompt is last
+        idx = len(args) - 2  # insert before "--prompt", prompt
         args[idx:idx] = ["--resume", session_id]
         return await exec_zag(self._bin, args)
 
@@ -477,7 +477,7 @@ class ZagBuilder:
         """
         await self._preflight()
         args = self._exec_args(prompt)
-        idx = len(args) - 1  # prompt is last
+        idx = len(args) - 2  # insert before "--prompt", prompt
         args[idx:idx] = ["--continue"]
         return await exec_zag(self._bin, args)
 
@@ -487,7 +487,7 @@ class ZagBuilder:
         """Resume a previous session in streaming mode with a follow-up prompt."""
         await self._preflight()
         args = self._exec_args(prompt, streaming=True)
-        idx = len(args) - 1
+        idx = len(args) - 2
         args[idx:idx] = ["--resume", session_id]
         async for event in stream_zag(self._bin, args):
             yield event
@@ -496,7 +496,7 @@ class ZagBuilder:
         """Resume the most recent session in streaming mode with a follow-up prompt."""
         await self._preflight()
         args = self._exec_args(prompt, streaming=True)
-        idx = len(args) - 1
+        idx = len(args) - 2
         args[idx:idx] = ["--continue"]
         async for event in stream_zag(self._bin, args):
             yield event

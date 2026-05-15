@@ -183,21 +183,21 @@ class ZagBuilderTests {
     @Test
     fun `resume included in exec args`() {
         val args = ZagBuilder().provider("claude").buildExecArgs("follow up").toMutableList()
-        val promptIdx = args.size - 1
+        val promptIdx = args.size - 2 // insert before "--prompt", prompt
         args.add(promptIdx, "--resume")
         args.add(promptIdx + 1, "sess-123")
         assertTrue(args.contains("--resume"))
         assertTrue(args.contains("sess-123"))
-        assertTrue(args.indexOf("--resume") < args.indexOf("follow up"))
+        assertTrue(args.indexOf("--resume") < args.indexOf("--prompt"))
     }
 
     @Test
     fun `continue included in exec args`() {
         val args = ZagBuilder().provider("claude").buildExecArgs("follow up").toMutableList()
-        val promptIdx = args.size - 1
+        val promptIdx = args.size - 2 // insert before "--prompt", prompt
         args.add(promptIdx, "--continue")
         assertTrue(args.contains("--continue"))
-        assertTrue(args.indexOf("--continue") < args.indexOf("follow up"))
+        assertTrue(args.indexOf("--continue") < args.indexOf("--prompt"))
     }
 }
 

@@ -44,7 +44,7 @@ npm install -g @github/copilot           # Copilot
 `zag exec` runs a one-shot prompt and prints the result:
 
 ```bash
-zag exec "write a hello world program in Rust"
+zag exec --prompt "write a hello world program in Rust"
 ```
 
 This uses Claude by default. The agent runs, prints its response, and exits.
@@ -62,7 +62,7 @@ Type your prompts, and the agent responds. Press Ctrl+C to exit.
 You can also start with an initial prompt:
 
 ```bash
-zag run "help me refactor the auth module"
+zag run --prompt "help me refactor the auth module"
 ```
 
 ## Switch providers
@@ -70,10 +70,10 @@ zag run "help me refactor the auth module"
 Use `-p` to pick a different provider:
 
 ```bash
-zag -p gemini exec "explain this function"
+zag -p gemini exec --prompt "explain this function"
 zag -p codex run
-zag -p copilot exec "suggest improvements to main.rs"
-zag -p ollama exec "what does this code do?"
+zag -p copilot exec --prompt "suggest improvements to main.rs"
+zag -p ollama exec --prompt "what does this code do?"
 ```
 
 ## Use model size aliases
@@ -81,9 +81,9 @@ zag -p ollama exec "what does this code do?"
 Instead of memorizing provider-specific model names, use size aliases:
 
 ```bash
-zag -m small exec "quick question"   # fastest, cheapest
-zag -m medium exec "analyze this"    # balanced
-zag -m large run                     # most capable
+zag -m small exec --prompt "quick question"   # fastest, cheapest
+zag -m medium exec --prompt "analyze this"    # balanced
+zag -m large run                              # most capable
 ```
 
 Size aliases map to the right model for each provider automatically. See [Providers](providers.md) for the full mapping table.
@@ -96,7 +96,7 @@ prompt — useful when you want the model to ground on an existing document
 without the agent having to tool-call to read it:
 
 ```bash
-zag exec --file src/main.rs --file README.md "explain the entry point"
+zag exec --file src/main.rs --file README.md --prompt "explain the entry point"
 ```
 
 `zag input --file path/to/diff.patch "review this"` works too, so you can
@@ -131,7 +131,7 @@ gating.
 Let an LLM choose the optimal provider and model for your task:
 
 ```bash
-zag -p auto -m auto exec "refactor the auth module"
+zag -p auto -m auto exec --prompt "refactor the auth module"
 ```
 
 ## Your first orchestration
@@ -174,7 +174,7 @@ Every session gets a unique ID. You can name sessions for easy discovery:
 
 ```bash
 # Create a named session
-zag exec --name my-task --tag backend "implement the API"
+zag exec --name my-task --tag backend --prompt "implement the API"
 
 # List sessions
 zag session list
@@ -185,8 +185,8 @@ zag run --resume <session-id>
 zag run --continue  # resume the most recent
 
 # Resume a session in one-shot mode too
-zag exec --resume <session-id> "also add tests"
-zag exec --continue "summarize what we just did"
+zag exec --resume <session-id> --prompt "also add tests"
+zag exec --continue --prompt "summarize what we just did"
 ```
 
 ## JSON output
@@ -194,10 +194,10 @@ zag exec --continue "summarize what we just did"
 Request structured JSON output from any provider:
 
 ```bash
-zag exec --json "list 3 programming languages"
+zag exec --json --prompt "list 3 programming languages"
 
 # With schema validation
-zag exec --json-schema '{"type":"object","required":["languages"]}' "list 3 languages"
+zag exec --json-schema '{"type":"object","required":["languages"]}' --prompt "list 3 languages"
 ```
 
 ## Isolation modes
@@ -206,10 +206,10 @@ Run agents in isolated environments:
 
 ```bash
 # Git worktree isolation
-zag -w exec "experiment with a new approach"
+zag -w exec --prompt "experiment with a new approach"
 
 # Docker sandbox isolation
-zag --sandbox exec "run untrusted code"
+zag --sandbox exec --prompt "run untrusted code"
 ```
 
 ## Next steps

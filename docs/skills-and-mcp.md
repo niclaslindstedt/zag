@@ -175,7 +175,7 @@ zag mcp import --provider claude
 Pass MCP config directly to a session:
 
 ```bash
-zag exec --mcp-config /path/to/config.toml "use the tools to analyze the data"
+zag exec --mcp-config /path/to/config.toml --prompt "use the tools to analyze the data"
 ```
 
 Or rely on synced configs -- providers automatically pick up their native MCP configurations.

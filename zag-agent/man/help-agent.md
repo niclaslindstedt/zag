@@ -7,12 +7,12 @@ This document is designed to be read by an AI agent. Use it when you need to inv
 ## Core Commands
 
 ```
-zag exec "<prompt>"            Non-interactive: send prompt, get output, exit
-zag run ["<prompt>"]           Interactive: start a full terminal session
+zag exec --prompt "<text>"     Non-interactive: send prompt, get output, exit
+zag run [--prompt "<text>"]    Interactive: start a full terminal session
 zag run --continue             Resume the latest tracked session
 zag run --resume <id>          Resume a specific session
-zag exec --continue "..."      Resume the latest session with a new prompt
-zag exec --resume <id> "..."   Resume a specific session with a new prompt
+zag exec --continue --prompt "..."     Resume the latest session with a new prompt
+zag exec --resume <id> --prompt "..."  Resume a specific session with a new prompt
 zag review --uncommitted       Code review (uses Codex natively)
 zag plan "<goal>"              Generate a Markdown implementation plan
 zag config [key] [value]       View or set configuration
@@ -35,13 +35,13 @@ zag env [--session <id>]       Export session environment variables
 ## Provider Selection
 
 ```
-zag exec "..."                          Default provider (Claude)
-zag -p claude exec "..."                Explicit Claude
-zag -p codex exec "..."                Codex
-zag -p gemini exec "..."               Gemini
-zag -p copilot exec "..."              Copilot
-zag -p ollama exec "..."               Local Ollama model
-zag -p auto exec "..."                 Auto-select best provider
+zag exec --prompt "..."                 Default provider (Claude)
+zag -p claude exec --prompt "..."       Explicit Claude
+zag -p codex exec --prompt "..."        Codex
+zag -p gemini exec --prompt "..."       Gemini
+zag -p copilot exec --prompt "..."      Copilot
+zag -p ollama exec --prompt "..."       Local Ollama model
+zag -p auto exec --prompt "..."         Auto-select best provider
 ```
 
 ## Model Selection
@@ -49,11 +49,11 @@ zag -p auto exec "..."                 Auto-select best provider
 Use size aliases (portable across providers) or specific model names:
 
 ```
-zag --model small exec "..."           Fast/cheap: haiku / gpt-5.4-mini / gemini-3.1-flash-lite-preview
-zag --model medium exec "..."          Balanced: sonnet / gpt-5.3-codex / gemini-2.5-flash
-zag --model large exec "..."           Most capable: default / gpt-5.4 / gemini-3.1-pro-preview
-zag --model auto exec "..."            Auto-select best model for the task
-zag -p auto -m auto exec "..."         Auto-select both provider and model
+zag --model small exec --prompt "..."   Fast/cheap: haiku / gpt-5.4-mini / gemini-3.1-flash-lite-preview
+zag --model medium exec --prompt "..."  Balanced: sonnet / gpt-5.3-codex / gemini-2.5-flash
+zag --model large exec --prompt "..."   Most capable: default / gpt-5.4 / gemini-3.1-pro-preview
+zag --model auto exec --prompt "..."    Auto-select best model for the task
+zag -p auto -m auto exec --prompt "..." Auto-select both provider and model
 ```
 
 Specific model names are also accepted and passed through directly.
@@ -63,12 +63,12 @@ Specific model names are also accepted and passed through directly.
 By default, `exec` streams agent output as clean text — no spinners, no wrappers. Suitable for piping.
 
 ```
-zag exec "..."                          Default: formatted text (tool indicators, clean output)
-zag exec -o text "..."                 Raw text pass-through (unprocessed agent stdout)
-zag exec -o json "..."                 Full session as compact JSON (AgentOutput envelope)
-zag exec -o json-pretty "..."          Full session as pretty JSON
-zag exec -o stream-json "..."          Streaming NDJSON — one Event per line, real-time
-zag exec -o native-json "..."          Claude's raw JSON (Claude only)
+zag exec --prompt "..."                 Default: formatted text (tool indicators, clean output)
+zag exec -o text --prompt "..."         Raw text pass-through (unprocessed agent stdout)
+zag exec -o json --prompt "..."         Full session as compact JSON (AgentOutput envelope)
+zag exec -o json-pretty --prompt "..."  Full session as pretty JSON
+zag exec -o stream-json --prompt "..."  Streaming NDJSON — one Event per line, real-time
+zag exec -o native-json --prompt "..."  Claude's raw JSON (Claude only)
 ```
 
 The `-o json` format outputs the full `AgentOutput` envelope: session ID, events, tool calls, usage stats, and final result. Use it when you need metadata about the session.
@@ -78,16 +78,16 @@ The `-o json` format outputs the full `AgentOutput` envelope: session ID, events
 Use `--json` when you want the agent to *respond with JSON data* (not wrap the session in JSON):
 
 ```
-zag exec --json "list 3 colors"
+zag exec --json --prompt "list 3 colors"
 # Output: ["red","green","blue"]
 
-zag exec --json-schema '{"type":"array","items":{"type":"string"}}' "list 3 colors"
+zag exec --json-schema '{"type":"array","items":{"type":"string"}}' --prompt "list 3 colors"
 # Output: validated JSON; retries up to 3x if schema fails
 
-zag exec --json-schema schema.json "extract user data from the codebase"
+zag exec --json-schema schema.json --prompt "extract user data from the codebase"
 # Schema from file
 
-zag exec -o stream-json "analyze this code"
+zag exec -o stream-json --prompt "analyze this code"
 # Stream JSON events (NDJSON, one event per line)
 ```
 
@@ -102,53 +102,53 @@ Key distinction:
 ### Clean output for piping
 ```sh
 # Suppress all wrapper output — only agent text is printed
-zag -q exec "write a summary of this file" > summary.txt
+zag -q exec --prompt "write a summary of this file" > summary.txt
 
 # Pipe directly
-zag exec "list all function names in this repo" | grep "auth"
+zag exec --prompt "list all function names in this repo" | grep "auth"
 ```
 
 ### Capture structured data
 ```sh
 # Get JSON response
-result=$(zag exec --json "extract config keys from this codebase")
+result=$(zag exec --json --prompt "extract config keys from this codebase")
 echo "$result" | jq '.keys[]'
 
 # With schema validation
-data=$(zag exec --json-schema schema.json "analyze dependencies")
+data=$(zag exec --json-schema schema.json --prompt "analyze dependencies")
 ```
 
 ### Multi-step pipelines
 ```sh
 # Step 1: generate code
-zag exec "write a Go HTTP handler for /health" > handler.go
+zag exec --prompt "write a Go HTTP handler for /health" > handler.go
 
 # Step 2: review it
 zag review --uncommitted
 
 # Step 3: run tests via another agent step
-zag exec "write unit tests for handler.go"
+zag exec --prompt "write unit tests for handler.go"
 ```
 
 ### Embed agent help in your own prompt
 ```sh
 # Include this reference so the agent knows how to use the CLI
-zag exec "Help me set up a pipeline. $(zag --help-agent)"
+zag exec --prompt "Help me set up a pipeline. $(zag --help-agent)"
 ```
 
 ### Use in CI/scripts
 ```sh
 #!/bin/bash
 # Run analysis and capture JSON
-output=$(zag -q exec -o json "analyze this PR for security issues")
+output=$(zag -q exec -o json --prompt "analyze this PR for security issues")
 severity=$(echo "$output" | jq -r '.final_result')
 ```
 
 ## Auto-Approve and Permissions
 
 ```sh
-zag -a exec "..."                      Skip all permission prompts (auto-approve)
-zag --auto-approve exec "..."          Same
+zag -a exec --prompt "..."             Skip all permission prompts (auto-approve)
+zag --auto-approve exec --prompt "..." Same
 ```
 
 Use `-a` in non-interactive scripts where you can't respond to prompts. Not needed with `--sandbox` (sandbox provides isolation automatically).
@@ -157,11 +157,11 @@ Use `-a` in non-interactive scripts where you can't respond to prompts. Not need
 
 ```sh
 # Git worktree isolation (keeps changes separate from main working tree)
-zag -w exec "implement feature X"
+zag -w exec --prompt "implement feature X"
 zag -w my-feature run
 
 # Docker sandbox (stronger isolation — microVM)
-zag --sandbox exec "risky refactor"
+zag --sandbox exec --prompt "risky refactor"
 zag --sandbox my-sb run
 
 # Resume an isolated session later
@@ -173,23 +173,23 @@ zag run --resume <session-id>
 ## Ollama (Local Models)
 
 ```sh
-zag -p ollama exec "explain this function"         Default: qwen3.5:9b
-zag -p ollama --size 35b exec "complex task"       Larger size
-zag -p ollama --model llama3 run                   Different model
-zag -p ollama --model small exec "quick task"      Size alias → 2b
+zag -p ollama exec --prompt "explain this function"     Default: qwen3.5:9b
+zag -p ollama --size 35b exec --prompt "complex task"   Larger size
+zag -p ollama --model llama3 run                        Different model
+zag -p ollama --model small exec --prompt "quick task"  Size alias → 2b
 ```
 
 ## Additional Context Directories
 
 ```sh
-zag --add-dir ../other-repo exec "compare implementations"
-zag --add-dir /path/to/docs --add-dir /path/to/specs exec "analyze"
+zag --add-dir ../other-repo exec --prompt "compare implementations"
+zag --add-dir /path/to/docs --add-dir /path/to/specs exec --prompt "analyze"
 ```
 
 ## System Prompt Override
 
 ```sh
-zag --system-prompt "You are a Rust expert" exec "help with lifetimes"
+zag --system-prompt "You are a Rust expert" exec --prompt "help with lifetimes"
 ```
 
 ## Session Management
@@ -262,7 +262,7 @@ zag wait --tag batch --timeout 10m
 zag collect --tag batch --json > results.json
 
 # Feed results into next stage
-zag exec --context $sid1 "summarize the analysis and suggest fixes"
+zag exec --context $sid1 --prompt "summarize the analysis and suggest fixes"
 
 # Chain results from multiple sessions into a new agent
 zag pipe --tag batch -- "synthesize all analyses into a report"
@@ -296,7 +296,7 @@ zag session list --parent $PARENT_SESSION_ID
 zag listen $sid1 --filter session_ended --filter tool_call
 
 # Exit code propagation
-zag exec --exit-on-failure "fix the bug" || echo "Agent failed"
+zag exec --exit-on-failure --prompt "fix the bug" || echo "Agent failed"
 ```
 
 For complete orchestration pattern documentation (sequential pipelines,
