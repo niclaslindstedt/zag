@@ -32,6 +32,8 @@ use zag_agent::usage_limits::{
     self, UsageLimit, UsageLimitConfig, UsageLimitScope, compute_resume_at,
 };
 
+use crate::usage_resume_store::{self, CompleteStatus, PendingResume};
+
 /// Pluggable delivery mechanism for a scheduled resume.
 ///
 /// One implementation per provider class. The trait is async via boxed
@@ -134,58 +136,102 @@ pub fn strategy_for(
     }
 }
 
-/// Spawn a tokio task that sleeps until `when`, then invokes
-/// `strategy.resume(session_id, message)`. Emits the matching `UsageLimitResumed`
-/// or `UsageLimitResumeFailed` log event so the lifecycle is reconstructable
+/// Spawn a tokio task that sleeps until `pending.when`, then invokes
+/// `strategy.resume(...)`. Emits the matching `UsageLimitResumed` or
+/// `UsageLimitResumeFailed` log event so the lifecycle is reconstructable
 /// from the session log alone.
+///
+/// Persistence: writes a `schedule` record to
+/// `<state_dir>/scheduled_resumes.jsonl` before the timer is armed, and a
+/// matching `complete` record after the resume call returns. The record
+/// is visible via `zag usage list` while the timer is pending; cancelled
+/// via `zag usage cancel <incident_id>`. If this process dies between
+/// the schedule and complete records, `list_pending` still surfaces the
+/// stranded resume so an operator can re-arm it manually.
 ///
 /// The returned [`JoinHandle`] is owned by the caller (typically the relay)
 /// and aborted on shutdown so a half-completed wait is not orphaned.
 pub fn schedule_resume(
-    session_id: String,
-    when: DateTime<Utc>,
-    message: String,
-    incident_id: String,
-    attempt: u32,
+    pending: PendingResume,
     writer: Arc<SessionLogWriter>,
     strategy: Arc<dyn ResumeStrategy>,
 ) -> JoinHandle<()> {
+    if let Err(e) = usage_resume_store::record_pending(pending.root.as_deref(), &pending) {
+        log::warn!(
+            "usage_resume: failed to persist pending resume ({}): {e}",
+            pending.incident_id
+        );
+    }
+
     tokio::spawn(async move {
         let now = Utc::now();
-        let wait = (when - now)
+        let wait = (pending.when - now)
             .to_std()
             .unwrap_or(std::time::Duration::from_secs(0));
         log::info!(
             "usage_resume: sleeping {:?} until {} for session {} (incident {})",
             wait,
-            when.to_rfc3339(),
-            session_id,
-            incident_id
+            pending.when.to_rfc3339(),
+            pending.session_id,
+            pending.incident_id
         );
         tokio::time::sleep(wait).await;
 
-        match strategy.resume(&session_id, &message, attempt).await {
+        match strategy
+            .resume(&pending.session_id, &pending.message, pending.attempt)
+            .await
+        {
             Ok(()) => {
                 let _ = writer.emit(
                     LogSourceKind::Wrapper,
                     LogEventKind::UsageLimitResumed {
-                        incident_id: incident_id.clone(),
-                        resume_message: message.clone(),
-                        attempt,
+                        incident_id: pending.incident_id.clone(),
+                        resume_message: pending.message.clone(),
+                        attempt: pending.attempt,
                     },
                 );
-                log::info!("usage_resume: resumed session {session_id} (incident {incident_id})");
+                if let Err(e) = usage_resume_store::record_complete(
+                    pending.root.as_deref(),
+                    &pending.incident_id,
+                    CompleteStatus::Resumed,
+                    None,
+                ) {
+                    log::warn!(
+                        "usage_resume: failed to persist complete record ({}): {e}",
+                        pending.incident_id
+                    );
+                }
+                log::info!(
+                    "usage_resume: resumed session {} (incident {})",
+                    pending.session_id,
+                    pending.incident_id
+                );
             }
             Err(e) => {
+                let err_text = e.to_string();
                 let _ = writer.emit(
                     LogSourceKind::Wrapper,
                     LogEventKind::UsageLimitResumeFailed {
-                        incident_id: incident_id.clone(),
-                        error: e.to_string(),
-                        attempt,
+                        incident_id: pending.incident_id.clone(),
+                        error: err_text.clone(),
+                        attempt: pending.attempt,
                     },
                 );
-                log::warn!("usage_resume: resume failed for session {session_id}: {e}");
+                if let Err(persist_err) = usage_resume_store::record_complete(
+                    pending.root.as_deref(),
+                    &pending.incident_id,
+                    CompleteStatus::Failed,
+                    Some(&err_text),
+                ) {
+                    log::warn!(
+                        "usage_resume: failed to persist failure record ({}): {persist_err}",
+                        pending.incident_id
+                    );
+                }
+                log::warn!(
+                    "usage_resume: resume failed for session {}: {err_text}",
+                    pending.session_id
+                );
             }
         }
     })
@@ -220,6 +266,7 @@ pub async fn run_with_auto_resume(
     initial_session_id: Option<String>,
     cfg: &UsageLimitConfig,
     writer: Option<&SessionLogWriter>,
+    root: Option<&str>,
 ) -> Result<Option<AgentOutput>> {
     let mut current_session_id = initial_session_id;
     let mut current_prompt = initial_prompt;
@@ -279,6 +326,24 @@ pub async fn run_with_auto_resume(
             );
         }
 
+        // Persist the pending resume so `zag usage list` can surface it,
+        // and the next foreground attempt can recover after a crash.
+        let log_path = writer.and_then(|w| w.log_path().ok()).unwrap_or_default();
+        let pending = PendingResume {
+            incident_id: incident_id.clone(),
+            session_id: provider_session_id.clone(),
+            provider: provider.to_string(),
+            model: Some(agent.get_model().to_string()).filter(|s| !s.is_empty()),
+            root: root.map(str::to_string),
+            when: scheduled_at,
+            message: cfg.resume_message_for(provider).to_string(),
+            attempt,
+            log_path,
+        };
+        if let Err(e) = usage_resume_store::record_pending(root, &pending) {
+            log::warn!("auto_resume: failed to persist pending resume: {e}");
+        }
+
         let wait = (scheduled_at - Utc::now())
             .to_std()
             .unwrap_or(std::time::Duration::from_secs(0));
@@ -300,6 +365,11 @@ pub async fn run_with_auto_resume(
                     attempt,
                 },
             );
+        }
+        if let Err(e) =
+            usage_resume_store::record_complete(root, &incident_id, CompleteStatus::Resumed, None)
+        {
+            log::warn!("auto_resume: failed to persist complete record: {e}");
         }
 
         current_session_id = Some(provider_session_id);

@@ -14,6 +14,7 @@ mod review;
 mod serve;
 mod session;
 mod skills;
+mod usage;
 mod user;
 
 pub(crate) use agent_action::{AgentActionParams, run_agent_action};
@@ -30,4 +31,5 @@ pub(crate) use review::{ReviewParams, run_review};
 pub(crate) use serve::{ServeParams, run_serve};
 pub(crate) use session::run_session;
 pub(crate) use skills::run_skills;
+pub(crate) use usage::run_usage;
 pub(crate) use user::run_user;

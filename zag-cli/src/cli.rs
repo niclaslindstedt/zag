@@ -280,6 +280,19 @@ pub enum Commands {
         #[command(subcommand)]
         command: SessionCommand,
     },
+    /// Manage in-flight usage-limit auto-resume timers
+    Usage {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Root directory for store resolution
+        #[arg(short, long)]
+        root: Option<String>,
+
+        #[command(subcommand)]
+        command: UsageCommand,
+    },
     /// Show capability declarations for a provider
     Capability {
         /// Output format (json, yaml, toml)
@@ -1061,6 +1074,19 @@ pub(crate) enum SessionCommand {
         /// Clear all existing tags before adding new ones
         #[arg(long)]
         clear_tags: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum UsageCommand {
+    /// Show all pending auto-resume timers (scheduled but not yet
+    /// fired) with their wake-up times.
+    List,
+    /// Cancel a pending resume by incident id. Writes a tombstone so
+    /// the next rehydration pass skips it.
+    Cancel {
+        /// Incident id (from `zag usage list` or session logs).
+        incident_id: String,
     },
 }
 

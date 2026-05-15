@@ -252,6 +252,16 @@ pub(crate) async fn run_relay(params: RelayParams) -> Result<()> {
         usage_resume::strategy_for(&params.provider, params.model.clone(), params.root.clone());
     let mut resume_handles: Vec<JoinHandle<()>> = Vec::new();
     let mut resume_attempt: u32 = 0;
+    // Capture for the resume-record persistence: `params` is partially
+    // moved into AgentFactory::create below, but the resume scheduler
+    // needs root/model on every iteration of the relay loop.
+    let resume_root = params.root.clone();
+    let resume_model = params.model.clone();
+    let resume_log_path = writer
+        .log_path()
+        .unwrap_or_else(|_| std::path::PathBuf::from(""));
+    let resume_provider = params.provider.clone();
+    let resume_session = params.session.clone();
 
     // Create agent and start streaming session
     let mut agent = AgentFactory::create(
@@ -391,12 +401,19 @@ pub(crate) async fn run_relay(params: RelayParams) -> Result<()> {
                                     incident_id,
                                     fallback_used,
                                 );
-                                let handle = usage_resume::schedule_resume(
-                                    params.session.clone(),
-                                    scheduled_at,
+                                let pending = zag_orch::usage_resume_store::PendingResume {
+                                    incident_id: incident_id.clone(),
+                                    session_id: resume_session.clone(),
+                                    provider: resume_provider.clone(),
+                                    model: resume_model.clone(),
+                                    root: resume_root.clone(),
+                                    when: scheduled_at,
                                     message,
-                                    incident_id,
-                                    resume_attempt,
+                                    attempt: resume_attempt,
+                                    log_path: resume_log_path.clone(),
+                                };
+                                let handle = usage_resume::schedule_resume(
+                                    pending,
                                     Arc::clone(&writer_for_output),
                                     Arc::clone(&resume_strategy),
                                 );

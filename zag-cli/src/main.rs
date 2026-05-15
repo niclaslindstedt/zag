@@ -32,7 +32,7 @@ pub(crate) use cli::{
 };
 pub(crate) use commands::{
     AgentActionParams, run_agent_action, run_config, run_connect, run_disconnect, run_mcp,
-    run_session, run_skills, run_user,
+    run_session, run_skills, run_usage, run_user,
 };
 
 use anyhow::{Context, Result, bail};
@@ -260,6 +260,13 @@ async fn main() -> Result<()> {
                 std::mem::discriminant(&command)
             );
             run_session(command, json, root.as_deref())?;
+        }
+        Commands::Usage {
+            command,
+            json,
+            root,
+        } => {
+            run_usage(command, json, root.as_deref())?;
         }
         Commands::Skills { command, json } => {
             debug!(

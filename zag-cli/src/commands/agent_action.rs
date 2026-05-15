@@ -349,6 +349,9 @@ struct ExecutionContext<'a> {
     /// the foreground auto-resume loop in the `Exec` and `Run` (JSON)
     /// branches — see `zag_orch::usage_resume::run_with_auto_resume`.
     usage_cfg: zag_agent::usage_limits::UsageLimitConfig,
+    /// Root override (e.g. from `--root`) so the auto-resume loop can
+    /// resolve the right state dir for `zag usage list`.
+    root: Option<&'a str>,
 }
 
 /// Execute the requested action.
@@ -401,6 +404,7 @@ async fn execute_action(
                     None,
                     &usage_cfg,
                     log_writer,
+                    ctx.root,
                 )
                 .await?;
                 handle_json_output(
@@ -451,6 +455,7 @@ async fn execute_action(
                 resume.clone(),
                 &usage_cfg,
                 log_writer,
+                ctx.root,
             )
             .await?;
 
@@ -512,6 +517,7 @@ fn command_name(action: &Commands) -> &'static str {
         Commands::Review { .. } => "review",
         Commands::Config { .. } => "config",
         Commands::Session { .. } => "session",
+        Commands::Usage { .. } => "usage",
         Commands::Capability { .. } => "capability",
         Commands::Discover { .. } => "discover",
         Commands::Listen { .. } => "listen",
@@ -1134,6 +1140,7 @@ pub(crate) async fn run_agent_action(mut params: AgentActionParams) -> Result<()
         verbose,
         exit_active: exit_hint.is_some(),
         usage_cfg,
+        root: root.as_deref(),
     };
     let action_future = execute_action(
         action,

@@ -1,4 +1,5 @@
 use super::*;
+use crate::usage_resume_store::PendingResume;
 use chrono::Duration;
 use std::sync::Mutex;
 use tempfile::TempDir;
@@ -80,6 +81,30 @@ fn read_events(dir: &TempDir) -> Vec<serde_json::Value> {
         .collect()
 }
 
+fn make_pending(
+    session_id: &str,
+    when: DateTime<Utc>,
+    incident_id: &str,
+    attempt: u32,
+) -> PendingResume {
+    PendingResume {
+        incident_id: incident_id.to_string(),
+        session_id: session_id.to_string(),
+        provider: "claude".to_string(),
+        model: None,
+        // `root: None` writes the resume record to the *real* global
+        // `~/.zag/scheduled_resumes.jsonl`; tests don't assert on that
+        // file, and the foreground/relay code only logs persistence
+        // failures. Switching to a temp root would require threading
+        // a per-test base dir through Config::agent_dir, out of scope here.
+        root: None,
+        when,
+        message: "Continue".to_string(),
+        attempt,
+        log_path: std::path::PathBuf::from("/tmp/test.jsonl"),
+    }
+}
+
 #[tokio::test]
 async fn schedule_resume_fires_strategy_after_wait() {
     let dir = TempDir::new().unwrap();
@@ -92,11 +117,7 @@ async fn schedule_resume_fires_strategy_after_wait() {
 
     let when = Utc::now() + Duration::milliseconds(150);
     let handle = schedule_resume(
-        "test-session".to_string(),
-        when,
-        "Continue".to_string(),
-        "incident-1".to_string(),
-        1,
+        make_pending("test-session", when, "incident-1", 1),
         Arc::clone(&writer),
         strategy,
     );
@@ -129,11 +150,7 @@ async fn schedule_resume_emits_failed_event_on_error() {
 
     let when = Utc::now() + Duration::milliseconds(50);
     schedule_resume(
-        "test-session".to_string(),
-        when,
-        "Continue".to_string(),
-        "incident-2".to_string(),
-        3,
+        make_pending("test-session", when, "incident-2", 3),
         Arc::clone(&writer),
         strategy,
     )
