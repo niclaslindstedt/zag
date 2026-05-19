@@ -27,7 +27,7 @@ chrono = { version = "0.4", features = ["serde"] }
 rcgen = "0.13"
 rand = "0.9"
 hex = "0.4"
-bcrypt = "0.17"
+bcrypt = "0.19"
 toml = "0.8"
 futures-util = "0.3"
 
